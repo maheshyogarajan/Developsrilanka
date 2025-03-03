@@ -167,6 +167,12 @@
         
         // Load receipts
         function loadReceipts() {
+            // Check if elements exist before manipulating them
+            if (!loadingElement || !receiptsTableContainer || !noReceiptsElement) {
+                console.error('Required DOM elements are not available');
+                return;
+            }
+            
             // Show loading and hide other containers
             loadingElement.classList.remove('d-none');
             receiptsTableContainer.classList.add('d-none');
@@ -184,6 +190,12 @@
                     loadingElement.classList.add('d-none');
                     
                     if (data.receipts && data.receipts.length > 0) {
+                        // Check if receiptsList exists
+                        if (!receiptsList) {
+                            console.error('Receipts list element not found');
+                            return;
+                        }
+                        
                         // Clear previous content
                         receiptsList.innerHTML = '';
                         
@@ -246,6 +258,12 @@
         function loadReceiptDetails(receiptId) {
             // Store the current receipt ID
             currentReceiptId = receiptId;
+            
+            // Check if modal elements exist
+            if (!modalLoading || !receiptDetails) {
+                console.error('Modal DOM elements are not available');
+                return;
+            }
             
             // Show loading in the modal
             modalLoading.classList.remove('d-none');
@@ -371,7 +389,8 @@
                     console.error('Error:', error);
                     alert(`Error exporting receipt: ${error.message || 'An unexpected error occurred'}`);
                 });
-        });
+            });
+        }
         
         // Update delete button visibility
         function updateDeleteButtonVisibility() {
