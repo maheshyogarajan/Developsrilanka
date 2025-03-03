@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import logging
+import time
 from io import BytesIO
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file
@@ -9,6 +10,10 @@ import google.generativeai as genai
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
+
+# Import Celery task queue components
+from celery import Celery
+from celery.result import AsyncResult
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -50,6 +55,25 @@ try:
     genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
 except Exception as e:
     logging.error(f"Error configuring Gemini API: {str(e)}")
+    
+# Configure Celery with our application
+# If redis is not available, use SQLite as a broker
+broker_url = os.environ.get('REDIS_URL', 'sqla+sqlite:///celery.db')
+result_backend = os.environ.get('REDIS_URL', 'db+sqlite:///celery-results.db')
+
+# Create a Celery instance
+celery = Celery(
+    'develop_sri_lanka',
+    broker=broker_url,
+    backend=result_backend
+)
+
+# Import Celery tasks
+try:
+    from image_processor import process_receipt_image, save_receipt_to_database
+    logging.info("Successfully imported Celery image processing tasks")
+except ImportError as e:
+    logging.error(f"Error importing image processing tasks: {str(e)}")
 
 # Receipt data schema for extraction
 RECEIPT_FIELDS = [
@@ -245,24 +269,110 @@ def scan_receipt():
         return jsonify({'error': 'No receipt image selected'}), 400
     
     try:
+        # Start timing for performance logging
+        start_time = time.time()
+        
         # Read and process the image
         img_bytes = receipt_file.read()
         img = Image.open(BytesIO(img_bytes))
         
-        # Process with Gemini Vision API
-        extracted_data = process_receipt_with_gemini(img)
+        # Decide if we should use async processing or direct processing
+        # We'll use async processing if the ENABLE_ASYNC_PROCESSING env var is set
+        use_async = os.environ.get('ENABLE_ASYNC_PROCESSING', 'True').lower() in ('true', '1', 'yes')
         
-        if not extracted_data:
-            return jsonify({'error': 'Failed to extract data from the receipt'}), 500
-        
-        # Store the extracted data in session for potential correction
-        session['receipt_data'] = extracted_data
-        
-        return jsonify({'success': True, 'data': extracted_data})
+        if use_async:
+            # For async processing, we need to send the image as base64
+            buffered = BytesIO()
+            img.save(buffered, format="JPEG")
+            img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+            
+            # Create a task ID to store in the session
+            task_id = f"receipt_scan_{int(time.time())}"
+            
+            # Submit the task to the Celery queue
+            logging.info(f"Submitting async task with ID: {task_id}")
+            result = process_receipt_image.delay(
+                img_base64, 
+                receipt_file.filename,
+                'process_receipt_with_gemini'
+            )
+            
+            # Store task ID in session for future reference
+            session['receipt_task_id'] = result.id
+            
+            # Calculate processing time for this part
+            processing_time = time.time() - start_time
+            logging.info(f"Async task submitted in {processing_time:.2f} seconds, task ID: {result.id}")
+            
+            # Return a response indicating the task has been queued
+            return jsonify({
+                'success': True,
+                'async': True,
+                'task_id': result.id,
+                'message': 'Receipt processing started. Please wait...'
+            })
+        else:
+            # Synchronous (direct) processing for development or fallback
+            logging.info("Using synchronous receipt processing")
+            extracted_data = process_receipt_with_gemini(img)
+            
+            if not extracted_data:
+                return jsonify({'error': 'Failed to extract data from the receipt'}), 500
+            
+            # Store the extracted data in session for potential correction
+            session['receipt_data'] = extracted_data
+            
+            # Calculate processing time
+            processing_time = time.time() - start_time
+            logging.info(f"Synchronous receipt processing completed in {processing_time:.2f} seconds")
+            
+            return jsonify({'success': True, 'data': extracted_data})
     
     except Exception as e:
         logging.error(f"Error processing receipt: {str(e)}")
+        logging.error(traceback.format_exc())
         return jsonify({'error': f'Error processing receipt: {str(e)}'}), 500
+
+
+@app.route('/task_status/<task_id>', methods=['GET'])
+def task_status(task_id):
+    """Check the status of an asynchronous task and retrieve results if complete."""
+    try:
+        # Create an AsyncResult object for the task
+        task_result = AsyncResult(task_id)
+        
+        # Check the status of the task
+        if task_result.ready():
+            # Task has completed, get the result
+            if task_result.successful():
+                result = task_result.get()
+                
+                # Store the extracted data in session for potential correction
+                session['receipt_data'] = result
+                
+                return jsonify({
+                    'status': 'completed',
+                    'success': True,
+                    'data': result
+                })
+            else:
+                # Task failed
+                error = str(task_result.result)
+                logging.error(f"Task {task_id} failed: {error}")
+                return jsonify({
+                    'status': 'failed',
+                    'error': f"Receipt processing failed: {error}"
+                }), 500
+        else:
+            # Task is still pending
+            return jsonify({
+                'status': 'pending',
+                'message': 'Receipt processing in progress...'
+            })
+    
+    except Exception as e:
+        logging.error(f"Error checking task status: {str(e)}")
+        return jsonify({'error': f'Error checking task status: {str(e)}'}), 500
 
 @app.route('/update_data', methods=['POST'])
 def update_data():
