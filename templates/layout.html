@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receipt Scanner</title>
+    <title>Develop Sri Lanka - Tax Receipt Scanner</title>
     
     <!-- Bootstrap CSS basic -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
@@ -13,11 +13,17 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
 </head>
 <body>
     <div class="header">
         <div class="nav-buttons">
             <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="/scan" class="nav-link {% if request.path == '/scan' %}active{% endif %}">
                 <i class="fas fa-camera"></i>
                 <span>Scan</span>
             </a>
@@ -30,17 +36,16 @@
                 <span>Analytics</span>
             </a>
         </div>
-        <h1 class="page-title">Upload Receipt</h1>
+        <h1 class="page-title">{% block page_title %}Develop Sri Lanka{% endblock %}</h1>
     </div>
 
     <main class="container">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer is hidden via CSS -->
     <footer class="footer mt-auto py-3">
         <div class="container text-center">
-            <span class="text-secondary">Receipt Scanner</span>
+            <span class="text-secondary">© 2025 Develop Sri Lanka - Tax Receipt Scanner</span>
         </div>
     </footer>
 

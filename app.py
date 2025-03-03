@@ -69,8 +69,13 @@ RECEIPT_FIELDS = [
 
 @app.route('/')
 def index():
-    """Render the main page of the application."""
-    return render_template('index.html')
+    """Render the home page of the application."""
+    return render_template('home.html')
+    
+@app.route('/scan')
+def scan_page():
+    """Render the scan receipt page."""
+    return render_template('scan.html')
 
 @app.route('/history')
 def receipt_history():
