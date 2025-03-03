@@ -83,14 +83,38 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">Total Tax</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">Total Tax</h5>
                     <h2 class="card-text text-danger">Rs {{ "{:,.2f}".format((tax_summary.vat_tax or 0) + (tax_summary.sscl_tax or 0)) }}</h2>
-                    <div class="small text-muted">
-                        VAT: Rs {{ "{:,.2f}".format(tax_summary.vat_tax or 0) }} | 
-                        SSCL: Rs {{ "{:,.2f}".format(tax_summary.sscl_tax or 0) }}
-                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tax Breakdown Cards -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">VAT Tax</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="card-text text-info">Rs {{ "{:,.2f}".format(tax_summary.vat_tax or 0) }}</h3>
+                    <p class="text-muted mb-0">Value Added Tax collected on receipts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">SSCL Tax</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="card-text text-warning">Rs {{ "{:,.2f}".format(tax_summary.sscl_tax or 0) }}</h3>
+                    <p class="text-muted mb-0">Social Security Contribution Levy</p>
                 </div>
             </div>
         </div>
