@@ -541,9 +541,10 @@
         const headerDiv = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
         if (headerDiv) {
             const exportButton = document.createElement('button');
-            exportButton.className = 'btn btn-success ms-2';
+            exportButton.className = 'btn btn-success ms-2 coming-soon';
             exportButton.innerHTML = '<i class="fas fa-file-excel me-2"></i>Export to Excel';
             exportButton.id = 'export-excel-btn';
+            exportButton.disabled = true; // Disable the button
             
             // Insert before the "Scan New Receipt" button
             const scanButton = headerDiv.querySelector('.btn.btn-primary');
@@ -559,8 +560,8 @@
                 
                 headerDiv.appendChild(buttonContainer);
                 
-                // Add event listener for Excel export
-                exportButton.addEventListener('click', exportToExcel);
+                // We're not adding an event listener since it's coming soon
+                // exportButton.addEventListener('click', exportToExcel);
             }
         }
         
