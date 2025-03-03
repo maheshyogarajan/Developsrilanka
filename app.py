@@ -239,8 +239,9 @@ def analytics():
         return render_template('analytics.html', error=str(e))
 
 @app.route('/receipts/by_major_category/<category>')
+@login_required
 def receipts_by_major_category(category):
-    """Get receipts for a specific major expense category."""
+    """Get receipts for a specific major expense category for the current user."""
     from models import Receipt
     
     try:
@@ -248,9 +249,11 @@ def receipts_by_major_category(category):
         from urllib.parse import unquote
         category = unquote(category)
         
-        # Query receipts for the specified category
-        receipts = Receipt.query.filter_by(expense_major_category=category)\
-            .order_by(Receipt.date.desc()).all()
+        # Query receipts for the specified category that belong to the current user
+        receipts = Receipt.query.filter_by(
+            expense_major_category=category,
+            user_id=current_user.id
+        ).order_by(Receipt.date.desc()).all()
         
         # Convert to list of dictionaries
         receipt_list = []
@@ -276,8 +279,9 @@ def receipts_by_major_category(category):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/receipts/by_minor_category/<category>')
+@login_required
 def receipts_by_minor_category(category):
-    """Get receipts for a specific minor expense category."""
+    """Get receipts for a specific minor expense category for the current user."""
     from models import Receipt
     
     try:
@@ -285,9 +289,11 @@ def receipts_by_minor_category(category):
         from urllib.parse import unquote
         category = unquote(category)
         
-        # Query receipts for the specified subcategory
-        receipts = Receipt.query.filter_by(expense_minor_category=category)\
-            .order_by(Receipt.date.desc()).all()
+        # Query receipts for the specified subcategory that belong to the current user
+        receipts = Receipt.query.filter_by(
+            expense_minor_category=category,
+            user_id=current_user.id
+        ).order_by(Receipt.date.desc()).all()
         
         # Convert to list of dictionaries
         receipt_list = []
@@ -313,6 +319,7 @@ def receipts_by_minor_category(category):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/scan', methods=['POST'])
+@login_required
 def scan_receipt():
     """Process the uploaded receipt image and extract data using Gemini Vision."""
     if 'receipt' not in request.files:
@@ -406,6 +413,7 @@ def scan_receipt():
 
 
 @app.route('/task_status/<task_id>', methods=['GET'])
+@login_required
 def task_status(task_id):
     """Check the status of an asynchronous task and retrieve results if complete."""
     try:
@@ -617,16 +625,17 @@ def delete_receipts():
         return jsonify({'error': f'Error deleting receipts: {str(e)}'}), 500
 
 @app.route('/receipts/<int:receipt_id>', methods=['GET'])
+@login_required
 def get_receipt(receipt_id):
-    """Get details of a specific receipt."""
+    """Get details of a specific receipt that belongs to the current user."""
     from models import Receipt
     
     try:
-        # Find the receipt by ID
-        receipt = Receipt.query.get(receipt_id)
+        # Find the receipt by ID and user_id to ensure ownership
+        receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
         
         if not receipt:
-            return jsonify({'error': 'Receipt not found'}), 404
+            return jsonify({'error': 'Receipt not found or does not belong to you'}), 404
         
         # Convert to dictionary with all details
         receipt_dict = receipt.to_dict()
@@ -638,17 +647,18 @@ def get_receipt(receipt_id):
         return jsonify({'error': f'Error getting receipt: {str(e)}'}), 500
         
 @app.route('/view_receipt/<int:receipt_id>')
+@login_required
 def view_receipt(receipt_id):
-    """Display a specific receipt detail page."""
+    """Display a specific receipt detail page for the current user."""
     from models import Receipt
     from utils import format_currency
     
     try:
-        # Find the receipt by ID
-        receipt = Receipt.query.get(receipt_id)
+        # Find the receipt by ID and user_id to ensure ownership
+        receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
         
         if not receipt:
-            flash('Receipt not found', 'danger')
+            flash('Receipt not found or does not belong to you', 'danger')
             return redirect(url_for('receipt_history'))
         
         return render_template(
@@ -663,6 +673,7 @@ def view_receipt(receipt_id):
         return redirect(url_for('receipt_history'))
 
 @app.route('/export', methods=['GET'])
+@login_required
 def export_data():
     """Export the extracted receipt data as JSON."""
     if 'receipt_data' not in session:
@@ -671,16 +682,17 @@ def export_data():
     return jsonify(session['receipt_data'])
 
 @app.route('/export/excel', methods=['GET'])
+@login_required
 def export_excel():
-    """Export all receipts as Excel file."""
+    """Export the current user's receipts as Excel file."""
     import pandas as pd
     import io
     from models import Receipt
     from datetime import datetime
     
     try:
-        # Query all receipts, ordered by date (newest first)
-        receipts = Receipt.query.order_by(Receipt.date.desc()).all()
+        # Query the current user's receipts, ordered by date (newest first)
+        receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
         
         if not receipts:
             return jsonify({'error': 'No receipts to export'}), 404
@@ -1026,10 +1038,30 @@ def profile():
 def check_authentication():
     """Check if user is authenticated for protected routes."""
     # Paths that require authentication
-    protected_paths = ['/scan', '/history', '/analytics', '/profile']
+    protected_paths = [
+        '/scan', 
+        '/history', 
+        '/analytics', 
+        '/profile',
+        '/receipts',
+        '/export',
+        '/export/excel',
+        '/save'
+    ]
+    
+    # Check for paths that start with these prefixes
+    protected_prefixes = [
+        '/receipts/',
+        '/view_receipt/'
+    ]
     
     # Check if the current path is protected and user is not authenticated
-    if request.path in protected_paths and not current_user.is_authenticated:
+    is_protected = (
+        request.path in protected_paths or
+        any(request.path.startswith(prefix) for prefix in protected_prefixes)
+    )
+    
+    if is_protected and not current_user.is_authenticated:
         # Store the requested URL for redirecting after login
         session['next'] = request.url
         flash('Please log in to access this page.', 'info')
