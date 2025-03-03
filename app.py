@@ -12,6 +12,9 @@ from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text  # Add SQLAlchemy text support for direct queries
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from authlib.integrations.flask_client import OAuth
+import requests
 
 # Import Celery task queue components
 from celery import Celery
@@ -29,6 +32,49 @@ db = SQLAlchemy(model_class=Base)
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+
+# Flask-Login user loader
+@login_manager.user_loader
+def load_user(user_id):
+    # Import here to avoid circular imports
+    from models import User
+    return User.query.get(int(user_id))
+
+# Setup OAuth
+oauth = OAuth(app)
+
+# Google OAuth configuration
+google = oauth.register(
+    name='google',
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    access_token_url='https://accounts.google.com/o/oauth2/token',
+    access_token_params=None,
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    authorize_params=None,
+    api_base_url='https://www.googleapis.com/oauth2/v1/',
+    userinfo_endpoint='https://openidconnect.googleapis.com/v1/userinfo',
+    client_kwargs={'scope': 'openid email profile'},
+)
+
+# Facebook OAuth configuration
+facebook = oauth.register(
+    name='facebook',
+    client_id=os.environ.get("FACEBOOK_CLIENT_ID"),
+    client_secret=os.environ.get("FACEBOOK_CLIENT_SECRET"),
+    access_token_url='https://graph.facebook.com/oauth/access_token',
+    access_token_params=None,
+    authorize_url='https://www.facebook.com/dialog/oauth',
+    authorize_params=None,
+    api_base_url='https://graph.facebook.com/',
+    client_kwargs={'scope': 'email'},
+)
 
 # Configure SQLAlchemy - using DATABASE_URL environment variable
 database_url = os.environ.get("DATABASE_URL")
@@ -836,6 +882,144 @@ def process_receipt_with_gemini(image):
     except Exception as e:
         logging.error(f"Error in Gemini Vision processing: {str(e)}")
         return None
+
+# Authentication Routes
+@app.route('/login')
+def login():
+    """Render the login page with social login options."""
+    return render_template('login.html')
+
+@app.route('/auth/google')
+def google_auth():
+    """Initiate Google OAuth authentication."""
+    redirect_uri = url_for('google_callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/auth/google/callback')
+def google_callback():
+    """Handle the Google OAuth callback."""
+    try:
+        token = google.authorize_access_token()
+        resp = google.get('userinfo')
+        user_info = resp.json()
+        
+        # Extract user data
+        social_id = user_info['id']
+        email = user_info['email']
+        name = user_info.get('name', '')
+        picture = user_info.get('picture', '')
+        
+        # Check if user exists
+        from models import User
+        user = User.query.filter_by(social_id=social_id).first()
+        
+        if not user:
+            # Create a new user
+            user = User(
+                social_id=social_id,
+                social_provider='google',
+                email=email,
+                name=name,
+                profile_pic=picture
+            )
+            db.session.add(user)
+            db.session.commit()
+        
+        # Log the user in
+        login_user(user)
+        flash('Successfully logged in with Google!', 'success')
+        
+        # Redirect to the home page or the page they were trying to access
+        next_page = session.get('next', url_for('home'))
+        return redirect(next_page)
+    
+    except Exception as e:
+        logging.error(f"Error in Google authentication: {str(e)}")
+        flash('Failed to log in with Google.', 'danger')
+        return redirect(url_for('login'))
+
+@app.route('/auth/facebook')
+def facebook_auth():
+    """Initiate Facebook OAuth authentication."""
+    redirect_uri = url_for('facebook_callback', _external=True)
+    return facebook.authorize_redirect(redirect_uri)
+
+@app.route('/auth/facebook/callback')
+def facebook_callback():
+    """Handle the Facebook OAuth callback."""
+    try:
+        token = facebook.authorize_access_token()
+        resp = facebook.get('me', params={'fields': 'id,name,email,picture'})
+        user_info = resp.json()
+        
+        # Extract user data
+        social_id = user_info['id']
+        email = user_info.get('email')
+        
+        # Facebook might not return email if user hasn't shared it
+        if not email:
+            flash('Email access is required to use this service.', 'warning')
+            return redirect(url_for('login'))
+        
+        name = user_info.get('name', '')
+        picture = user_info.get('picture', {}).get('data', {}).get('url', '')
+        
+        # Check if user exists
+        from models import User
+        user = User.query.filter_by(social_id=social_id).first()
+        
+        if not user:
+            # Create a new user
+            user = User(
+                social_id=social_id,
+                social_provider='facebook',
+                email=email,
+                name=name,
+                profile_pic=picture
+            )
+            db.session.add(user)
+            db.session.commit()
+        
+        # Log the user in
+        login_user(user)
+        flash('Successfully logged in with Facebook!', 'success')
+        
+        # Redirect to the home page or the page they were trying to access
+        next_page = session.get('next', url_for('home'))
+        return redirect(next_page)
+    
+    except Exception as e:
+        logging.error(f"Error in Facebook authentication: {str(e)}")
+        flash('Failed to log in with Facebook.', 'danger')
+        return redirect(url_for('login'))
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Log the user out."""
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('home'))
+
+@app.route('/profile')
+@login_required
+def profile():
+    """Show the user's profile page."""
+    return render_template('profile.html')
+
+# Update the middleware to handle authentication required routes
+@app.before_request
+def check_authentication():
+    """Check if user is authenticated for protected routes."""
+    # Paths that require authentication
+    protected_paths = ['/scan', '/history', '/analytics', '/profile']
+    
+    # Check if the current path is protected and user is not authenticated
+    if request.path in protected_paths and not current_user.is_authenticated:
+        # Store the requested URL for redirecting after login
+        session['next'] = request.url
+        flash('Please log in to access this page.', 'info')
+        return redirect(url_for('login'))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

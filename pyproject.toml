@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "celery>=5.4.0",
     "email-validator>=2.2.0",
+    "flask-login>=0.6.3",
     "flask>=3.1.0",
     "flask-sqlalchemy>=3.1.1",
     "google-generativeai>=0.8.4",
@@ -14,6 +15,8 @@ dependencies = [
     "pillow>=11.1.0",
     "psycopg2-binary>=2.9.10",
     "redis>=5.2.1",
+    "requests>=2.32.3",
     "sqlalchemy>=2.0.38",
     "xlsxwriter>=3.2.2",
+    "authlib>=1.5.1",
 ]

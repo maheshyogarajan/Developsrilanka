@@ -1,10 +1,35 @@
 from app import db
 from datetime import datetime
 import json
+from flask_login import UserMixin
+
+class User(UserMixin, db.Model):
+    """User model for authentication."""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=True)
+    profile_pic = db.Column(db.String(255), nullable=True)
+    # Social login information
+    social_id = db.Column(db.String(255), unique=True, nullable=True)
+    social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    receipts = db.relationship('Receipt', backref='user', lazy=True)
+    
+    def to_dict(self):
+        """Convert the user to a dictionary."""
+        return {
+            'id': self.id,
+            'email': self.email,
+            'name': self.name,
+            'profile_pic': self.profile_pic,
+            'provider': self.social_provider,
+            'created_at': self.created_at.isoformat()
+        }
 
 class Receipt(db.Model):
     """Model for storing receipt information."""
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Link to user
     vendor_name = db.Column(db.String(255), nullable=False)
     vendor_address = db.Column(db.Text, nullable=True)
     vendor_contact = db.Column(db.String(255), nullable=True)
