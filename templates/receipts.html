@@ -72,6 +72,8 @@
                             <p><strong>Vendor:</strong> <span id="detail-vendor"></span></p>
                             <p><strong>Date:</strong> <span id="detail-date"></span></p>
                             <p><strong>Total Amount:</strong> <span id="detail-amount"></span></p>
+                            <p><strong>Expense Category:</strong> <span id="detail-category"></span></p>
+                            <p><strong>Subcategory:</strong> <span id="detail-subcategory"></span></p>
                         </div>
                         <div class="col-md-6">
                             <p><strong>Address:</strong> <span id="detail-address"></span></p>
@@ -183,6 +185,7 @@
                             row.innerHTML = `
                                 <td>${formatDate(receipt.date)}</td>
                                 <td>${receipt.vendor_name}</td>
+                                <td>${receipt.expense_major_category || 'Uncategorized'}</td>
                                 <td>${formatCurrency(receipt.total_amount)}</td>
                                 <td>
                                     <button class="btn btn-sm btn-outline-primary view-receipt" data-id="${receipt.id}">
@@ -250,6 +253,8 @@
                     document.getElementById('detail-address').textContent = receipt.vendor_address || 'N/A';
                     document.getElementById('detail-contact').textContent = receipt.vendor_contact || 'N/A';
                     document.getElementById('detail-vat-number').textContent = receipt.vat_registration_number || 'N/A';
+                    document.getElementById('detail-category').textContent = receipt.expense_major_category || 'Uncategorized';
+                    document.getElementById('detail-subcategory').textContent = receipt.expense_minor_category || 'Uncategorized';
                     document.getElementById('detail-service-charge').textContent = formatCurrency(receipt.service_charge);
                     document.getElementById('detail-sscl').textContent = formatCurrency(receipt.sscl_tax);
                     document.getElementById('detail-vat-tax').textContent = formatCurrency(receipt.vat_tax);
