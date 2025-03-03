@@ -3,6 +3,7 @@ import json
 import base64
 import logging
 import time
+import traceback  # Added import
 from io import BytesIO
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file
@@ -10,6 +11,7 @@ import google.generativeai as genai
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text  # Add SQLAlchemy text support for direct queries
 
 # Import Celery task queue components
 from celery import Celery
@@ -291,6 +293,20 @@ def scan_receipt():
             
             # Submit the task to the Celery queue
             logging.info(f"Submitting async task with ID: {task_id}")
+            
+            # Explicitly check if Celery worker is available
+            try:
+                i = celery.control.inspect()
+                if not i.active_queues():
+                    logging.warning("No active Celery workers found. Starting background worker...")
+                    # For this case, we'll process synchronously as fallback
+                    extracted_data = process_receipt_with_gemini(img)
+                    session['receipt_data'] = extracted_data
+                    return jsonify({'success': True, 'data': extracted_data})
+            except Exception as worker_check_error:
+                logging.error(f"Error checking Celery workers: {str(worker_check_error)}")
+                
+            # Submit to queue if we reach here
             result = process_receipt_image.delay(
                 img_base64, 
                 receipt_file.filename,
@@ -299,6 +315,9 @@ def scan_receipt():
             
             # Store task ID in session for future reference
             session['receipt_task_id'] = result.id
+            
+            # Log task submission for debugging
+            logging.info(f"Celery task submitted with ID: {result.id} - this should be picked up by a worker")
             
             # Calculate processing time for this part
             processing_time = time.time() - start_time
@@ -341,11 +360,24 @@ def task_status(task_id):
         # Create an AsyncResult object for the task
         task_result = AsyncResult(task_id)
         
+        # Log detailed status information for debugging
+        logging.info(f"Task {task_id} current state: {task_result.state}")
+        
+        # Check if Celery worker is available
+        try:
+            i = celery.control.inspect()
+            active_workers = i.active_queues()
+            if not active_workers:
+                logging.warning("No active Celery workers detected while checking task status")
+        except Exception as worker_error:
+            logging.error(f"Error checking Celery workers during task status: {str(worker_error)}")
+        
         # Check the status of the task
         if task_result.ready():
             # Task has completed, get the result
             if task_result.successful():
                 result = task_result.get()
+                logging.info(f"Task {task_id} completed successfully with data")
                 
                 # Store the extracted data in session for potential correction
                 session['receipt_data'] = result
@@ -365,13 +397,16 @@ def task_status(task_id):
                 }), 500
         else:
             # Task is still pending
+            logging.info(f"Task {task_id} is still pending with state: {task_result.state}")
             return jsonify({
                 'status': 'pending',
+                'state': task_result.state,
                 'message': 'Receipt processing in progress...'
             })
     
     except Exception as e:
         logging.error(f"Error checking task status: {str(e)}")
+        logging.error(traceback.format_exc())  # Add traceback for better debugging
         return jsonify({'error': f'Error checking task status: {str(e)}'}), 500
 
 @app.route('/update_data', methods=['POST'])

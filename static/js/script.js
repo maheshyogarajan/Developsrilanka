@@ -109,13 +109,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Poll for task completion
                 taskCheckInterval = setInterval(() => {
+                    console.log(`Checking status for task: ${data.task_id}`);
                     fetch(`/task_status/${data.task_id}`)
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                console.error(`HTTP error ${response.status} when checking task status`);
+                                throw new Error(`HTTP error ${response.status}`);
+                            }
+                            return response.json();
+                        })
                         .then(taskData => {
-                            console.log('Task status:', taskData.status);
+                            console.log('Task status check response:', taskData);
                             
                             if (taskData.status === 'completed') {
                                 // Task completed successfully
+                                console.log('Task completed successfully, processing data');
                                 clearInterval(taskCheckInterval);
                                 
                                 // Fill form with extracted data
@@ -135,12 +143,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                             else if (taskData.status === 'failed') {
                                 // Task failed
+                                console.error('Task failed with error:', taskData.error);
                                 clearInterval(taskCheckInterval);
                                 throw new Error(taskData.error || 'Failed to process receipt');
                             }
                             else {
                                 // Task still in progress, update loading message with timestamp
                                 const timestamp = new Date().toLocaleTimeString();
+                                console.log(`Task still pending at ${timestamp}, state: ${taskData.state || 'unknown'}`);
                                 if (loadingText) {
                                     loadingText.innerHTML = `Analyzing receipt with AI...<br>Still working on it (${timestamp})`;
                                 }
