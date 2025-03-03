@@ -1,0 +1,59 @@
+/* Custom styles for Receipt Scanner app */
+
+/* General styling */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Upload section styling */
+.upload-section {
+    background-color: rgba(0, 0, 0, 0.05);
+    border: 2px dashed var(--bs-border-color);
+}
+
+#receipt-preview {
+    max-height: 300px;
+    object-fit: contain;
+}
+
+/* Results section styling */
+#results-container {
+    background-color: rgba(0, 0, 0, 0.05);
+    min-height: 400px;
+}
+
+/* Animate the loading spinner */
+@keyframes spinner {
+    to {transform: rotate(360deg);}
+}
+
+.spinner-border {
+    height: 3rem;
+    width: 3rem;
+}
+
+/* Item row styling */
+.item-row {
+    transition: all 0.3s ease;
+}
+
+.item-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #preview-container img {
+        max-height: 200px;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+    }
+}

@@ -1,0 +1,206 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-camera"></i> Receipt Scanner
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="upload-section p-4 border rounded">
+                            <h4 class="mb-3">Upload Receipt</h4>
+                            
+                            <div id="upload-instructions" class="mb-3">
+                                <p><i class="fas fa-info-circle text-info"></i> For best results:</p>
+                                <ul>
+                                    <li>Ensure good lighting</li>
+                                    <li>Capture the entire receipt</li>
+                                    <li>Make sure text is readable</li>
+                                    <li>Supported formats: JPG, PNG, PDF</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <form id="receiptForm" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label for="receipt" class="form-label">Choose receipt image</label>
+                                        <input class="form-control" type="file" id="receipt" name="receipt" accept="image/*">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" id="scanButton">
+                                        <i class="fas fa-search"></i> Scan Receipt
+                                    </button>
+                                </form>
+                            </div>
+                            
+                            <div id="preview-container" class="mt-4 d-none">
+                                <h5>Preview</h5>
+                                <div class="text-center">
+                                    <img id="receipt-preview" class="img-fluid border rounded" alt="Receipt preview">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="results-container" class="p-4 border rounded d-none">
+                            <h4 class="mb-3">Extracted Data</h4>
+                            <div id="loading" class="text-center d-none">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Processing receipt...</p>
+                            </div>
+                            
+                            <div id="results" class="d-none">
+                                <form id="editDataForm">
+                                    <div class="mb-3">
+                                        <label for="vendor_name" class="form-label">Vendor Name</label>
+                                        <input type="text" class="form-control" id="vendor_name" name="vendor_name">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="date" class="form-label">Date</label>
+                                        <input type="text" class="form-control" id="date" name="date" placeholder="YYYY-MM-DD">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Items</label>
+                                        <div id="items-container">
+                                            <!-- Items will be added here dynamically -->
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="add-item-btn">
+                                            <i class="fas fa-plus"></i> Add Item
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="total_amount" class="form-label">Total Amount</label>
+                                            <input type="text" class="form-control" id="total_amount" name="total_amount">
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-3">
+                                            <label for="service_charge" class="form-label">Service Charge</label>
+                                            <input type="text" class="form-control" id="service_charge" name="service_charge">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="vat_registration_number" class="form-label">VAT Registration Number</label>
+                                        <input type="text" class="form-control" id="vat_registration_number" name="vat_registration_number">
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="sscl_tax" class="form-label">SSCL Tax</label>
+                                            <input type="text" class="form-control" id="sscl_tax" name="sscl_tax">
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-3">
+                                            <label for="vat_tax" class="form-label">VAT Tax</label>
+                                            <input type="text" class="form-control" id="vat_tax" name="vat_tax">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mt-4">
+                                        <button type="button" class="btn btn-success" id="update-btn">
+                                            <i class="fas fa-save"></i> Update Data
+                                        </button>
+                                        <button type="button" class="btn btn-info" id="export-btn">
+                                            <i class="fas fa-file-export"></i> Export Data
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            
+                            <div id="error-message" class="alert alert-danger mt-3 d-none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3>Tips for Using the Receipt Scanner</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-image text-primary"></i> Capturing Images</h5>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check-circle text-success"></i> Use good lighting</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Hold camera steady</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Capture the whole receipt</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Avoid shadows and glare</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-edit text-primary"></i> Editing Data</h5>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check-circle text-success"></i> Verify all extracted fields</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Edit any incorrect values</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Add missing items</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Click Update to save changes</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-file-export text-primary"></i> Exporting Data</h5>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check-circle text-success"></i> Click Export to download</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Data saved in JSON format</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Compatible with spreadsheets</li>
+                                    <li><i class="fas fa-check-circle text-success"></i> Save for record-keeping</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Item Template (Hidden) -->
+<template id="item-template">
+    <div class="item-row mb-2 border-bottom pb-2">
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <input type="text" class="form-control item-name" placeholder="Item name">
+            </div>
+            <div class="col-md-2 mb-2">
+                <input type="number" class="form-control item-quantity" placeholder="Qty" min="1">
+            </div>
+            <div class="col-md-3 mb-2">
+                <input type="text" class="form-control item-price" placeholder="Price">
+            </div>
+            <div class="col-md-1 mb-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<!-- No additional scripts needed here as they're included in the layout -->
+{% endblock %}
