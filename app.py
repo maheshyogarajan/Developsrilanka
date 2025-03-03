@@ -167,6 +167,9 @@ def process_receipt_with_gemini(image):
         response_text = response.text
         logging.debug(f"Raw response text: {response_text[:200]}...")  # Log first 200 chars of response
         
+        # Initialize json_text
+        json_text = ""
+        
         # If the response contains markdown code blocks, extract just the JSON part
         try:
             if "```json" in response_text:
@@ -187,15 +190,21 @@ def process_receipt_with_gemini(image):
                 if json_match:
                     json_text = json_match.group(1)
                     logging.debug("Extracted JSON using regex")
+                else:
+                    raise ValueError("Could not find valid JSON object in response")
             
+            if not json_text:
+                raise ValueError("Empty JSON response")
+                
             logging.debug(f"JSON text to parse: {json_text[:200]}...")
             
             # Parse the JSON response
             extracted_data = json.loads(json_text)
             logging.debug(f"Successfully parsed JSON with keys: {list(extracted_data.keys())}")
-        except json.JSONDecodeError as json_err:
-            logging.error(f"JSON parsing error: {str(json_err)}")
-            logging.error(f"Failed JSON content: {json_text}")
+        except (json.JSONDecodeError, ValueError) as err:
+            logging.error(f"JSON parsing error: {str(err)}")
+            if json_text:
+                logging.error(f"Failed JSON content: {json_text}")
             # Create a basic empty structure as fallback
             extracted_data = {field: "" if field not in ['items', 'total_amount', 'service_charge', 'sscl_tax', 'vat_tax'] 
                              else [] if field == 'items' else 0 

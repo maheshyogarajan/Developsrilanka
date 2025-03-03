@@ -110,6 +110,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle update button click
     updateButton.addEventListener('click', function() {
+        // Show loading state on button
+        const originalButtonText = updateButton.innerHTML;
+        updateButton.disabled = true;
+        updateButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+        
         // Collect all form data
         const formData = collectFormData();
         
@@ -129,10 +134,25 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Show success message
             showAlert('Data updated successfully!', 'success');
+            
+            // Update header text to indicate success
+            const pageTitle = document.querySelector('.page-title');
+            if (pageTitle) {
+                const originalTitle = pageTitle.textContent;
+                pageTitle.textContent = 'Data Updated!';
+                setTimeout(() => {
+                    pageTitle.textContent = originalTitle;
+                }, 2000);
+            }
         })
         .catch(error => {
             console.error('Error:', error);
             showError(error.message || 'An error occurred while updating the data');
+        })
+        .finally(() => {
+            // Restore button state
+            updateButton.disabled = false;
+            updateButton.innerHTML = originalButtonText;
         });
     });
 
@@ -208,8 +228,14 @@ document.addEventListener('DOMContentLoaded', function() {
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         `;
         
-        // Add to the page before the form
-        resultsElement.insertBefore(alertElement, document.getElementById('editDataForm'));
+        // Add to the page at the top of the form container
+        if (resultsElement) {
+            if (resultsElement.firstChild) {
+                resultsElement.insertBefore(alertElement, resultsElement.firstChild);
+            } else {
+                resultsElement.appendChild(alertElement);
+            }
+        }
         
         // Auto-remove after 5 seconds
         setTimeout(() => {
