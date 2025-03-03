@@ -544,6 +544,14 @@
             exportButton.className = 'btn btn-success ms-2';
             exportButton.innerHTML = '<i class="fas fa-file-excel me-2"></i>Export to Excel';
             exportButton.id = 'export-excel-btn';
+            exportButton.disabled = true; // Disable the button but keep it visible
+            exportButton.title = 'Excel export is currently disabled'; // Add a tooltip
+            
+            // Add a small badge to indicate feature is disabled
+            const disabledBadge = document.createElement('span');
+            disabledBadge.className = 'badge bg-secondary ms-1';
+            disabledBadge.textContent = 'Disabled';
+            exportButton.appendChild(disabledBadge);
             
             // Insert before the "Scan New Receipt" button
             const scanButton = headerDiv.querySelector('.btn.btn-primary');
@@ -559,8 +567,8 @@
                 
                 headerDiv.appendChild(buttonContainer);
                 
-                // Add event listener for Excel export
-                exportButton.addEventListener('click', exportToExcel);
+                // Event listener for Excel export is disabled
+                // exportButton.addEventListener('click', exportToExcel);
             }
         }
         
