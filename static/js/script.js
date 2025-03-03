@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add items
         if (data.items && Array.isArray(data.items) && data.items.length > 0) {
             data.items.forEach(item => {
-                addItemRow(item.name, item.quantity, item.price);
+                addItemRow(item.name, item.quantity, item.price, item.tax_deductible);
             });
         } else {
             // Add one empty row if no items
@@ -345,12 +345,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const name = row.querySelector('.item-name').value;
             const quantity = parseInt(row.querySelector('.item-quantity').value) || 1;
             const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const taxDeductible = row.querySelector('.item-tax-deductible')?.checked || false;
             
             if (name) {
                 formData.items.push({
                     name: name,
                     quantity: quantity,
-                    price: price
+                    price: price,
+                    tax_deductible: taxDeductible
                 });
             }
         });

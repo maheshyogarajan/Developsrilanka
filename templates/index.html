@@ -174,14 +174,22 @@
 <template id="item-template">
     <div class="item-row mb-2 border-bottom pb-2">
         <div class="row">
-            <div class="col-md-6 mb-2">
+            <div class="col-md-5 mb-2">
                 <input type="text" class="form-control item-name" placeholder="Item name">
             </div>
             <div class="col-md-2 mb-2">
                 <input type="number" class="form-control item-quantity" placeholder="Qty" min="1">
             </div>
-            <div class="col-md-3 mb-2">
+            <div class="col-md-2 mb-2">
                 <input type="text" class="form-control item-price" placeholder="Price">
+            </div>
+            <div class="col-md-2 mb-2">
+                <div class="form-check mt-2">
+                    <input class="form-check-input item-tax-deductible" type="checkbox" id="tax-deduct-${Math.random().toString(36).substring(2, 9)}">
+                    <label class="form-check-label small">
+                        Tax Deductible
+                    </label>
+                </div>
             </div>
             <div class="col-md-1 mb-2">
                 <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
