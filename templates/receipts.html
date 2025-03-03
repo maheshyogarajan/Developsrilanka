@@ -375,6 +375,8 @@
         
         // Update delete button visibility
         function updateDeleteButtonVisibility() {
+            if (!deleteSelectedBtn) return;
+            
             if (selectedReceipts.length > 0) {
                 deleteSelectedBtn.classList.remove('d-none');
             } else {
@@ -413,7 +415,9 @@
                     // Remove from selected receipts
                     selectedReceipts = selectedReceipts.filter(id => id !== receiptId);
                     // Uncheck "select all" if any individual checkbox is unchecked
-                    selectAllCheckbox.checked = false;
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = false;
+                    }
                 }
                 
                 updateDeleteButtonVisibility();
@@ -432,37 +436,37 @@
                     
                     // Send delete request
                     fetch('/receipts/delete', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        receipt_ids: selectedReceipts
-                    }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-                    
-                    // Show success message
-                    alert(`Successfully deleted ${data.deleted_count} receipt(s).`);
-                    
-                    // Reset selected receipts and reload
-                    selectedReceipts = [];
-                    loadReceipts();
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert(`Error deleting receipts: ${error.message || 'An unexpected error occurred'}`);
-                })
-                .finally(() => {
-                    // Reset button state
-                    deleteSelectedBtn.disabled = false;
-                    deleteSelectedBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Selected';
-                    updateDeleteButtonVisibility();
-                });
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            receipt_ids: selectedReceipts
+                        }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+                        
+                        // Show success message
+                        alert(`Successfully deleted ${data.deleted_count} receipt(s).`);
+                        
+                        // Reset selected receipts and reload
+                        selectedReceipts = [];
+                        loadReceipts();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert(`Error deleting receipts: ${error.message || 'An unexpected error occurred'}`);
+                    })
+                    .finally(() => {
+                        // Reset button state
+                        deleteSelectedBtn.disabled = false;
+                        deleteSelectedBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Selected';
+                        updateDeleteButtonVisibility();
+                    });
             }
         });
         
