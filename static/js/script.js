@@ -155,6 +155,74 @@ document.addEventListener('DOMContentLoaded', function() {
             updateButton.innerHTML = originalButtonText;
         });
     });
+    
+    // Handle save to database button click
+    const saveButton = document.getElementById('save-btn');
+    if (saveButton) {
+        saveButton.addEventListener('click', function() {
+            // Show loading state on button
+            const originalButtonText = saveButton.innerHTML;
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+            
+            // First update the data to make sure we have the latest version
+            const formData = collectFormData();
+            
+            // Update the data first
+            fetch('/update_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(updateData => {
+                if (updateData.error) {
+                    throw new Error(updateData.error);
+                }
+                
+                // Now save to database
+                return fetch('/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Show success message
+                showAlert('Receipt saved to database successfully!', 'success');
+                
+                // Update header text to indicate success
+                const pageTitle = document.querySelector('.page-title');
+                if (pageTitle) {
+                    const originalTitle = pageTitle.textContent;
+                    pageTitle.textContent = 'Receipt Saved!';
+                    setTimeout(() => {
+                        pageTitle.textContent = originalTitle;
+                    }, 2000);
+                }
+                
+                // Show view history button
+                showViewHistoryButton();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError(error.message || 'An error occurred while saving the receipt');
+            })
+            .finally(() => {
+                // Restore button state
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalButtonText;
+            });
+        });
+    }
 
     // Handle export button click
     exportButton.addEventListener('click', function() {
@@ -284,6 +352,30 @@ document.addEventListener('DOMContentLoaded', function() {
         itemsContainer.appendChild(template);
     }
 
+    // Helper function to show view history button after saving
+    function showViewHistoryButton() {
+        // Check if button already exists
+        const existingButton = document.getElementById('view-history-btn');
+        if (existingButton) {
+            return;
+        }
+        
+        // Create a button to view receipt history
+        const historyButton = document.createElement('button');
+        historyButton.id = 'view-history-btn';
+        historyButton.className = 'btn btn-outline-primary mt-3';
+        historyButton.innerHTML = '<i class="fas fa-history me-2"></i>View Receipt History';
+        historyButton.addEventListener('click', function() {
+            window.location.href = '/history';
+        });
+        
+        // Add the button after the form
+        const form = document.getElementById('editDataForm');
+        if (form && form.parentNode) {
+            form.insertAdjacentElement('afterend', historyButton);
+        }
+    }
+    
     // Helper function to collect all form data
     function collectFormData() {
         // Get all simple text fields
