@@ -80,7 +80,7 @@ def receipt_history():
 @app.route('/analytics')
 def analytics():
     """Render the analytics page with expense category summaries."""
-    from models import Receipt
+    from models import Receipt, ReceiptItem
     from sqlalchemy import func
     
     try:
@@ -111,6 +111,15 @@ def analytics():
             func.sum(Receipt.sscl_tax).label('sscl_tax')
         ).first()
         
+        # Calculate total tax deductible amount
+        # First get all receipt items that are tax deductible
+        tax_deductible_items = db.session.query(
+            ReceiptItem
+        ).filter(ReceiptItem.tax_deductible == True).all()
+        
+        # Calculate the total amount
+        total_tax_deductible = sum(item.price * item.quantity for item in tax_deductible_items)
+        
         # Convert to dictionaries for easier template handling
         major_category_data = [{'category': cat, 'total': total} for cat, total in major_categories]
         minor_category_data = [{'category': cat, 'total': total} for cat, total in minor_categories]
@@ -136,7 +145,8 @@ def analytics():
             minor_categories=minor_category_data,
             tax_summary=tax_summary,
             receipt_count=receipt_count,
-            recent_receipts=recent_receipt_data
+            recent_receipts=recent_receipt_data,
+            total_tax_deductible=total_tax_deductible
         )
     
     except Exception as e:
@@ -311,7 +321,8 @@ def save_receipt():
                 receipt_id=new_receipt.id,
                 name=item.get('name', 'Unknown Item'),
                 quantity=float(item.get('quantity', 1)),
-                price=float(item.get('price', 0))
+                price=float(item.get('price', 0)),
+                tax_deductible=bool(item.get('tax_deductible', False))
             )
             db.session.add(new_item)
         
@@ -450,7 +461,7 @@ def process_receipt_with_gemini(image):
         - vendor_address: The full address of the business (empty string if none)
         - vendor_contact: Phone number, email, or website of the business (empty string if none)
         - date: The date of purchase (format: YYYY-MM-DD)
-        - items: An array of objects, each with "name", "quantity", and "price" fields
+        - items: An array of objects, each with "name", "quantity", "price", and "tax_deductible" fields (tax_deductible should be a boolean)
         - total_amount: The total amount paid
         - service_charge: Any service charge mentioned (0 if none)
         - vat_registration_number: The VAT registration number if present (empty string if none)
@@ -462,6 +473,10 @@ def process_receipt_with_gemini(image):
         For IFRS expense categories, analyze the vendor name, items, and overall receipt to determine appropriate classifications.
         Major categories include: Operating Expenses, Cost of Goods Sold, Administrative Expenses, Selling Expenses, Research and Development, Finance Costs, Employee Benefits.
         Minor categories include: Office Supplies, Travel and Transportation, Meals and Entertainment, Utilities, Rent, Professional Services, Marketing and Advertising, Repairs and Maintenance, IT Services, Telecommunications.
+        
+        For tax_deductible field, determine if each item would likely be tax deductible as a business expense. 
+        Common tax deductible items include: business supplies, equipment, travel for business purposes, professional services, etc. 
+        Items that are personal in nature or primarily for enjoyment/entertainment should be marked as not tax deductible.
         
         Return ONLY the JSON object and nothing else. If you cannot find a particular field, use an empty string or 0 depending on the field type.
         """

@@ -20,6 +20,14 @@ class Receipt(db.Model):
     expense_minor_category = db.Column(db.String(100), nullable=True)
     items = db.relationship('ReceiptItem', backref='receipt', lazy=True, cascade='all, delete-orphan')
 
+    def get_tax_deductible_amount(self):
+        """Calculate the total amount for tax deductible items."""
+        tax_deductible_amount = 0.0
+        for item in self.items:
+            if item.tax_deductible:
+                tax_deductible_amount += item.price * item.quantity
+        return tax_deductible_amount
+
     def to_dict(self):
         """Convert the receipt to a dictionary."""
         return {
@@ -36,6 +44,7 @@ class Receipt(db.Model):
             'created_at': self.created_at.isoformat(),
             'expense_major_category': self.expense_major_category or '',
             'expense_minor_category': self.expense_minor_category or '',
+            'tax_deductible_amount': self.get_tax_deductible_amount(),
             'items': [item.to_dict() for item in self.items]
         }
 
@@ -46,6 +55,7 @@ class ReceiptItem(db.Model):
     name = db.Column(db.String(255), nullable=False)
     quantity = db.Column(db.Float, nullable=True, default=1.0)
     price = db.Column(db.Float, nullable=False, default=0.0)
+    tax_deductible = db.Column(db.Boolean, nullable=False, default=False)
     
     def to_dict(self):
         """Convert the receipt item to a dictionary."""
@@ -53,5 +63,6 @@ class ReceiptItem(db.Model):
             'id': self.id,
             'name': self.name,
             'quantity': self.quantity,
-            'price': self.price
+            'price': self.price,
+            'tax_deductible': self.tax_deductible
         }
