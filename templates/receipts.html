@@ -336,11 +336,12 @@
         });
         
         // Handle export button in modal
-        modalExportBtn.addEventListener('click', function() {
-            if (!currentReceiptId) return;
-            
-            // Fetch receipt details for export
-            fetch(`/receipts/${currentReceiptId}`)
+        if (modalExportBtn) {
+            modalExportBtn.addEventListener('click', function() {
+                if (!currentReceiptId) return;
+                
+                // Fetch receipt details for export
+                fetch(`/receipts/${currentReceiptId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
@@ -382,19 +383,21 @@
         }
         
         // Handle select all checkbox
-        selectAllCheckbox.addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('.receipt-checkbox');
-            selectedReceipts = [];
-            
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-                if (this.checked) {
-                    selectedReceipts.push(checkbox.getAttribute('data-id'));
-                }
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.receipt-checkbox');
+                selectedReceipts = [];
+                
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                    if (this.checked) {
+                        selectedReceipts.push(checkbox.getAttribute('data-id'));
+                    }
+                });
+                
+                updateDeleteButtonVisibility();
             });
-            
-            updateDeleteButtonVisibility();
-        });
+        }
         
         // Handle individual checkbox changes (using event delegation)
         document.addEventListener('change', function(e) {
@@ -418,16 +421,17 @@
         });
         
         // Handle delete selected button
-        deleteSelectedBtn.addEventListener('click', function() {
-            if (selectedReceipts.length === 0) return;
-            
-            if (confirm(`Are you sure you want to delete ${selectedReceipts.length} receipt(s)?`)) {
-                // Show loading state
-                deleteSelectedBtn.disabled = true;
-                deleteSelectedBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...';
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', function() {
+                if (selectedReceipts.length === 0) return;
                 
-                // Send delete request
-                fetch('/receipts/delete', {
+                if (confirm(`Are you sure you want to delete ${selectedReceipts.length} receipt(s)?`)) {
+                    // Show loading state
+                    deleteSelectedBtn.disabled = true;
+                    deleteSelectedBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...';
+                    
+                    // Send delete request
+                    fetch('/receipts/delete', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
