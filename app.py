@@ -916,6 +916,70 @@ def login():
     """Render the login page with social login options."""
     return render_template('login.html')
 
+@app.route('/email_login', methods=['POST'])
+def email_login():
+    """Handle email-based login and registration."""
+    from models import User
+    from werkzeug.security import generate_password_hash, check_password_hash
+    
+    email = request.form.get('email')
+    password = request.form.get('password')
+    action = request.form.get('action')
+    
+    if not email or not password:
+        flash('Email and password are required', 'danger')
+        return redirect(url_for('home'))
+    
+    try:
+        if action == 'login':
+            # Login flow
+            user = User.query.filter_by(email=email).first()
+            
+            if not user or not check_password_hash(user.password_hash, password):
+                flash('Invalid email or password', 'danger')
+                return redirect(url_for('home'))
+            
+            # User authenticated successfully
+            login_user(user)
+            flash('You have been logged in successfully!', 'success')
+            
+            # Redirect to requested page or home
+            next_page = session.get('next', url_for('home'))
+            return redirect(next_page)
+            
+        elif action == 'register':
+            # Registration flow
+            existing_user = User.query.filter_by(email=email).first()
+            
+            if existing_user:
+                flash('Email already registered. Please login instead.', 'warning')
+                return redirect(url_for('home'))
+            
+            # Create new user
+            new_user = User(
+                email=email,
+                password_hash=generate_password_hash(password),
+                name=email.split('@')[0]  # Use part of email as name
+            )
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Log in the new user
+            login_user(new_user)
+            flash('Account created successfully!', 'success')
+            return redirect(url_for('home'))
+        
+        else:
+            flash('Invalid action', 'danger')
+            return redirect(url_for('home'))
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error in email login/registration: {str(e)}")
+        flash('An error occurred. Please try again.', 'danger')
+        return redirect(url_for('home'))
+
 @app.route('/auth/google')
 def google_auth():
     """Initiate Google OAuth authentication."""

@@ -12,6 +12,8 @@
                     <p>Every time you spend, whether on everyday groceries, premium clothing, or a luxury hotel stay, you're not just making a purchase—you're making a difference.</p>
                     <p>At Develop Sri Lanka, we transform every receipt into a badge of civic honor by automatically capturing the taxes you pay and turning them into your unique 'Development Score'. We also use this data to work out your Tax savings.</p>
                 </div>
+                
+                {% if current_user.is_authenticated %}
                 <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-4">
                     <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 me-md-2">
                         <i class="fas fa-file-invoice me-2"></i>Scan Receipts
@@ -20,6 +22,27 @@
                         <i class="fas fa-chart-line me-2"></i>View Analytics
                     </a>
                 </div>
+                {% else %}
+                <div class="card border-0 shadow mb-4">
+                    <div class="card-body p-4">
+                        <h3 class="card-title mb-3">Sign In or Register</h3>
+                        <form method="POST" action="{{ url_for('email_login') }}">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex">
+                                <button type="submit" name="action" value="login" class="btn btn-primary px-4">Sign In</button>
+                                <button type="submit" name="action" value="register" class="btn btn-outline-success px-4">Register</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="col-md-6">
                 <div class="card border-0 shadow-lg">
@@ -113,10 +136,17 @@
         <div class="col-lg-8 text-center">
             <h2 class="display-6 fw-bold mb-4">Start Your Journey Today</h2>
             <p class="lead mb-5">Watch as every rupee you spend not only saves you money but also builds a legacy of helping to Develop Sri Lanka.</p>
+            {% if current_user.is_authenticated %}
             <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
                 <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 gap-3">Get Started Now</a>
                 <a href="{{ url_for('receipt_history') }}" class="btn btn-outline-secondary btn-lg px-4">View Receipt History</a>
             </div>
+            {% else %}
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                <a href="#login-section" class="btn btn-primary btn-lg px-4 gap-3">Sign Up Now</a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg px-4">Learn More</a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
