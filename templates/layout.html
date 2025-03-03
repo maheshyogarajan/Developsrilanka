@@ -16,10 +16,16 @@
 </head>
 <body>
     <div class="header">
-        <a href="/" class="back-button">
-            <i class="fas fa-arrow-left"></i>
-            <span style="margin-left: 8px;">Back</span>
-        </a>
+        <div class="nav-buttons">
+            <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                <i class="fas fa-camera"></i>
+                <span>Scan</span>
+            </a>
+            <a href="/history" class="nav-link {% if request.path == '/history' %}active{% endif %}">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </a>
+        </div>
         <h1 class="page-title">Upload Receipt</h1>
     </div>
 

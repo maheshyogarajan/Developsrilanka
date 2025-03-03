@@ -70,6 +70,11 @@ def index():
     """Render the main page of the application."""
     return render_template('index.html')
 
+@app.route('/history')
+def receipt_history():
+    """Render the receipt history page."""
+    return render_template('receipts.html')
+
 @app.route('/scan', methods=['POST'])
 def scan_receipt():
     """Process the uploaded receipt image and extract data using Gemini Vision."""
@@ -117,6 +122,114 @@ def update_data():
     except Exception as e:
         logging.error(f"Error updating data: {str(e)}")
         return jsonify({'error': f'Error updating data: {str(e)}'}), 500
+
+@app.route('/save', methods=['POST'])
+def save_receipt():
+    """Save the receipt data to the database."""
+    from models import Receipt, ReceiptItem
+    
+    try:
+        # Check if we have receipt data in the session
+        if 'receipt_data' not in session:
+            return jsonify({'error': 'No receipt data to save'}), 400
+        
+        receipt_data = session['receipt_data']
+        
+        # Parse date if it exists
+        receipt_date = None
+        if receipt_data.get('date'):
+            try:
+                receipt_date = datetime.strptime(receipt_data['date'], '%Y-%m-%d').date()
+            except ValueError:
+                logging.warning(f"Invalid date format: {receipt_data['date']}")
+        
+        # Create a new receipt
+        new_receipt = Receipt(
+            vendor_name=receipt_data.get('vendor_name', 'Unknown Vendor'),
+            vendor_address=receipt_data.get('vendor_address'),
+            vendor_contact=receipt_data.get('vendor_contact'),
+            date=receipt_date,
+            total_amount=float(receipt_data.get('total_amount', 0)),
+            service_charge=float(receipt_data.get('service_charge', 0)),
+            vat_registration_number=receipt_data.get('vat_registration_number'),
+            sscl_tax=float(receipt_data.get('sscl_tax', 0)),
+            vat_tax=float(receipt_data.get('vat_tax', 0))
+        )
+        
+        # Add the receipt to the database session
+        db.session.add(new_receipt)
+        db.session.flush()  # This assigns an ID to new_receipt without committing
+        
+        # Add receipt items if they exist
+        items = receipt_data.get('items', [])
+        for item in items:
+            new_item = ReceiptItem(
+                receipt_id=new_receipt.id,
+                name=item.get('name', 'Unknown Item'),
+                quantity=float(item.get('quantity', 1)),
+                price=float(item.get('price', 0))
+            )
+            db.session.add(new_item)
+        
+        # Commit all changes
+        db.session.commit()
+        
+        # Return success with the receipt ID
+        return jsonify({
+            'success': True, 
+            'message': 'Receipt saved successfully',
+            'receipt_id': new_receipt.id
+        })
+    
+    except Exception as e:
+        # Roll back in case of error
+        db.session.rollback()
+        logging.error(f"Error saving receipt: {str(e)}")
+        return jsonify({'error': f'Error saving receipt: {str(e)}'}), 500
+
+@app.route('/receipts', methods=['GET'])
+def list_receipts():
+    """Get a list of all saved receipts."""
+    from models import Receipt
+    
+    try:
+        # Query all receipts, ordered by date (newest first)
+        receipts = Receipt.query.order_by(Receipt.date.desc()).all()
+        
+        # Convert to list of dictionaries
+        receipt_list = []
+        for receipt in receipts:
+            receipt_dict = receipt.to_dict()
+            # Simplify the output for the list view
+            receipt_dict.pop('items', None)  # Remove items to reduce payload size
+            receipt_list.append(receipt_dict)
+        
+        return jsonify({'success': True, 'receipts': receipt_list})
+    
+    except Exception as e:
+        logging.error(f"Error listing receipts: {str(e)}")
+        return jsonify({'error': f'Error listing receipts: {str(e)}'}), 500
+
+@app.route('/receipts/<int:receipt_id>', methods=['GET'])
+def get_receipt(receipt_id):
+    """Get details of a specific receipt."""
+    from models import Receipt
+    
+    try:
+        # Find the receipt by ID
+        receipt = Receipt.query.get(receipt_id)
+        
+        if not receipt:
+            return jsonify({'error': 'Receipt not found'}), 404
+        
+        # Convert to dictionary with all details
+        receipt_dict = receipt.to_dict()
+        
+        return jsonify({'success': True, 'receipt': receipt_dict})
+    
+    except Exception as e:
+        logging.error(f"Error getting receipt: {str(e)}")
+        return jsonify({'error': f'Error getting receipt: {str(e)}'}), 500
 
 @app.route('/export', methods=['GET'])
 def export_data():
