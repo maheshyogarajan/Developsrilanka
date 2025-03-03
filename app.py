@@ -4,7 +4,7 @@ import base64
 import logging
 from io import BytesIO
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file
 import google.generativeai as genai
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
@@ -459,6 +459,92 @@ def export_data():
         return jsonify({'error': 'No receipt data to export'}), 400
         
     return jsonify(session['receipt_data'])
+
+@app.route('/export/excel', methods=['GET'])
+def export_excel():
+    """Export all receipts as Excel file."""
+    import pandas as pd
+    import io
+    from models import Receipt
+    from datetime import datetime
+    
+    try:
+        # Query all receipts, ordered by date (newest first)
+        receipts = Receipt.query.order_by(Receipt.date.desc()).all()
+        
+        if not receipts:
+            return jsonify({'error': 'No receipts to export'}), 404
+        
+        # Convert to list of dictionaries for pandas
+        receipts_data = []
+        for receipt in receipts:
+            receipt_dict = receipt.to_dict()
+            
+            # Format the receipt data for Excel
+            receipts_data.append({
+                'Date': receipt.date.strftime('%Y-%m-%d') if receipt.date else '',
+                'Vendor': receipt.vendor_name,
+                'Category': receipt.expense_major_category or 'Uncategorized',
+                'Subcategory': receipt.expense_minor_category or 'Uncategorized',
+                'Total Amount (Rs)': receipt.total_amount,
+                'VAT (Rs)': receipt.vat_tax,
+                'SSCL Tax (Rs)': receipt.sscl_tax,
+                'Service Charge (Rs)': receipt.service_charge,
+                'Tax Deductible Amount (Rs)': receipt.get_tax_deductible_amount(),
+                'Address': receipt.vendor_address or '',
+                'Contact': receipt.vendor_contact or '',
+                'VAT Reg #': receipt.vat_registration_number or ''
+            })
+        
+        # Create a DataFrame
+        df = pd.DataFrame(receipts_data)
+        
+        # Create Excel file in memory
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='Receipts', index=False)
+            
+            # Get the xlsxwriter workbook and worksheet objects
+            workbook = writer.book
+            worksheet = writer.sheets['Receipts']
+            
+            # Add some formatting
+            header_format = workbook.add_format({
+                'bold': True,
+                'text_wrap': True,
+                'valign': 'top',
+                'bg_color': '#D9EAD3',
+                'border': 1
+            })
+            
+            currency_format = workbook.add_format({'num_format': '#,##0.00'})
+            
+            # Apply formatting
+            for col_num, value in enumerate(df.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+                
+                # Apply currency formatting to amount columns
+                if 'Amount' in value or 'VAT' in value or 'Tax' in value or 'Charge' in value:
+                    worksheet.set_column(col_num, col_num, 18, currency_format)
+                else:
+                    worksheet.set_column(col_num, col_num, 18)
+        
+        # Set up the response
+        output.seek(0)
+        
+        # Generate a filename with current date
+        filename = f"receipts_export_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        logging.error(f"Error exporting receipts to Excel: {str(e)}")
+        return jsonify({'error': f'Error exporting receipts to Excel: {str(e)}'}), 500
 
 def process_receipt_with_gemini(image):
     """

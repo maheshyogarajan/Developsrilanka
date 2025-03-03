@@ -135,19 +135,24 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // DOM Elements
-        const loadingElement = document.getElementById('loading');
-        const receiptsTableContainer = document.getElementById('receipts-table-container');
-        const receiptsList = document.getElementById('receipts-list');
-        const noReceiptsElement = document.getElementById('no-receipts');
-        const selectAllCheckbox = document.getElementById('select-all-receipts');
-        const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+        // Add a debugging message to confirm the function is running
+        console.log('DOMContentLoaded event fired');
         
-        // Modal elements
-        const receiptDetailModal = document.getElementById('receiptDetailModal');
-        const modalLoading = document.getElementById('modal-loading');
-        const receiptDetails = document.getElementById('receipt-details');
-        const modalExportBtn = document.getElementById('modal-export-btn');
+        // Try-catch to identify any problems with DOM element selection
+        try {
+            // DOM Elements
+            const loadingElement = document.getElementById('loading');
+            const receiptsTableContainer = document.getElementById('receipts-table-container');
+            const receiptsList = document.getElementById('receipts-list');
+            const noReceiptsElement = document.getElementById('no-receipts');
+            const selectAllCheckbox = document.getElementById('select-all-receipts');
+            const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+            
+            // Modal elements
+            const receiptDetailModal = document.getElementById('receiptDetailModal');
+            const modalLoading = document.getElementById('modal-loading');
+            const receiptDetails = document.getElementById('receipt-details');
+            const modalExportBtn = document.getElementById('modal-export-btn');
         
         let currentReceiptId = null;
         let selectedReceipts = [];
@@ -531,6 +536,110 @@
         
         // Initialize page
         loadReceipts();
+        
+        // Add a button for Excel export in the header
+        const headerDiv = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
+        if (headerDiv) {
+            const exportButton = document.createElement('button');
+            exportButton.className = 'btn btn-success ms-2';
+            exportButton.innerHTML = '<i class="fas fa-file-excel me-2"></i>Export to Excel';
+            exportButton.id = 'export-excel-btn';
+            
+            // Insert before the "Scan New Receipt" button
+            const scanButton = headerDiv.querySelector('.btn.btn-primary');
+            if (scanButton) {
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'd-flex';
+                
+                // Move the scan button into the container
+                headerDiv.removeChild(scanButton);
+                buttonContainer.appendChild(exportButton);
+                buttonContainer.appendChild(document.createTextNode(' ')); // Add space
+                buttonContainer.appendChild(scanButton);
+                
+                headerDiv.appendChild(buttonContainer);
+                
+                // Add event listener for Excel export
+                exportButton.addEventListener('click', exportToExcel);
+            }
+        }
+        
+        // Function to export receipts to Excel format
+        function exportToExcel() {
+            console.log('Exporting to Excel...');
+            
+            // Show loading spinner on the button
+            const exportBtn = document.getElementById('export-excel-btn');
+            if (exportBtn) {
+                const originalText = exportBtn.innerHTML;
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Exporting...';
+                
+                // Use the server-side Excel export which provides better formatting
+                fetch('/export/excel')
+                    .then(response => {
+                        if (!response.ok) {
+                            // If we get a JSON error response, parse it
+                            if (response.headers.get('content-type')?.includes('application/json')) {
+                                return response.json().then(data => {
+                                    throw new Error(data.error || 'Failed to download Excel file');
+                                });
+                            }
+                            throw new Error('Failed to download Excel file');
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        // Create a download link for the Excel file
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        
+                        // Generate a filename with current date
+                        const date = new Date().toISOString().split('T')[0];
+                        link.setAttribute('download', `receipts_export_${date}.xlsx`);
+                        
+                        // Trigger download
+                        document.body.appendChild(link);
+                        link.click();
+                        
+                        // Clean up
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(link);
+                    })
+                    .catch(error => {
+                        console.error('Error exporting to Excel:', error);
+                        alert(`Error exporting receipts: ${error.message || 'An unexpected error occurred'}`);
+                    })
+                    .finally(() => {
+                        // Reset button state
+                        if (exportBtn) {
+                            exportBtn.disabled = false;
+                            exportBtn.innerHTML = originalText;
+                        }
+                    });
+            }
+        }
+                
+        } catch (error) {
+            console.error('Error in receipts page initialization:', error);
+            
+            // Display error message on page
+            const container = document.querySelector('.container');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger mt-4" role="alert">
+                        <h4 class="alert-heading">Error Loading Page</h4>
+                        <p>There was a problem initializing the receipt history page:</p>
+                        <hr>
+                        <p class="mb-0">${error.message || 'An unexpected error occurred'}</p>
+                        <button class="btn btn-outline-danger mt-3" onclick="location.reload()">
+                            <i class="fas fa-sync-alt me-2"></i>Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
     });
 </script>
 {% endblock %}
