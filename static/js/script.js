@@ -4,28 +4,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const receiptForm = document.getElementById('receiptForm');
     const receiptInput = document.getElementById('receipt');
+    const uploadZone = document.getElementById('upload-zone');
     const previewContainer = document.getElementById('preview-container');
     const receiptPreview = document.getElementById('receipt-preview');
     const resultsContainer = document.getElementById('results-container');
     const loadingElement = document.getElementById('loading');
     const resultsElement = document.getElementById('results');
     const errorMessageElement = document.getElementById('error-message');
-    const scanButton = document.getElementById('scanButton');
     const updateButton = document.getElementById('update-btn');
     const exportButton = document.getElementById('export-btn');
     const addItemButton = document.getElementById('add-item-btn');
     const itemsContainer = document.getElementById('items-container');
     const itemTemplate = document.getElementById('item-template');
+    const uploadCard = document.querySelector('.upload-card');
+    const uploadArea = document.querySelector('.upload-area');
+    const tipsSection = document.querySelector('.tips-section');
 
-    // Show preview when file is selected
-    receiptInput.addEventListener('change', function(e) {
-        if (this.files && this.files[0]) {
-            const file = this.files[0];
+    // Function to process the file selection and change UI
+    function handleFileSelect() {
+        if (receiptInput.files && receiptInput.files[0]) {
+            const file = receiptInput.files[0];
             
             // Check if the file is an image
             if (!file.type.match('image.*')) {
                 showError('Please select an image file (JPG, PNG, etc.)');
-                this.value = '';
+                receiptInput.value = '';
                 previewContainer.classList.add('d-none');
                 return;
             }
@@ -35,39 +38,42 @@ document.addEventListener('DOMContentLoaded', function() {
             reader.onload = function(e) {
                 receiptPreview.src = e.target.result;
                 previewContainer.classList.remove('d-none');
+                uploadArea.classList.add('d-none'); // Hide the upload area
+                
+                // Prepare for scanning
+                processReceiptImage(file);
             };
             reader.readAsDataURL(file);
+            
+            // Hide tips section after file selection
+            if (tipsSection) {
+                tipsSection.classList.add('d-none');
+            }
             
             // Clear any previous error messages
             hideError();
         } else {
             previewContainer.classList.add('d-none');
         }
-    });
+    }
 
-    // Handle form submission
-    receiptForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Check if a file is selected
-        if (!receiptInput.files || !receiptInput.files[0]) {
-            showError('Please select a receipt image to scan');
-            return;
-        }
-        
+    // Show preview when file is selected
+    receiptInput.addEventListener('change', handleFileSelect);
+
+    // Process receipt image and send to server
+    function processReceiptImage(file) {
         // Show loading state and results container
         resultsContainer.classList.remove('d-none');
         loadingElement.classList.remove('d-none');
-        resultsElement.classList.add('d-none');
+        if (resultsElement) resultsElement.classList.add('d-none');
         hideError();
-        
-        // Disable scan button during processing
-        scanButton.disabled = true;
-        scanButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
         
         // Create form data for upload
         const formData = new FormData();
-        formData.append('receipt', receiptInput.files[0]);
+        formData.append('receipt', file);
+        
+        // Update header based on the design
+        document.querySelector('.page-title').textContent = 'Processing Receipt';
         
         // Send request to server
         fetch('/scan', {
@@ -86,18 +92,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show results
             loadingElement.classList.add('d-none');
             resultsElement.classList.remove('d-none');
+            
+            // Update header based on the design
+            document.querySelector('.page-title').textContent = 'Edit Data';
         })
         .catch(error => {
             console.error('Error:', error);
             showError(error.message || 'An error occurred while processing the receipt');
             loadingElement.classList.add('d-none');
-        })
-        .finally(() => {
-            // Re-enable scan button
-            scanButton.disabled = false;
-            scanButton.innerHTML = '<i class="fas fa-search"></i> Scan Receipt';
+            
+            // Show reset button when there's an error
+            if (uploadArea) {
+                uploadArea.classList.remove('d-none');
+            }
         });
-    });
+    }
 
     // Handle update button click
     updateButton.addEventListener('click', function() {

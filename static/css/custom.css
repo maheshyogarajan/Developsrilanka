@@ -1,218 +1,247 @@
-/* Apple-inspired CSS for Receipt Scanner App */
+/* Modern Clean UI for Receipt Scanner App */
 :root {
-    --apple-bg: #f5f5f7;
-    --apple-card: #ffffff;
-    --apple-text: #1d1d1f;
-    --apple-secondary: #86868b;
-    --apple-blue: #0071e3;
-    --apple-blue-hover: #0077ed;
-    --apple-green: #34c759;
-    --apple-border: rgba(0, 0, 0, 0.1);
-    --apple-shadow: rgba(0, 0, 0, 0.1);
-    --apple-surface: #f2f2f7;
-    --apple-overlay: rgba(255, 255, 255, 0.8);
+    --bg-color: #eff0f4;
+    --text-color: #333333;
+    --primary-color: #007AFF;
+    --secondary-text: #666666;
+    --border-color: #e0e0e0;
+    --shadow-color: rgba(0, 0, 0, 0.05);
+    --input-bg: #f5f5f7;
+    --btn-primary: #007AFF;
+    --btn-secondary: #e5e5ea;
 }
 
-[data-bs-theme=dark] {
-    --apple-bg: #1d1d1f;
-    --apple-card: #2d2d2f;
-    --apple-text: #f5f5f7;
-    --apple-secondary: #a1a1a6;
-    --apple-blue: #0071e3;
-    --apple-blue-hover: #0077ed;
-    --apple-green: #34c759;
-    --apple-border: rgba(255, 255, 255, 0.1);
-    --apple-shadow: rgba(0, 0, 0, 0.3);
-    --apple-surface: #2c2c2e;
-    --apple-overlay: rgba(0, 0, 0, 0.7);
-}
-
-/* General styling */
 body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: var(--apple-bg);
-    color: var(--apple-text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.5;
+    margin: 0;
+    padding: 0;
 }
 
 main {
     flex: 1;
+    padding: 20px;
 }
 
 .container {
     max-width: 1000px;
-    padding: 2rem 1rem;
+    padding: 0;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1, h2, h3 {
     font-weight: 600;
 }
 
-/* Card styling */
-.card {
-    border-radius: 16px;
-    margin-bottom: 2rem;
-    border: none;
-    background-color: var(--apple-card);
-    box-shadow: 0 4px 20px var(--apple-shadow);
+/* Header styling */
+.header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    background-color: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.back-button {
+    color: var(--primary-color);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    margin-right: 20px;
+    font-weight: 500;
+}
+
+.page-title {
+    font-size: 18px;
+    margin: 0;
+    font-weight: 600;
+    text-align: center;
+    flex-grow: 1;
+    padding-right: 40px; /* To center the title accounting for the back button */
+}
+
+/* Upload card styling */
+.upload-card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     overflow: hidden;
-    backdrop-filter: blur(20px);
+    margin-bottom: 20px;
 }
 
-.card-header {
-    background-color: var(--apple-card);
-    border-bottom: 1px solid var(--apple-border);
-    padding: 1.25rem 1.5rem;
+.upload-area {
+    height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    padding: 30px;
+    border: 2px dashed #d1d1d6;
+    border-radius: 10px;
+    margin: 24px;
+    transition: all 0.2s ease;
 }
 
-.card-body {
-    padding: 1.5rem;
+.upload-area:hover, .upload-area.dragover {
+    background-color: rgba(0, 122, 255, 0.03);
+    border-color: var(--primary-color);
+}
+
+.upload-icon {
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+.upload-text {
+    color: var(--secondary-text);
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.4;
+}
+
+/* Hide file input */
+.file-input {
+    display: none;
+}
+
+/* Remove nav styling */
+.navbar {
+    display: none;
+}
+
+/* Footer */
+footer {
+    display: none;
+}
+
+/* Preview container */
+#preview-container {
+    margin: 24px;
+}
+
+#preview-container img {
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Results container styling */
+#results-container {
+    background-color: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-top: 24px;
+}
+
+#results-container.d-none {
+    display: none;
+}
+
+/* Form styling */
+.form-label {
+    font-weight: 500;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 6px;
+}
+
+.form-control {
+    background-color: var(--input-bg);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 16px;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    border: none;
 }
 
 /* Button styling */
-.btn {
-    border-radius: 20px;
-    padding: 8px 16px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    border: none;
-    box-shadow: 0 2px 4px var(--apple-shadow);
-}
-
 .btn-primary {
-    background-color: var(--apple-blue);
+    background-color: var(--btn-primary);
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 12px 16px;
 }
 
-.btn-primary:hover, .btn-primary:focus {
-    background-color: var(--apple-blue-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px var(--apple-shadow);
-}
-
-.btn-success {
-    background-color: var(--apple-green);
-}
-
-.btn-success:hover, .btn-success:focus {
-    background-color: var(--apple-green);
-    opacity: 0.9;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px var(--apple-shadow);
+.btn-secondary {
+    background-color: var(--btn-secondary);
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 12px 16px;
 }
 
 .btn-outline-secondary {
-    border: 1px solid var(--apple-secondary);
-    color: var(--apple-secondary);
-    background-color: transparent;
-}
-
-.btn-outline-secondary:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: var(--apple-text);
-}
-
-/* Form control styling */
-.form-control, .form-select {
+    border-color: #d1d1d6;
+    color: #666;
     border-radius: 8px;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--apple-border);
-    background-color: var(--apple-surface);
-    color: var(--apple-text);
-    transition: all 0.2s ease;
 }
 
-.form-control:focus, .form-select:focus {
-    border-color: var(--apple-blue);
-    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.25);
+.btn-outline-danger {
+    border-color: #ff3b30;
+    color: #ff3b30;
 }
 
-/* Upload section styling */
-.upload-section {
-    background-color: var(--apple-surface);
-    border: 2px dashed var(--apple-border);
-    border-radius: 16px;
-    padding: 2.5rem;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.upload-section:hover {
-    border-color: var(--apple-blue);
-    background-color: rgba(0, 113, 227, 0.05);
-}
-
-#receipt-preview {
-    max-height: 300px;
-    object-fit: contain;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px var(--apple-shadow);
-}
-
-/* Results section styling */
-#results-container {
-    background-color: var(--apple-surface);
-    min-height: 400px;
-    border-radius: 16px;
-    padding: 1.5rem;
-}
-
-/* Spinner and loading animation */
-@keyframes spinner {
-    to {transform: rotate(360deg);}
-}
-
+/* Spinner */
 .spinner-border {
-    height: 3rem;
-    width: 3rem;
-    color: var(--apple-blue);
+    color: var(--primary-color);
 }
 
-.spinner-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 120px;
+/* Hide tips section on upload page */
+.tips-section {
+    display: none;
 }
 
-/* Item row styling */
+/* Items list */
 .item-row {
-    transition: all 0.3s ease;
-    border-bottom: 1px solid var(--apple-border);
-    padding-bottom: 1rem;
-    margin-bottom: 1rem;
+    padding: 12px 0;
 }
 
-.item-row:hover {
-    background-color: rgba(0, 113, 227, 0.05);
-}
-
-/* Alert styling */
-.alert {
-    border-radius: 8px;
+/* Error message */
+.alert-danger {
+    background-color: #fff0f0;
+    color: #d40000;
     border: none;
-    box-shadow: 0 2px 8px var(--apple-shadow);
+    border-radius: 8px;
 }
 
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 768px) {
-    #preview-container img {
-        max-height: 200px;
+    .container {
+        padding: 0;
+        margin: 0;
     }
     
-    .card-title {
-        font-size: 1.25rem;
+    main {
+        padding: 16px;
     }
     
-    .btn {
-        padding: 6px 12px;
-        font-size: 0.9rem;
+    .upload-area {
+        margin: 16px;
+        height: 200px;
+    }
+    
+    #preview-container,
+    #results-container {
+        margin: 16px;
     }
     
     .form-control {
-        padding: 0.5rem 0.75rem;
+        font-size: 15px;
     }
 }
