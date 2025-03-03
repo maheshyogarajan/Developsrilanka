@@ -1,0 +1,144 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Receipt Details</h1>
+        <a href="{{ url_for('receipt_history') }}" class="btn btn-secondary">Back to List</a>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">{{ receipt.vendor_name }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-4">
+                        <h5 class="card-title">Basic Information</h5>
+                        <table class="table table-borderless">
+                            <tbody>
+                                <tr>
+                                    <th scope="row" style="width: 140px;">Vendor:</th>
+                                    <td>{{ receipt.vendor_name }}</td>
+                                </tr>
+                                {% if receipt.vendor_address %}
+                                <tr>
+                                    <th scope="row">Address:</th>
+                                    <td>{{ receipt.vendor_address }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if receipt.vendor_contact %}
+                                <tr>
+                                    <th scope="row">Contact:</th>
+                                    <td>{{ receipt.vendor_contact }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Date:</th>
+                                    <td>{{ receipt.date.strftime('%Y-%m-%d') if receipt.date else 'Unknown' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-4">
+                        <h5 class="card-title">Expense Categories</h5>
+                        <table class="table table-borderless">
+                            <tbody>
+                                <tr>
+                                    <th scope="row" style="width: 140px;">Major Category:</th>
+                                    <td>{{ receipt.expense_major_category or 'Uncategorized' }}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Minor Category:</th>
+                                    <td>{{ receipt.expense_minor_category or 'Uncategorized' }}</td>
+                                </tr>
+                                {% if receipt.created_at %}
+                                <tr>
+                                    <th scope="row">Added on:</th>
+                                    <td>{{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h5 class="card-title">Items</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-end">Price</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in receipt.items %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">{{ format_currency(item.price) }}</td>
+                                <td class="text-end">{{ format_currency(item.price * item.quantity) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">No items available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            {% if receipt.service_charge > 0 %}
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Service Charge:</td>
+                                <td class="text-end">{{ format_currency(receipt.service_charge) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if receipt.vat_tax > 0 %}
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">VAT Tax:</td>
+                                <td class="text-end">{{ format_currency(receipt.vat_tax) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if receipt.sscl_tax > 0 %}
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">SSCL Tax:</td>
+                                <td class="text-end">{{ format_currency(receipt.sscl_tax) }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Total:</td>
+                                <td class="text-end fw-bold fs-5">{{ format_currency(receipt.total_amount) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            
+            {% if receipt.vat_registration_number %}
+            <div class="card bg-light mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Tax Information</h5>
+                    <p class="mb-0">VAT Registration Number: {{ receipt.vat_registration_number }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if receipt.image_path %}
+            <div class="text-center mb-3">
+                <h5 class="card-title">Receipt Image</h5>
+                <a href="{{ receipt.image_path }}" target="_blank">
+                    <img src="{{ receipt.image_path }}" class="img-fluid border" style="max-height: 400px;" alt="Receipt Image">
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

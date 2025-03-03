@@ -143,6 +143,80 @@ def analytics():
         logging.error(f"Error generating analytics: {str(e)}")
         return render_template('analytics.html', error=str(e))
 
+@app.route('/receipts/by_major_category/<category>')
+def receipts_by_major_category(category):
+    """Get receipts for a specific major expense category."""
+    from models import Receipt
+    
+    try:
+        # URL decode the category name if needed
+        from urllib.parse import unquote
+        category = unquote(category)
+        
+        # Query receipts for the specified category
+        receipts = Receipt.query.filter_by(expense_major_category=category)\
+            .order_by(Receipt.date.desc()).all()
+        
+        # Convert to list of dictionaries
+        receipt_list = []
+        for receipt in receipts:
+            receipt_dict = {
+                'id': receipt.id,
+                'date': receipt.date.strftime('%Y-%m-%d') if receipt.date else 'Unknown',
+                'vendor_name': receipt.vendor_name,
+                'total_amount': receipt.total_amount,
+                'expense_major_category': receipt.expense_major_category or 'Uncategorized',
+                'expense_minor_category': receipt.expense_minor_category or 'Uncategorized'
+            }
+            receipt_list.append(receipt_dict)
+        
+        return jsonify({
+            'success': True, 
+            'category': category,
+            'receipts': receipt_list
+        })
+    
+    except Exception as e:
+        logging.error(f"Error fetching receipts by major category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/receipts/by_minor_category/<category>')
+def receipts_by_minor_category(category):
+    """Get receipts for a specific minor expense category."""
+    from models import Receipt
+    
+    try:
+        # URL decode the category name if needed
+        from urllib.parse import unquote
+        category = unquote(category)
+        
+        # Query receipts for the specified subcategory
+        receipts = Receipt.query.filter_by(expense_minor_category=category)\
+            .order_by(Receipt.date.desc()).all()
+        
+        # Convert to list of dictionaries
+        receipt_list = []
+        for receipt in receipts:
+            receipt_dict = {
+                'id': receipt.id,
+                'date': receipt.date.strftime('%Y-%m-%d') if receipt.date else 'Unknown',
+                'vendor_name': receipt.vendor_name,
+                'total_amount': receipt.total_amount,
+                'expense_major_category': receipt.expense_major_category or 'Uncategorized',
+                'expense_minor_category': receipt.expense_minor_category or 'Uncategorized'
+            }
+            receipt_list.append(receipt_dict)
+        
+        return jsonify({
+            'success': True, 
+            'category': category,
+            'receipts': receipt_list
+        })
+    
+    except Exception as e:
+        logging.error(f"Error fetching receipts by minor category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/scan', methods=['POST'])
 def scan_receipt():
     """Process the uploaded receipt image and extract data using Gemini Vision."""
@@ -300,6 +374,31 @@ def get_receipt(receipt_id):
     except Exception as e:
         logging.error(f"Error getting receipt: {str(e)}")
         return jsonify({'error': f'Error getting receipt: {str(e)}'}), 500
+        
+@app.route('/view_receipt/<int:receipt_id>')
+def view_receipt(receipt_id):
+    """Display a specific receipt detail page."""
+    from models import Receipt
+    from utils import format_currency
+    
+    try:
+        # Find the receipt by ID
+        receipt = Receipt.query.get(receipt_id)
+        
+        if not receipt:
+            flash('Receipt not found', 'danger')
+            return redirect(url_for('receipt_history'))
+        
+        return render_template(
+            'view_receipt.html', 
+            receipt=receipt, 
+            format_currency=format_currency
+        )
+        
+    except Exception as e:
+        logging.error(f"Error viewing receipt: {str(e)}")
+        flash(f'Error viewing receipt: {str(e)}', 'danger')
+        return redirect(url_for('receipt_history'))
 
 @app.route('/export', methods=['GET'])
 def export_data():
