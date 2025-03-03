@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Helper function to add an item row to the form
-    function addItemRow(name = '', quantity = '', price = '') {
+    function addItemRow(name = '', quantity = '', price = '', tax_deductible = false) {
         // Clone the template
         const template = itemTemplate.content.cloneNode(true);
         
@@ -286,6 +286,12 @@ document.addEventListener('DOMContentLoaded', function() {
         template.querySelector('.item-name').value = name;
         template.querySelector('.item-quantity').value = quantity;
         template.querySelector('.item-price').value = price;
+        
+        // Set tax deductible checkbox if available
+        const taxDeductibleCheckbox = template.querySelector('.item-tax-deductible');
+        if (taxDeductibleCheckbox) {
+            taxDeductibleCheckbox.checked = tax_deductible;
+        }
         
         // Add to container
         itemsContainer.appendChild(template);
