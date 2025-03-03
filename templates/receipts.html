@@ -167,6 +167,8 @@
         
         // Load receipts
         function loadReceipts() {
+            console.log('Starting loadReceipts function');
+            
             // Check if elements exist before manipulating them
             if (!loadingElement || !receiptsTableContainer || !noReceiptsElement) {
                 console.error('Required DOM elements are not available');
@@ -178,10 +180,15 @@
             receiptsTableContainer.classList.add('d-none');
             noReceiptsElement.classList.add('d-none');
             
+            console.log('Fetching receipts from server...');
             // Fetch receipts from server
             fetch('/receipts')
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Received response:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Received data:', data);
                     if (data.error) {
                         throw new Error(data.error);
                     }
@@ -512,8 +519,9 @@
                         deleteSelectedBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Selected';
                         updateDeleteButtonVisibility();
                     });
-            }
-        });
+                }
+            });
+        }
         
         // Change page title in the header
         const pageTitleElement = document.querySelector('.page-title');
