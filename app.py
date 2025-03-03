@@ -3,16 +3,47 @@ import json
 import base64
 import logging
 from io import BytesIO
+from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for
 import google.generativeai as genai
 from PIL import Image
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
+# Database setup
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
+
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
+
+# Configure SQLAlchemy - using DATABASE_URL environment variable
+database_url = os.environ.get("DATABASE_URL")
+logging.debug(f"Database URL (masked): {database_url[:15]}...{database_url[-15:] if database_url else None}")
+
+if database_url:
+    # Fix potential "postgres://" vs "postgresql://" issue
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    logging.info("Database configuration successful")
+else:
+    logging.error("DATABASE_URL environment variable not found!")
+
+# Initialize the database with the app
+db.init_app(app)
 
 # Configure Gemini API
 try:
