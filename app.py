@@ -111,14 +111,10 @@ def analytics():
             func.sum(Receipt.sscl_tax).label('sscl_tax')
         ).first()
         
-        # Calculate total tax deductible amount
-        # First get all receipt items that are tax deductible
-        tax_deductible_items = db.session.query(
-            ReceiptItem
-        ).filter(ReceiptItem.tax_deductible == True).all()
-        
-        # Calculate the total amount
-        total_tax_deductible = sum(item.price * item.quantity for item in tax_deductible_items)
+        # Calculate total tax deductible amount using the Receipt model method
+        # This approach ensures we don't double count or exceed the total expense
+        receipts = Receipt.query.all()
+        total_tax_deductible = sum(receipt.get_tax_deductible_amount() for receipt in receipts)
         
         # Convert to dictionaries for easier template handling
         major_category_data = [{'category': cat, 'total': total} for cat, total in major_categories]

@@ -463,7 +463,10 @@
         });
         
         // Change page title in the header
-        document.querySelector('.page-title').textContent = 'Receipt History';
+        const pageTitleElement = document.querySelector('.page-title');
+        if (pageTitleElement) {
+            pageTitleElement.textContent = 'Receipt History';
+        }
         
         // Initialize page
         loadReceipts();
