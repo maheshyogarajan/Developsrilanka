@@ -1,245 +1,738 @@
-{% extends 'layout.html' %}
+{% extends 'base.html' %}
 
-{% block content %}
-<div class="upload-card">
-    <div class="upload-area" id="upload-zone">
-        <div class="upload-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-        </div>
-        <p class="upload-text">Drag and drop a receipt image, or click to select</p>
-        <form id="receiptForm" enctype="multipart/form-data">
-            <input type="file" id="receipt" name="receipt" accept="image/*" class="file-input">
-        </form>
-    </div>
-    <div id="preview-container" class="d-none">
-        <img id="receipt-preview" class="img-fluid" alt="Receipt preview">
-    </div>
-</div>
+{% block title %}Scan Receipt - Develop Sri Lanka{% endblock %}
 
-<div class="tips-section">
-    <!-- This section is hidden via CSS on upload page -->
-    <div class="card shadow mb-4">
-        <div class="card-body p-4">
-            <h3 class="text-center mb-4">Tips for Using Receipt Scanner</h3>
-            <div class="row">
-                <div class="col-md-4">
-                    <h5>Capturing Images</h5>
-                    <ul>
-                        <li>Use good lighting</li>
-                        <li>Hold camera steady</li>
-                        <li>Capture the whole receipt</li>
-                        <li>Avoid shadows and glare</li>
-                    </ul>
-                </div>
-                <div class="col-md-4">
-                    <h5>Editing Data</h5>
-                    <ul>
-                        <li>Verify extracted information</li>
-                        <li>Correct any errors</li>
-                        <li>Add missing items</li>
-                        <li>Save changes after editing</li>
-                    </ul>
-                </div>
-                <div class="col-md-4">
-                    <h5>Exporting Data</h5>
-                    <ul>
-                        <li>Download as JSON file</li>
-                        <li>Compatible with spreadsheets</li>
-                        <li>Great for record-keeping</li>
-                        <li>Import to financial software</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="results-container" class="d-none">
-    <div id="loading" class="text-center py-4 d-none">
-        <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-3">Processing receipt...</p>
-    </div>
+{% block extra_css %}
+<style>
+    #receipt-preview {
+        max-height: 400px;
+        max-width: 100%;
+    }
     
-    <div id="results" class="d-none">
-        <form id="editDataForm">
-            <div class="mb-3">
-                <label for="vendor_name" class="form-label">Vendor Name</label>
-                <input type="text" class="form-control" id="vendor_name" name="vendor_name">
-            </div>
-            
-            <div class="mb-3">
-                <label for="vendor_address" class="form-label">Vendor Address</label>
-                <input type="text" class="form-control" id="vendor_address" name="vendor_address">
-            </div>
-            
-            <div class="mb-3">
-                <label for="vendor_contact" class="form-label">Vendor Contact</label>
-                <input type="text" class="form-control" id="vendor_contact" name="vendor_contact">
-            </div>
-            
-            <div class="mb-3">
-                <label for="date" class="form-label">Date</label>
-                <input type="text" class="form-control" id="date" name="date" placeholder="YYYY-MM-DD">
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Items</label>
-                <div id="items-container">
-                    <!-- Items will be added here dynamically -->
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="add-item-btn">
-                    <i class="fas fa-plus me-1"></i> Add Item
-                </button>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="total_amount" class="form-label">Total Amount</label>
-                    <input type="text" class="form-control" id="total_amount" name="total_amount">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label for="service_charge" class="form-label">Service Charge</label>
-                    <input type="text" class="form-control" id="service_charge" name="service_charge">
-                </div>
-            </div>
-            
-            <div class="mb-3">
-                <label for="vat_registration_number" class="form-label">VAT Registration Number</label>
-                <input type="text" class="form-control" id="vat_registration_number" name="vat_registration_number">
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="sscl_tax" class="form-label">SSCL Tax</label>
-                    <input type="text" class="form-control" id="sscl_tax" name="sscl_tax">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label for="vat_tax" class="form-label">VAT Tax</label>
-                    <input type="text" class="form-control" id="vat_tax" name="vat_tax">
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="expense_major_category" class="form-label">Expense Major Category</label>
-                    <select class="form-select" id="expense_major_category" name="expense_major_category">
-                        <option value="" selected>Select category...</option>
-                        <option value="Operating Expenses">Operating Expenses</option>
-                        <option value="Cost of Goods Sold">Cost of Goods Sold</option>
-                        <option value="Administrative Expenses">Administrative Expenses</option>
-                        <option value="Selling Expenses">Selling Expenses</option>
-                        <option value="Research and Development">Research and Development</option>
-                        <option value="Finance Costs">Finance Costs</option>
-                        <option value="Employee Benefits">Employee Benefits</option>
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="expense_minor_category" class="form-label">Expense Minor Category</label>
-                    <select class="form-select" id="expense_minor_category" name="expense_minor_category">
-                        <option value="" selected>Select subcategory...</option>
-                        <option value="Office Supplies">Office Supplies</option>
-                        <option value="Travel and Transportation">Travel and Transportation</option>
-                        <option value="Meals and Entertainment">Meals and Entertainment</option>
-                        <option value="Utilities">Utilities</option>
-                        <option value="Rent">Rent</option>
-                        <option value="Professional Services">Professional Services</option>
-                        <option value="Marketing and Advertising">Marketing and Advertising</option>
-                        <option value="Repairs and Maintenance">Repairs and Maintenance</option>
-                        <option value="IT Services">IT Services</option>
-                        <option value="Telecommunications">Telecommunications</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="mt-4">
-                <button type="button" class="btn btn-success" id="save-btn">
-                    <i class="fas fa-save me-2"></i> Save
-                </button>
-            </div>
-        </form>
-    </div>
+    .tax-info {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
     
-    <div id="error-message" class="alert alert-danger mt-3 d-none"></div>
-</div>
-
-<!-- Item Template (Hidden) -->
-<template id="item-template">
-    <div class="item-row mb-2 border-bottom pb-2">
-        <div class="row">
-            <div class="col-md-5 mb-2">
-                <input type="text" class="form-control item-name" placeholder="Item name">
-            </div>
-            <div class="col-md-2 mb-2">
-                <input type="number" class="form-control item-quantity" placeholder="Qty" min="1">
-            </div>
-            <div class="col-md-2 mb-2">
-                <input type="text" class="form-control item-price" placeholder="Price">
-            </div>
-            <div class="col-md-2 mb-2">
-                <div class="form-check mt-2">
-                    <input class="form-check-input item-tax-deductible" type="checkbox" id="tax-deduct-${Math.random().toString(36).substring(2, 9)}">
-                    <label class="form-check-label small">
-                        Tax Deductible
-                    </label>
-                </div>
-            </div>
-            <div class="col-md-1 mb-2">
-                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</template>
+    .help-text {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    #loading-indicator {
+        display: none;
+    }
+    
+    #gemini-processing {
+        display: none;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+    
+    .receipt-form-section {
+        display: none;
+    }
+    
+    #item-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .item-row {
+        border-bottom: 1px solid #dee2e6;
+        padding: 0.75rem 0;
+    }
+    
+    .tax-deductible-toggle {
+        cursor: pointer;
+    }
+    
+    #error-message {
+        display: none;
+    }
+</style>
 {% endblock %}
 
-{% block scripts %}
+{% block content %}
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">Scan Your Receipt</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Upload section -->
+                    <div class="col-lg-6 mb-4 mb-lg-0" id="upload-section">
+                        <h4 class="mb-3">Upload Receipt Image</h4>
+                        <div class="receipt-upload-box mb-3" id="drop-area">
+                            <i class="fas fa-upload fa-3x mb-3 text-primary"></i>
+                            <h5>Drag & Drop your receipt image here</h5>
+                            <p class="text-muted">or</p>
+                            <div class="mb-3">
+                                <input type="file" class="form-control" id="receipt-file" accept="image/*">
+                            </div>
+                            <p class="help-text">
+                                <i class="fas fa-info-circle me-1"></i> 
+                                Supported formats: JPG, PNG, JPEG
+                            </p>
+                        </div>
+                        
+                        <div id="image-preview-container" class="text-center mb-3" style="display: none;">
+                            <h5 class="mb-2">Receipt Preview</h5>
+                            <img id="receipt-preview" class="img-fluid receipt-preview" alt="Receipt Preview">
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="remove-image">
+                                <i class="fas fa-trash me-1"></i> Remove
+                            </button>
+                        </div>
+                        
+                        <div id="scan-controls" class="d-grid gap-2" style="display: none;">
+                            <button type="button" class="btn btn-primary btn-lg" id="scan-button">
+                                <i class="fas fa-magic me-2"></i> Scan with AI
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Processing indicator -->
+                    <div class="col-lg-6" id="loading-indicator">
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h4 class="mb-2">Processing Your Receipt</h4>
+                            <p class="text-muted">This may take a few moments...</p>
+                            <div class="progress w-75 mt-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Gemini AI processing animation -->
+                    <div class="col-lg-6" id="gemini-processing">
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                            <div class="mb-3">
+                                <i class="fas fa-robot fa-5x text-primary mb-3"></i>
+                            </div>
+                            <h4 class="mb-2">Gemini AI is Analyzing Your Receipt</h4>
+                            <p class="text-muted mb-4">Extracting data using artificial intelligence...</p>
+                            <div class="d-flex justify-content-center w-75">
+                                <div class="dot-typing"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Error message -->
+                    <div class="col-lg-6" id="error-message">
+                        <div class="alert alert-danger">
+                            <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i> Error</h4>
+                            <p id="error-text">Sorry, we couldn't process your receipt. Please try again.</p>
+                            <button type="button" class="btn btn-danger" id="try-again-button">Try Again</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Receipt form section (hidden initially) -->
+    <div class="col-lg-12 receipt-form-section" id="receipt-form-section">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h4 class="card-title mb-0">Receipt Details</h4>
+                <p class="text-muted mb-0 small">Review and edit the extracted information</p>
+            </div>
+            <div class="card-body">
+                <form id="receipt-form">
+                    <div class="row">
+                        <!-- Vendor information -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Vendor Information</h5>
+                            <div class="mb-3">
+                                <label for="vendor_name" class="form-label">Vendor Name*</label>
+                                <input type="text" class="form-control" id="vendor_name" name="vendor_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="vendor_address" class="form-label">Vendor Address</label>
+                                <textarea class="form-control" id="vendor_address" name="vendor_address" rows="2"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="vendor_contact" class="form-label">Vendor Contact</label>
+                                <input type="text" class="form-control" id="vendor_contact" name="vendor_contact">
+                            </div>
+                            <div class="mb-3">
+                                <label for="vat_registration_number" class="form-label">VAT Registration Number</label>
+                                <input type="text" class="form-control" id="vat_registration_number" name="vat_registration_number">
+                            </div>
+                        </div>
+                        
+                        <!-- Transaction details -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Transaction Details</h5>
+                            <div class="mb-3">
+                                <label for="date" class="form-label">Date*</label>
+                                <input type="date" class="form-control" id="date" name="date" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="total_amount" class="form-label">Total Amount (Rs)*</label>
+                                <input type="number" class="form-control" id="total_amount" name="total_amount" step="0.01" required>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="service_charge" class="form-label">Service Charge (Rs)</label>
+                                        <input type="number" class="form-control" id="service_charge" name="service_charge" step="0.01" value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="vat_tax" class="form-label">VAT (Rs)</label>
+                                        <input type="number" class="form-control" id="vat_tax" name="vat_tax" step="0.01" value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="sscl_tax" class="form-label">SSCL Tax (Rs)</label>
+                                        <input type="number" class="form-control" id="sscl_tax" name="sscl_tax" step="0.01" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Expense categorization -->
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <h5 class="mb-3">Expense Categorization</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="expense_major_category" class="form-label">Major Category*</label>
+                                        <select class="form-select" id="expense_major_category" name="expense_major_category" required>
+                                            <option value="">Select a category</option>
+                                            <option value="Operating Expenses">Operating Expenses</option>
+                                            <option value="Cost of Goods Sold">Cost of Goods Sold</option>
+                                            <option value="Administrative Expenses">Administrative Expenses</option>
+                                            <option value="Selling Expenses">Selling Expenses</option>
+                                            <option value="Research and Development">Research and Development</option>
+                                            <option value="Finance Costs">Finance Costs</option>
+                                            <option value="Employee Benefits">Employee Benefits</option>
+                                            <option value="Personal Expenses">Personal Expenses</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="expense_minor_category" class="form-label">Minor Category</label>
+                                        <select class="form-select" id="expense_minor_category" name="expense_minor_category">
+                                            <option value="">Select a subcategory</option>
+                                            <option value="Office Supplies">Office Supplies</option>
+                                            <option value="Travel and Transportation">Travel and Transportation</option>
+                                            <option value="Meals and Entertainment">Meals and Entertainment</option>
+                                            <option value="Utilities">Utilities</option>
+                                            <option value="Rent">Rent</option>
+                                            <option value="Professional Services">Professional Services</option>
+                                            <option value="Marketing and Advertising">Marketing and Advertising</option>
+                                            <option value="Repairs and Maintenance">Repairs and Maintenance</option>
+                                            <option value="IT Services">IT Services</option>
+                                            <option value="Telecommunications">Telecommunications</option>
+                                            <option value="Groceries">Groceries</option>
+                                            <option value="Clothing">Clothing</option>
+                                            <option value="Healthcare">Healthcare</option>
+                                            <option value="Education">Education</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Items section -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Items</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="add-item-button">
+                                    <i class="fas fa-plus me-1"></i> Add Item
+                                </button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Item Name</th>
+                                            <th>Quantity</th>
+                                            <th>Price (Rs)</th>
+                                            <th>Tax Deductible</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="item-list">
+                                        <!-- Item rows will be added here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="tax-info mt-3">
+                                <h6><i class="fas fa-info-circle me-2"></i> Tax Deductibility Information</h6>
+                                <p class="mb-0 small">Mark items as tax deductible if they're legitimate business expenses. This helps track potential tax benefits based on Sri Lankan tax regulations.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form actions -->
+                    <div class="row mt-4">
+                        <div class="col-12 d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" id="cancel-button">
+                                <i class="fas fa-times me-2"></i> Cancel
+                            </button>
+                            <div>
+                                <button type="button" class="btn btn-outline-primary me-2" id="export-button">
+                                    <i class="fas fa-file-export me-2"></i> Export Data
+                                </button>
+                                <button type="submit" class="btn btn-success" id="save-button">
+                                    <i class="fas fa-save me-2"></i> Save Receipt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong class="me-auto">Success</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="successToastMessage">
+            Receipt saved successfully!
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Make the upload area clickable to trigger file input
-        const uploadZone = document.getElementById('upload-zone');
-        const fileInput = document.getElementById('receipt');
+        // DOM Elements
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('receipt-file');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const receiptPreview = document.getElementById('receipt-preview');
+        const removeImageBtn = document.getElementById('remove-image');
+        const scanControls = document.getElementById('scan-controls');
+        const scanButton = document.getElementById('scan-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const geminiProcessing = document.getElementById('gemini-processing');
+        const uploadSection = document.getElementById('upload-section');
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const tryAgainButton = document.getElementById('try-again-button');
+        const receiptFormSection = document.getElementById('receipt-form-section');
+        const addItemButton = document.getElementById('add-item-button');
+        const itemList = document.getElementById('item-list');
+        const cancelButton = document.getElementById('cancel-button');
+        const saveButton = document.getElementById('save-button');
+        const exportButton = document.getElementById('export-button');
+        const receiptForm = document.getElementById('receipt-form');
+        const successToast = document.getElementById('successToast');
+        const successToastMessage = document.getElementById('successToastMessage');
+
+        // File handling
+        fileInput.addEventListener('change', handleFileSelect);
+        removeImageBtn.addEventListener('click', removeImage);
         
-        if (uploadZone && fileInput) {
-            uploadZone.addEventListener('click', function() {
-                fileInput.click();
-            });
+        // Drag and drop functionality
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        // Button events
+        scanButton.addEventListener('click', scanReceipt);
+        tryAgainButton.addEventListener('click', resetScanProcess);
+        addItemButton.addEventListener('click', addItemRow);
+        cancelButton.addEventListener('click', resetScanProcess);
+        exportButton.addEventListener('click', exportReceiptData);
+        receiptForm.addEventListener('submit', saveReceipt);
+        
+        // Helper functions
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function highlight() {
+            dropArea.classList.add('border-primary');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('border-primary');
+        }
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
             
-            // Handle drag and drop
-            uploadZone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadZone.classList.add('dragover');
-            });
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        }
+        
+        function handleFileSelect() {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                return;
+            }
             
-            uploadZone.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadZone.classList.remove('dragover');
-            });
+            const file = fileInput.files[0];
+            if (!file.type.match('image.*')) {
+                alert('Please select an image file (JPEG, PNG).');
+                return;
+            }
             
-            uploadZone.addEventListener('drop', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadZone.classList.remove('dragover');
-                
-                if (e.dataTransfer.files.length) {
-                    fileInput.files = e.dataTransfer.files;
-                    // Trigger change event
-                    const event = new Event('change', { bubbles: true });
-                    fileInput.dispatchEvent(event);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                receiptPreview.src = e.target.result;
+                imagePreviewContainer.style.display = 'block';
+                scanControls.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removeImage() {
+            fileInput.value = '';
+            imagePreviewContainer.style.display = 'none';
+            scanControls.style.display = 'none';
+        }
+        
+        function scanReceipt() {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please select a receipt image to scan.');
+                return;
+            }
+            
+            // Show loading animation
+            uploadSection.style.display = 'none';
+            loadingIndicator.style.display = 'block';
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('receipt', fileInput.files[0]);
+            
+            // Send the image to the server for processing
+            fetch('/scan', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                return response.json();
+            })
+            .then(data => {
+                // Handle response based on whether it's async or direct
+                if (data.success) {
+                    if (data.async) {
+                        // For async processing, we need to poll for results
+                        loadingIndicator.style.display = 'none';
+                        geminiProcessing.style.display = 'block';
+                        
+                        // Start polling for task status
+                        pollTaskStatus(data.task_id);
+                    } else {
+                        // For direct processing, we already have the results
+                        loadingIndicator.style.display = 'none';
+                        populateForm(data.data);
+                        receiptFormSection.style.display = 'block';
+                    }
+                } else {
+                    // Show error
+                    showScanError(data.error || 'Failed to process receipt');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showScanError('Network error occurred. Please try again.');
             });
+        }
+        
+        function pollTaskStatus(taskId) {
+            // Poll the server for task status
+            const polling = setInterval(function() {
+                fetch(`/task_status/${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        // Task completed successfully
+                        clearInterval(polling);
+                        geminiProcessing.style.display = 'none';
+                        populateForm(data.data);
+                        receiptFormSection.style.display = 'block';
+                    } else if (data.status === 'failed') {
+                        // Task failed
+                        clearInterval(polling);
+                        geminiProcessing.style.display = 'none';
+                        showScanError(data.error || 'Failed to process receipt');
+                    }
+                    // If status is 'pending', keep polling
+                })
+                .catch(error => {
+                    console.error('Error polling task status:', error);
+                    clearInterval(polling);
+                    geminiProcessing.style.display = 'none';
+                    showScanError('Error checking task status. Please try again.');
+                });
+            }, 2000); // Poll every 2 seconds
+        }
+        
+        function showScanError(message) {
+            loadingIndicator.style.display = 'none';
+            geminiProcessing.style.display = 'none';
+            errorText.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+        
+        function resetScanProcess() {
+            // Reset UI
+            uploadSection.style.display = 'block';
+            loadingIndicator.style.display = 'none';
+            geminiProcessing.style.display = 'none';
+            errorMessage.style.display = 'none';
+            receiptFormSection.style.display = 'none';
+            
+            // Reset form inputs
+            receiptForm.reset();
+            itemList.innerHTML = '';
+            
+            // Reset file input
+            fileInput.value = '';
+            imagePreviewContainer.style.display = 'none';
+            scanControls.style.display = 'none';
+        }
+        
+        function populateForm(data) {
+            // Populate vendor information
+            document.getElementById('vendor_name').value = data.vendor_name || '';
+            document.getElementById('vendor_address').value = data.vendor_address || '';
+            document.getElementById('vendor_contact').value = data.vendor_contact || '';
+            document.getElementById('vat_registration_number').value = data.vat_registration_number || '';
+            
+            // Populate transaction details
+            document.getElementById('date').value = data.date || '';
+            document.getElementById('total_amount').value = data.total_amount || '';
+            document.getElementById('service_charge').value = data.service_charge || 0;
+            document.getElementById('vat_tax').value = data.vat_tax || 0;
+            document.getElementById('sscl_tax').value = data.sscl_tax || 0;
+            
+            // Populate expense categories
+            if (data.expense_major_category) {
+                document.getElementById('expense_major_category').value = data.expense_major_category;
+            }
+            if (data.expense_minor_category) {
+                document.getElementById('expense_minor_category').value = data.expense_minor_category;
+            }
+            
+            // Clear and populate items
+            itemList.innerHTML = '';
+            const items = data.items || [];
+            if (items.length === 0) {
+                // Add an empty row if no items were detected
+                addItemRow();
+            } else {
+                items.forEach(item => {
+                    addItemRow(
+                        item.name || '',
+                        item.quantity || 1,
+                        item.price || 0,
+                        item.tax_deductible || false
+                    );
+                });
+            }
+        }
+        
+        function addItemRow(name = '', quantity = 1, price = 0, tax_deductible = false) {
+            const row = document.createElement('tr');
+            row.className = 'item-row';
+            
+            row.innerHTML = `
+                <td>
+                    <input type="text" class="form-control item-name" value="${name}" placeholder="Item Description" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control item-quantity" value="${quantity}" min="0.01" step="0.01" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control item-price" value="${price}" min="0" step="0.01" required>
+                </td>
+                <td class="text-center">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input item-tax-deductible" type="checkbox" role="switch" ${tax_deductible ? 'checked' : ''}>
+                    </div>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            // Add event listener for remove button
+            const removeButton = row.querySelector('.remove-item');
+            removeButton.addEventListener('click', function() {
+                row.remove();
+            });
+            
+            itemList.appendChild(row);
+        }
+        
+        function collectFormData() {
+            // Collect base receipt data
+            const formData = {
+                vendor_name: document.getElementById('vendor_name').value,
+                vendor_address: document.getElementById('vendor_address').value,
+                vendor_contact: document.getElementById('vendor_contact').value,
+                vat_registration_number: document.getElementById('vat_registration_number').value,
+                date: document.getElementById('date').value,
+                total_amount: parseFloat(document.getElementById('total_amount').value),
+                service_charge: parseFloat(document.getElementById('service_charge').value || 0),
+                vat_tax: parseFloat(document.getElementById('vat_tax').value || 0),
+                sscl_tax: parseFloat(document.getElementById('sscl_tax').value || 0),
+                expense_major_category: document.getElementById('expense_major_category').value,
+                expense_minor_category: document.getElementById('expense_minor_category').value,
+                items: []
+            };
+            
+            // Collect items
+            const itemRows = itemList.querySelectorAll('tr');
+            itemRows.forEach(row => {
+                const name = row.querySelector('.item-name').value;
+                const quantity = parseFloat(row.querySelector('.item-quantity').value);
+                const price = parseFloat(row.querySelector('.item-price').value);
+                const tax_deductible = row.querySelector('.item-tax-deductible').checked;
+                
+                formData.items.push({
+                    name: name,
+                    quantity: quantity,
+                    price: price,
+                    tax_deductible: tax_deductible
+                });
+            });
+            
+            return formData;
+        }
+        
+        function exportReceiptData() {
+            const data = collectFormData();
+            
+            // Update the session data with current form values
+            fetch('/update_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Now export the updated data
+                    window.open('/export', '_blank');
+                } else {
+                    alert('Failed to prepare data for export: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Network error occurred during export preparation');
+            });
+        }
+        
+        function saveReceipt(e) {
+            e.preventDefault();
+            
+            const data = collectFormData();
+            
+            // Update the session data with current form values first
+            fetch('/update_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(updateResult => {
+                if (updateResult.success) {
+                    // Now save the receipt
+                    return fetch('/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({}) // We rely on session data, so body can be empty
+                    });
+                } else {
+                    throw new Error(updateResult.error || 'Failed to update receipt data');
+                }
+            })
+            .then(response => response.json())
+            .then(saveResult => {
+                if (saveResult.success) {
+                    // Show success toast
+                    const toast = new bootstrap.Toast(successToast);
+                    successToastMessage.textContent = saveResult.message;
+                    toast.show();
+                    
+                    // Add view history button that appears after saving
+                    showViewHistoryButton();
+                    
+                    // Reset the form after successful save
+                    setTimeout(() => {
+                        resetScanProcess();
+                    }, 1500);
+                } else {
+                    alert('Failed to save receipt: ' + (saveResult.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving receipt: ' + error.message);
+            });
+        }
+        
+        function showViewHistoryButton() {
+            // Create a view history button that appears below the toast
+            const viewHistoryContainer = document.createElement('div');
+            viewHistoryContainer.className = 'text-center mt-4';
+            viewHistoryContainer.innerHTML = `
+                <a href="/history" class="btn btn-primary">
+                    <i class="fas fa-history me-2"></i> View Receipt History
+                </a>
+            `;
+            
+            // Insert after the form
+            receiptFormSection.insertAdjacentElement('afterend', viewHistoryContainer);
         }
     });
 </script>
 {% endblock %}
-<!-- This was a duplicate endblock/block that's now removed -->

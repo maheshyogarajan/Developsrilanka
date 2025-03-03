@@ -3,41 +3,46 @@
 {% block title %}Login - Develop Sri Lanka{% endblock %}
 
 {% block content %}
-<div class="container my-5">
-    <div class="row">
-        <div class="col-md-6 mx-auto">
-            <div class="card shadow">
-                <div class="card-body text-center">
-                    <div class="mb-4">
-                        <img src="/static/images/dev-sri-logo.png" alt="Develop Sri Lanka Logo" class="img-fluid mb-3" style="max-width: 150px;">
-                        <h2 class="font-weight-bold">Welcome to Develop Sri Lanka</h2>
-                        <p class="text-muted">Login to track your contribution to Sri Lanka's development</p>
-                    </div>
-
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category }}">{{ message }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-
-                    <div class="d-grid gap-3">
-                        <a href="{{ url_for('google_auth') }}" class="btn btn-lg btn-outline-primary">
-                            <i class="fab fa-google me-2"></i> Continue with Google
-                        </a>
-                        <a href="{{ url_for('facebook_auth') }}" class="btn btn-lg btn-outline-primary">
-                            <i class="fab fa-facebook-f me-2"></i> Continue with Facebook
-                        </a>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div class="text-center text-muted">
-                        <p>By logging in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
-                        <p class="small mt-3">Powered by Develop Sri Lanka Initiative</p>
-                    </div>
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">Login to Develop Sri Lanka</h3>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Develop SL Logo" height="80" class="mb-3">
+                    <p class="lead">Track your tax contributions and development impact</p>
                 </div>
+                
+                <div class="d-grid gap-3">
+                    <a href="{{ url_for('google_auth') }}" class="btn btn-outline-danger btn-lg">
+                        <i class="fab fa-google me-2"></i> Login with Google
+                    </a>
+                    <a href="{{ url_for('facebook_auth') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="fab fa-facebook-f me-2"></i> Login with Facebook
+                    </a>
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <p class="text-muted">
+                        By logging in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4 shadow-sm">
+            <div class="card-body">
+                <h5>Why login with social media?</h5>
+                <ul class="mb-0">
+                    <li>No need to remember another password</li>
+                    <li>Secure authentication through trusted providers</li>
+                    <li>We only access your basic profile information</li>
+                    <li>We never post to your social media accounts</li>
+                </ul>
             </div>
         </div>
     </div>
