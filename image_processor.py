@@ -11,9 +11,8 @@ from pathlib import Path
 
 from PIL import Image
 
-from app import db
 from celery_config import app as celery_app
-from models import Receipt, ReceiptItem
+# Import models and db at the function level to avoid circular imports
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -152,6 +151,9 @@ def save_receipt_to_database(self, receipt_data):
                 except ValueError:
                     logger.warning(f"Could not parse date: {date_str}")
         
+        # Import models here to avoid circular imports
+        from models import Receipt, ReceiptItem
+        
         # Create receipt instance
         new_receipt = Receipt(
             vendor_name=vendor_name,
@@ -183,6 +185,9 @@ def save_receipt_to_database(self, receipt_data):
             )
             new_receipt.items.append(new_item)
         
+        # Import db here to avoid circular imports
+        from app import db
+        
         # Save to database
         db.session.add(new_receipt)
         db.session.commit()
@@ -201,7 +206,11 @@ def save_receipt_to_database(self, receipt_data):
         logger.error(traceback.format_exc())
         
         # If the database session is still active but in a bad state
-        db.session.rollback()
+        try:
+            from app import db
+            db.session.rollback()
+        except:
+            logger.warning("Could not rollback database session")
         
         # Retry the task
         retry_count = self.request.retries
