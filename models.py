@@ -21,12 +21,17 @@ class Receipt(db.Model):
     items = db.relationship('ReceiptItem', backref='receipt', lazy=True, cascade='all, delete-orphan')
 
     def get_tax_deductible_amount(self):
-        """Calculate the total amount for tax deductible items."""
+        """Calculate the total amount for tax deductible items.
+        
+        The tax deductible amount should never exceed the total_amount of the receipt.
+        """
         tax_deductible_amount = 0.0
         for item in self.items:
             if item.tax_deductible:
                 tax_deductible_amount += item.price * item.quantity
-        return tax_deductible_amount
+        
+        # Ensure tax_deductible_amount doesn't exceed total_amount
+        return min(tax_deductible_amount, self.total_amount)
 
     def to_dict(self):
         """Convert the receipt to a dictionary."""

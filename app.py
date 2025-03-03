@@ -114,7 +114,13 @@ def analytics():
         # Calculate total tax deductible amount using the Receipt model method
         # This approach ensures we don't double count or exceed the total expense
         receipts = Receipt.query.all()
-        total_tax_deductible = sum(receipt.get_tax_deductible_amount() for receipt in receipts)
+        
+        # Get the tax deductible amount for each receipt, ensuring none exceeds its total_amount
+        total_tax_deductible = 0.0
+        for receipt in receipts:
+            tax_deductible = receipt.get_tax_deductible_amount()
+            # The method already has a min() check, but let's be extra safe
+            total_tax_deductible += min(tax_deductible, receipt.total_amount)
         
         # Convert to dictionaries for easier template handling
         major_category_data = [{'category': cat, 'total': total} for cat, total in major_categories]

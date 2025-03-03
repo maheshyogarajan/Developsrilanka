@@ -71,7 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('receipt', file);
         
         // Update header based on the design
-        document.querySelector('.page-title').textContent = 'Processing Receipt';
+        const pageTitleElement = document.querySelector('.page-title');
+        if (pageTitleElement) {
+            pageTitleElement.textContent = 'Processing Receipt';
+        }
         
         // Send request to server
         fetch('/scan', {
@@ -92,7 +95,10 @@ document.addEventListener('DOMContentLoaded', function() {
             resultsElement.classList.remove('d-none');
             
             // Update header based on the design
-            document.querySelector('.page-title').textContent = 'Edit Data';
+            const pageTitleHeader = document.querySelector('.page-title');
+            if (pageTitleHeader) {
+                pageTitleHeader.textContent = 'Edit Data';
+            }
         })
         .catch(error => {
             console.error('Error:', error);
