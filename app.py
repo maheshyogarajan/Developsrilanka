@@ -106,13 +106,29 @@ def process_receipt_with_gemini(image):
         Dictionary containing extracted receipt data
     """
     try:
+        logging.debug("Starting receipt image processing with Gemini Vision")
+        
         # Convert PIL image to bytes for Gemini
         img_byte_arr = BytesIO()
         image.save(img_byte_arr, format=image.format if image.format else 'JPEG')
-        img_byte_arr = img_byte_arr.getvalue()
+        img_bytes = img_byte_arr.getvalue()
+        logging.debug(f"Image converted to bytes, size: {len(img_bytes)} bytes")
         
-        # Configure Gemini model
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Use base64 encoding for the image data
+        import base64
+        img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+        logging.debug(f"Image encoded to base64")
+        
+        # Configure Gemini model - using the latest compatible version
+        try:
+            # Try the newer model first (gemini-1.5-flash)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            logging.debug("Using gemini-1.5-flash model")
+        except Exception as model_error:
+            logging.warning(f"Could not use gemini-1.5-flash, falling back to gemini-pro-vision: {str(model_error)}")
+            # Fall back to the original model if needed
+            model = genai.GenerativeModel('gemini-pro-vision')
+            logging.debug("Using gemini-pro-vision model")
         
         # Create the prompt for receipt data extraction
         prompt = """
@@ -132,21 +148,58 @@ def process_receipt_with_gemini(image):
         """
         
         # Generate content with Gemini Vision
-        response = model.generate_content([prompt, image])
+        logging.debug("Preparing to send request to Gemini API")
+        
+        # Create the proper format for the image
+        image_part = {
+            "inline_data": {
+                "mime_type": "image/jpeg",
+                "data": img_b64
+            }
+        }
+        
+        # Send the request to Gemini API
+        logging.debug("Sending request to Gemini API")
+        response = model.generate_content([prompt, image_part])
+        logging.debug("Received response from Gemini API")
         
         # Parse the response to extract JSON
         response_text = response.text
+        logging.debug(f"Raw response text: {response_text[:200]}...")  # Log first 200 chars of response
         
         # If the response contains markdown code blocks, extract just the JSON part
-        if "```json" in response_text:
-            json_text = response_text.split("```json")[1].split("```")[0].strip()
-        elif "```" in response_text:
-            json_text = response_text.split("```")[1].strip()
-        else:
-            json_text = response_text.strip()
-        
-        # Parse the JSON response
-        extracted_data = json.loads(json_text)
+        try:
+            if "```json" in response_text:
+                json_text = response_text.split("```json")[1].split("```")[0].strip()
+                logging.debug("Extracted JSON from ```json code block")
+            elif "```" in response_text:
+                json_text = response_text.split("```")[1].strip()
+                logging.debug("Extracted JSON from generic code block")
+            else:
+                json_text = response_text.strip()
+                logging.debug("Using raw response as JSON")
+            
+            # Check if the response starts with a curly brace (JSON object)
+            if not json_text.startswith('{'):
+                # Try to find a JSON object in the text
+                import re
+                json_match = re.search(r'(\{.*\})', json_text, re.DOTALL)
+                if json_match:
+                    json_text = json_match.group(1)
+                    logging.debug("Extracted JSON using regex")
+            
+            logging.debug(f"JSON text to parse: {json_text[:200]}...")
+            
+            # Parse the JSON response
+            extracted_data = json.loads(json_text)
+            logging.debug(f"Successfully parsed JSON with keys: {list(extracted_data.keys())}")
+        except json.JSONDecodeError as json_err:
+            logging.error(f"JSON parsing error: {str(json_err)}")
+            logging.error(f"Failed JSON content: {json_text}")
+            # Create a basic empty structure as fallback
+            extracted_data = {field: "" if field not in ['items', 'total_amount', 'service_charge', 'sscl_tax', 'vat_tax'] 
+                             else [] if field == 'items' else 0 
+                             for field in RECEIPT_FIELDS}
         
         # Ensure all required fields are present
         for field in RECEIPT_FIELDS:
