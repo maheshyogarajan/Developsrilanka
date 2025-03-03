@@ -242,6 +242,27 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('sscl_tax').value = data.sscl_tax || '';
         document.getElementById('vat_tax').value = data.vat_tax || '';
         
+        // Set expense categories if they exist
+        if (data.expense_major_category) {
+            const majorCategorySelect = document.getElementById('expense_major_category');
+            for (let i = 0; i < majorCategorySelect.options.length; i++) {
+                if (majorCategorySelect.options[i].value === data.expense_major_category) {
+                    majorCategorySelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        
+        if (data.expense_minor_category) {
+            const minorCategorySelect = document.getElementById('expense_minor_category');
+            for (let i = 0; i < minorCategorySelect.options.length; i++) {
+                if (minorCategorySelect.options[i].value === data.expense_minor_category) {
+                    minorCategorySelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        
         // Clear existing items
         itemsContainer.innerHTML = '';
         
@@ -307,6 +328,8 @@ document.addEventListener('DOMContentLoaded', function() {
             vat_registration_number: document.getElementById('vat_registration_number').value,
             sscl_tax: parseFloat(document.getElementById('sscl_tax').value) || 0,
             vat_tax: parseFloat(document.getElementById('vat_tax').value) || 0,
+            expense_major_category: document.getElementById('expense_major_category').value,
+            expense_minor_category: document.getElementById('expense_minor_category').value,
             items: []
         };
         

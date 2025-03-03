@@ -77,6 +77,72 @@ def receipt_history():
     """Render the receipt history page."""
     return render_template('receipts.html')
 
+@app.route('/analytics')
+def analytics():
+    """Render the analytics page with expense category summaries."""
+    from models import Receipt
+    from sqlalchemy import func
+    
+    try:
+        # Get total expenses
+        total_expenses = db.session.query(func.sum(Receipt.total_amount)).scalar() or 0
+        
+        # Get total by expense categories (major)
+        major_categories = db.session.query(
+            Receipt.expense_major_category,
+            func.sum(Receipt.total_amount).label('total')
+        ).filter(Receipt.expense_major_category != None, Receipt.expense_major_category != '')\
+        .group_by(Receipt.expense_major_category)\
+        .order_by(func.sum(Receipt.total_amount).desc())\
+        .all()
+        
+        # Get total by expense subcategories (minor)
+        minor_categories = db.session.query(
+            Receipt.expense_minor_category,
+            func.sum(Receipt.total_amount).label('total')
+        ).filter(Receipt.expense_minor_category != None, Receipt.expense_minor_category != '')\
+        .group_by(Receipt.expense_minor_category)\
+        .order_by(func.sum(Receipt.total_amount).desc())\
+        .all()
+        
+        # Get tax totals
+        tax_summary = db.session.query(
+            func.sum(Receipt.vat_tax).label('vat_tax'),
+            func.sum(Receipt.sscl_tax).label('sscl_tax')
+        ).first()
+        
+        # Convert to dictionaries for easier template handling
+        major_category_data = [{'category': cat, 'total': total} for cat, total in major_categories]
+        minor_category_data = [{'category': cat, 'total': total} for cat, total in minor_categories]
+        
+        # Total count of receipts
+        receipt_count = Receipt.query.count()
+        
+        # Get receipt data for the chart (last 10 receipts)
+        recent_receipts = Receipt.query.order_by(Receipt.date.desc()).limit(10).all()
+        recent_receipt_data = [
+            {
+                'date': receipt.date.strftime('%Y-%m-%d') if receipt.date else 'Unknown',
+                'vendor': receipt.vendor_name,
+                'amount': receipt.total_amount,
+                'category': receipt.expense_major_category or 'Uncategorized'
+            } for receipt in recent_receipts
+        ]
+        
+        return render_template(
+            'analytics.html',
+            total_expenses=total_expenses,
+            major_categories=major_category_data,
+            minor_categories=minor_category_data,
+            tax_summary=tax_summary,
+            receipt_count=receipt_count,
+            recent_receipts=recent_receipt_data
+        )
+    
+    except Exception as e:
+        logging.error(f"Error generating analytics: {str(e)}")
+        return render_template('analytics.html', error=str(e))
+
 @app.route('/scan', methods=['POST'])
 def scan_receipt():
     """Process the uploaded receipt image and extract data using Gemini Vision."""
