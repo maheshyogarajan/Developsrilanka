@@ -282,25 +282,39 @@
                     // Hide loading
                     modalLoading.classList.add('d-none');
                     
+                    // Function to safely update element text content
+                    function safelyUpdateText(elementId, content) {
+                        const element = document.getElementById(elementId);
+                        if (element) {
+                            element.textContent = content;
+                        } else {
+                            console.error(`Element with ID ${elementId} not found`);
+                        }
+                    }
+                    
                     // Update modal title
-                    document.getElementById('receiptDetailModalLabel').textContent = `${receipt.vendor_name} - ${formatDate(receipt.date)}`;
+                    safelyUpdateText('receiptDetailModalLabel', `${receipt.vendor_name} - ${formatDate(receipt.date)}`);
                     
                     // Fill in receipt details
-                    document.getElementById('detail-vendor').textContent = receipt.vendor_name;
-                    document.getElementById('detail-date').textContent = formatDate(receipt.date);
-                    document.getElementById('detail-amount').textContent = formatCurrency(receipt.total_amount);
-                    document.getElementById('detail-address').textContent = receipt.vendor_address || 'N/A';
-                    document.getElementById('detail-contact').textContent = receipt.vendor_contact || 'N/A';
-                    document.getElementById('detail-vat-number').textContent = receipt.vat_registration_number || 'N/A';
-                    document.getElementById('detail-category').textContent = receipt.expense_major_category || 'Uncategorized';
-                    document.getElementById('detail-subcategory').textContent = receipt.expense_minor_category || 'Uncategorized';
-                    document.getElementById('detail-service-charge').textContent = formatCurrency(receipt.service_charge);
-                    document.getElementById('detail-sscl').textContent = formatCurrency(receipt.sscl_tax);
-                    document.getElementById('detail-vat-tax').textContent = formatCurrency(receipt.vat_tax);
-                    document.getElementById('detail-total-amount').textContent = formatCurrency(receipt.total_amount);
+                    safelyUpdateText('detail-vendor', receipt.vendor_name);
+                    safelyUpdateText('detail-date', formatDate(receipt.date));
+                    safelyUpdateText('detail-amount', formatCurrency(receipt.total_amount));
+                    safelyUpdateText('detail-address', receipt.vendor_address || 'N/A');
+                    safelyUpdateText('detail-contact', receipt.vendor_contact || 'N/A');
+                    safelyUpdateText('detail-vat-number', receipt.vat_registration_number || 'N/A');
+                    safelyUpdateText('detail-category', receipt.expense_major_category || 'Uncategorized');
+                    safelyUpdateText('detail-subcategory', receipt.expense_minor_category || 'Uncategorized');
+                    safelyUpdateText('detail-service-charge', formatCurrency(receipt.service_charge));
+                    safelyUpdateText('detail-sscl', formatCurrency(receipt.sscl_tax));
+                    safelyUpdateText('detail-vat-tax', formatCurrency(receipt.vat_tax));
+                    safelyUpdateText('detail-total-amount', formatCurrency(receipt.total_amount));
                     
                     // Fill in items table
                     const itemsTable = document.getElementById('detail-items');
+                    if (!itemsTable) {
+                        console.error('Items table element not found');
+                        return;
+                    }
                     itemsTable.innerHTML = '';
                     
                     if (receipt.items && receipt.items.length > 0) {
@@ -344,12 +358,24 @@
                 const button = e.target.classList.contains('view-receipt') ? e.target : e.target.closest('.view-receipt');
                 const receiptId = button.getAttribute('data-id');
                 
-                // Show the modal
-                const modal = new bootstrap.Modal(receiptDetailModal);
-                modal.show();
+                // Check if modal element exists
+                if (!receiptDetailModal) {
+                    console.error('Receipt detail modal element not found');
+                    return;
+                }
                 
-                // Load receipt details
-                loadReceiptDetails(receiptId);
+                try {
+                    // Show the modal
+                    const modal = new bootstrap.Modal(receiptDetailModal);
+                    modal.show();
+                    
+                    // Load receipt details
+                    loadReceiptDetails(receiptId);
+                } catch (error) {
+                    console.error('Error showing modal:', error);
+                    // Fallback to direct page navigation if modal fails
+                    window.location.href = `/view_receipt/${receiptId}`;
+                }
             }
         });
         
