@@ -139,52 +139,64 @@ def home():
     return render_template('home.html')
 
 @app.route('/scan')
+@login_required
 def index():
     """Render the receipt scanning page of the application."""
     return render_template('index.html')
 
 @app.route('/history')
+@login_required
 def receipt_history():
     """Render the receipt history page."""
     return render_template('receipts.html')
 
 @app.route('/analytics')
+@login_required
 def analytics():
     """Render the analytics page with expense category summaries."""
     from models import Receipt, ReceiptItem
     from sqlalchemy import func
     
     try:
-        # Get total expenses
-        total_expenses = db.session.query(func.sum(Receipt.total_amount)).scalar() or 0
+        # Get total expenses for the current user
+        total_expenses = db.session.query(func.sum(Receipt.total_amount))\
+            .filter(Receipt.user_id == current_user.id).scalar() or 0
         
-        # Get total by expense categories (major)
+        # Get total by expense categories (major) for the current user
         major_categories = db.session.query(
             Receipt.expense_major_category,
             func.sum(Receipt.total_amount).label('total')
-        ).filter(Receipt.expense_major_category != None, Receipt.expense_major_category != '')\
+        ).filter(
+            Receipt.user_id == current_user.id,
+            Receipt.expense_major_category != None, 
+            Receipt.expense_major_category != ''
+        )\
         .group_by(Receipt.expense_major_category)\
         .order_by(func.sum(Receipt.total_amount).desc())\
         .all()
         
-        # Get total by expense subcategories (minor)
+        # Get total by expense subcategories (minor) for the current user
         minor_categories = db.session.query(
             Receipt.expense_minor_category,
             func.sum(Receipt.total_amount).label('total')
-        ).filter(Receipt.expense_minor_category != None, Receipt.expense_minor_category != '')\
+        ).filter(
+            Receipt.user_id == current_user.id,
+            Receipt.expense_minor_category != None, 
+            Receipt.expense_minor_category != ''
+        )\
         .group_by(Receipt.expense_minor_category)\
         .order_by(func.sum(Receipt.total_amount).desc())\
         .all()
         
-        # Get tax totals
+        # Get tax totals for the current user
         tax_summary = db.session.query(
             func.sum(Receipt.vat_tax).label('vat_tax'),
             func.sum(Receipt.sscl_tax).label('sscl_tax')
-        ).first()
+        ).filter(Receipt.user_id == current_user.id).first()
         
         # Calculate total tax deductible amount using the Receipt model method
         # This approach ensures we don't double count or exceed the total expense
-        receipts = Receipt.query.all()
+        receipts = Receipt.query.filter_by(user_id=current_user.id).all()
         
         # Get the tax deductible amount for each receipt, ensuring none exceeds its total_amount
         total_tax_deductible = 0.0
@@ -468,6 +480,7 @@ def update_data():
         return jsonify({'error': f'Error updating data: {str(e)}'}), 500
 
 @app.route('/save', methods=['POST'])
+@login_required
 def save_receipt():
     """Save the receipt data to the database."""
     from models import Receipt, ReceiptItem
@@ -487,8 +500,9 @@ def save_receipt():
             except ValueError:
                 logging.warning(f"Invalid date format: {receipt_data['date']}")
         
-        # Create a new receipt
+        # Create a new receipt and associate it with the current user
         new_receipt = Receipt(
+            user_id=current_user.id,  # Set the user_id from the logged in user
             vendor_name=receipt_data.get('vendor_name', 'Unknown Vendor'),
             vendor_address=receipt_data.get('vendor_address'),
             vendor_contact=receipt_data.get('vendor_contact'),
@@ -535,13 +549,14 @@ def save_receipt():
         return jsonify({'error': f'Error saving receipt: {str(e)}'}), 500
 
 @app.route('/receipts', methods=['GET'])
+@login_required
 def list_receipts():
-    """Get a list of all saved receipts."""
+    """Get a list of all saved receipts for the current user."""
     from models import Receipt
     
     try:
-        # Query all receipts, ordered by date (newest first)
-        receipts = Receipt.query.order_by(Receipt.date.desc()).all()
+        # Query receipts for the current user, ordered by date (newest first)
+        receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
         
         # Convert to list of dictionaries
         receipt_list = []
@@ -558,8 +573,9 @@ def list_receipts():
         return jsonify({'error': f'Error listing receipts: {str(e)}'}), 500
         
 @app.route('/receipts/delete', methods=['POST'])
+@login_required
 def delete_receipts():
-    """Delete multiple receipts by ID."""
+    """Delete multiple receipts by ID, ensuring they belong to the current user."""
     from models import Receipt
     
     try:
@@ -573,8 +589,12 @@ def delete_receipts():
         # Convert string IDs to integers
         receipt_ids = [int(id) for id in receipt_ids]
         
-        # Find receipts to delete
-        receipts_to_delete = Receipt.query.filter(Receipt.id.in_(receipt_ids)).all()
+        # Find receipts to delete that belong to the current user
+        receipts_to_delete = Receipt.query.filter(
+            Receipt.id.in_(receipt_ids),
+            Receipt.user_id == current_user.id
+        ).all()
+        
         deleted_count = len(receipts_to_delete)
         
         # Delete each receipt (will cascade to items thanks to relationship setup)
