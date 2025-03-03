@@ -56,7 +56,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Show preview when file is selected
-    receiptInput.addEventListener('change', handleFileSelect);
+    if (receiptInput) {
+        receiptInput.addEventListener('change', handleFileSelect);
+    }
 
     // Process receipt image and send to server
     function processReceiptImage(file) {
@@ -265,30 +267,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // Export functionality has been removed
 
     // Handle add item button click
-    addItemButton.addEventListener('click', function() {
-        addItemRow();
-    });
+    if (addItemButton) {
+        addItemButton.addEventListener('click', function() {
+            addItemRow();
+        });
+    }
 
     // Handle remove item button click (using event delegation)
-    itemsContainer.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-item-btn') || e.target.closest('.remove-item-btn')) {
-            const itemRow = e.target.closest('.item-row');
-            if (itemRow) {
-                itemRow.remove();
+    if (itemsContainer) {
+        itemsContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-item-btn') || e.target.closest('.remove-item-btn')) {
+                const itemRow = e.target.closest('.item-row');
+                if (itemRow) {
+                    itemRow.remove();
+                }
             }
-        }
-    });
+        });
+    }
 
     // Helper function to show error message
     function showError(message) {
-        errorMessageElement.textContent = message;
-        errorMessageElement.classList.remove('d-none');
+        if (errorMessageElement) {
+            errorMessageElement.textContent = message;
+            errorMessageElement.classList.remove('d-none');
+        } else {
+            console.error('Error:', message);
+        }
     }
 
     // Helper function to hide error message
     function hideError() {
-        errorMessageElement.classList.add('d-none');
-        errorMessageElement.textContent = '';
+        if (errorMessageElement) {
+            errorMessageElement.classList.add('d-none');
+            errorMessageElement.textContent = '';
+        }
     }
 
     // Helper function to show alert message
