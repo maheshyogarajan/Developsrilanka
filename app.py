@@ -470,6 +470,7 @@ def task_status(task_id):
         return jsonify({'error': f'Error checking task status: {str(e)}'}), 500
 
 @app.route('/update_data', methods=['POST'])
+@login_required
 def update_data():
     """Update the extracted receipt data with user corrections."""
     try:
