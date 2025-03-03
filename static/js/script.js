@@ -76,6 +76,15 @@ document.addEventListener('DOMContentLoaded', function() {
             pageTitleElement.textContent = 'Processing Receipt';
         }
         
+        // Show a loading message
+        const loadingText = document.querySelector('#loading p');
+        if (loadingText) {
+            loadingText.innerHTML = 'Uploading receipt... <br>This might take a moment.';
+        }
+        
+        // Track task polling
+        let taskCheckInterval;
+        
         // Send request to server
         fetch('/scan', {
             method: 'POST',
@@ -87,20 +96,93 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(data.error);
             }
             
-            // Fill form with extracted data
-            populateForm(data.data);
-            
-            // Show results
-            loadingElement.classList.add('d-none');
-            resultsElement.classList.remove('d-none');
-            
-            // Update header based on the design
-            const pageTitleHeader = document.querySelector('.page-title');
-            if (pageTitleHeader) {
-                pageTitleHeader.textContent = 'Edit Data';
+            // Check if this is an async process
+            if (data.async && data.task_id) {
+                console.log('Async processing started, task ID:', data.task_id);
+                
+                // Update loading message for async processing
+                if (loadingText) {
+                    loadingText.innerHTML = 'Analyzing receipt with AI...<br>This might take a few moments.';
+                }
+                
+                // Poll for task completion
+                taskCheckInterval = setInterval(() => {
+                    fetch(`/task_status/${data.task_id}`)
+                        .then(response => response.json())
+                        .then(taskData => {
+                            console.log('Task status:', taskData.status);
+                            
+                            if (taskData.status === 'completed') {
+                                // Task completed successfully
+                                clearInterval(taskCheckInterval);
+                                
+                                // Fill form with extracted data
+                                populateForm(taskData.data);
+                                
+                                // Show results
+                                loadingElement.classList.add('d-none');
+                                resultsElement.classList.remove('d-none');
+                                
+                                // Update header
+                                if (pageTitleElement) {
+                                    pageTitleElement.textContent = 'Edit Data';
+                                }
+                                
+                                // Show the history button in case user wants to cancel
+                                showViewHistoryButton();
+                            }
+                            else if (taskData.status === 'failed') {
+                                // Task failed
+                                clearInterval(taskCheckInterval);
+                                throw new Error(taskData.error || 'Failed to process receipt');
+                            }
+                            else {
+                                // Task still in progress, update loading message with timestamp
+                                const timestamp = new Date().toLocaleTimeString();
+                                if (loadingText) {
+                                    loadingText.innerHTML = `Analyzing receipt with AI...<br>Still working on it (${timestamp})`;
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            clearInterval(taskCheckInterval);
+                            console.error('Error checking task status:', error);
+                            showError(error.message || 'Error checking receipt processing status');
+                            loadingElement.classList.add('d-none');
+                            
+                            // Show reset button when there's an error
+                            if (uploadArea) {
+                                uploadArea.classList.remove('d-none');
+                            }
+                        });
+                }, 2000); // Check every 2 seconds
+            } 
+            else {
+                // Synchronous processing completed
+                console.log('Synchronous processing completed');
+                
+                // Fill form with extracted data
+                populateForm(data.data);
+                
+                // Show results
+                loadingElement.classList.add('d-none');
+                resultsElement.classList.remove('d-none');
+                
+                // Update header based on the design
+                if (pageTitleElement) {
+                    pageTitleElement.textContent = 'Edit Data';
+                }
+                
+                // Show the history button in case user wants to cancel
+                showViewHistoryButton();
             }
         })
         .catch(error => {
+            // Clear any interval if it exists
+            if (taskCheckInterval) {
+                clearInterval(taskCheckInterval);
+            }
+            
             console.error('Error:', error);
             showError(error.message || 'An error occurred while processing the receipt');
             loadingElement.classList.add('d-none');
