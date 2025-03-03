@@ -9,6 +9,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     name = db.Column(db.String(255), nullable=True)
     profile_pic = db.Column(db.String(255), nullable=True)
+    # Password authentication
+    password_hash = db.Column(db.String(256), nullable=True)
     # Social login information
     social_id = db.Column(db.String(255), unique=True, nullable=True)
     social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
