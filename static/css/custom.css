@@ -1,34 +1,166 @@
-/* Custom styles for Receipt Scanner app */
+/* Apple-inspired CSS for Receipt Scanner App */
+:root {
+    --apple-bg: #f5f5f7;
+    --apple-card: #ffffff;
+    --apple-text: #1d1d1f;
+    --apple-secondary: #86868b;
+    --apple-blue: #0071e3;
+    --apple-blue-hover: #0077ed;
+    --apple-green: #34c759;
+    --apple-border: rgba(0, 0, 0, 0.1);
+    --apple-shadow: rgba(0, 0, 0, 0.1);
+    --apple-surface: #f2f2f7;
+    --apple-overlay: rgba(255, 255, 255, 0.8);
+}
+
+[data-bs-theme=dark] {
+    --apple-bg: #1d1d1f;
+    --apple-card: #2d2d2f;
+    --apple-text: #f5f5f7;
+    --apple-secondary: #a1a1a6;
+    --apple-blue: #0071e3;
+    --apple-blue-hover: #0077ed;
+    --apple-green: #34c759;
+    --apple-border: rgba(255, 255, 255, 0.1);
+    --apple-shadow: rgba(0, 0, 0, 0.3);
+    --apple-surface: #2c2c2e;
+    --apple-overlay: rgba(0, 0, 0, 0.7);
+}
 
 /* General styling */
 body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background-color: var(--apple-bg);
+    color: var(--apple-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
 }
 
 main {
     flex: 1;
 }
 
+.container {
+    max-width: 1000px;
+    padding: 2rem 1rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+}
+
+/* Card styling */
+.card {
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    border: none;
+    background-color: var(--apple-card);
+    box-shadow: 0 4px 20px var(--apple-shadow);
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+}
+
+.card-header {
+    background-color: var(--apple-card);
+    border-bottom: 1px solid var(--apple-border);
+    padding: 1.25rem 1.5rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Button styling */
+.btn {
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    box-shadow: 0 2px 4px var(--apple-shadow);
+}
+
+.btn-primary {
+    background-color: var(--apple-blue);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--apple-blue-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--apple-shadow);
+}
+
+.btn-success {
+    background-color: var(--apple-green);
+}
+
+.btn-success:hover, .btn-success:focus {
+    background-color: var(--apple-green);
+    opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--apple-shadow);
+}
+
+.btn-outline-secondary {
+    border: 1px solid var(--apple-secondary);
+    color: var(--apple-secondary);
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--apple-text);
+}
+
+/* Form control styling */
+.form-control, .form-select {
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--apple-border);
+    background-color: var(--apple-surface);
+    color: var(--apple-text);
+    transition: all 0.2s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--apple-blue);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.25);
+}
+
 /* Upload section styling */
 .upload-section {
-    background-color: rgba(0, 0, 0, 0.05);
-    border: 2px dashed var(--bs-border-color);
+    background-color: var(--apple-surface);
+    border: 2px dashed var(--apple-border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-section:hover {
+    border-color: var(--apple-blue);
+    background-color: rgba(0, 113, 227, 0.05);
 }
 
 #receipt-preview {
     max-height: 300px;
     object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--apple-shadow);
 }
 
 /* Results section styling */
 #results-container {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--apple-surface);
     min-height: 400px;
+    border-radius: 16px;
+    padding: 1.5rem;
 }
 
-/* Animate the loading spinner */
+/* Spinner and loading animation */
 @keyframes spinner {
     to {transform: rotate(360deg);}
 }
@@ -36,15 +168,33 @@ main {
 .spinner-border {
     height: 3rem;
     width: 3rem;
+    color: var(--apple-blue);
+}
+
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 120px;
 }
 
 /* Item row styling */
 .item-row {
     transition: all 0.3s ease;
+    border-bottom: 1px solid var(--apple-border);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
 }
 
 .item-row:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(0, 113, 227, 0.05);
+}
+
+/* Alert styling */
+.alert {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 8px var(--apple-shadow);
 }
 
 /* Responsive adjustments */
@@ -55,5 +205,14 @@ main {
     
     .card-title {
         font-size: 1.25rem;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        padding: 0.5rem 0.75rem;
     }
 }

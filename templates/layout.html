@@ -1,25 +1,40 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Receipt Scanner - Gemini Vision</title>
     
     <!-- Bootstrap CSS from Replit theme -->
-    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-light-theme.min.css">
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- SF Pro Display font (Apple's system font) -->
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/sf-pro-display">
+    
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    
+    <!-- Apple-like favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <!-- iOS specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
             <a class="navbar-brand" href="/">
-                <i class="fas fa-receipt"></i> Receipt Scanner
+                <i class="fas fa-receipt"></i> <span style="font-weight: 600;">Receipt Scanner</span>
             </a>
+            <div class="ml-auto d-flex align-items-center">
+                <button id="theme-toggle" class="btn btn-sm btn-outline-secondary rounded-circle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -27,9 +42,9 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer mt-auto py-3 bg-dark">
+    <footer class="footer mt-auto py-3">
         <div class="container text-center">
-            <span class="text-muted">Receipt Scanner using Gemini Vision API</span>
+            <span class="text-secondary">Receipt Scanner <span style="font-size: 0.8em;">•</span> Powered by Gemini Vision API</span>
         </div>
     </footer>
 
@@ -38,6 +53,27 @@
     
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- Theme toggle JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            const htmlElement = document.documentElement;
+            const iconElement = themeToggleBtn.querySelector('i');
+            
+            themeToggleBtn.addEventListener('click', function() {
+                if (htmlElement.getAttribute('data-bs-theme') === 'dark') {
+                    htmlElement.setAttribute('data-bs-theme', 'light');
+                    iconElement.classList.remove('fa-sun');
+                    iconElement.classList.add('fa-moon');
+                } else {
+                    htmlElement.setAttribute('data-bs-theme', 'dark');
+                    iconElement.classList.remove('fa-moon');
+                    iconElement.classList.add('fa-sun');
+                }
+            });
+        });
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>
