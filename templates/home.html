@@ -1,137 +1,136 @@
-{% extends 'base.html' %}
+{% extends 'layout.html' %}
 
 {% block title %}Home - Develop Sri Lanka{% endblock %}
 
 {% block content %}
-<div class="hero-section">
-    <div class="container text-center">
-        <h1 class="display-4 fw-bold mb-4">Transform Every Purchase into National Development</h1>
-        <p class="lead mb-4">Track your tax contributions, understand your impact, and join the community driving Sri Lanka's future.</p>
-        {% if current_user.is_authenticated %}
-        <a href="{{ url_for('index') }}" class="btn btn-light btn-lg px-5 py-3 me-3">
-            <i class="fas fa-receipt me-2"></i> Scan Receipt
-        </a>
-        <a href="{{ url_for('analytics') }}" class="btn btn-outline-light btn-lg px-5 py-3">
-            <i class="fas fa-chart-line me-2"></i> View Analytics
-        </a>
-        {% else %}
-        <a href="{{ url_for('login') }}" class="btn btn-light btn-lg px-5 py-3">
-            <i class="fas fa-sign-in-alt me-2"></i> Get Started
-        </a>
-        {% endif %}
+<div class="home-hero py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6 mb-4 mb-md-0">
+                <h1 class="display-5 fw-bold text-primary mb-3">Your Personal Tax Contribution Journey</h1>
+                <div class="lead mb-4">
+                    <p>Every time you spend, whether on everyday groceries, premium clothing, or a luxury hotel stay, you're not just making a purchase—you're making a difference.</p>
+                    <p>At Develop Sri Lanka, we transform every receipt into a badge of civic honor by automatically capturing the taxes you pay and turning them into your unique 'Development Score'. We also use this data to work out your Tax savings.</p>
+                </div>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 me-md-2">
+                        <i class="fas fa-file-invoice me-2"></i>Scan Receipts
+                    </a>
+                    <a href="{{ url_for('analytics') }}" class="btn btn-outline-secondary btn-lg px-4">
+                        <i class="fas fa-chart-line me-2"></i>View Analytics
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-body p-5">
+                        <h2 class="card-title mb-4 text-primary"><i class="fas fa-lightbulb me-2 text-warning"></i>How It Works</h2>
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="feature-icon bg-primary bg-gradient text-white rounded-circle p-3 me-3">
+                                    <i class="fas fa-camera"></i>
+                                </div>
+                                <h4>Scan your receipts</h4>
+                            </div>
+                            <p class="text-muted">Our AI extracts all relevant information automatically.</p>
+                        </div>
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="feature-icon bg-success bg-gradient text-white rounded-circle p-3 me-3">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                                <h4>Track your tax contributions</h4>
+                            </div>
+                            <p class="text-muted">We calculate VAT, SSCL tax, and identify tax-deductible items.</p>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="feature-icon bg-info bg-gradient text-white rounded-circle p-3 me-3">
+                                    <i class="fas fa-chart-pie"></i>
+                                </div>
+                                <h4>Analyze your spending</h4>
+                            </div>
+                            <p class="text-muted">Get insights on your spending patterns and tax contributions.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="container">
-    <!-- Key features section -->
-    <section class="my-5">
-        <h2 class="text-center mb-5">Empowering Citizens through Financial Awareness</h2>
-        
-        <div class="row">
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon mx-auto">
-                            <i class="fas fa-receipt fa-lg"></i>
-                        </div>
-                        <h4 class="card-title">Smart Receipt Scanning</h4>
-                        <p class="card-text">Instantly capture and analyze your receipts with our AI-powered scanner, automatically categorizing expenses and calculating tax contributions.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon mx-auto">
-                            <i class="fas fa-chart-pie fa-lg"></i>
-                        </div>
-                        <h4 class="card-title">Impact Visualization</h4>
-                        <p class="card-text">See exactly how your spending contributes to national development through intuitive charts, graphs, and personalized impact reports.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon mx-auto">
-                            <i class="fas fa-users fa-lg"></i>
-                        </div>
-                        <h4 class="card-title">Community Engagement</h4>
-                        <p class="card-text">Join a community of civic-minded citizens who are driving Sri Lanka's development through informed financial decisions.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <!-- How it works section -->
-    <section class="my-5 bg-light p-5 rounded">
-        <h2 class="text-center mb-5">How It Works</h2>
-        
+<div class="bg-light py-5">
+    <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="d-flex mb-4">
-                    <div class="me-4">
-                        <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center" style="width: 50px; height: 50px;">
-                            <span class="fw-bold">1</span>
-                        </div>
-                    </div>
-                    <div>
-                        <h4>Scan Your Receipts</h4>
-                        <p>Take a photo of any receipt using our app. Our AI technology automatically extracts the key information.</p>
-                    </div>
+            <div class="col-lg-10">
+                <div class="text-center mb-5">
+                    <h2 class="display-6 fw-bold text-primary">See Your Impact in Real Time</h2>
+                    <p class="lead">See in real time how your spending supports the public services that build our nation, and unlock tangible rewards along the way.</p>
                 </div>
                 
-                <div class="d-flex mb-4">
-                    <div class="me-4">
-                        <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center" style="width: 50px; height: 50px;">
-                            <span class="fw-bold">2</span>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon bg-primary bg-gradient text-white rounded-circle p-3 d-inline-flex mb-3">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <h3 class="fs-4">Exclusive Community</h3>
+                                <p class="text-muted">This initiative is by invite only, so you choose who gets in, linking you to a community of like-minded nation-builders.</p>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <h4>Track Your Contributions</h4>
-                        <p>We calculate the VAT, SSCL, and other taxes you've paid, showing exactly how your spending contributes to national revenue.</p>
-                    </div>
-                </div>
-                
-                <div class="d-flex mb-4">
-                    <div class="me-4">
-                        <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center" style="width: 50px; height: 50px;">
-                            <span class="fw-bold">3</span>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon bg-success bg-gradient text-white rounded-circle p-3 d-inline-flex mb-3">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </div>
+                                <h3 class="fs-4">Save Money</h3>
+                                <p class="text-muted">Identify tax-deductible expenses and track your contributions to maximize your tax benefits.</p>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <h4>See Your Impact</h4>
-                        <p>Visualize how your tax contributions translate into public services, infrastructure, and national development initiatives.</p>
-                    </div>
-                </div>
-                
-                <div class="d-flex">
-                    <div class="me-4">
-                        <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center" style="width: 50px; height: 50px;">
-                            <span class="fw-bold">4</span>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon bg-warning bg-gradient text-white rounded-circle p-3 d-inline-flex mb-3">
+                                    <i class="fas fa-share-alt"></i>
+                                </div>
+                                <h3 class="fs-4">Share Your Impact</h3>
+                                <p class="text-muted">Share your achievements on social media and elevate your status as part of an exclusive, forward-thinking movement.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <h4>Join the Community</h4>
-                        <p>Connect with other civic-minded citizens, share insights, and collectively drive Sri Lanka's development.</p>
                     </div>
                 </div>
             </div>
         </div>
-    </section>
-    
-    <!-- Call to action -->
-    <section class="my-5 text-center">
-        <h2 class="mb-4">Ready to Make an Impact?</h2>
-        <p class="lead mb-4">Join thousands of Sri Lankans who are transforming their everyday purchases into national development contributions.</p>
-        {% if current_user.is_authenticated %}
-        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-5">Start Scanning Receipts</a>
-        {% else %}
-        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-5">Create Your Account</a>
-        {% endif %}
-    </section>
+    </div>
 </div>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 text-center">
+            <h2 class="display-6 fw-bold mb-4">Start Your Journey Today</h2>
+            <p class="lead mb-5">Watch as every rupee you spend not only saves you money but also builds a legacy of helping to Develop Sri Lanka.</p>
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 gap-3">Get Started Now</a>
+                <a href="{{ url_for('receipt_history') }}" class="btn btn-outline-secondary btn-lg px-4">View Receipt History</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .home-hero {
+        background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+    }
+    .feature-icon {
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
 {% endblock %}

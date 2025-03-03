@@ -1032,61 +1032,7 @@ def logout():
 @login_required
 def profile():
     """Show the user's profile page."""
-    from models import Receipt
-    from utils import format_currency
-    
-    try:
-        # Get user's receipts
-        receipts = Receipt.query.filter_by(user_id=current_user.id).all()
-        
-        # Calculate summary statistics
-        total_tax_contribution = sum(
-            (r.vat_tax or 0) + (r.sscl_tax or 0) 
-            for r in receipts
-        )
-        
-        # Count unique categories
-        categories = set()
-        for r in receipts:
-            if r.expense_major_category:
-                categories.add(r.expense_major_category)
-        total_categories = len(categories)
-        
-        # Calculate development impact (for visualization)
-        # These are illustrative distributions of how tax money gets allocated
-        healthcare_percent = 25
-        education_percent = 20
-        infrastructure_percent = 30
-        public_services_percent = 15
-        other_percent = 10
-        
-        healthcare_contribution = total_tax_contribution * (healthcare_percent / 100)
-        education_contribution = total_tax_contribution * (education_percent / 100)
-        infrastructure_contribution = total_tax_contribution * (infrastructure_percent / 100)
-        public_services_contribution = total_tax_contribution * (public_services_percent / 100)
-        other_contribution = total_tax_contribution * (other_percent / 100)
-        
-        return render_template(
-            'profile.html',
-            receipts=receipts,
-            total_tax_contribution=total_tax_contribution,
-            total_categories=total_categories,
-            format_currency=format_currency,
-            healthcare_contribution=healthcare_contribution,
-            education_contribution=education_contribution,
-            infrastructure_contribution=infrastructure_contribution,
-            public_services_contribution=public_services_contribution,
-            other_contribution=other_contribution,
-            healthcare_percent=healthcare_percent,
-            education_percent=education_percent,
-            infrastructure_percent=infrastructure_percent,
-            public_services_percent=public_services_percent,
-            other_percent=other_percent
-        )
-    except Exception as e:
-        logging.error(f"Error loading profile page: {str(e)}")
-        flash(f"Error loading profile data: {str(e)}", "danger")
-        return render_template('profile.html')
+    return render_template('profile.html')
 
 # Update the middleware to handle authentication required routes
 @app.before_request
