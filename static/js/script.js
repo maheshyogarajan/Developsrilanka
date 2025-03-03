@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingElement = document.getElementById('loading');
     const resultsElement = document.getElementById('results');
     const errorMessageElement = document.getElementById('error-message');
-    const exportButton = document.getElementById('export-btn');
     const addItemButton = document.getElementById('add-item-btn');
     const itemsContainer = document.getElementById('items-container');
     const itemTemplate = document.getElementById('item-template');
@@ -175,39 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle export button click
-    exportButton.addEventListener('click', function() {
-        fetch('/export')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                // Convert data to downloadable file
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                // Create download link
-                const a = document.createElement('a');
-                const vendorName = data.vendor_name ? data.vendor_name.replace(/\s+/g, '_') : 'receipt';
-                const date = data.date ? data.date : new Date().toISOString().split('T')[0];
-                a.href = url;
-                a.download = `${vendorName}_${date}.json`;
-                document.body.appendChild(a);
-                a.click();
-                
-                // Clean up
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 100);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showError(error.message || 'An error occurred while exporting the data');
-            });
-    });
+    // Export functionality has been removed
 
     // Handle add item button click
     addItemButton.addEventListener('click', function() {
