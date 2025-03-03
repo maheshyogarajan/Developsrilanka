@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingElement = document.getElementById('loading');
     const resultsElement = document.getElementById('results');
     const errorMessageElement = document.getElementById('error-message');
-    const updateButton = document.getElementById('update-btn');
     const exportButton = document.getElementById('export-btn');
     const addItemButton = document.getElementById('add-item-btn');
     const itemsContainer = document.getElementById('items-container');
@@ -108,55 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle update button click
-    updateButton.addEventListener('click', function() {
-        // Show loading state on button
-        const originalButtonText = updateButton.innerHTML;
-        updateButton.disabled = true;
-        updateButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
-        
-        // Collect all form data
-        const formData = collectFormData();
-        
-        // Send update request to server
-        fetch('/update_data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            // Show success message
-            showAlert('Data updated successfully!', 'success');
-            
-            // Update header text to indicate success
-            const pageTitle = document.querySelector('.page-title');
-            if (pageTitle) {
-                const originalTitle = pageTitle.textContent;
-                pageTitle.textContent = 'Data Updated!';
-                setTimeout(() => {
-                    pageTitle.textContent = originalTitle;
-                }, 2000);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showError(error.message || 'An error occurred while updating the data');
-        })
-        .finally(() => {
-            // Restore button state
-            updateButton.disabled = false;
-            updateButton.innerHTML = originalButtonText;
-        });
-    });
-    
-    // Handle save to database button click
+    // Handle save button click
     const saveButton = document.getElementById('save-btn');
     if (saveButton) {
         saveButton.addEventListener('click', function() {
@@ -165,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
             saveButton.disabled = true;
             saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
             
-            // First update the data to make sure we have the latest version
+            // Collect form data
             const formData = collectFormData();
             
             // Update the data first
@@ -197,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Show success message
-                showAlert('Receipt saved to database successfully!', 'success');
+                showAlert('Receipt saved successfully!', 'success');
                 
                 // Update header text to indicate success
                 const pageTitle = document.querySelector('.page-title');
