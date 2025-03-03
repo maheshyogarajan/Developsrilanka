@@ -62,7 +62,9 @@ RECEIPT_FIELDS = [
     "service_charge",
     "vat_registration_number",
     "sscl_tax",
-    "vat_tax"
+    "vat_tax",
+    "expense_major_category",
+    "expense_minor_category"
 ]
 
 @app.route('/')
@@ -153,7 +155,9 @@ def save_receipt():
             service_charge=float(receipt_data.get('service_charge', 0)),
             vat_registration_number=receipt_data.get('vat_registration_number'),
             sscl_tax=float(receipt_data.get('sscl_tax', 0)),
-            vat_tax=float(receipt_data.get('vat_tax', 0))
+            vat_tax=float(receipt_data.get('vat_tax', 0)),
+            expense_major_category=receipt_data.get('expense_major_category'),
+            expense_minor_category=receipt_data.get('expense_minor_category')
         )
         
         # Add the receipt to the database session
@@ -287,6 +291,12 @@ def process_receipt_with_gemini(image):
         - vat_registration_number: The VAT registration number if present (empty string if none)
         - sscl_tax: Social Security Contribution Levy amount if present (0 if none)
         - vat_tax: The VAT tax amount if present (0 if none)
+        - expense_major_category: The primary IFRS expense category this receipt belongs to
+        - expense_minor_category: The subcategory within the major expense category
+        
+        For IFRS expense categories, analyze the vendor name, items, and overall receipt to determine appropriate classifications.
+        Major categories include: Operating Expenses, Cost of Goods Sold, Administrative Expenses, Selling Expenses, Research and Development, Finance Costs, Employee Benefits.
+        Minor categories include: Office Supplies, Travel and Transportation, Meals and Entertainment, Utilities, Rent, Professional Services, Marketing and Advertising, Repairs and Maintenance, IT Services, Telecommunications.
         
         Return ONLY the JSON object and nothing else. If you cannot find a particular field, use an empty string or 0 depending on the field type.
         """

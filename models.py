@@ -16,6 +16,8 @@ class Receipt(db.Model):
     vat_tax = db.Column(db.Float, nullable=True, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     image_path = db.Column(db.String(255), nullable=True)
+    expense_major_category = db.Column(db.String(100), nullable=True)
+    expense_minor_category = db.Column(db.String(100), nullable=True)
     items = db.relationship('ReceiptItem', backref='receipt', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
@@ -32,6 +34,8 @@ class Receipt(db.Model):
             'sscl_tax': self.sscl_tax,
             'vat_tax': self.vat_tax,
             'created_at': self.created_at.isoformat(),
+            'expense_major_category': self.expense_major_category or '',
+            'expense_minor_category': self.expense_minor_category or '',
             'items': [item.to_dict() for item in self.items]
         }
 
