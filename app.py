@@ -110,7 +110,7 @@ def process_receipt_with_gemini(image):
         img_byte_arr = img_byte_arr.getvalue()
         
         # Configure Gemini model
-        model = genai.GenerativeModel('gemini-pro-vision')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # Create the prompt for receipt data extraction
         prompt = """
