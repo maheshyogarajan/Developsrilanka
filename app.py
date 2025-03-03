@@ -364,6 +364,45 @@ def list_receipts():
     except Exception as e:
         logging.error(f"Error listing receipts: {str(e)}")
         return jsonify({'error': f'Error listing receipts: {str(e)}'}), 500
+        
+@app.route('/receipts/delete', methods=['POST'])
+def delete_receipts():
+    """Delete multiple receipts by ID."""
+    from models import Receipt
+    
+    try:
+        # Get receipt IDs from request
+        data = request.get_json()
+        receipt_ids = data.get('receipt_ids', [])
+        
+        if not receipt_ids:
+            return jsonify({'error': 'No receipt IDs provided'}), 400
+        
+        # Convert string IDs to integers
+        receipt_ids = [int(id) for id in receipt_ids]
+        
+        # Find receipts to delete
+        receipts_to_delete = Receipt.query.filter(Receipt.id.in_(receipt_ids)).all()
+        deleted_count = len(receipts_to_delete)
+        
+        # Delete each receipt (will cascade to items thanks to relationship setup)
+        for receipt in receipts_to_delete:
+            db.session.delete(receipt)
+        
+        # Commit the transaction
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'deleted_count': deleted_count,
+            'message': f'Successfully deleted {deleted_count} receipt(s)'
+        })
+    
+    except Exception as e:
+        # Roll back in case of error
+        db.session.rollback()
+        logging.error(f"Error deleting receipts: {str(e)}")
+        return jsonify({'error': f'Error deleting receipts: {str(e)}'}), 500
 
 @app.route('/receipts/<int:receipt_id>', methods=['GET'])
 def get_receipt(receipt_id):

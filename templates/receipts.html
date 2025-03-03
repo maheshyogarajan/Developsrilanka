@@ -20,9 +20,19 @@
                 </div>
                 
                 <div id="receipts-table-container" class="table-responsive d-none">
+                    <div class="d-flex justify-content-end mb-2">
+                        <button id="delete-selected-btn" class="btn btn-danger d-none">
+                            <i class="fas fa-trash me-2"></i>Delete Selected
+                        </button>
+                    </div>
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
+                                <th>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="select-all-receipts">
+                                    </div>
+                                </th>
                                 <th>Date</th>
                                 <th>Vendor</th>
                                 <th>Category</th>
@@ -130,6 +140,8 @@
         const receiptsTableContainer = document.getElementById('receipts-table-container');
         const receiptsList = document.getElementById('receipts-list');
         const noReceiptsElement = document.getElementById('no-receipts');
+        const selectAllCheckbox = document.getElementById('select-all-receipts');
+        const deleteSelectedBtn = document.getElementById('delete-selected-btn');
         
         // Modal elements
         const receiptDetailModal = document.getElementById('receiptDetailModal');
@@ -138,6 +150,7 @@
         const modalExportBtn = document.getElementById('modal-export-btn');
         
         let currentReceiptId = null;
+        let selectedReceipts = [];
         
         // Format currency
         function formatCurrency(amount) {
@@ -183,6 +196,11 @@
                         receipts.forEach(receipt => {
                             const row = document.createElement('tr');
                             row.innerHTML = `
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input receipt-checkbox" type="checkbox" data-id="${receipt.id}">
+                                    </div>
+                                </td>
                                 <td>${formatDate(receipt.date)}</td>
                                 <td>${receipt.vendor_name}</td>
                                 <td>${receipt.expense_major_category || 'Uncategorized'}</td>
@@ -352,6 +370,96 @@
                     console.error('Error:', error);
                     alert(`Error exporting receipt: ${error.message || 'An unexpected error occurred'}`);
                 });
+        });
+        
+        // Update delete button visibility
+        function updateDeleteButtonVisibility() {
+            if (selectedReceipts.length > 0) {
+                deleteSelectedBtn.classList.remove('d-none');
+            } else {
+                deleteSelectedBtn.classList.add('d-none');
+            }
+        }
+        
+        // Handle select all checkbox
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.receipt-checkbox');
+            selectedReceipts = [];
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                if (this.checked) {
+                    selectedReceipts.push(checkbox.getAttribute('data-id'));
+                }
+            });
+            
+            updateDeleteButtonVisibility();
+        });
+        
+        // Handle individual checkbox changes (using event delegation)
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('receipt-checkbox')) {
+                const receiptId = e.target.getAttribute('data-id');
+                
+                if (e.target.checked) {
+                    // Add to selected receipts if not already there
+                    if (!selectedReceipts.includes(receiptId)) {
+                        selectedReceipts.push(receiptId);
+                    }
+                } else {
+                    // Remove from selected receipts
+                    selectedReceipts = selectedReceipts.filter(id => id !== receiptId);
+                    // Uncheck "select all" if any individual checkbox is unchecked
+                    selectAllCheckbox.checked = false;
+                }
+                
+                updateDeleteButtonVisibility();
+            }
+        });
+        
+        // Handle delete selected button
+        deleteSelectedBtn.addEventListener('click', function() {
+            if (selectedReceipts.length === 0) return;
+            
+            if (confirm(`Are you sure you want to delete ${selectedReceipts.length} receipt(s)?`)) {
+                // Show loading state
+                deleteSelectedBtn.disabled = true;
+                deleteSelectedBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...';
+                
+                // Send delete request
+                fetch('/receipts/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        receipt_ids: selectedReceipts
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Show success message
+                    alert(`Successfully deleted ${data.deleted_count} receipt(s).`);
+                    
+                    // Reset selected receipts and reload
+                    selectedReceipts = [];
+                    loadReceipts();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(`Error deleting receipts: ${error.message || 'An unexpected error occurred'}`);
+                })
+                .finally(() => {
+                    // Reset button state
+                    deleteSelectedBtn.disabled = false;
+                    deleteSelectedBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Selected';
+                    updateDeleteButtonVisibility();
+                });
+            }
         });
         
         // Change page title in the header
