@@ -212,6 +212,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function populateForm(data) {
         // Set simple text fields
         document.getElementById('vendor_name').value = data.vendor_name || '';
+        document.getElementById('vendor_address').value = data.vendor_address || '';
+        document.getElementById('vendor_contact').value = data.vendor_contact || '';
         document.getElementById('date').value = data.date || '';
         document.getElementById('total_amount').value = data.total_amount || '';
         document.getElementById('service_charge').value = data.service_charge || '';
@@ -252,6 +254,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get all simple text fields
         const formData = {
             vendor_name: document.getElementById('vendor_name').value,
+            vendor_address: document.getElementById('vendor_address').value,
+            vendor_contact: document.getElementById('vendor_contact').value,
             date: document.getElementById('date').value,
             total_amount: parseFloat(document.getElementById('total_amount').value) || 0,
             service_charge: parseFloat(document.getElementById('service_charge').value) || 0,

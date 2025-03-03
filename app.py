@@ -23,6 +23,8 @@ except Exception as e:
 # Receipt data schema for extraction
 RECEIPT_FIELDS = [
     "vendor_name",
+    "vendor_address",
+    "vendor_contact",
     "date",
     "items",
     "total_amount",
@@ -116,6 +118,8 @@ def process_receipt_with_gemini(image):
         prompt = """
         Extract the following information from this receipt image and format it as a JSON object:
         - vendor_name: The name of the store or business
+        - vendor_address: The full address of the business (empty string if none)
+        - vendor_contact: Phone number, email, or website of the business (empty string if none)
         - date: The date of purchase (format: YYYY-MM-DD)
         - items: An array of objects, each with "name", "quantity", and "price" fields
         - total_amount: The total amount paid
