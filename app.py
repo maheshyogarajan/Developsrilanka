@@ -252,6 +252,42 @@ def scan_receipt():
         session['receipt_data'] = extracted_data
         
         return jsonify({'success': True, 'data': extracted_data})
+
+@app.route('/receipts/delete', methods=['POST'])
+def delete_receipts():
+    """Delete one or more receipts by ID."""
+    from models import Receipt
+    
+    try:
+        data = request.json
+        if not data or 'receipt_ids' not in data or not data['receipt_ids']:
+            return jsonify({'error': 'No receipt IDs provided'}), 400
+        
+        receipt_ids = data['receipt_ids']
+        
+        # Delete the receipts
+        deleted_count = 0
+        for receipt_id in receipt_ids:
+            receipt = Receipt.query.get(receipt_id)
+            if receipt:
+                db.session.delete(receipt)
+                deleted_count += 1
+        
+        # Commit the changes
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully deleted {deleted_count} receipt(s)',
+            'deleted_count': deleted_count
+        })
+    
+    except Exception as e:
+        # Roll back in case of error
+        db.session.rollback()
+        logging.error(f"Error deleting receipts: {str(e)}")
+        return jsonify({'error': f'Error deleting receipts: {str(e)}'}), 500
+
     
     except Exception as e:
         logging.error(f"Error processing receipt: {str(e)}")
