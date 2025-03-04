@@ -21,6 +21,16 @@
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     
+    .form-control {
+        transition: all 0.3s ease;
+        border: 1px solid #ced4da;
+    }
+    
+    .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+    }
+    
     /* Animation styles for the auto-redirect notification */
     .redirect-message {
         display: none;
@@ -36,6 +46,7 @@
         width: 90%;
         max-width: 400px;
         text-align: center;
+        transition: opacity 0.3s ease, transform 0.4s ease;
     }
     
     .overlay {
@@ -47,6 +58,7 @@
         height: 100%;
         background-color: rgba(0, 0, 0, 0.5);
         z-index: 999;
+        transition: opacity 0.3s ease;
     }
     
     .progress-bar {
@@ -55,6 +67,7 @@
         width: 0%;
         transition: width 2s ease-in-out;
         margin: 15px 0;
+        border-radius: 2px;
     }
     
     @keyframes fadeIn {
@@ -65,6 +78,17 @@
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes slideUp {
+        from { transform: translateY(10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
     }
     
     .spinner {
@@ -78,13 +102,19 @@
     }
     
     .redirect-icon {
-        font-size: 2rem;
-        margin-bottom: 10px;
+        font-size: 2.5rem;
+        margin-bottom: 15px;
         color: #007bff;
+        animation: pulse 1s infinite;
     }
     
     .success-icon {
         color: #28a745;
+        animation: pulse 1s ease-in-out;
+    }
+    
+    #step1, #step2 {
+        transition: opacity 0.3s ease;
     }
 </style>
 {% endblock %}
@@ -154,8 +184,9 @@
     <div id="step2" style="display: none;">
         <i class="bi bi-check-circle-fill redirect-icon success-icon"></i>
         <h5>Login Successful!</h5>
-        <p>You are being redirected to the Scan page</p>
+        <p>Taking you to the Scan Receipt page <i class="bi bi-arrow-right-circle-fill"></i></p>
         <div class="progress-bar" id="progressBar"></div>
+        <p class="small text-muted mt-2">Ready to track your contribution to Sri Lanka's development</p>
     </div>
 </div>
 
@@ -168,33 +199,67 @@ document.addEventListener('DOMContentLoaded', function() {
     const step2 = document.getElementById('step2');
     const progressBar = document.getElementById('progressBar');
     
+    // Initially hide the overlay and animation
+    overlay.style.display = 'none';
+    redirectMessage.style.display = 'none';
+    
     // Add event listener to login form submission
     loginForm.addEventListener('submit', function(e) {
-        // Show animation overlay when form is submitted
-        // We don't actually prevent default since we want the real login to happen
-        
-        // Show overlay and redirect message with animation
-        overlay.style.display = 'block';
-        redirectMessage.style.display = 'block';
-        redirectMessage.style.animation = 'fadeIn 0.3s';
-        
-        // First step - verifying credentials
-        step1.style.display = 'block';
-        
-        // After a delay, show second step - successful login and redirect
-        setTimeout(() => {
-            step1.style.display = 'none';
-            step2.style.display = 'block';
+        // Only show the animation if the form is actually filled in properly
+        if (loginForm.checkValidity()) {
+            // Prevent the default form submission briefly to show the animation
+            e.preventDefault();
             
-            // Animate progress bar
+            // Show overlay with fade effect
+            overlay.style.display = 'block';
+            overlay.style.opacity = 0;
             setTimeout(() => {
-                progressBar.style.width = '100%';
-            }, 200);
+                overlay.style.opacity = 1;
+            }, 10);
             
-        }, 1500);
-        
-        // Let the form submission happen naturally
-        // The server will handle the redirect to the scan page
+            // Show message with animation
+            redirectMessage.style.display = 'block';
+            redirectMessage.style.opacity = 0;
+            redirectMessage.style.transform = 'translate(-50%, -60%)';
+            
+            setTimeout(() => {
+                redirectMessage.style.opacity = 1;
+                redirectMessage.style.transform = 'translate(-50%, -50%)';
+            }, 100);
+            
+            // Show first step - verifying credentials
+            step1.style.display = 'block';
+            
+            // After a delay, transition to success message
+            setTimeout(() => {
+                // Hide first step with animation
+                step1.style.opacity = 1;
+                step1.style.transition = 'opacity 0.3s ease';
+                step1.style.opacity = 0;
+                
+                setTimeout(() => {
+                    step1.style.display = 'none';
+                    
+                    // Show success step with animation
+                    step2.style.display = 'block';
+                    step2.style.opacity = 0;
+                    
+                    setTimeout(() => {
+                        step2.style.opacity = 1;
+                        
+                        // Animate progress bar
+                        setTimeout(() => {
+                            progressBar.style.width = '100%';
+                            
+                            // After progress bar completes, submit the form
+                            setTimeout(() => {
+                                loginForm.submit();
+                            }, 1800);
+                        }, 200);
+                    }, 50);
+                }, 300);
+            }, 1200);
+        }
     });
 });
 </script>
