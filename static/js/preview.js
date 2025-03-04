@@ -62,6 +62,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Process receipt image and send to server
     function processReceiptImage(file) {
+        // Prevent multiple submissions of the same file
+        if (window.processingReceipt) {
+            console.log('Already processing a receipt, ignoring duplicate request');
+            return;
+        }
+        
+        window.processingReceipt = true;
+        
         // Show loading state and results container
         resultsContainer.classList.remove('d-none');
         loadingElement.classList.remove('d-none');
@@ -109,6 +117,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (pageTitleElement) {
                 pageTitleElement.textContent = 'Preview Results';
             }
+            
+            // Reset processing flag
+            window.processingReceipt = false;
         })
         .catch(error => {
             // Special error handling for JSON parse errors
@@ -120,6 +131,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 showError(error.message || 'An error occurred while processing the receipt');
             }
             loadingElement.classList.add('d-none');
+            
+            // Reset processing flag
+            window.processingReceipt = false;
             
             // Show reset button when there's an error
             if (uploadArea) {

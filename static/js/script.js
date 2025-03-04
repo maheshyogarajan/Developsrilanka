@@ -257,6 +257,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle save button click
     if (saveButton) {
         saveButton.addEventListener('click', function() {
+            // Prevent multiple submissions
+            if (window.savingReceipt) {
+                console.log('Already saving a receipt, ignoring duplicate request');
+                return;
+            }
+            
+            window.savingReceipt = true;
+            
             // Show loading state on button
             const originalButtonText = saveButton.innerHTML;
             saveButton.disabled = true;
@@ -318,6 +326,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Restore button state
                 saveButton.disabled = false;
                 saveButton.innerHTML = originalButtonText;
+                
+                // Reset saving flag
+                window.savingReceipt = false;
             });
         });
     }
