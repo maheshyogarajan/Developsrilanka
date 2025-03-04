@@ -1220,7 +1220,10 @@ def email_login():
     password = request.form.get('password')
     action = request.form.get('action')
     
+    logging.info(f"Login attempt for email: {email}, action: {action}")
+    
     if not email or not password:
+        logging.warning("Email or password missing in form data")
         flash('Email and password are required', 'danger')
         return redirect(url_for('login'))
     
@@ -1230,14 +1233,20 @@ def email_login():
             user = User.query.filter_by(email=email).first()
             
             if not user:
+                logging.info(f"User with email {email} not found")
                 flash('Email not registered. Please use the Register button below to create an account.', 'warning')
                 return redirect(url_for('login'))
             
             if not user.password_hash:
+                logging.info(f"User {email} exists but has no password hash")
                 flash('Account exists but no password is set. Please use the Register button to set a password.', 'warning')
                 return redirect(url_for('login'))
+            
+            logging.info(f"Checking password for user {email}, password_hash: {user.password_hash[:20]}...")
+            password_match = check_password_hash(user.password_hash, password)
+            logging.info(f"Password match result: {password_match}")
                 
-            if not check_password_hash(user.password_hash, password):
+            if not password_match:
                 flash('Incorrect password. Please try again or use the Register button if you need to reset your password.', 'danger')
                 return redirect(url_for('login'))
             
