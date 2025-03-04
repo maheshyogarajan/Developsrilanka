@@ -1243,7 +1243,7 @@ def email_login():
             
             # User authenticated successfully
             login_user(user)
-            flash('You have been logged in successfully!', 'success')
+            # We'll handle success feedback through the animation instead of flash messages
             
             # Redirect directly to scan page for better user experience
             return redirect(url_for('index'))
@@ -1260,7 +1260,7 @@ def email_login():
                 
                 # Log in the user
                 login_user(existing_user)
-                flash('Account updated and logged in successfully!', 'success')
+                # Let animation handle the success feedback
                 return redirect(url_for('index'))
             
             # Create new user
@@ -1275,7 +1275,7 @@ def email_login():
             
             # Log in the new user
             login_user(new_user)
-            flash('Account created successfully!', 'success')
+            # Animation will handle feedback
             return redirect(url_for('index'))
         
         else:
@@ -1396,7 +1396,8 @@ def facebook_callback():
 def logout():
     """Log the user out."""
     logout_user()
-    flash('You have been logged out.', 'info')
+    # Let's not redirect to login page with a flash message
+    # The user knows they logged out, and it clutters the login page
     return redirect(url_for('home'))
 
 @app.route('/profile')

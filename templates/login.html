@@ -134,7 +134,12 @@
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
-                                <div class="alert alert-{{ category }}">{{ message }}</div>
+                                {% if category in ['danger', 'warning'] %}
+                                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                         {% endif %}
                     {% endwith %}
@@ -209,6 +214,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (loginForm.checkValidity()) {
             // Prevent the default form submission briefly to show the animation
             e.preventDefault();
+            
+            // Determine if this is a login or registration action
+            const isRegistering = e.submitter.value === 'register';
+            const loginTitle = document.querySelector('#step2 h5');
+            const loginMsg = document.querySelector('#step2 p');
+            
+            // Update message based on action type
+            if (isRegistering) {
+                loginTitle.textContent = 'Account Created!';
+                loginMsg.innerHTML = 'Setting up your account <i class="bi bi-arrow-right-circle-fill"></i>';
+            } else {
+                loginTitle.textContent = 'Login Successful!';
+                loginMsg.innerHTML = 'Taking you to the Scan Receipt page <i class="bi bi-arrow-right-circle-fill"></i>';
+            }
             
             // Show overlay with fade effect
             overlay.style.display = 'block';
