@@ -282,6 +282,179 @@ def analytics():
         logging.error(f"Error generating analytics: {str(e)}")
         return render_template('analytics.html', error=str(e))
 
+@app.route('/tax-savings', methods=['GET', 'POST'])
+@login_required
+def tax_savings():
+    """Render the tax savings calculator page."""
+    from models import Receipt, UserIncome
+    from sqlalchemy import func
+    
+    # Initialize variables
+    income_details = None
+    tax_savings_estimate = None
+    total_tax_deductible = 0.0
+    error = None
+    
+    try:
+        # Get the user's income details if they exist
+        income_details = UserIncome.query.filter_by(user_id=current_user.id).first()
+        
+        # Calculate total tax deductible expenses
+        receipts = Receipt.query.filter_by(user_id=current_user.id).all()
+        for receipt in receipts:
+            tax_deductible = receipt.get_tax_deductible_amount()
+            total_tax_deductible += min(tax_deductible, receipt.total_amount)
+        
+        if request.method == 'POST':
+            # Process form submission
+            employment_income = float(request.form.get('employment_income', 0) or 0)
+            business_income = float(request.form.get('business_income', 0) or 0)
+            investment_income = float(request.form.get('investment_income', 0) or 0)
+            
+            # Validate inputs
+            if employment_income < 0 or business_income < 0 or investment_income < 0:
+                error = "Income values cannot be negative."
+            else:
+                # Save or update the income details
+                if income_details:
+                    # Update existing record
+                    income_details.employment_income = employment_income
+                    income_details.business_income = business_income
+                    income_details.investment_income = investment_income
+                    income_details.updated_at = datetime.utcnow()
+                else:
+                    # Create new record
+                    income_details = UserIncome(
+                        user_id=current_user.id,
+                        employment_income=employment_income,
+                        business_income=business_income,
+                        investment_income=investment_income
+                    )
+                    db.session.add(income_details)
+                
+                db.session.commit()
+                
+                # Calculate potential tax savings
+                tax_savings_estimate = calculate_tax_savings(
+                    employment_income,
+                    business_income,
+                    investment_income,
+                    total_tax_deductible
+                )
+        
+        elif income_details:
+            # If GET request and income details exist, calculate based on existing data
+            tax_savings_estimate = calculate_tax_savings(
+                income_details.employment_income,
+                income_details.business_income,
+                income_details.investment_income,
+                total_tax_deductible
+            )
+        
+        return render_template(
+            'tax_savings.html',
+            income_details=income_details,
+            total_tax_deductible=total_tax_deductible,
+            tax_savings_estimate=tax_savings_estimate,
+            error=error
+        )
+    
+    except Exception as e:
+        logging.error(f"Error in tax savings calculator: {str(e)}")
+        return render_template('tax_savings.html', error=str(e))
+
+def calculate_tax_savings(employment_income, business_income, investment_income, tax_deductible_amount):
+    """
+    Calculate potential tax savings based on income types and tax deductible expenses.
+    
+    This is a simplified estimation based on Sri Lankan tax rates (as of 2023).
+    Actual tax savings may vary based on exact tax rules and regulations.
+    
+    Args:
+        employment_income: Income from employment
+        business_income: Income from business or consulting
+        investment_income: Income from investments
+        tax_deductible_amount: Total tax deductible expenses
+    
+    Returns:
+        Dictionary with tax savings information
+    """
+    # Basic personal allowance (tax-free threshold)
+    personal_allowance = 1200000  # Rs 1,200,000
+    
+    # Maximum deduction percentages by income type
+    employment_deduction_rate = 0.15  # 15% for employment income
+    business_deduction_rate = 0.25    # 25% for business income
+    investment_deduction_rate = 0.10  # 10% for investment income
+    
+    # Calculate maximum deductible amount by income type
+    max_employment_deduction = employment_income * employment_deduction_rate
+    max_business_deduction = business_income * business_deduction_rate
+    max_investment_deduction = investment_income * investment_deduction_rate
+    
+    # Total maximum deduction
+    total_max_deduction = max_employment_deduction + max_business_deduction + max_investment_deduction
+    
+    # Actual deduction is the minimum of total tax deductible expenses and maximum allowed deduction
+    actual_deduction = min(tax_deductible_amount, total_max_deduction)
+    
+    # Total income and taxable income
+    total_income = employment_income + business_income + investment_income
+    taxable_income_before_deductions = max(0, total_income - personal_allowance)
+    taxable_income_after_deductions = max(0, taxable_income_before_deductions - actual_deduction)
+    
+    # Tax calculation - progressive tax rates
+    def calculate_tax(income):
+        if income <= 0:
+            return 0
+        
+        # Progressive tax brackets (simplified)
+        brackets = [
+            (500000, 0.06),  # First Rs 500,000 at 6%
+            (500000, 0.12),  # Next Rs 500,000 at 12%
+            (500000, 0.18),  # Next Rs 500,000 at 18%
+            (500000, 0.24),  # Next Rs 500,000 at 24%
+            (1000000, 0.30), # Next Rs 1,000,000 at 30%
+            (float('inf'), 0.36)  # Remainder at 36%
+        ]
+        
+        tax = 0
+        remaining_income = income
+        
+        for bracket_size, rate in brackets:
+            if remaining_income <= 0:
+                break
+                
+            taxable_in_bracket = min(remaining_income, bracket_size)
+            tax += taxable_in_bracket * rate
+            remaining_income -= taxable_in_bracket
+        
+        return tax
+    
+    # Calculate tax before and after deductions
+    tax_before_deductions = calculate_tax(taxable_income_before_deductions)
+    tax_after_deductions = calculate_tax(taxable_income_after_deductions)
+    
+    # Tax savings
+    tax_savings = tax_before_deductions - tax_after_deductions
+    
+    # Return dictionary with calculated values
+    return {
+        'total_income': total_income,
+        'personal_allowance': personal_allowance,
+        'taxable_income_before_deductions': taxable_income_before_deductions,
+        'max_employment_deduction': max_employment_deduction,
+        'max_business_deduction': max_business_deduction,
+        'max_investment_deduction': max_investment_deduction,
+        'total_max_deduction': total_max_deduction,
+        'total_tax_deductible': tax_deductible_amount,
+        'actual_deduction': actual_deduction,
+        'taxable_income_after_deductions': taxable_income_after_deductions,
+        'tax_before_deductions': tax_before_deductions,
+        'tax_after_deductions': tax_after_deductions,
+        'tax_savings': tax_savings
+    }
+
 @app.route('/receipts/by_major_category/<category>')
 @login_required
 def receipts_by_major_category(category):

@@ -16,6 +16,7 @@ class User(UserMixin, db.Model):
     social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     receipts = db.relationship('Receipt', backref='user', lazy=True)
+    income_details = db.relationship('UserIncome', backref='user', lazy=True, uselist=False)
     
     def to_dict(self):
         """Convert the user to a dictionary."""
@@ -97,4 +98,31 @@ class ReceiptItem(db.Model):
             'quantity': self.quantity,
             'price': self.price,
             'tax_deductible': self.tax_deductible
+        }
+
+class UserIncome(db.Model):
+    """Model for storing user income details for tax calculations."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    employment_income = db.Column(db.Float, nullable=True, default=0.0)
+    business_income = db.Column(db.Float, nullable=True, default=0.0)
+    investment_income = db.Column(db.Float, nullable=True, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def get_total_income(self):
+        """Calculate the total income from all sources."""
+        return (self.employment_income or 0) + (self.business_income or 0) + (self.investment_income or 0)
+    
+    def to_dict(self):
+        """Convert the income details to a dictionary."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'employment_income': self.employment_income or 0,
+            'business_income': self.business_income or 0,
+            'investment_income': self.investment_income or 0,
+            'total_income': self.get_total_income(),
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
         }
