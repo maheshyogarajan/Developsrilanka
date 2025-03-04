@@ -167,9 +167,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fill form with extracted data
                 populateForm(data.data);
                 
-                // Show results
-                loadingElement.classList.add('d-none');
-                resultsElement.classList.remove('d-none');
+                // Show animation with receipt value and max savings
+                const receiptValueAnimation = document.getElementById('receipt-value-animation');
+                if (receiptValueAnimation) {
+                    // Get receipt values
+                    const receiptTotal = parseFloat(data.data.total_amount) || 0;
+                    const vatTax = parseFloat(data.data.vat_tax) || 0;
+                    const ssclTax = parseFloat(data.data.sscl_tax) || 0;
+                    
+                    // Calculate maximum savings (36% of the receipt value, assuming all is tax deductible)
+                    const maxSaving = receiptTotal * 0.36;
+                    
+                    // Update the animation values
+                    document.getElementById('receipt-value-amount').textContent = `Rs ${receiptTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('max-saving-amount').textContent = `Rs ${maxSaving.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('vat-amount').textContent = `Rs ${vatTax.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('sscl-amount').textContent = `Rs ${ssclTax.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    
+                    // Show the animation
+                    loadingElement.classList.add('d-none');
+                    receiptValueAnimation.classList.remove('d-none');
+                    receiptValueAnimation.querySelector('.card').classList.add('animate__animated', 'animate__fadeInUp');
+                    
+                    // Hide animation and show results after a delay
+                    setTimeout(() => {
+                        receiptValueAnimation.classList.add('d-none');
+                        resultsElement.classList.remove('d-none');
+                    }, 4000); // Show for 4 seconds
+                } else {
+                    // Fallback if animation element doesn't exist
+                    loadingElement.classList.add('d-none');
+                    resultsElement.classList.remove('d-none');
+                }
                 
                 // Update header based on the design
                 if (pageTitleElement) {
@@ -215,9 +244,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fill form with extracted data
                 populateForm(data.result);
                 
-                // Show results
-                loadingElement.classList.add('d-none');
-                resultsElement.classList.remove('d-none');
+                // Show animation with receipt value and max savings
+                const receiptValueAnimation = document.getElementById('receipt-value-animation');
+                if (receiptValueAnimation) {
+                    // Get receipt values
+                    const receiptTotal = parseFloat(data.result.total_amount) || 0;
+                    const vatTax = parseFloat(data.result.vat_tax) || 0;
+                    const ssclTax = parseFloat(data.result.sscl_tax) || 0;
+                    
+                    // Calculate maximum savings (36% of the receipt value, assuming all is tax deductible)
+                    const maxSaving = receiptTotal * 0.36;
+                    
+                    // Update the animation values
+                    document.getElementById('receipt-value-amount').textContent = `Rs ${receiptTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('max-saving-amount').textContent = `Rs ${maxSaving.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('vat-amount').textContent = `Rs ${vatTax.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('sscl-amount').textContent = `Rs ${ssclTax.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    
+                    // Show the animation
+                    loadingElement.classList.add('d-none');
+                    receiptValueAnimation.classList.remove('d-none');
+                    receiptValueAnimation.querySelector('.card').classList.add('animate__animated', 'animate__fadeInUp');
+                    
+                    // Hide animation and show results after a delay
+                    setTimeout(() => {
+                        receiptValueAnimation.classList.add('d-none');
+                        resultsElement.classList.remove('d-none');
+                    }, 4000); // Show for 4 seconds
+                } else {
+                    // Fallback if animation element doesn't exist
+                    loadingElement.classList.add('d-none');
+                    resultsElement.classList.remove('d-none');
+                }
                 
                 // Update header based on the design
                 const pageTitleElement = document.querySelector('.page-title');
