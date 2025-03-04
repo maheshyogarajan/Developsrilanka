@@ -1464,18 +1464,30 @@ def send_invitations():
     
     for email in email_list:
         try:
-            # Basic email validation
-            if '@' not in email or '.' not in email:
-                failed_emails.append(f"{email} (invalid format)")
-                continue
+            # Use more comprehensive email validation
+            from email_validator import validate_email, EmailNotValidError
+            
+            try:
+                # Validate the email
+                valid = validate_email(email)
+                # Convert to normal form (lowercase, etc)
+                normalized_email = valid.email
                 
-            # Send invitation email
-            if send_invitation_email(email, current_user, personal_message):
-                sent_count += 1
-            else:
-                failed_emails.append(email)
+                # Send invitation email
+                if send_invitation_email(normalized_email, current_user, personal_message):
+                    sent_count += 1
+                    logging.info(f"Successfully sent invitation to {normalized_email}")
+                else:
+                    failed_emails.append(normalized_email)
+                    logging.warning(f"Failed to send invitation to {normalized_email}")
+            except EmailNotValidError as e:
+                failed_emails.append(f"{email} (invalid: {str(e)})")
+                logging.warning(f"Invalid email format: {email} - {str(e)}")
+                
         except Exception as e:
+            error_details = traceback.format_exc()
             logging.error(f"Error sending invitation to {email}: {str(e)}")
+            logging.error(f"Stack trace: {error_details}")
             failed_emails.append(email)
     
     # Provide feedback to the user
@@ -1505,42 +1517,56 @@ def send_invitation_email(to_email, from_user, personal_message=''):
         app_url = request.host_url.rstrip('/')
         
         # Construct email subject and body
-        subject = f"{from_user.name} invites you to join Develop Sri Lanka"
+        subject = f"{from_user.name} invites you to join Smarter Tax"
         
         # Email body with HTML formatting
         html_body = f"""
         <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-                <img src="{app_url}/static/images/dev-sri-logo.jpg" alt="Develop Sri Lanka Logo" style="height: 60px; margin-bottom: 15px;">
-                <h2 style="color: #0d6efd; margin-bottom: 15px;">You've Been Invited!</h2>
-                <p><strong>{from_user.name}</strong> has invited you to join <strong>Develop Sri Lanka</strong>, 
-                a platform that helps Sri Lankans track their tax contributions and optimize tax savings.</p>
+        <body style="font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 15px;">
+            <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px;">
+                <!-- Header with gradient background -->
+                <div style="background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%); padding: 25px; text-align: center;">
+                    <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Smarter Tax</h1>
+                    <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0; font-size: 16px;">Optimize your finances intelligently</p>
+                </div>
                 
-                {f'''<div style="background-color: #e9f0ff; padding: 15px; border-radius: 5px; border-left: 4px solid #0d6efd; margin: 20px 0;">
-                    <p style="font-style: italic;">"{personal_message}"</p>
-                    <p style="text-align: right; margin-bottom: 0;">- {from_user.name}</p>
-                </div>''' if personal_message else ''}
-                
-                <a href="{app_url}/login" style="display: inline-block; background-color: #0d6efd; color: white; 
-                padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold;">
-                    Join Now
-                </a>
+                <!-- Main content -->
+                <div style="padding: 30px;">
+                    <h2 style="color: #2c5282; margin-top: 0; margin-bottom: 20px; font-size: 22px;">You've Been Invited!</h2>
+                    <p style="margin-bottom: 20px;"><strong>{from_user.name}</strong> has invited you to join <strong>Smarter Tax</strong>, 
+                    the intelligent platform that helps you track expenses and optimize tax savings.</p>
+                    
+                    {f'''<div style="background-color: #ebf8ff; padding: 15px; border-radius: 6px; border-left: 4px solid #3182ce; margin: 25px 0;">
+                        <p style="font-style: italic; margin: 0 0 10px;">"{personal_message}"</p>
+                        <p style="text-align: right; margin-bottom: 0; color: #4a5568;">- {from_user.name}</p>
+                    </div>''' if personal_message else ''}
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="{app_url}/login" style="display: inline-block; background-color: #3182ce; color: white; 
+                        padding: 12px 28px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;
+                        transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            Join Now
+                        </a>
+                    </div>
+                </div>
             </div>
             
-            <div style="margin-top: 30px; border-top: 1px solid #dee2e6; padding-top: 20px;">
-                <h3>Why Join Develop Sri Lanka?</h3>
-                <ul style="padding-left: 20px;">
-                    <li>Track your contributions to Sri Lanka's development through taxes</li>
-                    <li>Scan and organize receipts with AI-powered technology</li>
-                    <li>Calculate potential tax savings based on your income</li>
-                    <li>Join a community committed to financial transparency</li>
+            <!-- Features section -->
+            <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 20px;">
+                <h3 style="color: #2c5282; margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Why Join Smarter Tax?</h3>
+                <ul style="padding-left: 20px; margin-top: 15px;">
+                    <li style="margin-bottom: 10px;">Track expenses with AI-powered receipt scanning</li>
+                    <li style="margin-bottom: 10px;">Calculate potential tax savings based on your income</li>
+                    <li style="margin-bottom: 10px;">Effortlessly categorize and organize your business expenses</li>
+                    <li style="margin-bottom: 10px;">Get insights to optimize your tax strategy</li>
                 </ul>
             </div>
             
-            <p style="color: #6c757d; font-size: 0.9em; margin-top: 30px;">
-                If you don't want to receive invitation emails, please ignore this message.
-            </p>
+            <!-- Footer -->
+            <div style="text-align: center; color: #718096; font-size: 0.9em; margin-top: 20px;">
+                <p>If you don't want to receive invitation emails, please ignore this message.</p>
+                <p>&copy; 2025 Smarter Tax. All rights reserved.</p>
+            </div>
         </body>
         </html>
         """
@@ -1573,13 +1599,20 @@ def send_invitation_email(to_email, from_user, personal_message=''):
         try:
             mail.send(msg)
             logging.info(f"Successfully sent invitation email to {to_email}")
+            flash(f"Invitation sent successfully to {to_email}!", "success")
             return True
         except Exception as mail_error:
+            error_details = traceback.format_exc()
             logging.error(f"Failed to send email to {to_email}: {str(mail_error)}")
+            logging.error(f"Error details: {error_details}")
+            flash(f"Failed to send invitation: {str(mail_error)}", "danger")
             return False
         
     except Exception as e:
+        error_details = traceback.format_exc()
         logging.error(f"Failed to send invitation email: {str(e)}")
+        logging.error(f"Error details: {error_details}")
+        flash(f"Invitation system error: {str(e)}", "danger")
         return False
 
 # Update the middleware to handle authentication required routes
