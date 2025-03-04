@@ -138,6 +138,11 @@ def home():
     """Render the homepage with welcome message and features."""
     return render_template('home.html')
 
+@app.route('/preview')
+def preview():
+    """Render the receipt preview page without login requirement."""
+    return render_template('preview.html')
+
 @app.route('/scan')
 @login_required
 def index():
@@ -318,6 +323,45 @@ def receipts_by_minor_category(category):
         logging.error(f"Error fetching receipts by minor category: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/preview/scan', methods=['POST'])
+def preview_scan_receipt():
+    """Process the uploaded receipt image and extract data using Gemini Vision for preview mode (no login required)."""
+    if 'receipt' not in request.files:
+        return jsonify({'error': 'No receipt image uploaded'}), 400
+    
+    receipt_file = request.files['receipt']
+    if receipt_file.filename == '':
+        return jsonify({'error': 'No receipt image selected'}), 400
+    
+    try:
+        # Start timing for performance logging
+        start_time = time.time()
+        
+        # Read and process the image
+        img_bytes = receipt_file.read()
+        img = Image.open(BytesIO(img_bytes))
+        
+        # Always use synchronous processing for preview mode
+        logging.info("Using synchronous receipt processing for preview mode")
+        extracted_data = process_receipt_with_gemini(img)
+        
+        if not extracted_data:
+            return jsonify({'error': 'Failed to extract data from the receipt'}), 500
+        
+        # Store the extracted data in session for potential correction
+        session['receipt_data'] = extracted_data
+        
+        # Calculate processing time
+        processing_time = time.time() - start_time
+        logging.info(f"Preview receipt processing completed in {processing_time:.2f} seconds")
+        
+        return jsonify({'success': True, 'data': extracted_data})
+    
+    except Exception as e:
+        logging.error(f"Error processing receipt in preview mode: {str(e)}")
+        logging.error(traceback.format_exc())
+        return jsonify({'error': f'Error processing receipt: {str(e)}'}), 500
+
 @app.route('/scan', methods=['POST'])
 @login_required
 def scan_receipt():
@@ -468,6 +512,24 @@ def task_status(task_id):
         logging.error(f"Error checking task status: {str(e)}")
         logging.error(traceback.format_exc())  # Add traceback for better debugging
         return jsonify({'error': f'Error checking task status: {str(e)}'}), 500
+
+@app.route('/preview/update_data', methods=['POST'])
+def preview_update_data():
+    """Update the extracted receipt data with user corrections in preview mode (no login required)."""
+    try:
+        updated_data = request.json
+        
+        if 'receipt_data' not in session:
+            return jsonify({'error': 'No receipt data found in session'}), 400
+            
+        # Update the session data with corrected values
+        session['receipt_data'] = updated_data
+        
+        return jsonify({'success': True, 'data': updated_data})
+    
+    except Exception as e:
+        logging.error(f"Error updating data in preview mode: {str(e)}")
+        return jsonify({'error': f'Error updating data: {str(e)}'}), 500
 
 @app.route('/update_data', methods=['POST'])
 @login_required
