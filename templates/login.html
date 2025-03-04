@@ -69,6 +69,23 @@
         color: #28a745;
         font-weight: bold;
     }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .demo-animation {
+        transition: all 0.3s ease-in-out;
+        border-radius: 10px;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
 </style>
 {% endblock %}
 
@@ -110,31 +127,46 @@
                     <div class="social-buttons">
                         <div class="row">
                             <div class="col-6">
-                                <a href="{{ url_for('google_auth') }}" class="btn btn-google btn-lg d-block">
+                                <button disabled class="btn btn-secondary btn-lg d-block">
                                     <i class="bi bi-google"></i> Google
-                                </a>
+                                    <small class="d-block">(Coming Soon)</small>
+                                </button>
                             </div>
                             <div class="col-6">
-                                <a href="{{ url_for('facebook_auth') }}" class="btn btn-facebook btn-lg d-block">
+                                <button disabled class="btn btn-secondary btn-lg d-block">
                                     <i class="bi bi-facebook"></i> Facebook
-                                </a>
+                                    <small class="d-block">(Coming Soon)</small>
+                                </button>
                             </div>
                         </div>
                     </div>
                     
                     <hr class="my-4">
                     
-                    <button class="btn btn-outline-info btn-sm" id="demoButton">
-                        <i class="bi bi-play-circle"></i> See Login Demo
-                    </button>
+                    <div class="alert alert-info" role="alert">
+                        <h6 class="alert-heading"><i class="bi bi-info-circle-fill"></i> New Login Behavior!</h6>
+                        <p class="mb-0">We've updated our login process to take you directly to the Scan page after login.</p>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" id="demoButton">
+                                <i class="bi bi-play-circle-fill"></i> Watch How It Works
+                            </button>
+                        </div>
+                    </div>
                     
                     <div class="demo-animation" id="demoAnimation">
-                        <h5 class="mb-3">Login Process Demo</h5>
+                        <h5 class="mb-3"><i class="bi bi-info-circle-fill text-primary"></i> New Improved Login Flow</h5>
                         
                         <!-- Step 1: Input credentials -->
                         <div class="animation-step bg-light" id="step1">
-                            <div class="typing-animation" id="emailTyping">user@example.com</div>
-                            <div class="typing-animation" id="passwordTyping">********</div>
+                            <div class="card border-light mb-2">
+                                <div class="card-header bg-light text-dark">
+                                    <i class="bi bi-keyboard"></i> Enter Your Credentials
+                                </div>
+                                <div class="card-body">
+                                    <div class="typing-animation" id="emailTyping">user@example.com</div>
+                                    <div class="typing-animation" id="passwordTyping">********</div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Step 2: Click login -->
@@ -146,31 +178,53 @@
                         
                         <!-- Step 3: Processing -->
                         <div class="animation-step bg-light" id="step3">
-                            <div class="d-flex align-items-center">
-                                <div class="spinner-border text-primary me-2" role="status">
-                                    <span class="visually-hidden">Loading...</span>
+                            <div class="card border-light">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border text-primary me-2" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <span>Verifying your credentials...</span>
+                                    </div>
                                 </div>
-                                <span>Processing login...</span>
                             </div>
                         </div>
                         
                         <!-- Step 4: Success -->
                         <div class="animation-step bg-light" id="step4">
                             <div class="alert alert-success mb-0">
-                                <i class="bi bi-check-circle"></i> Login successful!
+                                <i class="bi bi-check-circle-fill"></i> Authentication successful!
                             </div>
                         </div>
                         
                         <!-- Step 5: Redirect -->
                         <div class="animation-step bg-light" id="step5">
-                            <div class="mb-2">Redirecting to Scan page...</div>
-                            <div class="redirect-animation" id="redirectBar"></div>
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="bi bi-arrow-right-circle-fill"></i> Automatic Redirection
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2"><strong>You are now being redirected to the Scan Receipt page</strong></p>
+                                    <div class="redirect-animation" id="redirectBar"></div>
+                                    <div class="text-muted small mt-1">The system now redirects you directly to where you need to be</div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Step 6: Complete -->
                         <div class="animation-step bg-light" id="step6">
-                            <div class="success-message">
-                                <i class="bi bi-check2-all"></i> You're now at the Scan page ready to track your receipts!
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="bi bi-check2-all"></i> Welcome to the Scan Page!
+                                    </h5>
+                                    <p class="card-text">
+                                        You're now ready to upload and process your receipts.
+                                    </p>
+                                    <div class="text-center mt-3">
+                                        <i class="bi bi-receipt" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -203,39 +257,77 @@ document.addEventListener('DOMContentLoaded', function() {
         demoAnimation.style.display = 'block';
         demoButton.disabled = true;
         
+        // Scroll to the animation
+        setTimeout(() => {
+            demoAnimation.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+        
         // Reset animation
         steps.forEach(step => step.style.display = 'none');
         redirectBar.style.width = '0%';
         
-        // Step 1: Typing credentials
-        steps[0].style.display = 'block';
+        // Step 1: Typing credentials with a slight delay to build anticipation
+        setTimeout(() => {
+            steps[0].style.display = 'block';
+            
+            // Show typing effect by adding a class
+            document.getElementById('emailTyping').style.animation = 'typing 1.5s steps(30, end), blink-caret 0.75s step-end infinite';
+            document.getElementById('passwordTyping').style.animation = 'typing 1.5s steps(30, end) 1.5s, blink-caret 0.75s step-end infinite';
+            document.getElementById('passwordTyping').style.width = '0';
+            
+            setTimeout(() => {
+                document.getElementById('passwordTyping').style.width = '100%';
+            }, 1500);
+        }, 500);
         
         // Step 2: Click login
         setTimeout(() => {
             steps[1].style.display = 'block';
-        }, 2000);
+        }, 3500);
         
         // Step 3: Processing
         setTimeout(() => {
             steps[2].style.display = 'block';
-        }, 3000);
+        }, 4500);
         
         // Step 4: Success
         setTimeout(() => {
             steps[3].style.display = 'block';
-        }, 5000);
+            // Add a nice pulse effect to success message
+            const successAlert = steps[3].querySelector('.alert');
+            successAlert.style.animation = 'pulse 0.5s';
+        }, 6000);
         
         // Step 5: Redirect
         setTimeout(() => {
             steps[4].style.display = 'block';
-            redirectBar.style.width = '100%';
-        }, 6000);
+            // Add a small delay before starting the progress bar
+            setTimeout(() => {
+                redirectBar.style.width = '100%';
+            }, 300);
+        }, 7000);
         
         // Step 6: Complete
         setTimeout(() => {
             steps[5].style.display = 'block';
+            // Add fade-in effect
+            steps[5].style.animation = 'fadeIn 0.8s';
             demoButton.disabled = false;
-        }, 9000);
+            
+            // Add a replay button
+            const replayBtn = document.createElement('button');
+            replayBtn.className = 'btn btn-outline-primary mt-3';
+            replayBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Replay Animation';
+            replayBtn.onclick = function() {
+                demoButton.click();
+            };
+            
+            // Only add the replay button if it doesn't exist yet
+            if (!document.getElementById('replayButton')) {
+                replayBtn.id = 'replayButton';
+                steps[5].appendChild(replayBtn);
+            }
+        }, 10500);
     });
     
     // Real login form handling - prevent default and redirect for demo purposes
