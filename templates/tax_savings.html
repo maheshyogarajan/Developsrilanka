@@ -85,7 +85,7 @@
                     <h5 class="mb-0">Tax Deductible Expenses</h5>
                 </div>
                 <div class="card-body">
-                    <h2 class="text-info">Rs {{ "{:,.2f}".format(total_tax_deductible) }}</h2>
+                    <h2 class="text-info">Rs {{ "{:,.2f}".format(total_tax_deductible|default(0, true)) }}</h2>
                     <p class="text-muted">Total tax deductible expenses from all your receipts</p>
                     
                     <div class="mt-3">

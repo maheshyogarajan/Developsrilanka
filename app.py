@@ -390,6 +390,13 @@ def calculate_tax_savings_simplified(employment_income, business_income, investm
     Returns:
         Dictionary with tax savings information
     """
+    # Handle None values by converting to 0
+    employment_income = float(employment_income or 0)
+    business_income = float(business_income or 0)
+    investment_income = float(investment_income or 0)
+    usd_consulting_income = float(usd_consulting_income or 0)
+    tax_deductible_amount = float(tax_deductible_amount or 0)
+    
     # LKR Income calculations
     total_lkr_income = employment_income + business_income + investment_income
     
@@ -409,16 +416,16 @@ def calculate_tax_savings_simplified(employment_income, business_income, investm
     tax_deductible_for_lkr = 0
     tax_deductible_for_usd = 0
     
-    if max_lkr_deduction > 0 or max_usd_deduction > 0:
-        total_eligible_income = max_lkr_deduction + max_usd_deduction
+    # Check if there's any eligible income and tax deductible expenses
+    total_eligible_income = max_lkr_deduction + max_usd_deduction
+    
+    if total_eligible_income > 0 and tax_deductible_amount > 0:
+        # Allocate the tax deductible amount proportionally
+        lkr_proportion = max_lkr_deduction / total_eligible_income if total_eligible_income > 0 else 0
+        usd_proportion = max_usd_deduction / total_eligible_income if total_eligible_income > 0 else 0
         
-        if total_eligible_income > 0:
-            # Allocate the tax deductible amount proportionally
-            lkr_proportion = max_lkr_deduction / total_eligible_income
-            usd_proportion = max_usd_deduction / total_eligible_income
-            
-            tax_deductible_for_lkr = min(tax_deductible_amount * lkr_proportion, max_lkr_deduction)
-            tax_deductible_for_usd = min(tax_deductible_amount * usd_proportion, max_usd_deduction)
+        tax_deductible_for_lkr = min(tax_deductible_amount * lkr_proportion, max_lkr_deduction)
+        tax_deductible_for_usd = min(tax_deductible_amount * usd_proportion, max_usd_deduction)
     
     # Calculate tax savings
     lkr_tax_savings = tax_deductible_for_lkr * lkr_business_tax_rate
