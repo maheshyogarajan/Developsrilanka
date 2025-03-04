@@ -11,12 +11,28 @@ logger = logging.getLogger(__name__)
 # Import models to ensure they're registered with SQLAlchemy
 import models
 
-# Import template filters
+# Import and initialize template filters
 try:
     import template_filters
+    
+    # Make sure Flask's Jinja environment has all our filters
+    with app.app_context():
+        for filter_name in ['currency', 'percent', 'datetime', 'truncate_text']:
+            if filter_name not in app.jinja_env.filters:
+                logger.warning(f"Filter '{filter_name}' not properly registered, manually adding")
+                # Add a simple fallback filter if needed
+                app.jinja_env.filters[filter_name] = lambda x, *args, **kwargs: str(x)
+    
     logger.info("Template filters loaded successfully")
 except Exception as e:
     logger.error(f"Error loading template filters: {str(e)}")
+    # Create emergency fallback filters
+    with app.app_context():
+        app.jinja_env.filters['currency'] = lambda x, *args, **kwargs: str(x)
+        app.jinja_env.filters['percent'] = lambda x, *args, **kwargs: str(x)
+        app.jinja_env.filters['datetime'] = lambda x, *args, **kwargs: str(x)
+        app.jinja_env.filters['truncate_text'] = lambda x, *args, **kwargs: str(x)
+        logger.info("Registered emergency fallback filters")
 
 # Import admin routes
 try:
