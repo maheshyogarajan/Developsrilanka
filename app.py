@@ -1595,16 +1595,34 @@ def send_invitation_email(to_email, from_user, personal_message=''):
             flash("Email feature requires Gmail credentials configuration", "warning")
             return False
         
-        # Send the email using Flask-Mail
+        # Send the email using Flask-Mail with verbose logging
         try:
+            # Log detailed email headers and info
+            logging.info(f"Preparing to send email with the following details:")
+            logging.info(f"From: {app.config['MAIL_DEFAULT_SENDER']}")
+            logging.info(f"To: {to_email}")
+            logging.info(f"Subject: {subject}")
+            logging.info(f"SMTP Server: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
+            logging.info(f"TLS Enabled: {app.config['MAIL_USE_TLS']}")
+            logging.info(f"SSL Enabled: {app.config['MAIL_USE_SSL']}")
+            
+            # Actually send the email
             mail.send(msg)
+            
+            # Log successful sending
             logging.info(f"Successfully sent invitation email to {to_email}")
+            logging.info(f"Email delivered to SMTP server for {to_email}")
+            print(f"EMAIL SENT: Successfully delivered invitation to SMTP server for {to_email}")  # Console log for immediate visibility
+            
             flash(f"Invitation sent successfully to {to_email}!", "success")
             return True
         except Exception as mail_error:
             error_details = traceback.format_exc()
             logging.error(f"Failed to send email to {to_email}: {str(mail_error)}")
             logging.error(f"Error details: {error_details}")
+            logging.error(f"Mail configuration: USERNAME={app.config['MAIL_USERNAME']}, SERVER={app.config['MAIL_SERVER']}")
+            print(f"EMAIL ERROR: Failed to send to {to_email}: {str(mail_error)}")  # Console log for immediate visibility
+            
             flash(f"Failed to send invitation: {str(mail_error)}", "danger")
             return False
         
