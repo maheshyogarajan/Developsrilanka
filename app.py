@@ -1229,16 +1229,8 @@ def email_login():
             # Login flow
             user = User.query.filter_by(email=email).first()
             
-            if not user:
-                flash('Email not registered. Please use the Register button below to create an account.', 'warning')
-                return redirect(url_for('login'))
-            
-            if not user.password_hash:
-                flash('Account exists but no password is set. Please use the Register button to set a password.', 'warning')
-                return redirect(url_for('login'))
-                
-            if not check_password_hash(user.password_hash, password):
-                flash('Incorrect password. Please try again or use the Register button if you need to reset your password.', 'danger')
+            if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
+                flash('Invalid email or password. Please try again.', 'danger')
                 return redirect(url_for('login'))
             
             # User authenticated successfully
