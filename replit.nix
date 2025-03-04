@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.dnsutils
     pkgs.glibcLocales
     pkgs.zlib
     pkgs.tk
