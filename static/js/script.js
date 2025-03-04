@@ -25,8 +25,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Make the upload area clickable to trigger file input
     if (uploadZone && receiptInput) {
+        // Use a flag to prevent multiple clicks within a short time period
+        let canTriggerFileInput = true;
         uploadZone.addEventListener('click', function() {
-            receiptInput.click();
+            if (canTriggerFileInput) {
+                canTriggerFileInput = false;
+                receiptInput.click();
+                // Re-enable after a short delay
+                setTimeout(() => { canTriggerFileInput = true; }, 1000);
+            }
         });
 
         // Handle drag and drop
