@@ -101,6 +101,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Process receipt image and send to server
     function processReceiptImage(file) {
+        // Prevent multiple submissions of the same file
+        if (window.processingReceipt) {
+            console.log('Already processing a receipt, ignoring duplicate request');
+            return;
+        }
+        
+        window.processingReceipt = true;
+        
         // Show loading state and results container
         resultsContainer.classList.remove('d-none');
         loadingElement.classList.remove('d-none');
@@ -154,6 +162,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     pageTitleElement.textContent = 'Review Receipt Data';
                 }
                 
+                // Reset processing flag
+                window.processingReceipt = false;
+                
                 // Show save button
                 showSaveButton();
             }
@@ -162,6 +173,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', error);
             showError(error.message || 'An error occurred while processing the receipt');
             loadingElement.classList.add('d-none');
+            
+            // Reset processing flag
+            window.processingReceipt = false;
             
             // Show reset button when there's an error
             if (uploadArea) {
@@ -195,12 +209,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     pageTitleElement.textContent = 'Review Receipt Data';
                 }
                 
+                // Reset processing flag
+                window.processingReceipt = false;
+                
                 // Show save button
                 showSaveButton();
             } else if (data.state === 'FAILURE') {
                 console.error('Task failed:', data.info);
                 showError(data.info || 'Failed to process receipt');
                 loadingElement.classList.add('d-none');
+                
+                // Reset processing flag
+                window.processingReceipt = false;
                 
                 // Show reset button when there's an error
                 const uploadArea = document.querySelector('.upload-area');
@@ -228,6 +248,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error checking task status:', error);
             showError(error.message || 'An error occurred while checking task status');
             loadingElement.classList.add('d-none');
+            
+            // Reset processing flag
+            window.processingReceipt = false;
         });
     }
 
