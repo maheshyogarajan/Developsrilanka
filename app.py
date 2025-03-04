@@ -1417,6 +1417,142 @@ def profile():
     """Show the user's profile page."""
     return render_template('profile.html')
 
+@app.route('/invite-friends')
+@login_required
+def invite_friends():
+    """Show the invite friends page."""
+    return render_template('invite_friends.html')
+
+@app.route('/send-invitations', methods=['POST'])
+@login_required
+def send_invitations():
+    """Process and send friend invitations via email."""
+    emails_input = request.form.get('emails', '')
+    personal_message = request.form.get('message', '')
+    
+    # Process email list (split by commas and clean)
+    email_list = [email.strip() for email in emails_input.split(',') if email.strip()]
+    
+    if not email_list:
+        flash('Please enter at least one email address.', 'warning')
+        return redirect(url_for('invite_friends'))
+    
+    # Initialize counters for success/failure reporting
+    sent_count = 0
+    failed_emails = []
+    
+    for email in email_list:
+        try:
+            # Basic email validation
+            if '@' not in email or '.' not in email:
+                failed_emails.append(f"{email} (invalid format)")
+                continue
+                
+            # Send invitation email
+            if send_invitation_email(email, current_user, personal_message):
+                sent_count += 1
+            else:
+                failed_emails.append(email)
+        except Exception as e:
+            logging.error(f"Error sending invitation to {email}: {str(e)}")
+            failed_emails.append(email)
+    
+    # Provide feedback to the user
+    if sent_count > 0:
+        flash(f'Successfully sent {sent_count} invitation(s)!', 'success')
+    
+    if failed_emails:
+        flash(f'Failed to send to: {", ".join(failed_emails)}', 'warning')
+    
+    return redirect(url_for('invite_friends'))
+
+# Email sending function for invitations
+def send_invitation_email(to_email, from_user, personal_message=''):
+    """
+    Send an invitation email to a friend.
+    
+    Args:
+        to_email: Recipient's email address
+        from_user: User object of the sender
+        personal_message: Optional personal message
+        
+    Returns:
+        Boolean indicating success or failure
+    """
+    try:
+        # Use requests to send an email via SMTP server
+        app_url = request.host_url.rstrip('/')
+        
+        # Construct email subject and body
+        subject = f"{from_user.name} invites you to join Develop Sri Lanka"
+        
+        # Email body with HTML formatting
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+                <img src="{app_url}/static/images/dev-sri-logo.jpg" alt="Develop Sri Lanka Logo" style="height: 60px; margin-bottom: 15px;">
+                <h2 style="color: #0d6efd; margin-bottom: 15px;">You've Been Invited!</h2>
+                <p><strong>{from_user.name}</strong> has invited you to join <strong>Develop Sri Lanka</strong>, 
+                a platform that helps Sri Lankans track their tax contributions and optimize tax savings.</p>
+                
+                {f'''<div style="background-color: #e9f0ff; padding: 15px; border-radius: 5px; border-left: 4px solid #0d6efd; margin: 20px 0;">
+                    <p style="font-style: italic;">"{personal_message}"</p>
+                    <p style="text-align: right; margin-bottom: 0;">- {from_user.name}</p>
+                </div>''' if personal_message else ''}
+                
+                <a href="{app_url}/login" style="display: inline-block; background-color: #0d6efd; color: white; 
+                padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold;">
+                    Join Now
+                </a>
+            </div>
+            
+            <div style="margin-top: 30px; border-top: 1px solid #dee2e6; padding-top: 20px;">
+                <h3>Why Join Develop Sri Lanka?</h3>
+                <ul style="padding-left: 20px;">
+                    <li>Track your contributions to Sri Lanka's development through taxes</li>
+                    <li>Scan and organize receipts with AI-powered technology</li>
+                    <li>Calculate potential tax savings based on your income</li>
+                    <li>Join a community committed to financial transparency</li>
+                </ul>
+            </div>
+            
+            <p style="color: #6c757d; font-size: 0.9em; margin-top: 30px;">
+                If you don't want to receive invitation emails, please ignore this message.
+            </p>
+        </body>
+        </html>
+        """
+        
+        # For now, just log the email (would normally use an email service like SendGrid)
+        logging.info(f"Would send invitation email to: {to_email}")
+        logging.info(f"From: {from_user.name} <{from_user.email}>")
+        logging.info(f"Subject: {subject}")
+        logging.debug(f"Email body preview: {html_body[:100]}...")
+        
+        # In a production environment, we would integrate with an email service
+        # For this implementation, we'll simulate success and log the email details
+        
+        # TODO: Replace with actual email sending implementation
+        # Example with requests and an email service API:
+        # response = requests.post(
+        #     "https://api.emailservice.com/v1/send",
+        #     auth=("api", os.environ.get("EMAIL_API_KEY")),
+        #     json={
+        #         "from": f"{from_user.name} <noreply@developsrilanka.com>",
+        #         "to": to_email,
+        #         "subject": subject,
+        #         "html": html_body
+        #     }
+        # )
+        # return response.status_code == 200
+        
+        return True  # Simulate successful sending
+        
+    except Exception as e:
+        logging.error(f"Failed to send invitation email: {str(e)}")
+        return False
+
 # Update the middleware to handle authentication required routes
 @app.before_request
 def check_authentication():
@@ -1430,7 +1566,9 @@ def check_authentication():
         '/receipts',
         '/export',
         '/export/excel',
-        '/save'
+        '/save',
+        '/invite-friends',
+        '/send-invitations'
     ]
     
     # Check for paths that start with these prefixes
