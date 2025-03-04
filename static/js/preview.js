@@ -17,6 +17,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadCard = document.querySelector('.upload-card');
     const uploadArea = document.querySelector('.upload-area');
     const tipsSection = document.querySelector('.tips-section');
+    
+    // Make the upload area clickable to trigger file input
+    if (uploadZone && receiptInput) {
+        // Use a flag to prevent multiple clicks within a short time period
+        let canTriggerFileInput = true;
+        uploadZone.addEventListener('click', function() {
+            if (canTriggerFileInput) {
+                canTriggerFileInput = false;
+                receiptInput.click();
+                // Re-enable after a short delay
+                setTimeout(() => { canTriggerFileInput = true; }, 1000);
+            }
+        });
+
+        // Handle drag and drop
+        uploadZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadZone.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length) {
+                receiptInput.files = e.dataTransfer.files;
+                // Trigger change event
+                const event = new Event('change', { bubbles: true });
+                receiptInput.dispatchEvent(event);
+            }
+        });
+    }
 
     // Function to process the file selection and change UI
     function handleFileSelect() {
@@ -57,7 +97,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show preview when file is selected
     if (receiptInput) {
-        receiptInput.addEventListener('change', handleFileSelect);
+        // Use once:true to prevent the file dialog from reopening after selection
+        receiptInput.addEventListener('change', handleFileSelect, { once: true });
+        
+        // We'll reattach the listener when needed to allow for future selections
+        document.addEventListener('resetFileInput', function() {
+            receiptInput.value = ''; // Clear the input
+            receiptInput.addEventListener('change', handleFileSelect, { once: true });
+        });
     }
 
     // Process receipt image and send to server
@@ -138,6 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show reset button when there's an error
             if (uploadArea) {
                 uploadArea.classList.remove('d-none');
+                // Dispatch event to reattach the file input listener
+                document.dispatchEvent(new Event('resetFileInput'));
             }
         });
     }
