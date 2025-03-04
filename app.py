@@ -1230,15 +1230,15 @@ def email_login():
             user = User.query.filter_by(email=email).first()
             
             if not user:
-                flash('Email not registered. Please register first.', 'warning')
+                flash('Email not registered. Please use the Register button below to create an account.', 'warning')
                 return redirect(url_for('login'))
             
             if not user.password_hash:
-                flash('Account exists but no password set. Please use register to set a password.', 'warning')
+                flash('Account exists but no password is set. Please use the Register button to set a password.', 'warning')
                 return redirect(url_for('login'))
                 
             if not check_password_hash(user.password_hash, password):
-                flash('Invalid password', 'danger')
+                flash('Incorrect password. Please try again or use the Register button if you need to reset your password.', 'danger')
                 return redirect(url_for('login'))
             
             # User authenticated successfully
@@ -1279,14 +1279,14 @@ def email_login():
             return redirect(url_for('index'))
         
         else:
-            flash('Invalid action', 'danger')
+            flash('Something went wrong. Please try again using the Sign In or Register button.', 'danger')
             return redirect(url_for('login'))
             
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error in email login/registration: {str(e)}")
         logging.error(traceback.format_exc())  # Log the full traceback
-        flash('An error occurred. Please try again.', 'danger')
+        flash('We encountered a problem processing your request. Please try again or contact support if the issue persists.', 'danger')
         return redirect(url_for('login'))
 
 @app.route('/auth/google')

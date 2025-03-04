@@ -116,6 +116,46 @@
     #step1, #step2 {
         transition: opacity 0.3s ease;
     }
+    
+    /* Enhanced alert styles */
+    .alert {
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        position: relative;
+        padding-right: 2.5rem;
+        transition: all 0.3s ease;
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    .alert-danger {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .alert-info {
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .alert-dismissible .btn-close {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.5rem;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 </style>
 {% endblock %}
 
