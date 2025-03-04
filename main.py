@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 # Import models to ensure they're registered with SQLAlchemy
 import models
 
+# Import admin routes
+try:
+    import admin_routes
+    logger.info("Admin routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading admin routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()

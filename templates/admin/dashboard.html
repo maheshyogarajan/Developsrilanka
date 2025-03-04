@@ -1,17 +1,16 @@
-{% extends "layout.html" %}
+{% extends "admin/layout.html" %}
 
 {% block title %}Admin Dashboard{% endblock %}
 
-{% block content %}
-<div class="container my-5">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mb-4">Admin Dashboard</h1>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i> Welcome to the admin dashboard. Here you can manage users and system settings.
-            </div>
-        </div>
-    </div>
+{% block admin_content %}
+<div class="admin-heading">
+    <h1>Admin Dashboard</h1>
+    <span class="text-muted">Overview</span>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i> Welcome to the admin dashboard. Here you can manage users and system settings.
+</div>
 
     <div class="row mt-4">
         <!-- User Management Card -->

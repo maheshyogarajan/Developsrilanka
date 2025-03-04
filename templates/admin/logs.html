@@ -1,17 +1,14 @@
-{% extends "layout.html" %}
+{% extends "admin/layout.html" %}
 
 {% block title %}System Logs{% endblock %}
 
-{% block content %}
-<div class="container my-5">
-    <div class="row mb-4">
-        <div class="col-12 d-flex justify-content-between align-items-center">
-            <h1>System Logs</h1>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
-            </a>
-        </div>
-    </div>
+{% block admin_content %}
+<div class="admin-heading">
+    <h1>System Logs</h1>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+    </a>
+</div>
 
     <div class="row">
         <div class="col-12">
