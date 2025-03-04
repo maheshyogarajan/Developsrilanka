@@ -214,11 +214,11 @@ def analytics():
         major_category_data = [{'category': cat, 'total': total} for cat, total in major_categories]
         minor_category_data = [{'category': cat, 'total': total} for cat, total in minor_categories]
         
-        # Total count of receipts
-        receipt_count = Receipt.query.count()
+        # Total count of receipts for current user
+        receipt_count = Receipt.query.filter_by(user_id=current_user.id).count()
         
-        # Get receipt data for the chart (last 10 receipts)
-        recent_receipts = Receipt.query.order_by(Receipt.date.desc()).limit(10).all()
+        # Get receipt data for the chart (last 10 receipts for current user)
+        recent_receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).limit(10).all()
         recent_receipt_data = [
             {
                 'date': receipt.date.strftime('%Y-%m-%d') if receipt.date else 'Unknown',
