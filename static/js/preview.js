@@ -111,8 +111,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showError(error.message || 'An error occurred while processing the receipt');
+            // Special error handling for JSON parse errors
+            if (error.toString().includes("Unexpected token")) {
+                console.error("JSON parse error:", error);
+                showError("Error processing receipt. Please try again.");
+            } else {
+                console.error('Error:', error);
+                showError(error.message || 'An error occurred while processing the receipt');
+            }
             loadingElement.classList.add('d-none');
             
             // Show reset button when there's an error
