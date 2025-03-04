@@ -15,6 +15,7 @@ from sqlalchemy import text  # Add SQLAlchemy text support for direct queries
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from authlib.integrations.flask_client import OAuth
 import requests
+from flask_mail import Mail, Message
 
 # Import Celery task queue components
 from celery import Celery
@@ -31,6 +32,18 @@ db = SQLAlchemy(model_class=Base)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Initialize Flask-Mail
+mail = Mail()
+
+# Configure Flask app for sending emails
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('GMAIL_USERNAME')
+mail.init_app(app)
 
 # Production error handlers
 @app.errorhandler(404)
@@ -1524,30 +1537,32 @@ def send_invitation_email(to_email, from_user, personal_message=''):
         </html>
         """
         
-        # For now, just log the email (would normally use an email service like SendGrid)
-        logging.info(f"Would send invitation email to: {to_email}")
+        # Log the email attempt
+        logging.info(f"Sending invitation email to: {to_email}")
         logging.info(f"From: {from_user.name} <{from_user.email}>")
         logging.info(f"Subject: {subject}")
-        logging.debug(f"Email body preview: {html_body[:100]}...")
         
-        # In a production environment, we would integrate with an email service
-        # For this implementation, we'll simulate success and log the email details
+        # Create a message object
+        msg = Message(
+            subject=subject,
+            recipients=[to_email],
+            html=html_body,
+            sender=(from_user.name, app.config['MAIL_USERNAME'])
+        )
         
-        # TODO: Replace with actual email sending implementation
-        # Example with requests and an email service API:
-        # response = requests.post(
-        #     "https://api.emailservice.com/v1/send",
-        #     auth=("api", os.environ.get("EMAIL_API_KEY")),
-        #     json={
-        #         "from": f"{from_user.name} <noreply@developsrilanka.com>",
-        #         "to": to_email,
-        #         "subject": subject,
-        #         "html": html_body
-        #     }
-        # )
-        # return response.status_code == 200
+        # Check if Gmail credentials are configured
+        if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+            logging.warning("Gmail credentials are not configured. Email will not be sent.")
+            return False
         
-        return True  # Simulate successful sending
+        # Send the email using Flask-Mail
+        try:
+            mail.send(msg)
+            logging.info(f"Successfully sent invitation email to {to_email}")
+            return True
+        except Exception as mail_error:
+            logging.error(f"Failed to send email to {to_email}: {str(mail_error)}")
+            return False
         
     except Exception as e:
         logging.error(f"Failed to send invitation email: {str(e)}")
