@@ -146,6 +146,32 @@ RECEIPT_FIELDS = [
     "expense_minor_category"
 ]
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring the application status."""
+    try:
+        # Check database connection
+        db.session.execute(text('SELECT 1'))
+        
+        # Check Gemini API configuration
+        gemini_configured = bool(os.environ.get("GEMINI_API_KEY"))
+        
+        # Return health status
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'connected',
+            'gemini_api': 'configured' if gemini_configured else 'not_configured',
+            'version': os.environ.get('APP_VERSION', '1.0.0')
+        })
+    except Exception as e:
+        logging.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
+
 @app.route('/')
 def home():
     """Render the homepage with welcome message and features."""
