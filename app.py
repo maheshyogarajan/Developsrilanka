@@ -40,10 +40,18 @@ mail = Mail()
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('GMAIL_USERNAME')
+app.config['MAIL_DEFAULT_SENDER'] = ('Smarter Tax', os.environ.get('GMAIL_USERNAME'))
+app.config['MAIL_MAX_EMAILS'] = 5
+app.config['MAIL_DEBUG'] = True
 mail.init_app(app)
+
+# Log email configuration for debugging
+logging.info(f"Mail configuration: Server={app.config['MAIL_SERVER']}, Port={app.config['MAIL_PORT']}")
+logging.info(f"Mail username configured: {'Yes' if app.config['MAIL_USERNAME'] else 'No'}")
+logging.info(f"Mail password configured: {'Yes' if app.config['MAIL_PASSWORD'] else 'No'}")
 
 # Production error handlers
 @app.errorhandler(404)
@@ -1547,7 +1555,7 @@ def send_invitation_email(to_email, from_user, personal_message=''):
             subject=subject,
             recipients=[to_email],
             html=html_body,
-            sender=(from_user.name, app.config['MAIL_USERNAME'])
+            sender=app.config['MAIL_DEFAULT_SENDER']
         )
         
         # Check if Gmail credentials are configured
