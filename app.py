@@ -1553,6 +1553,12 @@ def send_invitation_email(to_email, from_user, personal_message=''):
         # Check if Gmail credentials are configured
         if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
             logging.warning("Gmail credentials are not configured. Email will not be sent.")
+            # For development purposes, log what would have been sent
+            logging.info(f"Would have sent email to: {to_email}")
+            logging.info(f"Subject: {subject}")
+            logging.info(f"From: {from_user.name} <{from_user.email}>")
+            logging.info(f"With personal message: {personal_message}")
+            flash("Email feature requires Gmail credentials configuration", "warning")
             return False
         
         # Send the email using Flask-Mail
