@@ -122,56 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle "try saving" button click
-    const previewSaveButton = document.getElementById('preview-save-btn');
-    if (previewSaveButton) {
-        previewSaveButton.addEventListener('click', function() {
-            // Show loading state on button
-            const originalButtonText = previewSaveButton.innerHTML;
-            previewSaveButton.disabled = true;
-            previewSaveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-            
-            // Collect form data
-            const formData = collectFormData();
-            
-            // Update the data first
-            fetch('/preview/update_data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            })
-            .then(response => response.json())
-            .then(updateData => {
-                if (updateData.error) {
-                    throw new Error(updateData.error);
-                }
-                
-                // Show success message with login prompt
-                showAlert('Receipt processed successfully! To save, please create an account.', 'success');
-                
-                // Update header text to indicate success
-                const pageTitle = document.querySelector('.page-title');
-                if (pageTitle) {
-                    const originalTitle = pageTitle.textContent;
-                    pageTitle.textContent = 'Ready to Save!';
-                    setTimeout(() => {
-                        pageTitle.textContent = originalTitle;
-                    }, 2000);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showError(error.message || 'An error occurred while processing the receipt');
-            })
-            .finally(() => {
-                // Restore button state
-                previewSaveButton.disabled = false;
-                previewSaveButton.innerHTML = originalButtonText;
-            });
-        });
-    }
+    // No "Try Saving" button in preview mode anymore, only "Sign Up to Save" link
 
     // Handle add item button click
     if (addItemButton) {
