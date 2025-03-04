@@ -921,6 +921,7 @@ def email_login():
     """Handle email-based login and registration."""
     from models import User
     from werkzeug.security import generate_password_hash, check_password_hash
+    import traceback
     
     email = request.form.get('email')
     password = request.form.get('password')
@@ -928,16 +929,24 @@ def email_login():
     
     if not email or not password:
         flash('Email and password are required', 'danger')
-        return redirect(url_for('home'))
+        return redirect(url_for('login'))
     
     try:
         if action == 'login':
             # Login flow
             user = User.query.filter_by(email=email).first()
             
-            if not user or not check_password_hash(user.password_hash, password):
-                flash('Invalid email or password', 'danger')
-                return redirect(url_for('home'))
+            if not user:
+                flash('Email not registered. Please register first.', 'warning')
+                return redirect(url_for('login'))
+            
+            if not user.password_hash:
+                flash('Account exists but no password set. Please use register to set a password.', 'warning')
+                return redirect(url_for('login'))
+                
+            if not check_password_hash(user.password_hash, password):
+                flash('Invalid password', 'danger')
+                return redirect(url_for('login'))
             
             # User authenticated successfully
             login_user(user)
@@ -952,7 +961,14 @@ def email_login():
             existing_user = User.query.filter_by(email=email).first()
             
             if existing_user:
-                flash('Email already registered. Please login instead.', 'warning')
+                # Update password for existing user
+                existing_user.password_hash = generate_password_hash(password)
+                existing_user.name = existing_user.name or email.split('@')[0]  # Set name if not set
+                db.session.commit()
+                
+                # Log in the user
+                login_user(existing_user)
+                flash('Account updated and logged in successfully!', 'success')
                 return redirect(url_for('home'))
             
             # Create new user
@@ -972,13 +988,14 @@ def email_login():
         
         else:
             flash('Invalid action', 'danger')
-            return redirect(url_for('home'))
+            return redirect(url_for('login'))
             
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error in email login/registration: {str(e)}")
+        logging.error(traceback.format_exc())  # Log the full traceback
         flash('An error occurred. Please try again.', 'danger')
-        return redirect(url_for('home'))
+        return redirect(url_for('login'))
 
 @app.route('/auth/google')
 def google_auth():

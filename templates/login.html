@@ -32,19 +32,10 @@
                             <input type="password" class="form-control" id="password" name="password" required>
                         </div>
                         <div class="d-grid gap-2">
-                            <button type="submit" name="action" value="login" class="btn btn-primary">Sign In</button>
-                            <button type="submit" name="action" value="register" class="btn btn-outline-success">Register</button>
+                            <button type="submit" name="action" value="login" class="btn btn-primary btn-lg">Sign In</button>
+                            <button type="submit" name="action" value="register" class="btn btn-success btn-lg">Register</button>
                         </div>
                     </form>
-                    
-                    <div class="d-grid gap-3">
-                        <a href="{{ url_for('google_auth') }}" class="btn btn-lg btn-outline-primary">
-                            <i class="fab fa-google me-2"></i> Continue with Google
-                        </a>
-                        <a href="{{ url_for('facebook_auth') }}" class="btn btn-lg btn-outline-primary">
-                            <i class="fab fa-facebook-f me-2"></i> Continue with Facebook
-                        </a>
-                    </div>
                     
                     <hr class="my-4">
                     
