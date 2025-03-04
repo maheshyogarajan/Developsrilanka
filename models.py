@@ -11,12 +11,22 @@ class User(UserMixin, db.Model):
     profile_pic = db.Column(db.String(255), nullable=True)
     # Password authentication
     password_hash = db.Column(db.String(256), nullable=True)
+    # Role-based access control
+    role = db.Column(db.String(20), nullable=False, default='user')  # 'user', 'admin', etc.
     # Social login information
     social_id = db.Column(db.String(255), unique=True, nullable=True)
     social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     receipts = db.relationship('Receipt', backref='user', lazy=True)
     income_details = db.relationship('UserIncome', backref='user', lazy=True, uselist=False)
+    
+    def is_admin(self):
+        """Check if user has admin role."""
+        return self.role == 'admin'
+    
+    def has_role(self, role):
+        """Check if user has a specific role."""
+        return self.role == role
     
     def to_dict(self):
         """Convert the user to a dictionary."""
@@ -25,6 +35,7 @@ class User(UserMixin, db.Model):
             'email': self.email,
             'name': self.name,
             'profile_pic': self.profile_pic,
+            'role': self.role,
             'provider': self.social_provider,
             'created_at': self.created_at.isoformat()
         }

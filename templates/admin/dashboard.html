@@ -1,0 +1,100 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Admin Dashboard</h1>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Welcome to the admin dashboard. Here you can manage users and system settings.
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- User Management Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i> User Management</h5>
+                </div>
+                <div class="card-body">
+                    <p>Manage user accounts and roles.</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-user-cog me-2"></i> Manage Users
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">Total Users: {{ user_count }}</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Statistics Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i> System Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <p>View system usage and statistics.</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_statistics') }}" class="btn btn-outline-success">
+                            <i class="fas fa-chart-line me-2"></i> View Statistics
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">Total Receipts: {{ receipt_count }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-2">
+        <!-- App Settings Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i> Application Settings</h5>
+                </div>
+                <div class="card-body">
+                    <p>Configure application settings and parameters.</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_settings') }}" class="btn btn-outline-info">
+                            <i class="fas fa-sliders-h me-2"></i> Manage Settings
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">Last Updated: {{ settings_updated }}</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Logs Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i> System Logs</h5>
+                </div>
+                <div class="card-body">
+                    <p>View system logs and error reports.</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_logs') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-search me-2"></i> View Logs
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">Recent Error Count: {{ error_count }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

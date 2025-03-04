@@ -1,0 +1,168 @@
+{% extends "layout.html" %}
+
+{% block title %}Application Settings{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <h1>Application Settings</h1>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% if message %}
+    <div class="alert alert-{{ message_type }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Tax Settings -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-percentage me-2"></i> Tax Rate Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin_update_tax_settings') }}">
+                        <div class="mb-3">
+                            <label for="lkrBusinessTaxRate" class="form-label">LKR Business Income Tax Rate (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" class="form-control" id="lkrBusinessTaxRate" 
+                                   name="lkr_business_tax_rate" value="{{ tax_settings.lkr_business_tax_rate }}">
+                            <div class="form-text">Tax rate applied to LKR business income (currently 36%).</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="usdConsultingTaxRate" class="form-label">USD Consulting Income Tax Rate (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" class="form-control" id="usdConsultingTaxRate" 
+                                   name="usd_consulting_tax_rate" value="{{ tax_settings.usd_consulting_tax_rate }}">
+                            <div class="form-text">Tax rate applied to USD consulting income (currently 15%).</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="vatRate" class="form-label">VAT Rate (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" class="form-control" id="vatRate" 
+                                   name="vat_rate" value="{{ tax_settings.vat_rate }}">
+                            <div class="form-text">Default VAT rate for Sri Lanka.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="ssclRate" class="form-label">SSCL Rate (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" class="form-control" id="ssclRate" 
+                                   name="sscl_rate" value="{{ tax_settings.sscl_rate }}">
+                            <div class="form-text">Default SSCL rate for Sri Lanka.</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i> Save Tax Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Application Settings -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i> General Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin_update_general_settings') }}">
+                        <div class="mb-3">
+                            <label for="appName" class="form-label">Application Name</label>
+                            <input type="text" class="form-control" id="appName" 
+                                   name="app_name" value="{{ general_settings.app_name }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="itemsPerPage" class="form-label">Items Per Page</label>
+                            <input type="number" min="5" max="100" class="form-control" id="itemsPerPage" 
+                                   name="items_per_page" value="{{ general_settings.items_per_page }}">
+                            <div class="form-text">Number of items to display per page in lists.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="defaultCurrency" class="form-label">Default Currency</label>
+                            <select class="form-select" id="defaultCurrency" name="default_currency">
+                                <option value="LKR" {% if general_settings.default_currency == 'LKR' %}selected{% endif %}>LKR (₨)</option>
+                                <option value="USD" {% if general_settings.default_currency == 'USD' %}selected{% endif %}>USD ($)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="enableRegistration" 
+                                   name="enable_registration" {% if general_settings.enable_registration %}checked{% endif %}>
+                            <label class="form-check-label" for="enableRegistration">Allow New User Registration</label>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="enableAiFeatures" 
+                                   name="enable_ai_features" {% if general_settings.enable_ai_features %}checked{% endif %}>
+                            <label class="form-check-label" for="enableAiFeatures">Enable AI Features</label>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save me-2"></i> Save General Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- System Maintenance -->
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-tools me-2"></i> System Maintenance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="fas fa-broom me-2"></i> Clear Temporary Files</h5>
+                                    <p class="card-text">Remove all temporary files older than 24 hours.</p>
+                                    <form method="POST" action="{{ url_for('admin_clear_temp_files') }}">
+                                        <div class="d-grid">
+                                            <button type="submit" class="btn btn-outline-warning">
+                                                Clear Temporary Files
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="fas fa-database me-2"></i> Update Categories</h5>
+                                    <p class="card-text">Update expense categories for all receipts.</p>
+                                    <form method="POST" action="{{ url_for('admin_update_categories') }}">
+                                        <div class="d-grid">
+                                            <button type="submit" class="btn btn-outline-warning">
+                                                Update Categories
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

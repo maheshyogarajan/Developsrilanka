@@ -1,0 +1,234 @@
+{% extends "layout.html" %}
+
+{% block title %}System Statistics{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <h1>System Statistics</h1>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- System Usage Summary -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i> System Usage Overview</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="systemUsageChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Growth Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i> User Growth</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="userGrowthChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Receipt Stats -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i> Receipt Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <th>Total Receipts</th>
+                                    <td>{{ total_receipts }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Average Receipt Amount</th>
+                                    <td>{{ avg_receipt_amount | currency }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Tax Deductible Receipts</th>
+                                    <td>{{ tax_deductible_count }} ({{ tax_deductible_percent }}%)</td>
+                                </tr>
+                                <tr>
+                                    <th>Total VAT Tax</th>
+                                    <td>{{ total_vat | currency }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Total SSCL Tax</th>
+                                    <td>{{ total_sscl | currency }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Most Common Vendor</th>
+                                    <td>{{ most_common_vendor }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Distribution -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-tags me-2"></i> Expense Categories</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Daily Receipts -->
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i> Daily Receipt Activity</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyActivityChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // System Usage Overview Chart
+    const systemUsageCtx = document.getElementById('systemUsageChart').getContext('2d');
+    new Chart(systemUsageCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Active Users', 'Inactive Users', 'Receipts', 'Tax Deductible Items'],
+            datasets: [{
+                data: [{{ active_user_count }}, {{ inactive_user_count }}, {{ total_receipts }}, {{ tax_deductible_count }}],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                }
+            }
+        }
+    });
+
+    // User Growth Chart
+    const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(userGrowthCtx, {
+        type: 'line',
+        data: {
+            labels: {{ user_growth_labels|safe }},
+            datasets: [{
+                label: 'New Users',
+                data: {{ user_growth_data }},
+                fill: false,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+
+    // Category Distribution Chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ category_labels|safe }},
+            datasets: [{
+                label: 'Number of Receipts',
+                data: {{ category_data }},
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.6)',
+                    'rgba(54, 162, 235, 0.6)',
+                    'rgba(255, 206, 86, 0.6)',
+                    'rgba(75, 192, 192, 0.6)',
+                    'rgba(153, 102, 255, 0.6)',
+                    'rgba(255, 159, 64, 0.6)',
+                    'rgba(199, 199, 199, 0.6)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+
+    // Daily Receipt Activity Chart
+    const dailyActivityCtx = document.getElementById('dailyActivityChart').getContext('2d');
+    new Chart(dailyActivityCtx, {
+        type: 'line',
+        data: {
+            labels: {{ daily_activity_labels|safe }},
+            datasets: [{
+                label: 'Receipts Scanned',
+                data: {{ daily_activity_data }},
+                fill: true,
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

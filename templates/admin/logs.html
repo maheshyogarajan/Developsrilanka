@@ -1,0 +1,192 @@
+{% extends "layout.html" %}
+
+{% block title %}System Logs{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <h1>System Logs</h1>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Error Logs</h5>
+                        </div>
+                        <div class="col-auto">
+                            <form class="d-flex" method="GET" action="{{ url_for('admin_logs') }}">
+                                <select name="log_type" class="form-select me-2">
+                                    <option value="error" {% if log_type == 'error' %}selected{% endif %}>Error</option>
+                                    <option value="info" {% if log_type == 'info' %}selected{% endif %}>Info</option>
+                                    <option value="all" {% if log_type == 'all' %}selected{% endif %}>All</option>
+                                </select>
+                                <input type="date" name="start_date" class="form-control me-2" value="{{ start_date }}">
+                                <input type="date" name="end_date" class="form-control me-2" value="{{ end_date }}">
+                                <button class="btn btn-outline-primary" type="submit">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Timestamp</th>
+                                    <th scope="col">Level</th>
+                                    <th scope="col">Source</th>
+                                    <th scope="col">Message</th>
+                                    <th scope="col">User</th>
+                                    <th scope="col">IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr class="{% if log.level == 'ERROR' %}table-danger{% elif log.level == 'WARNING' %}table-warning{% endif %}">
+                                    <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        <span class="badge {% if log.level == 'ERROR' %}bg-danger{% elif log.level == 'WARNING' %}bg-warning text-dark{% elif log.level == 'INFO' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                                            {{ log.level }}
+                                        </span>
+                                    </td>
+                                    <td>{{ log.source }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-link p-0" data-bs-toggle="modal" data-bs-target="#logDetailModal" 
+                                                data-log-message="{{ log.message }}" 
+                                                data-log-timestamp="{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}"
+                                                data-log-level="{{ log.level }}">
+                                            {{ log.message|truncate(50) }}
+                                        </button>
+                                    </td>
+                                    <td>{{ log.user_id }}</td>
+                                    <td>{{ log.ip_address }}</td>
+                                </tr>
+                                {% endfor %}
+                                
+                                {% if not logs %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">No logs found for the selected criteria.</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if total_pages > 1 %}
+                    <nav aria-label="Log pagination">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin_logs', page=page-1, log_type=log_type, start_date=start_date, end_date=end_date) }}" tabindex="-1">Previous</a>
+                            </li>
+                            
+                            {% for i in range(1, total_pages + 1) %}
+                            <li class="page-item {% if page == i %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin_logs', page=i, log_type=log_type, start_date=start_date, end_date=end_date) }}">{{ i }}</a>
+                            </li>
+                            {% endfor %}
+                            
+                            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin_logs', page=page+1, log_type=log_type, start_date=start_date, end_date=end_date) }}">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">Showing {{ logs|length }} of {{ total_logs }} logs</small>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <form method="POST" action="{{ url_for('admin_clear_logs') }}" class="d-inline">
+                                <input type="hidden" name="log_type" value="{{ log_type }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to clear these logs? This action cannot be undone.')">
+                                    <i class="fas fa-trash-alt me-2"></i> Clear Logs
+                                </button>
+                            </form>
+                            <a href="{{ url_for('admin_export_logs', log_type=log_type, start_date=start_date, end_date=end_date) }}" class="btn btn-sm btn-outline-primary ms-2">
+                                <i class="fas fa-file-export me-2"></i> Export Logs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Detail Modal -->
+<div class="modal fade" id="logDetailModal" tabindex="-1" aria-labelledby="logDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logDetailModalLabel">Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Timestamp</label>
+                    <p id="logTimestamp" class="fw-bold"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Level</label>
+                    <p id="logLevel" class="fw-bold"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Message</label>
+                    <pre id="logMessage" class="bg-light p-3 rounded" style="white-space: pre-wrap;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle log detail modal
+    const logDetailModal = document.getElementById('logDetailModal');
+    if (logDetailModal) {
+        logDetailModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const logMessage = button.getAttribute('data-log-message');
+            const logTimestamp = button.getAttribute('data-log-timestamp');
+            const logLevel = button.getAttribute('data-log-level');
+            
+            const modal = this;
+            modal.querySelector('#logMessage').textContent = logMessage;
+            modal.querySelector('#logTimestamp').textContent = logTimestamp;
+            modal.querySelector('#logLevel').textContent = logLevel;
+            
+            // Set appropriate badge color based on log level
+            const logLevelElement = modal.querySelector('#logLevel');
+            logLevelElement.className = 'badge fw-bold';
+            if (logLevel === 'ERROR') {
+                logLevelElement.classList.add('bg-danger');
+            } else if (logLevel === 'WARNING') {
+                logLevelElement.classList.add('bg-warning', 'text-dark');
+            } else if (logLevel === 'INFO') {
+                logLevelElement.classList.add('bg-info', 'text-dark');
+            } else {
+                logLevelElement.classList.add('bg-secondary');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
