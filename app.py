@@ -810,10 +810,10 @@ def save_receipt():
             vendor_contact=receipt_data.get('vendor_contact'),
             date=receipt_date,
             total_amount=float(receipt_data.get('total_amount', 0)),
-            service_charge=float(receipt_data.get('service_charge', 0)),
+            service_charge=float(receipt_data.get('service_charge', 0) or 0),
             vat_registration_number=receipt_data.get('vat_registration_number'),
-            sscl_tax=float(receipt_data.get('sscl_tax', 0)),
-            vat_tax=float(receipt_data.get('vat_tax', 0)),
+            sscl_tax=float(receipt_data.get('sscl_tax', 0) or 0),
+            vat_tax=float(receipt_data.get('vat_tax', 0) or 0),
             expense_major_category=receipt_data.get('expense_major_category'),
             expense_minor_category=receipt_data.get('expense_minor_category')
         )
@@ -828,8 +828,8 @@ def save_receipt():
             new_item = ReceiptItem(
                 receipt_id=new_receipt.id,
                 name=item.get('name', 'Unknown Item'),
-                quantity=float(item.get('quantity', 1)),
-                price=float(item.get('price', 0)),
+                quantity=float(item.get('quantity', 1) or 1),
+                price=float(item.get('price', 0) or 0),
                 tax_deductible=bool(item.get('tax_deductible', False))
             )
             db.session.add(new_item)
