@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 # Import models to ensure they're registered with SQLAlchemy
 import models
 
+# Import template filters
+try:
+    import template_filters
+    logger.info("Template filters loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading template filters: {str(e)}")
+
 # Import admin routes
 try:
     import admin_routes
