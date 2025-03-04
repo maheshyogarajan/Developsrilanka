@@ -260,7 +260,7 @@ def get_receipt_statistics(days=30):
     
     # Tax deductible statistics
     tax_deductible_stats = db.session.query(
-        func.sum(case([(ReceiptItem.tax_deductible == True, ReceiptItem.price)], else_=0)).label('tax_deductible_amount'),
+        func.sum(case((ReceiptItem.tax_deductible == True, ReceiptItem.price), else_=0)).label('tax_deductible_amount'),
         func.sum(ReceiptItem.price).label('total_amount')
     ).join(Receipt, ReceiptItem.receipt_id == Receipt.id)\
      .filter(Receipt.created_at >= reference_date)\
@@ -415,7 +415,7 @@ def get_tax_savings_statistics():
     # Get deductible amounts
     deductible_query = db.session.query(
         Receipt.user_id,
-        func.sum(case([(ReceiptItem.tax_deductible == True, ReceiptItem.price)], else_=0)).label('tax_deductible_amount')
+        func.sum(case((ReceiptItem.tax_deductible == True, ReceiptItem.price), else_=0)).label('tax_deductible_amount')
     ).join(ReceiptItem, Receipt.id == ReceiptItem.receipt_id)\
      .group_by(Receipt.user_id)\
      .subquery()
