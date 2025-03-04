@@ -189,11 +189,86 @@ document.addEventListener('DOMContentLoaded', function() {
                     receiptValueAnimation.classList.remove('d-none');
                     receiptValueAnimation.querySelector('.card').classList.add('animate__animated', 'animate__fadeInUp');
                     
-                    // Hide animation and show results after a delay
-                    setTimeout(() => {
-                        receiptValueAnimation.classList.add('d-none');
-                        resultsElement.classList.remove('d-none');
-                    }, 4000); // Show for 4 seconds
+                    // Set up button event handlers
+                    const seeDetailsBtn = document.getElementById('see-details-btn');
+                    const scanAnotherBtn = document.getElementById('scan-another-btn');
+                    
+                    if (seeDetailsBtn) {
+                        seeDetailsBtn.addEventListener('click', function() {
+                            // Fade out animation and show details form
+                            receiptValueAnimation.querySelector('.card').classList.remove('animate__fadeInUp');
+                            receiptValueAnimation.querySelector('.card').classList.add('animate__fadeOutDown');
+                            
+                            setTimeout(() => {
+                                receiptValueAnimation.classList.add('d-none');
+                                resultsElement.classList.remove('d-none');
+                            }, 500); // Short delay for animation
+                        });
+                    }
+                    
+                    if (scanAnotherBtn) {
+                        scanAnotherBtn.addEventListener('click', function() {
+                            // First save the receipt
+                            const formData = collectFormData();
+                            
+                            // Save animation
+                            scanAnotherBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+                            scanAnotherBtn.disabled = true;
+                            
+                            // Update the data first
+                            fetch('/update_data', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(formData)
+                            })
+                            .then(response => response.json())
+                            .then(updateData => {
+                                if (updateData.error) {
+                                    throw new Error(updateData.error);
+                                }
+                                
+                                // Then save the receipt
+                                return fetch('/save', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({})  // The data is already in the session
+                                });
+                            })
+                            .then(response => response.json())
+                            .then(saveData => {
+                                if (saveData.error) {
+                                    throw new Error(saveData.error);
+                                }
+                                
+                                // Success! Reset the form and go back to scan state
+                                receiptValueAnimation.classList.add('d-none');
+                                previewContainer.classList.add('d-none');
+                                uploadArea.classList.remove('d-none');
+                                
+                                // Reset file input
+                                receiptInput.value = '';
+                                document.dispatchEvent(new Event('resetFileInput'));
+                                
+                                // Reset processing flag
+                                window.processingReceipt = false;
+                                
+                                // Show success message
+                                showAlert('Receipt saved successfully! Ready for next scan.', 'success');
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showError(error.message || 'An error occurred while saving the receipt');
+                                
+                                // Enable button again
+                                scanAnotherBtn.disabled = false;
+                                scanAnotherBtn.innerHTML = '<i class="fas fa-camera me-2"></i> Save & Scan Another';
+                            });
+                        });
+                    }
                 } else {
                     // Fallback if animation element doesn't exist
                     loadingElement.classList.add('d-none');
@@ -266,11 +341,86 @@ document.addEventListener('DOMContentLoaded', function() {
                     receiptValueAnimation.classList.remove('d-none');
                     receiptValueAnimation.querySelector('.card').classList.add('animate__animated', 'animate__fadeInUp');
                     
-                    // Hide animation and show results after a delay
-                    setTimeout(() => {
-                        receiptValueAnimation.classList.add('d-none');
-                        resultsElement.classList.remove('d-none');
-                    }, 4000); // Show for 4 seconds
+                    // Set up button event handlers
+                    const seeDetailsBtn = document.getElementById('see-details-btn');
+                    const scanAnotherBtn = document.getElementById('scan-another-btn');
+                    
+                    if (seeDetailsBtn) {
+                        seeDetailsBtn.addEventListener('click', function() {
+                            // Fade out animation and show details form
+                            receiptValueAnimation.querySelector('.card').classList.remove('animate__fadeInUp');
+                            receiptValueAnimation.querySelector('.card').classList.add('animate__fadeOutDown');
+                            
+                            setTimeout(() => {
+                                receiptValueAnimation.classList.add('d-none');
+                                resultsElement.classList.remove('d-none');
+                            }, 500); // Short delay for animation
+                        });
+                    }
+                    
+                    if (scanAnotherBtn) {
+                        scanAnotherBtn.addEventListener('click', function() {
+                            // First save the receipt
+                            const formData = collectFormData();
+                            
+                            // Save animation
+                            scanAnotherBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+                            scanAnotherBtn.disabled = true;
+                            
+                            // Update the data first
+                            fetch('/update_data', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(formData)
+                            })
+                            .then(response => response.json())
+                            .then(updateData => {
+                                if (updateData.error) {
+                                    throw new Error(updateData.error);
+                                }
+                                
+                                // Then save the receipt
+                                return fetch('/save', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({})  // The data is already in the session
+                                });
+                            })
+                            .then(response => response.json())
+                            .then(saveData => {
+                                if (saveData.error) {
+                                    throw new Error(saveData.error);
+                                }
+                                
+                                // Success! Reset the form and go back to scan state
+                                receiptValueAnimation.classList.add('d-none');
+                                previewContainer.classList.add('d-none');
+                                uploadArea.classList.remove('d-none');
+                                
+                                // Reset file input
+                                receiptInput.value = '';
+                                document.dispatchEvent(new Event('resetFileInput'));
+                                
+                                // Reset processing flag
+                                window.processingReceipt = false;
+                                
+                                // Show success message
+                                showAlert('Receipt saved successfully! Ready for next scan.', 'success');
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showError(error.message || 'An error occurred while saving the receipt');
+                                
+                                // Enable button again
+                                scanAnotherBtn.disabled = false;
+                                scanAnotherBtn.innerHTML = '<i class="fas fa-camera me-2"></i> Save & Scan Another';
+                            });
+                        });
+                    }
                 } else {
                     // Fallback if animation element doesn't exist
                     loadingElement.classList.add('d-none');
