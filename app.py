@@ -307,12 +307,16 @@ def tax_savings():
         
         if request.method == 'POST':
             # Process form submission
+            # LKR Income
             employment_income = float(request.form.get('employment_income', 0) or 0)
             business_income = float(request.form.get('business_income', 0) or 0)
             investment_income = float(request.form.get('investment_income', 0) or 0)
+            # USD Income
+            usd_consulting_income = float(request.form.get('usd_consulting_income', 0) or 0)
             
             # Validate inputs
-            if employment_income < 0 or business_income < 0 or investment_income < 0:
+            if (employment_income < 0 or business_income < 0 or 
+                investment_income < 0 or usd_consulting_income < 0):
                 error = "Income values cannot be negative."
             else:
                 # Save or update the income details
@@ -321,6 +325,7 @@ def tax_savings():
                     income_details.employment_income = employment_income
                     income_details.business_income = business_income
                     income_details.investment_income = investment_income
+                    income_details.usd_consulting_income = usd_consulting_income
                     income_details.updated_at = datetime.utcnow()
                 else:
                     # Create new record
@@ -328,26 +333,29 @@ def tax_savings():
                         user_id=current_user.id,
                         employment_income=employment_income,
                         business_income=business_income,
-                        investment_income=investment_income
+                        investment_income=investment_income,
+                        usd_consulting_income=usd_consulting_income
                     )
                     db.session.add(income_details)
                 
                 db.session.commit()
                 
                 # Calculate potential tax savings
-                tax_savings_estimate = calculate_tax_savings(
+                tax_savings_estimate = calculate_tax_savings_simplified(
                     employment_income,
                     business_income,
                     investment_income,
+                    usd_consulting_income,
                     total_tax_deductible
                 )
         
         elif income_details:
             # If GET request and income details exist, calculate based on existing data
-            tax_savings_estimate = calculate_tax_savings(
+            tax_savings_estimate = calculate_tax_savings_simplified(
                 income_details.employment_income,
                 income_details.business_income,
                 income_details.investment_income,
+                income_details.usd_consulting_income,
                 total_tax_deductible
             )
         
@@ -363,96 +371,90 @@ def tax_savings():
         logging.error(f"Error in tax savings calculator: {str(e)}")
         return render_template('tax_savings.html', error=str(e))
 
-def calculate_tax_savings(employment_income, business_income, investment_income, tax_deductible_amount):
+def calculate_tax_savings_simplified(employment_income, business_income, investment_income, 
+                                   usd_consulting_income, tax_deductible_amount):
     """
     Calculate potential tax savings based on income types and tax deductible expenses.
     
-    This is a simplified estimation based on Sri Lankan tax rates (as of 2023).
-    Actual tax savings may vary based on exact tax rules and regulations.
+    This is a simplified calculation based on the rules:
+    - 36% tax rate for LKR business income
+    - 15% tax rate for USD consulting income
     
     Args:
-        employment_income: Income from employment
-        business_income: Income from business or consulting
-        investment_income: Income from investments
+        employment_income: LKR income from employment
+        business_income: LKR income from business
+        investment_income: LKR income from investments
+        usd_consulting_income: USD income from consulting
         tax_deductible_amount: Total tax deductible expenses
     
     Returns:
         Dictionary with tax savings information
     """
-    # Basic personal allowance (tax-free threshold)
-    personal_allowance = 1200000  # Rs 1,200,000
+    # LKR Income calculations
+    total_lkr_income = employment_income + business_income + investment_income
     
-    # Maximum deduction percentages by income type
-    employment_deduction_rate = 0.15  # 15% for employment income
-    business_deduction_rate = 0.25    # 25% for business income
-    investment_deduction_rate = 0.10  # 10% for investment income
+    # USD Income calculations
+    total_usd_income = usd_consulting_income
     
-    # Calculate maximum deductible amount by income type
-    max_employment_deduction = employment_income * employment_deduction_rate
-    max_business_deduction = business_income * business_deduction_rate
-    max_investment_deduction = investment_income * investment_deduction_rate
+    # Use simple fixed rates for tax savings calculations
+    lkr_business_tax_rate = 0.36  # 36% tax rate for LKR business income
+    usd_consulting_tax_rate = 0.15  # 15% tax rate for USD consulting income
     
-    # Total maximum deduction
-    total_max_deduction = max_employment_deduction + max_business_deduction + max_investment_deduction
+    # Calculate maximum tax deductible amounts that can be applied
+    max_lkr_deduction = business_income  # Only business income is eligible for tax deductions
+    max_usd_deduction = usd_consulting_income  # All consulting income is eligible
     
-    # Actual deduction is the minimum of total tax deductible expenses and maximum allowed deduction
-    actual_deduction = min(tax_deductible_amount, total_max_deduction)
+    # Apply percentages of total tax deductible expenses to each income type
+    # For simplicity, divide proportionally if both income types exist
+    tax_deductible_for_lkr = 0
+    tax_deductible_for_usd = 0
     
-    # Total income and taxable income
-    total_income = employment_income + business_income + investment_income
-    taxable_income_before_deductions = max(0, total_income - personal_allowance)
-    taxable_income_after_deductions = max(0, taxable_income_before_deductions - actual_deduction)
-    
-    # Tax calculation - progressive tax rates
-    def calculate_tax(income):
-        if income <= 0:
-            return 0
+    if max_lkr_deduction > 0 or max_usd_deduction > 0:
+        total_eligible_income = max_lkr_deduction + max_usd_deduction
         
-        # Progressive tax brackets (simplified)
-        brackets = [
-            (500000, 0.06),  # First Rs 500,000 at 6%
-            (500000, 0.12),  # Next Rs 500,000 at 12%
-            (500000, 0.18),  # Next Rs 500,000 at 18%
-            (500000, 0.24),  # Next Rs 500,000 at 24%
-            (1000000, 0.30), # Next Rs 1,000,000 at 30%
-            (float('inf'), 0.36)  # Remainder at 36%
-        ]
-        
-        tax = 0
-        remaining_income = income
-        
-        for bracket_size, rate in brackets:
-            if remaining_income <= 0:
-                break
-                
-            taxable_in_bracket = min(remaining_income, bracket_size)
-            tax += taxable_in_bracket * rate
-            remaining_income -= taxable_in_bracket
-        
-        return tax
+        if total_eligible_income > 0:
+            # Allocate the tax deductible amount proportionally
+            lkr_proportion = max_lkr_deduction / total_eligible_income
+            usd_proportion = max_usd_deduction / total_eligible_income
+            
+            tax_deductible_for_lkr = min(tax_deductible_amount * lkr_proportion, max_lkr_deduction)
+            tax_deductible_for_usd = min(tax_deductible_amount * usd_proportion, max_usd_deduction)
     
-    # Calculate tax before and after deductions
-    tax_before_deductions = calculate_tax(taxable_income_before_deductions)
-    tax_after_deductions = calculate_tax(taxable_income_after_deductions)
+    # Calculate tax savings
+    lkr_tax_savings = tax_deductible_for_lkr * lkr_business_tax_rate
+    usd_tax_savings = tax_deductible_for_usd * usd_consulting_tax_rate
+    total_tax_savings = lkr_tax_savings + usd_tax_savings
     
-    # Tax savings
-    tax_savings = tax_before_deductions - tax_after_deductions
+    # For presentation, convert USD values to LKR using a fixed exchange rate
+    usd_to_lkr_rate = 320  # 1 USD = 320 LKR (example rate)
+    usd_income_in_lkr = total_usd_income * usd_to_lkr_rate
+    usd_tax_savings_in_lkr = usd_tax_savings * usd_to_lkr_rate
     
     # Return dictionary with calculated values
     return {
-        'total_income': total_income,
-        'personal_allowance': personal_allowance,
-        'taxable_income_before_deductions': taxable_income_before_deductions,
-        'max_employment_deduction': max_employment_deduction,
-        'max_business_deduction': max_business_deduction,
-        'max_investment_deduction': max_investment_deduction,
-        'total_max_deduction': total_max_deduction,
+        # LKR Income
+        'total_lkr_income': total_lkr_income,
+        'employment_income': employment_income,
+        'business_income': business_income,
+        'investment_income': investment_income,
+        'tax_deductible_for_lkr': tax_deductible_for_lkr,
+        'lkr_tax_savings': lkr_tax_savings,
+        'lkr_business_tax_rate': lkr_business_tax_rate,
+        
+        # USD Income
+        'total_usd_income': total_usd_income,
+        'usd_consulting_income': usd_consulting_income,
+        'tax_deductible_for_usd': tax_deductible_for_usd,
+        'usd_tax_savings': usd_tax_savings,
+        'usd_consulting_tax_rate': usd_consulting_tax_rate,
+        'usd_to_lkr_rate': usd_to_lkr_rate,
+        'usd_income_in_lkr': usd_income_in_lkr,
+        'usd_tax_savings_in_lkr': usd_tax_savings_in_lkr,
+        
+        # Totals
         'total_tax_deductible': tax_deductible_amount,
-        'actual_deduction': actual_deduction,
-        'taxable_income_after_deductions': taxable_income_after_deductions,
-        'tax_before_deductions': tax_before_deductions,
-        'tax_after_deductions': tax_after_deductions,
-        'tax_savings': tax_savings
+        'total_tax_savings': total_tax_savings,
+        'total_tax_savings_in_lkr': lkr_tax_savings + usd_tax_savings_in_lkr
     }
 
 @app.route('/receipts/by_major_category/<category>')
