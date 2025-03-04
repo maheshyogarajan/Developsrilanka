@@ -96,7 +96,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show preview when file is selected
     if (receiptInput) {
-        receiptInput.addEventListener('change', handleFileSelect, { once: false });
+        // Use once:true to prevent the file dialog from reopening after selection
+        receiptInput.addEventListener('change', handleFileSelect, { once: true });
+        
+        // We'll reattach the listener when needed to allow for future selections
+        document.addEventListener('resetFileInput', function() {
+            receiptInput.value = ''; // Clear the input
+            receiptInput.addEventListener('change', handleFileSelect, { once: true });
+        });
     }
 
     // Process receipt image and send to server
@@ -180,6 +187,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show reset button when there's an error
             if (uploadArea) {
                 uploadArea.classList.remove('d-none');
+                // Dispatch event to reattach the file input listener
+                document.dispatchEvent(new Event('resetFileInput'));
             }
         });
     }
@@ -226,6 +235,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const uploadArea = document.querySelector('.upload-area');
                 if (uploadArea) {
                     uploadArea.classList.remove('d-none');
+                    // Dispatch event to reattach the file input listener
+                    document.dispatchEvent(new Event('resetFileInput'));
                 }
             } else {
                 console.log('Task in progress:', data.state);
@@ -251,6 +262,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Reset processing flag
             window.processingReceipt = false;
+            
+            // Show upload area again and reset file input
+            const uploadArea = document.querySelector('.upload-area');
+            if (uploadArea) {
+                uploadArea.classList.remove('d-none');
+                // Dispatch event to reattach the file input listener
+                document.dispatchEvent(new Event('resetFileInput'));
+            }
         });
     }
 
