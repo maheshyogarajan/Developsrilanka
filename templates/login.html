@@ -287,8 +287,24 @@ document.addEventListener('DOMContentLoaded', function() {
             // Prevent the default form submission briefly to show the animation
             e.preventDefault();
             
+            // Store the clicked button's action value
+            const clickedButton = e.submitter;
+            const actionValue = clickedButton.value;
+            
+            // Create a hidden input to store the action if it doesn't exist
+            let actionInput = loginForm.querySelector('input[name="action"]');
+            if (!actionInput) {
+                actionInput = document.createElement('input');
+                actionInput.setAttribute('type', 'hidden');
+                actionInput.setAttribute('name', 'action');
+                loginForm.appendChild(actionInput);
+            }
+            
+            // Set the action value from the clicked button
+            actionInput.value = actionValue;
+            
             // Determine if this is a login or registration action
-            const isRegistering = e.submitter.value === 'register';
+            const isRegistering = actionValue === 'register';
             const loginTitle = document.querySelector('#step2 h5');
             const loginMsg = document.querySelector('#step2 p');
             
@@ -300,6 +316,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 loginTitle.textContent = 'Login Successful!';
                 loginMsg.innerHTML = 'Taking you to the Scan Receipt page <i class="bi bi-arrow-right-circle-fill"></i>';
             }
+            
+            // Console log for debugging
+            console.log('Form submission with action:', actionValue);
             
             // Show overlay with fade effect
             overlay.style.display = 'block';
@@ -344,6 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             // After progress bar completes, submit the form
                             setTimeout(() => {
+                                // One final check to make sure the action is set
+                                console.log('Submitting form with action:', actionInput.value);
                                 loginForm.submit();
                             }, 1800);
                         }, 200);
