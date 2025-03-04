@@ -202,44 +202,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Make the upload area clickable to trigger file input
-        const uploadZone = document.getElementById('upload-zone');
-        const fileInput = document.getElementById('receipt');
-        
-        if (uploadZone && fileInput) {
-            uploadZone.addEventListener('click', function() {
-                fileInput.click();
-            });
-            
-            // Handle drag and drop
-            uploadZone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadZone.classList.add('dragover');
-            });
-            
-            uploadZone.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadZone.classList.remove('dragover');
-            });
-            
-            uploadZone.addEventListener('drop', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadZone.classList.remove('dragover');
-                
-                if (e.dataTransfer.files.length) {
-                    fileInput.files = e.dataTransfer.files;
-                    // Trigger change event
-                    const event = new Event('change', { bubbles: true });
-                    fileInput.dispatchEvent(event);
-                }
-            });
-        }
-    });
-</script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 {% endblock %}
 <!-- This was a duplicate endblock/block that's now removed -->

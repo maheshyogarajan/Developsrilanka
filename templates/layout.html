@@ -81,22 +81,37 @@
                 </a>
                 <nav>
                     <div class="nav-buttons">
-                        <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                        <a href="{{ url_for('home') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
                             <i class="fas fa-home"></i>
                             <span>Home</span>
                         </a>
-                        <a href="/scan" class="nav-link {% if request.path == '/scan' %}active{% endif %}">
+                        {% if not current_user.is_authenticated %}
+                        <a href="{{ url_for('preview') }}" class="nav-link {% if request.path == '/preview' %}active{% endif %}">
+                            <i class="fas fa-eye"></i>
+                            <span>Preview</span>
+                        </a>
+                        <a href="{{ url_for('login') }}" class="nav-link {% if request.path == '/login' %}active{% endif %}">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Login</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/scan' %}active{% endif %}">
                             <i class="fas fa-camera"></i>
                             <span>Scan</span>
                         </a>
-                        <a href="/history" class="nav-link {% if request.path == '/history' %}active{% endif %}">
+                        <a href="{{ url_for('receipt_history') }}" class="nav-link {% if request.path == '/history' %}active{% endif %}">
                             <i class="fas fa-history"></i>
                             <span>History</span>
                         </a>
-                        <a href="/analytics" class="nav-link {% if request.path == '/analytics' %}active{% endif %}">
+                        <a href="{{ url_for('analytics') }}" class="nav-link {% if request.path == '/analytics' %}active{% endif %}">
                             <i class="fas fa-chart-pie"></i>
                             <span>Analytics</span>
                         </a>
+                        <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
+                            <i class="fas fa-user"></i>
+                            <span>Profile</span>
+                        </a>
+                        {% endif %}
                     </div>
                 </nav>
             </div>
