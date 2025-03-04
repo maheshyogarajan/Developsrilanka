@@ -1,0 +1,119 @@
+{% extends 'layout.html' %}
+
+{% block title %}Invite Friends - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-0 shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <div class="display-6 text-primary animate__animated animate__fadeIn">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <h2 class="mt-3 mb-4 animate__animated animate__fadeIn animate__delay-1">Invite Friends to Join Our Mission</h2>
+                        <p class="text-muted animate__animated animate__fadeIn animate__delay-2">
+                            Help grow our community! Invite your friends and colleagues to join the Develop Sri Lanka initiative and contribute to our country's development through transparent tax tracking.
+                        </p>
+                    </div>
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show animate__animated animate__fadeIn" role="alert">
+                                    {% if category == 'success' %}
+                                        <i class="fas fa-check-circle me-2"></i>
+                                    {% elif category == 'danger' %}
+                                        <i class="fas fa-exclamation-circle me-2"></i>
+                                    {% elif category == 'warning' %}
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                    {% elif category == 'info' %}
+                                        <i class="fas fa-info-circle me-2"></i>
+                                    {% endif %}
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('send_invitations') }}" id="inviteForm">
+                        <div class="mb-4">
+                            <label for="emails" class="form-label">Email Addresses</label>
+                            <textarea class="form-control" id="emails" name="emails" rows="4" placeholder="Enter email addresses separated by commas" required></textarea>
+                            <div class="form-text">You can enter multiple email addresses separated by commas.</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="message" class="form-label">Personal Message (Optional)</label>
+                            <textarea class="form-control" id="message" name="message" rows="3" placeholder="Add a personal message to your invitation"></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-paper-plane me-2"></i> Send Invitations
+                            </button>
+                            <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i> Back to Profile
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Social Sharing Section -->
+            <div class="card border-0 shadow mt-4">
+                <div class="card-body p-4">
+                    <h4 class="card-title mb-3">Share on Social Media</h4>
+                    <p class="text-muted mb-4">Spread the word about Develop Sri Lanka on your social networks!</p>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="https://www.facebook.com/sharer/sharer.php?u=https://developsrilanka.com" target="_blank" class="btn btn-outline-primary">
+                            <i class="fab fa-facebook-f me-2"></i> Facebook
+                        </a>
+                        <a href="https://twitter.com/intent/tweet?text=Join%20me%20on%20Develop%20Sri%20Lanka%20to%20track%20your%20tax%20contributions!&url=https://developsrilanka.com" target="_blank" class="btn btn-outline-info">
+                            <i class="fab fa-twitter me-2"></i> Twitter
+                        </a>
+                        <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://developsrilanka.com" target="_blank" class="btn btn-outline-secondary">
+                            <i class="fab fa-linkedin-in me-2"></i> LinkedIn
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inviteForm = document.getElementById('inviteForm');
+    
+    inviteForm.addEventListener('submit', function(e) {
+        // Basic validation
+        const emailField = document.getElementById('emails');
+        const emails = emailField.value.split(',').map(email => email.trim());
+        
+        let valid = true;
+        const invalidEmails = [];
+        
+        // Simple email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        emails.forEach(function(email) {
+            if (email && !emailRegex.test(email)) {
+                valid = false;
+                invalidEmails.push(email);
+            }
+        });
+        
+        if (!valid) {
+            e.preventDefault();
+            alert('Please check the following email addresses:\n' + invalidEmails.join('\n'));
+        }
+    });
+});
+</script>
+{% endblock %}
