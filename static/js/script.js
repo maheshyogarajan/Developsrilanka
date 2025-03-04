@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show preview when file is selected
     if (receiptInput) {
-        receiptInput.addEventListener('change', handleFileSelect);
+        receiptInput.addEventListener('change', handleFileSelect, { once: false });
     }
 
     // Process receipt image and send to server
