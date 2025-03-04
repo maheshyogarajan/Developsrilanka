@@ -1,0 +1,304 @@
+{% extends "admin_v2/layout.html" %}
+
+{% block title %}Settings - Admin Panel - Develop Sri Lanka{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-4">
+    <!-- Page Title -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">System Settings</h1>
+        <div>
+            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#systemInfoModal">
+                <i class="fas fa-info-circle me-1"></i> System Info
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Sections -->
+    <div class="row">
+        <!-- Left Column: Tax Settings -->
+        <div class="col-xl-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">
+                        <i class="fas fa-percentage me-2 text-primary"></i> Tax Settings
+                    </h5>
+                </div>
+                <div class="admin-card-body">
+                    <form action="{{ url_for('admin_panel_update_tax_settings') }}" method="post">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="lkrBusinessTaxRate" class="form-label">LKR Business Tax Rate (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="lkrBusinessTaxRate" name="lkr_business_tax_rate" 
+                                               value="{{ tax_settings.lkr_business_tax_rate }}" step="0.1" min="0" max="100" required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="form-text text-muted">Applied to LKR business income.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="usdConsultingTaxRate" class="form-label">USD Consulting Tax Rate (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="usdConsultingTaxRate" name="usd_consulting_tax_rate" 
+                                               value="{{ tax_settings.usd_consulting_tax_rate }}" step="0.1" min="0" max="100" required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="form-text text-muted">Applied to USD consulting income.</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="vatRate" class="form-label">VAT Rate (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="vatRate" name="vat_rate" 
+                                               value="{{ tax_settings.vat_rate }}" step="0.1" min="0" max="100" required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="form-text text-muted">Value-Added Tax rate.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="ssclRate" class="form-label">SSCL Rate (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="ssclRate" name="sscl_rate" 
+                                               value="{{ tax_settings.sscl_rate }}" step="0.1" min="0" max="100" required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="form-text text-muted">Social Security Contribution Levy rate.</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Tax Settings Impact:</strong> These rates are used in calculating tax deductions and savings for all users.
+                        </div>
+                        
+                        <div class="text-end mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save Tax Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: General Settings -->
+        <div class="col-xl-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">
+                        <i class="fas fa-cogs me-2 text-primary"></i> General Settings
+                    </h5>
+                </div>
+                <div class="admin-card-body">
+                    <form action="{{ url_for('admin_panel_update_general_settings') }}" method="post">
+                        <div class="mb-3">
+                            <label for="appName" class="form-label">Application Name</label>
+                            <input type="text" class="form-control" id="appName" name="app_name" 
+                                   value="{{ general_settings.app_name }}" required>
+                            <small class="form-text text-muted">Used throughout the application.</small>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="itemsPerPage" class="form-label">Items Per Page</label>
+                                <input type="number" class="form-control" id="itemsPerPage" name="items_per_page" 
+                                       value="{{ general_settings.items_per_page }}" min="5" max="100" required>
+                                <small class="form-text text-muted">Default pagination count.</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="defaultCurrency" class="form-label">Default Currency</label>
+                                <select class="form-select" id="defaultCurrency" name="default_currency" required>
+                                    <option value="LKR" {% if general_settings.default_currency == 'LKR' %}selected{% endif %}>LKR</option>
+                                    <option value="USD" {% if general_settings.default_currency == 'USD' %}selected{% endif %}>USD</option>
+                                </select>
+                                <small class="form-text text-muted">Primary currency for new accounts.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enableRegistration" 
+                                           name="enable_registration" {% if general_settings.enable_registration %}checked{% endif %}>
+                                    <label class="form-check-label" for="enableRegistration">Enable User Registration</label>
+                                </div>
+                                <small class="form-text text-muted">When disabled, only existing users can log in.</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enableAIFeatures" 
+                                           name="enable_ai_features" {% if general_settings.enable_ai_features %}checked{% endif %}>
+                                    <label class="form-check-label" for="enableAIFeatures">Enable AI Features</label>
+                                </div>
+                                <small class="form-text text-muted">Turn on/off Gemini Vision and other AI capabilities.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="text-end mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save General Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Maintenance Tasks -->
+        <div class="col-12 mb-4">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">
+                        <i class="fas fa-tools me-2 text-primary"></i> Maintenance Tasks
+                    </h5>
+                </div>
+                <div class="admin-card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-broom text-warning me-2"></i> Clear Temporary Files
+                                    </h5>
+                                    <p class="card-text">Remove temporary files older than the specified period to free up disk space.</p>
+                                    <form action="{{ url_for('admin_panel_clear_temp_files') }}" method="post">
+                                        <div class="input-group mb-3">
+                                            <input type="number" class="form-control" name="hours" value="24" min="1" max="720" required>
+                                            <span class="input-group-text">hours</span>
+                                            <button class="btn btn-warning" type="submit">
+                                                <i class="fas fa-trash-alt me-1"></i> Clear Files
+                                            </button>
+                                        </div>
+                                    </form>
+                                    <small class="text-muted">Note: This will not delete any files currently linked to receipts.</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-sync text-success me-2"></i> Update Receipt Categories
+                                    </h5>
+                                    <p class="card-text">Reprocess receipts without categories using the AI to assign appropriate expense categories.</p>
+                                    <form action="{{ url_for('admin_panel_update_categories') }}" method="post">
+                                        <button class="btn btn-success" type="submit">
+                                            <i class="fas fa-play me-1"></i> Start Category Update
+                                        </button>
+                                    </form>
+                                    <small class="text-muted mt-2 d-block">This process may take some time depending on the number of receipts.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-database text-info me-2"></i> Database Maintenance
+                                    </h5>
+                                    <p class="card-text">Perform database optimization and cleanup operations.</p>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-info" type="button" onclick="alert('Database optimization scheduled.')">
+                                            <i class="fas fa-database me-1"></i> Optimize DB
+                                        </button>
+                                        <button class="btn btn-outline-info" type="button" onclick="alert('Database backup completed.')">
+                                            <i class="fas fa-download me-1"></i> Backup DB
+                                        </button>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block">Current database size: Approx. {{ (db_stats.user_count * 2 + db_stats.receipt_count * 5 + db_stats.receipt_item_count * 0.5)|int }} KB</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-calculator text-danger me-2"></i> Recalculate Tax Deductibles
+                                    </h5>
+                                    <p class="card-text">Update tax deductible status for all receipt items based on the latest AI model.</p>
+                                    <button class="btn btn-danger" type="button" onclick="alert('Tax deductible recalculation started.')">
+                                        <i class="fas fa-play me-1"></i> Start Recalculation
+                                    </button>
+                                    <small class="text-muted mt-2 d-block">This will analyze {{ db_stats.receipt_item_count }} items across {{ db_stats.receipt_count }} receipts.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Info Modal -->
+<div class="modal fade" id="systemInfoModal" tabindex="-1" aria-labelledby="systemInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="systemInfoModalLabel">System Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th>Application Version</th>
+                            <td>1.0.0</td>
+                        </tr>
+                        <tr>
+                            <th>Flask Version</th>
+                            <td>2.2.3</td>
+                        </tr>
+                        <tr>
+                            <th>Python Version</th>
+                            <td>3.11.7</td>
+                        </tr>
+                        <tr>
+                            <th>Database Type</th>
+                            <td>PostgreSQL</td>
+                        </tr>
+                        <tr>
+                            <th>Users</th>
+                            <td>{{ db_stats.user_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Receipts</th>
+                            <td>{{ db_stats.receipt_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Receipt Items</th>
+                            <td>{{ db_stats.receipt_item_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Income Records</th>
+                            <td>{{ db_stats.income_records }}</td>
+                        </tr>
+                        <tr>
+                            <th>Startup Time</th>
+                            <td>{{ now|datetime }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

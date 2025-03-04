@@ -25,6 +25,13 @@ try:
 except Exception as e:
     logger.error(f"Error loading admin routes: {str(e)}")
 
+# Import enhanced admin routes (v2)
+try:
+    import admin_routes_v2
+    logger.info("Enhanced admin routes (v2) loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading enhanced admin routes (v2): {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()

@@ -1,0 +1,409 @@
+{% extends "admin_v2/layout.html" %}
+
+{% block title %}System Logs - Admin Panel - Develop Sri Lanka{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-4">
+    <!-- Page Title -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">System Logs</h1>
+        <div>
+            <div class="btn-group me-2">
+                <a href="{{ url_for('admin_panel_logs', type='all') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'all' else '' }}">All</a>
+                <a href="{{ url_for('admin_panel_logs', type='system') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'system' else '' }}">System</a>
+                <a href="{{ url_for('admin_panel_logs', type='user') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'user' else '' }}">User</a>
+                <a href="{{ url_for('admin_panel_logs', type='receipt') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'receipt' else '' }}">Receipt</a>
+                <a href="{{ url_for('admin_panel_logs', type='error') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'error' else '' }}">Error</a>
+            </div>
+            <a href="{{ url_for('admin_panel_export_logs', type=log_type) }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-download me-1"></i> Export
+            </a>
+        </div>
+    </div>
+
+    <!-- Log Stats Cards -->
+    <div class="row mb-4">
+        <!-- Total Logs Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card primary position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="stat-label">Total Logs</div>
+                    <div class="stat-value">{{ log_stats.total_logs }}</div>
+                    <div class="mt-3 small">
+                        <span>For selected filter</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Count Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card danger position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-label">Errors</div>
+                    <div class="stat-value">{{ log_stats.error_count }}</div>
+                    <div class="mt-3 small">
+                        <span>{{ (log_stats.error_count / log_stats.total_logs * 100)|percent if log_stats.total_logs else 0|percent }} of total</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Warning Count Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card warning position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="stat-label">Warnings</div>
+                    <div class="stat-value">{{ log_stats.warning_count }}</div>
+                    <div class="mt-3 small">
+                        <span>{{ (log_stats.warning_count / log_stats.total_logs * 100)|percent if log_stats.total_logs else 0|percent }} of total</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Log Types Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card success position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <div class="stat-label">Log Types</div>
+                    <div class="stat-value">{{ log_stats.types|length }}</div>
+                    <div class="mt-3 small">
+                        <span>Different categories</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Log Control Panel -->
+    <div class="admin-card mb-4">
+        <div class="admin-card-header">
+            <h5 class="admin-card-title">
+                <i class="fas fa-cogs me-2 text-primary"></i> Log Management
+            </h5>
+        </div>
+        <div class="admin-card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <form action="{{ url_for('admin_panel_clear_logs') }}" method="post" onsubmit="return confirm('Are you sure you want to clear these logs? This action cannot be undone.');">
+                        <div class="input-group">
+                            <select class="form-select" name="log_type">
+                                <option value="all">All Logs</option>
+                                <option value="system">System Logs</option>
+                                <option value="user">User Logs</option>
+                                <option value="receipt">Receipt Logs</option>
+                                <option value="error">Error Logs</option>
+                                <option value="security">Security Logs</option>
+                            </select>
+                            <button class="btn btn-danger" type="submit">
+                                <i class="fas fa-trash-alt me-1"></i> Clear Logs
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-md-end mt-3 mt-md-0">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="autoRefresh">
+                            <label class="form-check-label" for="autoRefresh">Auto-refresh</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="showDetails" checked>
+                            <label class="form-check-label" for="showDetails">Show Details</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Log Type Distribution -->
+    <div class="admin-card mb-4">
+        <div class="admin-card-header">
+            <h5 class="admin-card-title">
+                <i class="fas fa-chart-pie me-2 text-primary"></i> Log Type Distribution
+            </h5>
+        </div>
+        <div class="admin-card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="chart-container" style="height: 200px;">
+                        <canvas id="logTypeChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="row">
+                        {% for type, count in log_stats.types.items() %}
+                        <div class="col-md-4 mb-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-capitalize">{{ type }}</span>
+                                    <span class="badge bg-primary rounded-pill">{{ count }}</span>
+                                </div>
+                                <div class="progress mt-2" style="height: 5px;">
+                                    <div class="progress-bar" style="width: {{ count / log_stats.total_logs * 100 if log_stats.total_logs else 0 }}%"></div>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    {{ (count / log_stats.total_logs * 100)|percent if log_stats.total_logs else 0|percent }} of total
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Log List -->
+    <div class="admin-card mb-4">
+        <div class="admin-card-header">
+            <h5 class="admin-card-title">
+                <i class="fas fa-list me-2 text-primary"></i> Log Entries
+            </h5>
+            <div>
+                <form class="d-inline-block" method="GET" action="{{ url_for('admin_panel_logs') }}">
+                    <input type="hidden" name="type" value="{{ log_type }}">
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" placeholder="Search logs..." name="search" value="{{ request.args.get('search', '') }}">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="admin-card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 60px;">ID</th>
+                            <th style="width: 180px;">Timestamp</th>
+                            <th style="width: 100px;">Type</th>
+                            <th style="width: 100px;">Level</th>
+                            <th>Message</th>
+                            <th style="width: 180px;">User</th>
+                            <th style="width: 80px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr class="log-row {{ 'table-danger' if log.level == 'error' else 'table-warning' if log.level == 'warning' else '' }}">
+                            <td>{{ log.id }}</td>
+                            <td>{{ log.timestamp|datetime }}</td>
+                            <td>
+                                <span class="badge rounded-pill bg-{{ 'primary' if log.type == 'system' else 'success' if log.type == 'user' else 'info' if log.type == 'receipt' else 'danger' if log.type == 'error' else 'secondary' }}">
+                                    {{ log.type }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill bg-{{ 'danger' if log.level == 'error' else 'warning' if log.level == 'warning' else 'info' if log.level == 'info' else 'secondary' }}">
+                                    {{ log.level }}
+                                </span>
+                            </td>
+                            <td>{{ log.message }}</td>
+                            <td>{{ log.user or 'System' }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary toggle-details" data-log-id="{{ log.id }}">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="log-details" id="details-{{ log.id }}">
+                            <td colspan="7" class="bg-light">
+                                <div class="p-3">
+                                    <h6 class="mb-3">Log Details</h6>
+                                    <div class="mb-2">
+                                        <strong>Timestamp:</strong> {{ log.timestamp|datetime('%Y-%m-%d %H:%M:%S.%f') }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Type:</strong> {{ log.type }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Level:</strong> {{ log.level }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>User:</strong> {{ log.user or 'System' }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Message:</strong> {{ log.message }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Details:</strong>
+                                        <pre class="bg-dark text-white p-3 rounded mt-2"><code>{{ log.details }}</code></pre>
+                                    </div>
+                                    <div class="d-flex justify-content-end mt-3">
+                                        <button class="btn btn-sm btn-outline-secondary toggle-details" data-log-id="{{ log.id }}">
+                                            <i class="fas fa-times me-1"></i> Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">No logs found matching your criteria</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="d-flex justify-content-center pt-3 pb-2">
+                <nav aria-label="Log pagination">
+                    <ul class="pagination">
+                        <li class="page-item {{ 'disabled' if page == 1 else '' }}">
+                            <a class="page-link" href="{{ url_for('admin_panel_logs', type=log_type, page=page-1) if page > 1 else '#' }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        
+                        {% for page_num in range(1, total_pages + 1) %}
+                            {% if page_num == page %}
+                            <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>
+                            {% elif page_num <= 2 or page_num >= total_pages - 1 or abs(page_num - page) <= 1 %}
+                            <li class="page-item"><a class="page-link" href="{{ url_for('admin_panel_logs', type=log_type, page=page_num) }}">{{ page_num }}</a></li>
+                            {% elif abs(page_num - page) == 2 %}
+                            <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <li class="page-item {{ 'disabled' if page == total_pages else '' }}">
+                            <a class="page-link" href="{{ url_for('admin_panel_logs', type=log_type, page=page+1) if page < total_pages else '#' }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js for data visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize log type chart
+        const logTypeCtx = document.getElementById('logTypeChart').getContext('2d');
+        
+        const logTypes = [{% for type, count in log_stats.types.items() %}'{{ type }}',{% endfor %}];
+        const logCounts = [{% for type, count in log_stats.types.items() %}{{ count }},{% endfor %}];
+        const typeColors = [
+            'rgba(52, 152, 219, 0.7)',  // blue
+            'rgba(46, 204, 113, 0.7)',  // green
+            'rgba(155, 89, 182, 0.7)',  // purple
+            'rgba(231, 76, 60, 0.7)',   // red
+            'rgba(241, 196, 15, 0.7)'   // yellow
+        ];
+        
+        const logTypeChart = new Chart(logTypeCtx, {
+            type: 'pie',
+            data: {
+                labels: logTypes,
+                datasets: [{
+                    data: logCounts,
+                    backgroundColor: typeColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Toggle log details visibility
+        document.querySelectorAll('.log-details').forEach(el => {
+            el.style.display = 'none';
+        });
+        
+        document.querySelectorAll('.toggle-details').forEach(button => {
+            button.addEventListener('click', function() {
+                const logId = this.getAttribute('data-log-id');
+                const detailsRow = document.getElementById('details-' + logId);
+                
+                if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
+                    detailsRow.style.display = 'table-row';
+                    // Change icon to up arrow
+                    this.querySelector('i').classList.remove('fa-chevron-down');
+                    this.querySelector('i').classList.add('fa-chevron-up');
+                } else {
+                    detailsRow.style.display = 'none';
+                    // Change icon to down arrow
+                    this.querySelector('i').classList.remove('fa-chevron-up');
+                    this.querySelector('i').classList.add('fa-chevron-down');
+                }
+            });
+        });
+        
+        // Show/hide all details based on checkbox
+        const showDetailsCheckbox = document.getElementById('showDetails');
+        showDetailsCheckbox.addEventListener('change', function() {
+            const detailsRows = document.querySelectorAll('.log-details');
+            
+            if (this.checked) {
+                detailsRows.forEach(row => {
+                    row.style.display = 'table-row';
+                });
+                document.querySelectorAll('.toggle-details i').forEach(icon => {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                });
+            } else {
+                detailsRows.forEach(row => {
+                    row.style.display = 'none';
+                });
+                document.querySelectorAll('.toggle-details i').forEach(icon => {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                });
+            }
+        });
+        
+        // Auto-refresh logs if enabled
+        const autoRefreshCheckbox = document.getElementById('autoRefresh');
+        let refreshTimer;
+        
+        autoRefreshCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                refreshTimer = setInterval(function() {
+                    location.reload();
+                }, 30000); // Refresh every 30 seconds
+            } else {
+                clearInterval(refreshTimer);
+            }
+        });
+    });
+</script>
+{% endblock %}

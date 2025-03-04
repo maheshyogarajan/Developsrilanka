@@ -1,0 +1,560 @@
+{% extends "admin_v2/layout.html" %}
+
+{% block title %}Receipt Data - Admin Panel - Develop Sri Lanka{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-4">
+    <!-- Page Title -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Receipt Management</h1>
+        <div>
+            <form class="d-inline-block" method="GET" action="{{ url_for('admin_panel_receipts') }}">
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" placeholder="Search receipts..." name="search" value="{{ search_term }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <!-- Total Receipts Stat -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card primary position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="stat-label">Total Receipts</div>
+                    <div class="stat-value">{{ total_receipts }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Total Amount Stat -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card success position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-label">Total Amount</div>
+                    <div class="stat-value">{{ total_amount|currency }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Average Amount Stat -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card warning position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-calculator"></i>
+                    </div>
+                    <div class="stat-label">Average Amount</div>
+                    <div class="stat-value">{{ avg_amount|currency }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Categories Stat -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="admin-card h-100">
+                <div class="admin-stat-card danger position-relative">
+                    <div class="stat-icon">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <div class="stat-label">Categories</div>
+                    <div class="stat-value">{{ top_categories|length }}</div>
+                    <div class="mt-3 small">
+                        <span>unique expense types</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Categories and Receipt Chart -->
+    <div class="row mb-4">
+        <div class="col-xl-4">
+            <div class="admin-card h-100">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">Top Expense Categories</h5>
+                </div>
+                <div class="admin-card-body">
+                    {% if top_categories %}
+                        <div class="chart-container mb-3" style="position: relative; height: 200px;">
+                            <canvas id="topCategoriesChart"></canvas>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Count</th>
+                                        <th>Amount</th>
+                                        <th>%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cat in top_categories %}
+                                    <tr>
+                                        <td>{{ cat.category }}</td>
+                                        <td>{{ cat.count }}</td>
+                                        <td>{{ cat.amount|currency }}</td>
+                                        <td>{{ cat.percentage|percent }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                            <p>No category data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-8">
+            <div class="admin-card h-100">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">Receipt Analysis</h5>
+                    <div>
+                        <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="chartTimeRange" data-bs-toggle="dropdown" aria-expanded="false">
+                            Last 30 days
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="chartTimeRange">
+                            <li><a class="dropdown-item" href="#">Last 7 days</a></li>
+                            <li><a class="dropdown-item" href="#">Last 30 days</a></li>
+                            <li><a class="dropdown-item" href="#">Last 90 days</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    <div class="chart-container" style="position: relative; height:300px;">
+                        <canvas id="receiptAnalysisChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Receipt Table -->
+    <div class="admin-card mb-4">
+        <div class="admin-card-header">
+            <h5 class="admin-card-title">Receipt List</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary me-2">
+                    <i class="fas fa-download me-1"></i> Export
+                </button>
+                <button class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-filter me-1"></i> Filter
+                </button>
+            </div>
+        </div>
+        <div class="admin-card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Vendor</th>
+                            <th>User</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Category</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receipt, name, email in receipts.items %}
+                        <tr>
+                            <td>{{ receipt.id }}</td>
+                            <td>
+                                <div class="fw-semibold text-truncate" style="max-width: 150px;">{{ receipt.vendor_name }}</div>
+                                <small class="text-muted">{{ receipt.vendor_address|truncate_text(20) if receipt.vendor_address else "No address" }}</small>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 150px;">{{ name or 'Unknown' }}</div>
+                                <small class="text-muted">{{ email }}</small>
+                            </td>
+                            <td>{{ receipt.date|datetime("%Y-%m-%d") if receipt.date else "N/A" }}</td>
+                            <td class="fw-bold">{{ receipt.total_amount|currency }}</td>
+                            <td>
+                                {% if receipt.expense_major_category %}
+                                <span class="badge rounded-pill bg-info text-dark">
+                                    {{ receipt.expense_major_category }}
+                                </span>
+                                {% if receipt.expense_minor_category %}
+                                <small class="d-block text-muted mt-1">{{ receipt.expense_minor_category }}</small>
+                                {% endif %}
+                                {% else %}
+                                <span class="badge rounded-pill bg-secondary">Uncategorized</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Actions
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="#" onclick="showReceiptDetails({{ receipt.id }})">
+                                            <i class="fas fa-eye me-2"></i> View Details
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updateCategory({{ receipt.id }})">
+                                            <i class="fas fa-tag me-2"></i> Update Category
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="if(confirm('Are you sure you want to delete this receipt?')) deleteReceipt({{ receipt.id }})">
+                                            <i class="fas fa-trash-alt me-2"></i> Delete
+                                        </a></li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">No receipts found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if receipts.pages > 1 %}
+            <div class="d-flex justify-content-center pt-3 pb-2">
+                <nav aria-label="Receipt pagination">
+                    <ul class="pagination">
+                        <li class="page-item {{ 'disabled' if receipts.page == 1 else '' }}">
+                            <a class="page-link" href="{{ url_for('admin_panel_receipts', page=receipts.prev_num, search=search_term) if receipts.has_prev else '#' }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        
+                        {% for page_num in range(1, receipts.pages + 1) %}
+                            {% if page_num == receipts.page %}
+                            <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>
+                            {% elif page_num <= 2 or page_num >= receipts.pages - 1 or abs(page_num - receipts.page) <= 1 %}
+                            <li class="page-item"><a class="page-link" href="{{ url_for('admin_panel_receipts', page=page_num, search=search_term) }}">{{ page_num }}</a></li>
+                            {% elif abs(page_num - receipts.page) == 2 %}
+                            <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <li class="page-item {{ 'disabled' if receipts.page == receipts.pages else '' }}">
+                            <a class="page-link" href="{{ url_for('admin_panel_receipts', page=receipts.next_num, search=search_term) if receipts.has_next else '#' }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Details Modal -->
+<div class="modal fade" id="receiptDetailsModal" tabindex="-1" aria-labelledby="receiptDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="receiptDetailsModalLabel">Receipt Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="receiptDetailsContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3">Loading receipt details...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Category Modal -->
+<div class="modal fade" id="updateCategoryModal" tabindex="-1" aria-labelledby="updateCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="updateCategoryModalLabel">Update Receipt Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updateCategoryForm">
+                    <input type="hidden" id="receiptIdForCategory" name="receipt_id">
+                    
+                    <div class="mb-3">
+                        <label for="majorCategory" class="form-label">Major Category</label>
+                        <select class="form-select" id="majorCategory" name="major_category" required>
+                            <option value="">Select Category</option>
+                            <option value="Office Supplies">Office Supplies</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Meals">Meals</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Software">Software</option>
+                            <option value="Hardware">Hardware</option>
+                            <option value="Services">Services</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="minorCategory" class="form-label">Minor Category (Optional)</label>
+                        <input type="text" class="form-control" id="minorCategory" name="minor_category" placeholder="Enter specific subcategory">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitCategoryUpdate()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js for data visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Top Categories Chart
+        {% if top_categories %}
+        const topCategoriesCtx = document.getElementById('topCategoriesChart').getContext('2d');
+        const topCategoriesChart = new Chart(topCategoriesCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [{% for cat in top_categories %}'{{ cat.category }}',{% endfor %}],
+                datasets: [{
+                    data: [{% for cat in top_categories %}{{ cat.count }},{% endfor %}],
+                    backgroundColor: [
+                        '#3498db',
+                        '#2ecc71',
+                        '#f39c12',
+                        '#e74c3c',
+                        '#9b59b6',
+                        '#1abc9c'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        display: false
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+        {% endif %}
+        
+        // Receipt Analysis Chart (mock data)
+        const receiptAnalysisCtx = document.getElementById('receiptAnalysisChart').getContext('2d');
+        
+        // Generate dates for last 30 days
+        const dates = [];
+        const receiptCounts = [];
+        const amountData = [];
+        
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            dates.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            
+            // Generate some random data
+            receiptCounts.push(Math.floor(Math.random() * 10));
+            amountData.push(Math.floor(Math.random() * 10000));
+        }
+        
+        const receiptAnalysisChart = new Chart(receiptAnalysisCtx, {
+            type: 'bar',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Receipt Count',
+                        data: receiptCounts,
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                        order: 1
+                    },
+                    {
+                        label: 'Amount (Rs)',
+                        data: amountData,
+                        backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                        borderColor: 'rgba(46, 204, 113, 1)',
+                        borderWidth: 2,
+                        type: 'line',
+                        order: 0,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Receipt Count'
+                        }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Amount (Rs)'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+    });
+    
+    // Show receipt details
+    function showReceiptDetails(receiptId) {
+        const modal = new bootstrap.Modal(document.getElementById('receiptDetailsModal'));
+        modal.show();
+        
+        // In a real app, you would fetch the receipt details from the server
+        // For now, we'll just show a placeholder
+        setTimeout(() => {
+            document.getElementById('receiptDetailsContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="fw-bold">Receipt ID:</label>
+                            <div>${receiptId}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Vendor:</label>
+                            <div>Sample Vendor Name</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Date:</label>
+                            <div>2025-03-01</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Amount:</label>
+                            <div>Rs 12,345.67</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="fw-bold">Major Category:</label>
+                            <div>Office Supplies</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Minor Category:</label>
+                            <div>Stationery</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Tax Info:</label>
+                            <div>VAT: Rs 987.65, SSCL: Rs 246.91</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">User:</label>
+                            <div>user@example.com</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h6 class="fw-bold">Receipt Items</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Tax Deductible</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Paper A4</td>
+                                    <td>5</td>
+                                    <td>Rs 500.00</td>
+                                    <td><span class="badge bg-success">Yes</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Pens (Box of 12)</td>
+                                    <td>2</td>
+                                    <td>Rs 600.00</td>
+                                    <td><span class="badge bg-success">Yes</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Printer Ink</td>
+                                    <td>1</td>
+                                    <td>Rs 2,500.00</td>
+                                    <td><span class="badge bg-success">Yes</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-3 text-center">
+                    <img src="/static/images/sample-receipt.jpg" alt="Receipt Image" class="img-fluid border" style="max-height: 300px;">
+                </div>
+            `;
+        }, 1000);
+    }
+    
+    // Update category modal
+    function updateCategory(receiptId) {
+        document.getElementById('receiptIdForCategory').value = receiptId;
+        const modal = new bootstrap.Modal(document.getElementById('updateCategoryModal'));
+        modal.show();
+    }
+    
+    // Submit category update
+    function submitCategoryUpdate() {
+        const form = document.getElementById('updateCategoryForm');
+        
+        // In a real app, you would submit this to the server
+        // For now, just close the modal and show a success message
+        const modal = bootstrap.Modal.getInstance(document.getElementById('updateCategoryModal'));
+        modal.hide();
+        
+        alert('Category updated successfully!');
+    }
+    
+    // Delete receipt
+    function deleteReceipt(receiptId) {
+        // In a real app, you would submit this to the server
+        // For now, just show a success message
+        alert('Receipt deleted successfully!');
+    }
+</script>
+{% endblock %}
