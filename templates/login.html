@@ -215,9 +215,11 @@
                         <div class="mb-3">
                             <input type="password" class="form-control form-control-lg" id="password" name="password" placeholder="Password" required>
                         </div>
+                        <!-- Hidden input for action -->
+                        <input type="hidden" name="action" id="action_input" value="">
                         <div class="d-grid gap-2">
-                            <button type="submit" name="action" value="login" class="btn btn-primary btn-lg login-btn" id="loginButton">Sign In</button>
-                            <button type="submit" name="action" value="register" class="btn btn-success btn-lg login-btn">Register / Reset Password</button>
+                            <button type="submit" data-action="login" class="btn btn-primary btn-lg login-btn" id="loginButton">Sign In</button>
+                            <button type="submit" data-action="register" class="btn btn-success btn-lg login-btn">Register / Reset Password</button>
                         </div>
                     </form>
                     
@@ -289,16 +291,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Store the clicked button's action value
             const clickedButton = e.submitter;
-            const actionValue = clickedButton.value;
+            const actionValue = clickedButton.getAttribute('data-action');
             
-            // Create a hidden input to store the action if it doesn't exist
-            let actionInput = loginForm.querySelector('input[name="action"]');
-            if (!actionInput) {
-                actionInput = document.createElement('input');
-                actionInput.setAttribute('type', 'hidden');
-                actionInput.setAttribute('name', 'action');
-                loginForm.appendChild(actionInput);
-            }
+            // Get the hidden input field
+            const actionInput = document.getElementById('action_input');
             
             // Set the action value from the clicked button
             actionInput.value = actionValue;

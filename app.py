@@ -1297,7 +1297,8 @@ def email_login():
             return redirect(url_for('index'))
         
         else:
-            flash('Something went wrong. Please try again using the Sign In or Register button.', 'danger')
+            logging.error(f"Invalid action value received: '{action}'. Expected 'login' or 'register'.")
+            flash(f"Something went wrong. Please try again using the Sign In or Register button. (Invalid action: {action})", 'danger')
             return redirect(url_for('login'))
             
     except Exception as e:
