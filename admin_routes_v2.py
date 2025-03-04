@@ -297,6 +297,45 @@ def admin_panel_update_user_role():
         app.logger.error(f'Admin update user role error: {str(e)}')
         return redirect(url_for('admin_panel_users'))
 
+# Reset User Password (Admin Only)
+@app.route('/admin/v2/users/reset-password', methods=['POST'])
+@admin_required
+def admin_panel_reset_user_password():
+    """Reset a user's password (admin only)."""
+    try:
+        user_id = request.form.get('user_id')
+        new_password = request.form.get('new_password')
+        
+        # Validate inputs
+        if not user_id or not new_password:
+            flash('Missing required parameters', 'danger')
+            return redirect(url_for('admin_panel_users'))
+        
+        # Simple password validation
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long', 'danger')
+            return redirect(url_for('admin_panel_users'))
+            
+        user = User.query.get(user_id)
+        if not user:
+            flash('User not found', 'danger')
+            return redirect(url_for('admin_panel_users'))
+            
+        # Update the password
+        from werkzeug.security import generate_password_hash
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        # Log the password reset event (important for security audit)
+        app.logger.info(f'Admin {current_user.email} reset password for user {user.email}')
+        
+        flash(f'Password for {user.email} has been reset successfully', 'success')
+        return redirect(url_for('admin_panel_users'))
+    except Exception as e:
+        flash(f'Error resetting password: {str(e)}', 'danger')
+        app.logger.error(f'Admin password reset error: {str(e)}')
+        return redirect(url_for('admin_panel_users'))
+
 # Receipt Management
 @app.route('/admin/v2/receipts')
 @admin_required

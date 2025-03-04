@@ -1262,18 +1262,10 @@ def email_login():
             existing_user = User.query.filter_by(email=email).first()
             
             if existing_user:
-                # This is a password reset
-                logging.info(f"Password reset for existing user: {email}")
-                existing_user.password_hash = generate_password_hash(password)
-                existing_user.name = existing_user.name or email.split('@')[0]  # Set name if not set
-                db.session.commit()
-                
-                flash('Your password has been reset successfully!', 'success')
-                
-                # Log in the user
-                login_user(existing_user)
-                # Let animation handle the success feedback
-                return redirect(url_for('index'))
+                # We no longer allow password resets through this route
+                logging.warning(f"Attempted to register with existing email: {email}")
+                flash('An account with this email already exists. Please sign in with your password or contact an administrator for assistance.', 'warning')
+                return redirect(url_for('login'))
             
             # This is a new registration
             logging.info(f"Creating new user: {email}")
