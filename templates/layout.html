@@ -26,13 +26,14 @@
             background-color: #fff;
             border-bottom: 1px solid #e9ecef;
             box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            width: 100%;
         }
         .nav-buttons {
             display: flex;
-            justify-content: space-between;
-            max-width: 600px;
+            justify-content: center;
+            flex-wrap: wrap;
             margin: 0 auto;
-            padding: 1rem 0;
+            padding: 0.5rem 0;
         }
         .nav-link {
             display: flex;
@@ -40,13 +41,17 @@
             align-items: center;
             color: #6c757d;
             text-decoration: none;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem 0.75rem;
             border-radius: 0.5rem;
             transition: all 0.2s ease;
+            margin: 0.25rem;
         }
         .nav-link i {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             margin-bottom: 0.25rem;
+        }
+        .nav-link span {
+            font-size: 0.85rem;
         }
         .nav-link:hover {
             background-color: #f8f9fa;
@@ -59,23 +64,41 @@
         }
         .page-title {
             text-align: center;
-            font-size: 1.5rem;
-            margin: 0.5rem 0 1rem;
+            font-size: 1.25rem;
+            margin: 0.5rem 0;
             color: #343a40;
         }
         .brand-link {
             display: flex;
             align-items: center;
+            justify-content: center;
             text-decoration: none;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem;
             transition: all 0.2s ease;
+            margin: 0 auto;
         }
         .brand-link:hover {
             background-color: #f8f9fa;
         }
         .brand-logo {
-            height: 40px;
-            margin-right: 0.5rem;
+            height: 35px;
+            margin-right: 0.25rem;
+        }
+        
+        /* Mobile Navigation */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #6c757d;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+        
+        .mobile-nav-container {
+            display: none;
+            width: 100%;
         }
         
         /* Animation and Visual Elements */
@@ -104,16 +127,83 @@
         .counter-animation {
             transition: all 1.5s ease-in-out;
         }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .header .container {
+                padding: 0;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                align-items: center;
+                padding: 0.5rem 0;
+            }
+            
+            .mobile-menu-toggle {
+                display: block;
+                position: absolute;
+                right: 1rem;
+                top: 1rem;
+            }
+            
+            .nav-desktop {
+                display: none;
+            }
+            
+            .mobile-nav-container {
+                display: block;
+            }
+            
+            .nav-buttons {
+                justify-content: center;
+                max-width: 100%;
+                overflow-x: auto;
+                padding: 0.5rem;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            
+            .nav-buttons::-webkit-scrollbar {
+                display: none;
+            }
+            
+            .page-title {
+                font-size: 1.1rem;
+                margin: 0.5rem 0;
+            }
+            
+            .brand-logo {
+                height: 30px;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-nav-container {
+                display: none !important;
+            }
+            
+            .nav-desktop {
+                display: block !important;
+            }
+        }
     </style>
 </head>
 <body>
     <header class="header">
         <div class="container">
-            <div class="d-flex justify-content-between align-items-center py-2">
+            <div class="d-flex justify-content-between align-items-center py-2 header-content">
                 <a href="/" class="brand-link">
                     <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Develop Sri Lanka Logo" class="brand-logo">
                 </a>
-                <nav>
+                
+                <!-- Mobile menu toggle -->
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <!-- Desktop Navigation -->
+                <nav class="nav-desktop">
                     <div class="nav-buttons">
                         <a href="{{ url_for('home') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
                             <i class="fas fa-home"></i>
@@ -159,25 +249,75 @@
                     </div>
                 </nav>
             </div>
+            
+            <!-- Mobile Navigation (Hidden by default) -->
+            <div class="mobile-nav-container" id="mobileNavContainer">
+                <nav class="mobile-nav">
+                    <div class="nav-buttons">
+                        <a href="{{ url_for('home') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                            <i class="fas fa-home"></i>
+                            <span>Home</span>
+                        </a>
+                        {% if not current_user.is_authenticated %}
+                        <a href="{{ url_for('preview') }}" class="nav-link {% if request.path == '/preview' %}active{% endif %}">
+                            <i class="fas fa-eye"></i>
+                            <span>Preview</span>
+                        </a>
+                        <a href="{{ url_for('login') }}" class="nav-link {% if request.path == '/login' %}active{% endif %}">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Login</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/scan' %}active{% endif %}">
+                            <i class="fas fa-camera"></i>
+                            <span>Scan</span>
+                        </a>
+                        <a href="{{ url_for('receipt_history') }}" class="nav-link {% if request.path == '/history' %}active{% endif %}">
+                            <i class="fas fa-history"></i>
+                            <span>History</span>
+                        </a>
+                        <a href="{{ url_for('analytics') }}" class="nav-link {% if request.path == '/analytics' %}active{% endif %}">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Analytics</span>
+                        </a>
+                        <a href="{{ url_for('tax_savings') }}" class="nav-link {% if request.path == '/tax-savings' %}active{% endif %}">
+                            <i class="fas fa-calculator"></i>
+                            <span>Tax Savings</span>
+                        </a>
+                        <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
+                            <i class="fas fa-user"></i>
+                            <span>Profile</span>
+                        </a>
+                        {% if current_user.is_admin() %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if '/admin/' in request.path %}active{% endif %}">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Admin</span>
+                        </a>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </nav>
+            </div>
+            
             <h1 class="page-title" id="page-title">Develop Sri Lanka</h1>
         </div>
     </header>
 
-    <main class="container my-4">
+    <main class="container my-3">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer mt-auto py-4 bg-light">
+    <footer class="footer mt-auto py-3 bg-light">
         <div class="container">
             <div class="row">
                 <div class="col-md-6 text-center text-md-start">
                     <p class="mb-0">&copy; 2025 Develop Sri Lanka. All rights reserved.</p>
                 </div>
                 <div class="col-md-6 text-center text-md-end">
-                    <a href="#" class="text-decoration-none text-muted me-3">
+                    <a href="#" class="text-decoration-none text-muted me-2">
                         <i class="fab fa-facebook"></i>
                     </a>
-                    <a href="#" class="text-decoration-none text-muted me-3">
+                    <a href="#" class="text-decoration-none text-muted me-2">
                         <i class="fab fa-twitter"></i>
                     </a>
                     <a href="#" class="text-decoration-none text-muted">
@@ -193,6 +333,26 @@
     
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- Mobile Navigation Toggle Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const mobileNavContainer = document.getElementById('mobileNavContainer');
+            
+            if (mobileMenuToggle && mobileNavContainer) {
+                mobileMenuToggle.addEventListener('click', function() {
+                    if (mobileNavContainer.style.display === 'block') {
+                        mobileNavContainer.style.display = 'none';
+                        mobileMenuToggle.innerHTML = '<i class="fas fa-bars"></i>';
+                    } else {
+                        mobileNavContainer.style.display = 'block';
+                        mobileMenuToggle.innerHTML = '<i class="fas fa-times"></i>';
+                    }
+                });
+            }
+        });
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>
