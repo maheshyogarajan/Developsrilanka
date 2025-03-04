@@ -79,6 +79,9 @@
                 <div class="card-body">
                     <h5 class="card-title">Tax Deductible Expenses</h5>
                     <h2 class="card-text text-success">Rs {{ "{:,.2f}".format(total_tax_deductible) }}</h2>
+                    <a href="{{ url_for('tax_savings') }}" class="btn btn-outline-primary btn-sm mt-2">
+                        <i class="fas fa-calculator me-1"></i> Calculate Tax Savings
+                    </a>
                 </div>
             </div>
         </div>
