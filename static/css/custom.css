@@ -1,4 +1,4 @@
-/* Modern Clean UI for Receipt Scanner App */
+/* Modern Clean UI for Receipt Scanner App with Enhanced Login */
 :root {
     --bg-color: #eff0f4;
     --text-color: #333333;
@@ -238,7 +238,144 @@ footer {
     border-radius: 8px;
 }
 
-/* Responsive */
+/* Login and Authentication Styling */
+/* Login page styles */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.redirect-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 35px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    min-width: 380px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border-left-color: #007AFF;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+.redirect-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    animation: pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.success-icon {
+    color: #28a745;
+}
+
+.progress-bar {
+    height: 6px;
+    background-color: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 24px;
+    position: relative;
+    width: 100%;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0;
+    background-color: #007AFF;
+    transition: width 1.5s ease-in-out;
+}
+
+#progressBar {
+    height: 6px;
+    background-color: #007AFF;
+    width: 0;
+    transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Login form enhancements */
+.login-btn {
+    transition: all 0.2s ease;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    padding: 12px 24px;
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
+
+/* Alert enhancements */
+.alert {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 12px 18px;
+    animation: slide-down 0.3s ease-out;
+}
+
+.alert-info {
+    background-color: #e8f4fd;
+    color: #0964a8;
+}
+
+.alert-danger {
+    background-color: #fee8e7;
+    color: #d51f06;
+}
+
+.alert-warning {
+    background-color: #fff8e6;
+    color: #b45309;
+}
+
+.alert-success {
+    background-color: #e6f7ed;
+    color: #0a7a3a;
+}
+
+@keyframes slide-down {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pop-in {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Responsive styling */
 @media (max-width: 768px) {
     .container {
         padding: 0;
@@ -261,5 +398,10 @@ footer {
     
     .form-control {
         font-size: 15px;
+    }
+    
+    .redirect-message {
+        min-width: 320px;
+        padding: 25px;
     }
 }
