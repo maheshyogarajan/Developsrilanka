@@ -1211,7 +1211,7 @@ def login():
 
 @app.route('/email_login', methods=['POST'])
 def email_login():
-    """Handle email-based login and registration."""
+    """Handle email-based login, registration, and password reset."""
     from models import User
     from werkzeug.security import generate_password_hash, check_password_hash
     import traceback
@@ -1234,12 +1234,12 @@ def email_login():
             
             if not user:
                 logging.info(f"User with email {email} not found")
-                flash('Email not registered. Please use the Register button below to create an account.', 'warning')
+                flash('Email not registered. Please use the "Register / Reset Password" button below to create an account.', 'warning')
                 return redirect(url_for('login'))
             
             if not user.password_hash:
                 logging.info(f"User {email} exists but has no password hash")
-                flash('Account exists but no password is set. Please use the Register button to set a password.', 'warning')
+                flash('Account exists but no password is set. Please use the "Register / Reset Password" button to set a password.', 'warning')
                 return redirect(url_for('login'))
             
             logging.info(f"Checking password for user {email}, password_hash: {user.password_hash[:20]}...")
@@ -1247,7 +1247,7 @@ def email_login():
             logging.info(f"Password match result: {password_match}")
                 
             if not password_match:
-                flash('Incorrect password. Please try again or use the Register button if you need to reset your password.', 'danger')
+                flash('Incorrect password. Please try again or use the "Register / Reset Password" button if you forgot your password.', 'danger')
                 return redirect(url_for('login'))
             
             # User authenticated successfully
@@ -1258,25 +1258,30 @@ def email_login():
             return redirect(url_for('index'))
             
         elif action == 'register':
-            # Registration flow
+            # Registration and password reset flow
             existing_user = User.query.filter_by(email=email).first()
             
             if existing_user:
-                # Update password for existing user
+                # This is a password reset
+                logging.info(f"Password reset for existing user: {email}")
                 existing_user.password_hash = generate_password_hash(password)
                 existing_user.name = existing_user.name or email.split('@')[0]  # Set name if not set
                 db.session.commit()
+                
+                flash('Your password has been reset successfully!', 'success')
                 
                 # Log in the user
                 login_user(existing_user)
                 # Let animation handle the success feedback
                 return redirect(url_for('index'))
             
-            # Create new user
+            # This is a new registration
+            logging.info(f"Creating new user: {email}")
             new_user = User(
                 email=email,
                 password_hash=generate_password_hash(password),
-                name=email.split('@')[0]  # Use part of email as name
+                name=email.split('@')[0],  # Use part of email as name
+                role='user'  # Set default role
             )
             
             db.session.add(new_user)
@@ -1284,6 +1289,10 @@ def email_login():
             
             # Log in the new user
             login_user(new_user)
+            
+            # Display welcome message on first login
+            flash('Welcome! Your account has been created successfully.', 'success')
+            
             # Animation will handle feedback
             return redirect(url_for('index'))
         

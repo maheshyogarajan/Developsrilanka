@@ -191,12 +191,19 @@
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
-                                {% if category in ['danger', 'warning'] %}
-                                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                                        {{ message }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                    </div>
-                                {% endif %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {% if category == 'danger' %}
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    {% elif category == 'warning' %}
+                                        <i class="bi bi-exclamation-circle-fill me-2"></i>
+                                    {% elif category == 'success' %}
+                                        <i class="bi bi-check-circle-fill me-2"></i>
+                                    {% elif category == 'info' %}
+                                        <i class="bi bi-info-circle-fill me-2"></i>
+                                    {% endif %}
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
                             {% endfor %}
                         {% endif %}
                     {% endwith %}
@@ -210,9 +217,17 @@
                         </div>
                         <div class="d-grid gap-2">
                             <button type="submit" name="action" value="login" class="btn btn-primary btn-lg login-btn" id="loginButton">Sign In</button>
-                            <button type="submit" name="action" value="register" class="btn btn-success btn-lg login-btn">Register</button>
+                            <button type="submit" name="action" value="register" class="btn btn-success btn-lg login-btn">Register / Reset Password</button>
                         </div>
                     </form>
+                    
+                    <!-- Password Help Notice -->
+                    <div class="alert alert-info mb-3" role="alert">
+                        <small>
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <strong>Login Tip:</strong> If you can't remember your password, use the "Register / Reset Password" button with your email to reset it.
+                        </small>
+                    </div>
                     
                     <div class="text-center text-muted mt-4">
                         <p class="small mb-0">By logging in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
