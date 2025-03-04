@@ -31,6 +31,19 @@ db = SQLAlchemy(model_class=Base)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Production error handlers
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('error.html', 
+                           error_code=404, 
+                           error_message="The page you're looking for doesn't exist."), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('error.html', 
+                           error_code=500, 
+                           error_message="Something went wrong on our end. We're working to fix it."), 500
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 
 # Initialize Flask-Login

@@ -36,5 +36,9 @@ if __name__ == "__main__":
         # Give the worker a moment to start up
         time.sleep(2)
     
+    # Get environment
+    env = os.environ.get('FLASK_ENV', 'production')
+    debug_mode = env == 'development'
+    
     # Start the Flask application
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
