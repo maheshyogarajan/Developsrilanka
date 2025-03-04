@@ -377,8 +377,10 @@ def calculate_tax_savings_simplified(employment_income, business_income, investm
     Calculate potential tax savings based on income types and tax deductible expenses.
     
     This is a simplified calculation based on the rules:
-    - 36% tax rate for LKR business income
-    - 15% tax rate for USD consulting income
+    - 36% tax rate for LKR business income (prioritized due to higher rate)
+    - 15% tax rate for USD consulting income (secondary priority)
+    - Tax deductible expenses are first applied to LKR business income
+    - Any remaining deductible amount is then applied to USD consulting income
     
     Args:
         employment_income: LKR income from employment
@@ -411,23 +413,24 @@ def calculate_tax_savings_simplified(employment_income, business_income, investm
     max_lkr_deduction = business_income  # Only business income is eligible for tax deductions
     max_usd_deduction = usd_consulting_income  # All consulting income is eligible
     
-    # Apply percentages of total tax deductible expenses to each income type
-    # For simplicity, divide proportionally if both income types exist
+    # Prioritize LKR business income for tax deductions (higher rate)
     tax_deductible_for_lkr = 0
     tax_deductible_for_usd = 0
     
-    # Check if there's any eligible income and tax deductible expenses
-    total_eligible_income = max_lkr_deduction + max_usd_deduction
+    # Calculate deductions by prioritizing LKR business income first (higher tax rate)
+    remaining_deductible = tax_deductible_amount
     
-    if total_eligible_income > 0 and tax_deductible_amount > 0:
-        # Allocate the tax deductible amount proportionally
-        lkr_proportion = max_lkr_deduction / total_eligible_income if total_eligible_income > 0 else 0
-        usd_proportion = max_usd_deduction / total_eligible_income if total_eligible_income > 0 else 0
-        
-        tax_deductible_for_lkr = min(tax_deductible_amount * lkr_proportion, max_lkr_deduction)
-        tax_deductible_for_usd = min(tax_deductible_amount * usd_proportion, max_usd_deduction)
+    # Step 1: Apply deductions to LKR business income first (36% rate)
+    if business_income > 0 and remaining_deductible > 0:
+        tax_deductible_for_lkr = min(remaining_deductible, max_lkr_deduction)
+        remaining_deductible -= tax_deductible_for_lkr
     
-    # Calculate tax savings
+    # Step 2: Apply any remaining deductions to USD consulting income (15% rate)
+    if usd_consulting_income > 0 and remaining_deductible > 0:
+        tax_deductible_for_usd = min(remaining_deductible, max_usd_deduction)
+        remaining_deductible -= tax_deductible_for_usd
+    
+    # Calculate tax savings for each income stream
     lkr_tax_savings = tax_deductible_for_lkr * lkr_business_tax_rate
     usd_tax_savings = tax_deductible_for_usd * usd_consulting_tax_rate
     total_tax_savings = lkr_tax_savings + usd_tax_savings
@@ -436,6 +439,10 @@ def calculate_tax_savings_simplified(employment_income, business_income, investm
     usd_to_lkr_rate = 320  # 1 USD = 320 LKR (example rate)
     usd_income_in_lkr = total_usd_income * usd_to_lkr_rate
     usd_tax_savings_in_lkr = usd_tax_savings * usd_to_lkr_rate
+    
+    # Calculate allocation percentages for the progress bar
+    lkr_allocation_percent = (tax_deductible_for_lkr / tax_deductible_amount * 100) if tax_deductible_amount > 0 else 0
+    usd_allocation_percent = (tax_deductible_for_usd / tax_deductible_amount * 100) if tax_deductible_amount > 0 else 0
     
     # Return dictionary with calculated values
     return {
@@ -447,6 +454,7 @@ def calculate_tax_savings_simplified(employment_income, business_income, investm
         'tax_deductible_for_lkr': tax_deductible_for_lkr,
         'lkr_tax_savings': lkr_tax_savings,
         'lkr_business_tax_rate': lkr_business_tax_rate,
+        'lkr_allocation_percent': lkr_allocation_percent,
         
         # USD Income
         'total_usd_income': total_usd_income,
@@ -457,9 +465,11 @@ def calculate_tax_savings_simplified(employment_income, business_income, investm
         'usd_to_lkr_rate': usd_to_lkr_rate,
         'usd_income_in_lkr': usd_income_in_lkr,
         'usd_tax_savings_in_lkr': usd_tax_savings_in_lkr,
+        'usd_allocation_percent': usd_allocation_percent,
         
         # Totals
         'total_tax_deductible': tax_deductible_amount,
+        'remaining_unused_deduction': remaining_deductible,
         'total_tax_savings': total_tax_savings,
         'total_tax_savings_in_lkr': lkr_tax_savings + usd_tax_savings_in_lkr
     }

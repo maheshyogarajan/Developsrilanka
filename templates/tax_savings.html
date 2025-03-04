@@ -191,23 +191,28 @@
                     <h5 class="mb-0">Tax Deductible Allocation</h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">Your tax deductible expenses are allocated proportionally between your business income types:</p>
+                    <p class="text-muted">Your tax deductible expenses are first applied to LKR business income (higher rate of 36%), then any remaining amount is applied to USD consulting income (lower rate of 15%):</p>
                     
                     <div class="progress mb-3" style="height: 25px;">
                         {% if tax_savings_estimate.tax_deductible_for_lkr > 0 or tax_savings_estimate.tax_deductible_for_usd > 0 %}
-                            {% set lkr_percent = (tax_savings_estimate.tax_deductible_for_lkr / tax_savings_estimate.total_tax_deductible * 100) if tax_savings_estimate.total_tax_deductible > 0 else 0 %}
-                            {% set usd_percent = (tax_savings_estimate.tax_deductible_for_usd / tax_savings_estimate.total_tax_deductible * 100) if tax_savings_estimate.total_tax_deductible > 0 else 0 %}
-                            
                             <div class="progress-bar bg-primary" role="progressbar" 
-                                 style="width: {{ lkr_percent }}%;" 
-                                 aria-valuenow="{{ lkr_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                 {% if lkr_percent > 15 %}LKR Business ({{ "{:.1f}%".format(lkr_percent) }}){% endif %}
+                                 style="width: {{ tax_savings_estimate.lkr_allocation_percent }}%;" 
+                                 aria-valuenow="{{ tax_savings_estimate.lkr_allocation_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                 {% if tax_savings_estimate.lkr_allocation_percent > 15 %}LKR Business ({{ "{:.1f}%".format(tax_savings_estimate.lkr_allocation_percent) }}){% endif %}
                             </div>
                             <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: {{ usd_percent }}%;" 
-                                 aria-valuenow="{{ usd_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                 {% if usd_percent > 15 %}USD Consulting ({{ "{:.1f}%".format(usd_percent) }}){% endif %}
+                                 style="width: {{ tax_savings_estimate.usd_allocation_percent }}%;" 
+                                 aria-valuenow="{{ tax_savings_estimate.usd_allocation_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                 {% if tax_savings_estimate.usd_allocation_percent > 15 %}USD Consulting ({{ "{:.1f}%".format(tax_savings_estimate.usd_allocation_percent) }}){% endif %}
                             </div>
+                            {% set unused_percent = 100 - tax_savings_estimate.lkr_allocation_percent - tax_savings_estimate.usd_allocation_percent %}
+                            {% if unused_percent > 0 %}
+                            <div class="progress-bar bg-secondary" role="progressbar" 
+                                 style="width: {{ unused_percent }}%;" 
+                                 aria-valuenow="{{ unused_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                 {% if unused_percent > 15 %}Unused ({{ "{:.1f}%".format(unused_percent) }}){% endif %}
+                            </div>
+                            {% endif %}
                         {% else %}
                             <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%;" 
                                  aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
@@ -216,9 +221,22 @@
                         {% endif %}
                     </div>
                     
+                    {% set total_applied = tax_savings_estimate.tax_deductible_for_lkr + tax_savings_estimate.tax_deductible_for_usd %}
+                    {% if total_applied < tax_savings_estimate.total_tax_deductible %}
+                        <div class="alert alert-info mt-3">
+                            <h6 class="alert-heading">Unused Deductions:</h6>
+                            <p class="mb-0">Rs {{ "{:,.2f}".format(tax_savings_estimate.remaining_unused_deduction) }} of your tax deductible expenses couldn't be applied because your taxable business income is less than your total deductible expenses.</p>
+                        </div>
+                    {% endif %}
+                    
                     <div class="alert alert-warning mt-3">
-                        <h6 class="alert-heading">Note:</h6>
-                        <p class="mb-0">This is a simplified tax calculation. Only Business Income (LKR) and Consulting Income (USD) are eligible for tax deductions. LKR Business income has a tax rate of 36%, while USD Consulting income has a tax rate of 15%. For accurate tax advice, please consult with a tax professional.</p>
+                        <h6 class="alert-heading">How Tax Savings Are Calculated:</h6>
+                        <p>For maximum tax benefit, deductions are applied in this order:</p>
+                        <ol>
+                            <li>First to LKR Business Income (36% tax rate)</li>
+                            <li>Then any remaining amount to USD Consulting Income (15% tax rate)</li>
+                        </ol>
+                        <p class="mb-0">This prioritization ensures you get the highest possible tax savings. Only Business Income (LKR) and Consulting Income (USD) are eligible for tax deductions. For accurate tax advice, please consult with a tax professional.</p>
                     </div>
                 </div>
             </div>
