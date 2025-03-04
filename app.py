@@ -43,7 +43,7 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = ('Smarter Tax', os.environ.get('GMAIL_USERNAME'))
+app.config['MAIL_DEFAULT_SENDER'] = ('DevelopSriLanka.com', os.environ.get('GMAIL_USERNAME'))
 app.config['MAIL_MAX_EMAILS'] = 5
 app.config['MAIL_DEBUG'] = True
 mail.init_app(app)
@@ -1516,33 +1516,33 @@ def send_invitation_email(to_email, from_user, personal_message=''):
         # Use requests to send an email via SMTP server
         app_url = request.host_url.rstrip('/')
         
-        # Construct email subject and body
-        subject = f"{from_user.name} invites you to join Smarter Tax"
+        # Construct email subject and body with updated brand name
+        subject = f"{from_user.name} invites you to join DevelopSriLanka.com"
         
-        # Email body with HTML formatting
+        # Email body with HTML formatting and DevelopSriLanka.com logo
         html_body = f"""
         <html>
         <body style="font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 15px;">
             <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px;">
-                <!-- Header with gradient background -->
-                <div style="background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%); padding: 25px; text-align: center;">
-                    <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Smarter Tax</h1>
-                    <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0; font-size: 16px;">Optimize your finances intelligently</p>
+                <!-- Header with logo and gradient background -->
+                <div style="background: linear-gradient(135deg, #004b87 0%, #00285a 100%); padding: 25px; text-align: center;">
+                    <img src="{app_url}/static/images/dev-sri-logo.jpg" alt="DevelopSriLanka.com Logo" style="max-width: 250px; height: auto; margin-bottom: 10px;">
+                    <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0; font-size: 16px;">Empowering financial intelligence</p>
                 </div>
                 
                 <!-- Main content -->
                 <div style="padding: 30px;">
-                    <h2 style="color: #2c5282; margin-top: 0; margin-bottom: 20px; font-size: 22px;">You've Been Invited!</h2>
-                    <p style="margin-bottom: 20px;"><strong>{from_user.name}</strong> has invited you to join <strong>Smarter Tax</strong>, 
+                    <h2 style="color: #004b87; margin-top: 0; margin-bottom: 20px; font-size: 22px;">You've Been Invited!</h2>
+                    <p style="margin-bottom: 20px;"><strong>{from_user.name}</strong> has invited you to join <strong>DevelopSriLanka.com</strong>, 
                     the intelligent platform that helps you track expenses and optimize tax savings.</p>
                     
-                    {f'''<div style="background-color: #ebf8ff; padding: 15px; border-radius: 6px; border-left: 4px solid #3182ce; margin: 25px 0;">
+                    {f'''<div style="background-color: #e6f7ff; padding: 15px; border-radius: 6px; border-left: 4px solid #004b87; margin: 25px 0;">
                         <p style="font-style: italic; margin: 0 0 10px;">"{personal_message}"</p>
                         <p style="text-align: right; margin-bottom: 0; color: #4a5568;">- {from_user.name}</p>
                     </div>''' if personal_message else ''}
                     
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="{app_url}/login" style="display: inline-block; background-color: #3182ce; color: white; 
+                        <a href="{app_url}/login" style="display: inline-block; background-color: #ff9e1b; color: white; 
                         padding: 12px 28px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;
                         transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                             Join Now
@@ -1553,7 +1553,7 @@ def send_invitation_email(to_email, from_user, personal_message=''):
             
             <!-- Features section -->
             <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 20px;">
-                <h3 style="color: #2c5282; margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Why Join Smarter Tax?</h3>
+                <h3 style="color: #004b87; margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Why Join DevelopSriLanka.com?</h3>
                 <ul style="padding-left: 20px; margin-top: 15px;">
                     <li style="margin-bottom: 10px;">Track expenses with AI-powered receipt scanning</li>
                     <li style="margin-bottom: 10px;">Calculate potential tax savings based on your income</li>
@@ -1565,7 +1565,7 @@ def send_invitation_email(to_email, from_user, personal_message=''):
             <!-- Footer -->
             <div style="text-align: center; color: #718096; font-size: 0.9em; margin-top: 20px;">
                 <p>If you don't want to receive invitation emails, please ignore this message.</p>
-                <p>&copy; 2025 Smarter Tax. All rights reserved.</p>
+                <p>&copy; 2025 DevelopSriLanka.com. All rights reserved.</p>
             </div>
         </body>
         </html>
