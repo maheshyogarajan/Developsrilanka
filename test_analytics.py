@@ -2,74 +2,85 @@
 Test script to check the admin analytics data.
 """
 
-import json
-from datetime import datetime
 from app import app
-import admin_analytics
+from admin_analytics import (
+    get_user_statistics, 
+    get_receipt_statistics,
+    get_user_role_distribution,
+    get_receipt_categories_breakdown,
+    get_dashboard_data,
+    get_income_statistics,
+    get_tax_savings_statistics
+)
 
 def test_user_stats():
-    with app.app_context():
-        print("\n===== USER STATISTICS =====")
-        stats = admin_analytics.get_user_statistics()
-        print(f"Total Users: {stats['total_users']}")
-        print(f"Active Users: {stats['active_users']}")
-        print(f"Inactive Users: {stats['inactive_users']}")
-        print(f"Growth Rate: {stats['growth_rate']}%")
-        print("User Registrations by Date:")
-        for date, count in stats['registrations_by_date'].items():
-            print(f"  {date}: {count} users")
-            
+    user_stats = get_user_statistics()
+    print("\n=== User Statistics ===")
+    print(f"Total Users: {user_stats.get('total_users', 'N/A')}")
+    print(f"Active Users: {user_stats.get('active_users', 'N/A')}")
+    print(f"New Users (30 days): {user_stats.get('new_users', 'N/A')}")
+    
+    # Check user growth data
+    user_growth = user_stats.get('user_growth', [])
+    print("\nUser Growth Data:")
+    for entry in user_growth:
+        print(f"  {entry.get('date')}: {entry.get('count')} users")
+
 def test_receipt_stats():
-    with app.app_context():
-        print("\n===== RECEIPT STATISTICS =====")
-        stats = admin_analytics.get_receipt_statistics()
-        print(f"Total Receipts: {stats['total_receipts']}")
-        print(f"Recent Receipts (30d): {stats['recent_receipts']}")
-        print(f"Total Amount: {stats['total_amount']}")
-        print(f"Avg Amount: {stats['avg_amount']}")
-        print(f"Median Amount: {stats['median_amount']}")
-        print(f"Tax Deductible %: {stats['tax_deductible_percentage']}%")
-        
-        print("\nTop Categories:")
-        for cat in stats['top_categories']:
-            print(f"  {cat['category']}: {cat['count']} receipts ({cat['percentage']:.1f}%)")
-            
-        print("\nReceipts by Date:")
-        for date, count in stats['receipts_by_date'].items():
-            print(f"  {date}: {count} receipts")
+    receipt_stats = get_receipt_statistics()
+    print("\n=== Receipt Statistics ===")
+    print(f"Total Receipts: {receipt_stats.get('total_receipts', 'N/A')}")
+    print(f"New Receipts (30 days): {receipt_stats.get('new_receipts', 'N/A')}")
+    print(f"Average Receipt Amount: {receipt_stats.get('avg_amount', 'N/A')}")
+    
+    # Check daily activity data
+    daily_activity = receipt_stats.get('daily_activity', [])
+    print("\nDaily Receipt Activity:")
+    for entry in daily_activity:
+        print(f"  {entry.get('date')}: {entry.get('count')} receipts")
+    
+    # Check category breakdown
+    categories = get_receipt_categories_breakdown()
+    print("\nReceipt Categories Breakdown:")
+    for cat in categories:
+        print(f"  {cat.get('category', 'Unknown')}: {cat.get('count', 0)} receipts ({cat.get('percentage', 0):.1f}%)")
 
 def test_income_stats():
-    with app.app_context():
-        print("\n===== INCOME STATISTICS =====")
-        stats = admin_analytics.get_income_statistics()
-        print(f"Employment Income: {stats['employment_income']}")
-        print(f"Business Income: {stats['business_income']}")
-        print(f"Investment Income: {stats['investment_income']}")
-        print(f"USD Consulting Income: {stats['usd_consulting_income']}")
-        print(f"Total LKR Income: {stats['total_lkr_income']}")
-        print(f"Total Income: {stats['total_income']}")
-        print(f"Users with Income Data: {stats['users_with_income']}")
+    income_stats = get_income_statistics()
+    print("\n=== Income Statistics ===")
+    print(f"Total Income Records: {income_stats.get('total_income_records', 'N/A')}")
+    
+    lkr_business = income_stats.get('total_lkr_business_income', 'N/A')
+    if isinstance(lkr_business, (int, float)):
+        print(f"Total LKR Business Income: {lkr_business:,.2f}")
+    else:
+        print(f"Total LKR Business Income: {lkr_business}")
         
-        print("\nIncome Distribution:")
-        for type, pct in stats['income_distribution'].items():
-            print(f"  {type}: {pct:.1f}%")
+    usd_consulting = income_stats.get('total_usd_consulting_income', 'N/A')
+    if isinstance(usd_consulting, (int, float)):
+        print(f"Total USD Consulting Income: {usd_consulting:,.2f}")
+    else:
+        print(f"Total USD Consulting Income: {usd_consulting}")
 
 def test_tax_savings_stats():
-    with app.app_context():
-        print("\n===== TAX SAVINGS STATISTICS =====")
-        stats = admin_analytics.get_tax_savings_statistics()
-        print(f"Total Deductible Amount: {stats['total_deductible_amount']}")
-        print(f"LKR Business Deductible: {stats['lkr_business_deductible']}")
-        print(f"USD Consulting Deductible: {stats['usd_consulting_deductible']}")
-        print(f"LKR Business Savings: {stats['lkr_business_savings']}")
-        print(f"USD Consulting Savings: {stats['usd_consulting_savings']}")
-        print(f"Total Savings: {stats['total_savings']}")
-        print(f"Savings %: {stats['savings_percentage']}%")
+    tax_stats = get_tax_savings_statistics()
+    print("\n=== Tax Savings Statistics ===")
+    
+    for key, label in [
+        ('total_tax_deductible_amount', 'Total Tax Deductible Amount'), 
+        ('estimated_tax_savings', 'Estimated Tax Savings'),
+        ('tax_savings_lkr_business', 'Tax Savings from LKR Business Income'),
+        ('tax_savings_usd_consulting', 'Tax Savings from USD Consulting Income')
+    ]:
+        value = tax_stats.get(key, 'N/A')
+        if isinstance(value, (int, float)):
+            print(f"{label}: {value:,.2f}")
+        else:
+            print(f"{label}: {value}")
 
 if __name__ == "__main__":
-    print(f"Running analytics tests at {datetime.utcnow().isoformat()}")
-    test_user_stats()
-    test_receipt_stats()
-    test_income_stats()
-    test_tax_savings_stats()
-    print("\nTests completed.")
+    with app.app_context():
+        test_user_stats()
+        test_receipt_stats()
+        test_income_stats()
+        test_tax_savings_stats()
