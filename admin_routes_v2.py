@@ -132,11 +132,12 @@ def admin_panel_home():
         # Extract category data from analytics
         top_categories = receipt_stats['top_categories']
         category_labels = [cat['category'] for cat in top_categories]
-        category_values = [cat['count'] for cat in top_categories]
+        # Use percentages instead of raw counts for better visualization
+        category_values = [cat['percentage'] for cat in top_categories]
         
         if not category_labels:  # Fallback if no categories
             category_labels = ["Uncategorized"]
-            category_values = [receipt_count]
+            category_values = [100.0]  # 100% for a single category
         
         # Calculate growth percentages
         user_growth_percent = user_stats['growth_rate']
@@ -473,11 +474,12 @@ def admin_panel_statistics():
             category_data = categories_breakdown[:6]  # Get top 6 categories
             
             category_labels = [cat['category'] for cat in category_data]
-            category_values = [cat['count'] for cat in category_data]
+            # Use percentages for better visualization
+            category_values = [cat['count_percentage'] for cat in category_data]
         else:
             # Fallback if no categories
             category_labels = ["No Categories"]
-            category_values = [0]
+            category_values = [100.0]  # 100% for a single category
         
         # Calculate real engagement metrics
         user_count = user_stats['total_users']
