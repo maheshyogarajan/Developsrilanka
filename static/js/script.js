@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Then save the receipt
-                return fetch('/save_receipt', {
+                return fetch('/save', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
             vendor_contact: document.getElementById('vendor_contact').value,
             date: document.getElementById('date').value,
             total_amount: document.getElementById('total_amount').value,
-            service_charge: document.getElementById('service_service').value,
+            service_charge: document.getElementById('service_charge').value,
             vat_registration_number: document.getElementById('vat_registration_number').value,
             sscl_tax: document.getElementById('sscl_tax').value,
             vat_tax: document.getElementById('vat_tax').value,
