@@ -1245,9 +1245,8 @@ def email_login():
             login_user(user)
             flash('You have been logged in successfully!', 'success')
             
-            # Redirect to requested page or home
-            next_page = session.get('next', url_for('home'))
-            return redirect(next_page)
+            # Redirect directly to scan page for better user experience
+            return redirect(url_for('index'))
             
         elif action == 'register':
             # Registration flow
@@ -1262,7 +1261,7 @@ def email_login():
                 # Log in the user
                 login_user(existing_user)
                 flash('Account updated and logged in successfully!', 'success')
-                return redirect(url_for('home'))
+                return redirect(url_for('index'))
             
             # Create new user
             new_user = User(
@@ -1277,7 +1276,7 @@ def email_login():
             # Log in the new user
             login_user(new_user)
             flash('Account created successfully!', 'success')
-            return redirect(url_for('home'))
+            return redirect(url_for('index'))
         
         else:
             flash('Invalid action', 'danger')
@@ -1330,9 +1329,8 @@ def google_callback():
         login_user(user)
         flash('Successfully logged in with Google!', 'success')
         
-        # Redirect to the home page or the page they were trying to access
-        next_page = session.get('next', url_for('home'))
-        return redirect(next_page)
+        # Redirect directly to scan page for better user experience
+        return redirect(url_for('index'))
     
     except Exception as e:
         logging.error(f"Error in Google authentication: {str(e)}")
@@ -1385,9 +1383,8 @@ def facebook_callback():
         login_user(user)
         flash('Successfully logged in with Facebook!', 'success')
         
-        # Redirect to the home page or the page they were trying to access
-        next_page = session.get('next', url_for('home'))
-        return redirect(next_page)
+        # Redirect directly to scan page for better user experience
+        return redirect(url_for('index'))
     
     except Exception as e:
         logging.error(f"Error in Facebook authentication: {str(e)}")

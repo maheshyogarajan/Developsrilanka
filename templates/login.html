@@ -2,6 +2,76 @@
 
 {% block title %}Login - Develop Sri Lanka{% endblock %}
 
+{% block head %}
+{{ super() }}
+<style>
+    .demo-animation {
+        display: none;
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        border: 1px dashed #dee2e6;
+    }
+    
+    .btn-google {
+        background-color: #DB4437;
+        color: white;
+    }
+    
+    .btn-facebook {
+        background-color: #4267B2;
+        color: white;
+    }
+    
+    .btn-google:hover, .btn-facebook:hover {
+        opacity: 0.9;
+        color: white;
+    }
+    
+    .social-buttons .btn i {
+        margin-right: 8px;
+    }
+    
+    .animation-step {
+        display: none;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+    }
+    
+    .typing-animation {
+        overflow: hidden;
+        white-space: nowrap;
+        border-right: 3px solid;
+        animation: typing 1.5s steps(30, end), blink-caret 0.75s step-end infinite;
+        font-family: monospace;
+    }
+    
+    @keyframes typing {
+        from { width: 0 }
+        to { width: 100% }
+    }
+    
+    @keyframes blink-caret {
+        from, to { border-color: transparent }
+        50% { border-color: #333; }
+    }
+    
+    .redirect-animation {
+        height: 5px;
+        background-color: #007bff;
+        width: 0%;
+        transition: width 3s ease-in-out;
+    }
+    
+    .success-message {
+        color: #28a745;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container my-5">
     <div class="row">
@@ -22,7 +92,7 @@
                         {% endif %}
                     {% endwith %}
 
-                    <form method="POST" action="{{ url_for('email_login') }}" class="mb-4">
+                    <form method="POST" action="{{ url_for('email_login') }}" class="mb-4" id="loginForm">
                         <div class="mb-3">
                             <label for="email" class="form-label">Email Address</label>
                             <input type="email" class="form-control" id="email" name="email" required>
@@ -32,14 +102,80 @@
                             <input type="password" class="form-control" id="password" name="password" required>
                         </div>
                         <div class="d-grid gap-2">
-                            <button type="submit" name="action" value="login" class="btn btn-primary btn-lg">Sign In</button>
+                            <button type="submit" name="action" value="login" class="btn btn-primary btn-lg" id="loginButton">Sign In</button>
                             <button type="submit" name="action" value="register" class="btn btn-success btn-lg">Register</button>
                         </div>
                     </form>
                     
+                    <div class="social-buttons">
+                        <div class="row">
+                            <div class="col-6">
+                                <a href="{{ url_for('google_auth') }}" class="btn btn-google btn-lg d-block">
+                                    <i class="bi bi-google"></i> Google
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ url_for('facebook_auth') }}" class="btn btn-facebook btn-lg d-block">
+                                    <i class="bi bi-facebook"></i> Facebook
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <hr class="my-4">
                     
-                    <div class="text-center text-muted">
+                    <button class="btn btn-outline-info btn-sm" id="demoButton">
+                        <i class="bi bi-play-circle"></i> See Login Demo
+                    </button>
+                    
+                    <div class="demo-animation" id="demoAnimation">
+                        <h5 class="mb-3">Login Process Demo</h5>
+                        
+                        <!-- Step 1: Input credentials -->
+                        <div class="animation-step bg-light" id="step1">
+                            <div class="typing-animation" id="emailTyping">user@example.com</div>
+                            <div class="typing-animation" id="passwordTyping">********</div>
+                        </div>
+                        
+                        <!-- Step 2: Click login -->
+                        <div class="animation-step bg-light" id="step2">
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-cursor"></i> Clicking "Sign In" button...
+                            </div>
+                        </div>
+                        
+                        <!-- Step 3: Processing -->
+                        <div class="animation-step bg-light" id="step3">
+                            <div class="d-flex align-items-center">
+                                <div class="spinner-border text-primary me-2" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span>Processing login...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 4: Success -->
+                        <div class="animation-step bg-light" id="step4">
+                            <div class="alert alert-success mb-0">
+                                <i class="bi bi-check-circle"></i> Login successful!
+                            </div>
+                        </div>
+                        
+                        <!-- Step 5: Redirect -->
+                        <div class="animation-step bg-light" id="step5">
+                            <div class="mb-2">Redirecting to Scan page...</div>
+                            <div class="redirect-animation" id="redirectBar"></div>
+                        </div>
+                        
+                        <!-- Step 6: Complete -->
+                        <div class="animation-step bg-light" id="step6">
+                            <div class="success-message">
+                                <i class="bi bi-check2-all"></i> You're now at the Scan page ready to track your receipts!
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center text-muted mt-4">
                         <p>By logging in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
                         <p class="small mt-3">Powered by Develop Sri Lanka Initiative</p>
                     </div>
@@ -48,4 +184,64 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const demoButton = document.getElementById('demoButton');
+    const demoAnimation = document.getElementById('demoAnimation');
+    const steps = [
+        document.getElementById('step1'),
+        document.getElementById('step2'),
+        document.getElementById('step3'),
+        document.getElementById('step4'),
+        document.getElementById('step5'),
+        document.getElementById('step6')
+    ];
+    const redirectBar = document.getElementById('redirectBar');
+    
+    demoButton.addEventListener('click', function() {
+        demoAnimation.style.display = 'block';
+        demoButton.disabled = true;
+        
+        // Reset animation
+        steps.forEach(step => step.style.display = 'none');
+        redirectBar.style.width = '0%';
+        
+        // Step 1: Typing credentials
+        steps[0].style.display = 'block';
+        
+        // Step 2: Click login
+        setTimeout(() => {
+            steps[1].style.display = 'block';
+        }, 2000);
+        
+        // Step 3: Processing
+        setTimeout(() => {
+            steps[2].style.display = 'block';
+        }, 3000);
+        
+        // Step 4: Success
+        setTimeout(() => {
+            steps[3].style.display = 'block';
+        }, 5000);
+        
+        // Step 5: Redirect
+        setTimeout(() => {
+            steps[4].style.display = 'block';
+            redirectBar.style.width = '100%';
+        }, 6000);
+        
+        // Step 6: Complete
+        setTimeout(() => {
+            steps[5].style.display = 'block';
+            demoButton.disabled = false;
+        }, 9000);
+    });
+    
+    // Real login form handling - prevent default and redirect for demo purposes
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        // Don't prevent default form submission - let the actual login happen
+    });
+});
+</script>
 {% endblock %}
