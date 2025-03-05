@@ -407,4 +407,74 @@ document.addEventListener('DOMContentLoaded', function() {
         
         return formData;
     }
+    
+    // Add an event listener to the form to update data when changes are made
+    const editDataForm = document.getElementById('editDataForm');
+    if (editDataForm) {
+        const formInputs = editDataForm.querySelectorAll('input, select');
+        formInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                // Collect the updated form data
+                const updatedData = collectFormData();
+                
+                // Send a request to update the data in the session
+                fetch('/preview/update_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Data updated successfully:', data);
+                })
+                .catch(error => {
+                    console.error('Error updating data:', error);
+                    showError('Failed to update data: ' + error.message);
+                });
+            });
+        });
+    }
+    
+    // Also monitor changes to dynamically added item rows
+    if (itemsContainer) {
+        itemsContainer.addEventListener('change', function(event) {
+            if (event.target.classList.contains('item-name') || 
+                event.target.classList.contains('item-quantity') || 
+                event.target.classList.contains('item-price') || 
+                event.target.classList.contains('item-tax-deductible')) {
+                
+                // Collect the updated form data
+                const updatedData = collectFormData();
+                
+                // Send a request to update the data in the session
+                fetch('/preview/update_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Data updated successfully after item change:', data);
+                })
+                .catch(error => {
+                    console.error('Error updating data after item change:', error);
+                    // Don't show error for item changes to avoid annoying users
+                });
+            }
+        });
+    }
 });
