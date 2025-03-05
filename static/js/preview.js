@@ -476,37 +476,76 @@ document.addEventListener('DOMContentLoaded', function() {
         return formData;
     }
     
+    // Debounce function for limiting API calls
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // Create a single update function to avoid duplicate code
+    const updateFormData = debounce(function() {
+        // Don't update if we're in the middle of scanning or if there was an error
+        if (window.processingReceipt || document.getElementById('error-message').textContent) {
+            return;
+        }
+        
+        // Collect the updated form data
+        const updatedData = collectFormData();
+        
+        // Send a request to update the data in the session
+        fetch('/preview/update_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(updatedData)
+        })
+        .then(response => {
+            // Check if the response is OK first
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Server returned error response:', text);
+                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                });
+            }
+            
+            // Check the content type to make sure it's JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    // Don't throw an error here, just log it to avoid cluttering the UI
+                    console.warn('Response is not JSON:', text.substring(0, 150) + '...');
+                    return { success: true }; // Return a dummy object to avoid breaking the chain
+                });
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                console.log('Data updated successfully');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating data:', error);
+            // Don't show errors for data updates to avoid annoying users
+        });
+    }, 500); // 500ms debounce time
+    
     // Add an event listener to the form to update data when changes are made
     const editDataForm = document.getElementById('editDataForm');
     if (editDataForm) {
         const formInputs = editDataForm.querySelectorAll('input, select');
         formInputs.forEach(input => {
-            input.addEventListener('change', function() {
-                // Collect the updated form data
-                const updatedData = collectFormData();
-                
-                // Send a request to update the data in the session
-                fetch('/preview/update_data', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedData)
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Data updated successfully:', data);
-                })
-                .catch(error => {
-                    console.error('Error updating data:', error);
-                    showError('Failed to update data: ' + error.message);
-                });
-            });
+            input.addEventListener('change', updateFormData);
         });
     }
     
@@ -517,31 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 event.target.classList.contains('item-quantity') || 
                 event.target.classList.contains('item-price') || 
                 event.target.classList.contains('item-tax-deductible')) {
-                
-                // Collect the updated form data
-                const updatedData = collectFormData();
-                
-                // Send a request to update the data in the session
-                fetch('/preview/update_data', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedData)
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Data updated successfully after item change:', data);
-                })
-                .catch(error => {
-                    console.error('Error updating data after item change:', error);
-                    // Don't show error for item changes to avoid annoying users
-                });
+                updateFormData();
             }
         });
     }
