@@ -579,11 +579,15 @@ def receipts_by_minor_category(category):
 def preview_scan_receipt():
     """Process the uploaded receipt image and extract data using Gemini Vision for preview mode (no login required)."""
     if 'receipt' not in request.files:
-        return jsonify({'error': 'No receipt image uploaded'}), 400
+        response = jsonify({'error': 'No receipt image uploaded'})
+        response.headers.set('Content-Type', 'application/json')
+        return response, 400
     
     receipt_file = request.files['receipt']
     if receipt_file.filename == '':
-        return jsonify({'error': 'No receipt image selected'}), 400
+        response = jsonify({'error': 'No receipt image selected'})
+        response.headers.set('Content-Type', 'application/json')
+        return response, 400
     
     try:
         # Start timing for performance logging
@@ -591,14 +595,33 @@ def preview_scan_receipt():
         
         # Read and process the image
         img_bytes = receipt_file.read()
-        img = Image.open(BytesIO(img_bytes))
+        
+        # Ensure the image is in a format Gemini can process
+        try:
+            img = Image.open(BytesIO(img_bytes))
+            
+            # Force conversion to JPEG if it's not already
+            if img.format != 'JPEG':
+                logging.info(f"Converting image from {img.format} to JPEG for better compatibility")
+                img_byte_arr = BytesIO()
+                img = img.convert('RGB')  # Convert to RGB mode
+                img.save(img_byte_arr, format='JPEG', quality=85)
+                img_byte_arr.seek(0)
+                img = Image.open(img_byte_arr)
+        except Exception as img_error:
+            logging.error(f"Error processing image: {str(img_error)}")
+            response = jsonify({'error': f'Unable to process image format. Please try with a JPEG or PNG image. Details: {str(img_error)}'})
+            response.headers.set('Content-Type', 'application/json')
+            return response, 400
         
         # Always use synchronous processing for preview mode
         logging.info("Using synchronous receipt processing for preview mode")
         extracted_data = process_receipt_with_gemini(img)
         
         if not extracted_data:
-            return jsonify({'error': 'Failed to extract data from the receipt'}), 500
+            response = jsonify({'error': 'Failed to extract data from the receipt'})
+            response.headers.set('Content-Type', 'application/json')
+            return response, 500
         
         # Store the extracted data in session for potential correction
         session['receipt_data'] = extracted_data
@@ -607,23 +630,31 @@ def preview_scan_receipt():
         processing_time = time.time() - start_time
         logging.info(f"Preview receipt processing completed in {processing_time:.2f} seconds")
         
-        return jsonify({'success': True, 'data': extracted_data})
+        response = jsonify({'success': True, 'data': extracted_data})
+        response.headers.set('Content-Type', 'application/json')
+        return response
     
     except Exception as e:
         logging.error(f"Error processing receipt in preview mode: {str(e)}")
         logging.error(traceback.format_exc())
-        return jsonify({'error': f'Error processing receipt: {str(e)}'}), 500
+        response = jsonify({'error': f'Error processing receipt: {str(e)}'})
+        response.headers.set('Content-Type', 'application/json')
+        return response, 500
 
 @app.route('/scan', methods=['POST'])
 @login_required
 def scan_receipt():
     """Process the uploaded receipt image and extract data using Gemini Vision."""
     if 'receipt' not in request.files:
-        return jsonify({'error': 'No receipt image uploaded'}), 400
+        response = jsonify({'error': 'No receipt image uploaded'})
+        response.headers.set('Content-Type', 'application/json')
+        return response, 400
     
     receipt_file = request.files['receipt']
     if receipt_file.filename == '':
-        return jsonify({'error': 'No receipt image selected'}), 400
+        response = jsonify({'error': 'No receipt image selected'})
+        response.headers.set('Content-Type', 'application/json')
+        return response, 400
     
     try:
         # Start timing for performance logging
@@ -631,7 +662,24 @@ def scan_receipt():
         
         # Read and process the image
         img_bytes = receipt_file.read()
-        img = Image.open(BytesIO(img_bytes))
+        
+        # Ensure the image is in a format Gemini can process
+        try:
+            img = Image.open(BytesIO(img_bytes))
+            
+            # Force conversion to JPEG if it's not already
+            if img.format != 'JPEG':
+                logging.info(f"Converting image from {img.format} to JPEG for better compatibility")
+                img_byte_arr = BytesIO()
+                img = img.convert('RGB')  # Convert to RGB mode
+                img.save(img_byte_arr, format='JPEG', quality=85)
+                img_byte_arr.seek(0)
+                img = Image.open(img_byte_arr)
+        except Exception as img_error:
+            logging.error(f"Error processing image: {str(img_error)}")
+            response = jsonify({'error': f'Unable to process image format. Please try with a JPEG or PNG image. Details: {str(img_error)}'})
+            response.headers.set('Content-Type', 'application/json')
+            return response, 400
         
         # Decide if we should use async processing or direct processing
         # We'll use async processing if the ENABLE_ASYNC_PROCESSING env var is set

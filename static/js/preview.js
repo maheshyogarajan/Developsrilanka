@@ -176,14 +176,36 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            // Log the response status for debugging
+            console.log('Preview scan response status:', response.status);
+            
+            // Check if the response is OK first
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Server returned error response:', text);
+                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                });
+            }
+            
+            // Check the content type to make sure it's JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Response is not JSON:', text.substring(0, 500)); // Log first 500 chars
+                    throw new Error('Server returned non-JSON response. This might be due to an image format issue.');
+                });
+            }
+            
+            return response.json();
+        })
         .then(data => {
             if (data.error) {
                 throw new Error(data.error);
             }
             
             // Synchronous processing completed
-            console.log('Synchronous processing completed');
+            console.log('Synchronous processing completed. Data:', data);
             
             // Fill form with extracted data
             populateForm(data.data);
@@ -201,10 +223,12 @@ document.addEventListener('DOMContentLoaded', function() {
             window.processingReceipt = false;
         })
         .catch(error => {
+            console.error('Detailed error information:', error.toString());
+            
             // Special error handling for JSON parse errors
             if (error.toString().includes("Unexpected token")) {
                 console.error("JSON parse error:", error);
-                showError("Error processing receipt. Please try again.");
+                showError("Error processing receipt. Please try with a different image format (JPEG/PNG).");
             } else {
                 console.error('Error:', error);
                 showError(error.message || 'An error occurred while processing the receipt');
