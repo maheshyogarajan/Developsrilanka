@@ -115,8 +115,27 @@ h1, h2, h3 {
 }
 
 .upload-icon {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     color: var(--primary-color);
+}
+
+.camera-icon {
+    margin-bottom: 15px;
+    color: #28a745;
+    display: none; /* Hidden by default, shown via JS when camera is available */
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(40, 167, 69, 0.1);
+    padding: 12px;
+    transition: all 0.2s ease;
+}
+
+.camera-icon:hover {
+    background-color: rgba(40, 167, 69, 0.2);
+    transform: scale(1.05);
 }
 
 .upload-text {
@@ -483,7 +502,19 @@ footer {
     
     .upload-icon {
         font-size: 2rem;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
+    }
+    
+    .camera-icon {
+        margin-bottom: 8px;
+        width: 40px;
+        height: 40px;
+        padding: 8px;
+    }
+    
+    .camera-icon svg {
+        width: 24px;
+        height: 24px;
     }
     
     .upload-text {

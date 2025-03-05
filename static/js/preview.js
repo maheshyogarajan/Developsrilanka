@@ -25,9 +25,41 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadZone.addEventListener('click', function() {
             if (canTriggerFileInput) {
                 canTriggerFileInput = false;
+                
+                // On mobile, we're using the capture attribute which will open the camera
+                // For desktop, this will open a file selector
                 receiptInput.click();
+                
                 // Re-enable after a short delay
                 setTimeout(() => { canTriggerFileInput = true; }, 1000);
+            }
+        });
+        
+        // Check if the device has camera capability
+        const checkCameraAvailability = () => {
+            return new Promise((resolve) => {
+                // Feature detection for mediaDevices
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    return resolve(false);
+                }
+                
+                navigator.mediaDevices.enumerateDevices()
+                    .then(devices => {
+                        const hasCamera = devices.some(device => device.kind === 'videoinput');
+                        resolve(hasCamera);
+                    })
+                    .catch(() => resolve(false));
+            });
+        };
+        
+        // Initialize to detect camera
+        checkCameraAvailability().then(hasCamera => {
+            // Add a visual indicator if camera is available
+            if (hasCamera) {
+                const cameraIcon = document.querySelector('.camera-icon');
+                if (cameraIcon) {
+                    cameraIcon.style.display = 'inline-flex';
+                }
             }
         });
 
