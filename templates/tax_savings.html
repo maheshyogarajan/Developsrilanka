@@ -113,7 +113,10 @@
                 <div class="card-body p-3">
                     <div class="alert alert-success py-2">
                         <strong>Potential Tax Savings:</strong> 
-                        <h3 class="text-success mt-2 fs-4">Rs {{ "{:,.2f}".format(tax_savings_estimate.total_tax_savings_in_lkr) }}</h3>
+                        <h3 class="text-success mt-2 fs-4">Rs <span id="savingsCounter" data-value="{{ tax_savings_estimate.total_tax_savings_in_lkr }}">0.00</span></h3>
+                        <div class="progress mt-2" style="height: 6px;">
+                            <div id="savingsProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
                     </div>
                     
                     <!-- LKR Income Summary -->
@@ -327,6 +330,62 @@ document.addEventListener('DOMContentLoaded', function() {
             // Submit the form
             form.submit();
         });
+    }
+    
+    // Tax Savings Counter Animation
+    const savingsCounter = document.getElementById('savingsCounter');
+    const savingsProgressBar = document.getElementById('savingsProgressBar');
+    
+    if (savingsCounter && savingsProgressBar) {
+        const targetValue = parseFloat(savingsCounter.getAttribute('data-value') || 0);
+        let currentValue = 0;
+        const duration = 1500; // Animation duration in milliseconds
+        const startTime = performance.now();
+        
+        // Format number with commas and decimals
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat('en-LK', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        };
+        
+        // Animation function
+        const animateSavings = (timestamp) => {
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Easing function for smoother animation
+            const easeOutCubic = progress => 1 - Math.pow(1 - progress, 3);
+            const easedProgress = easeOutCubic(progress);
+            
+            // Calculate current value
+            currentValue = easedProgress * targetValue;
+            
+            // Update counter and progress bar
+            savingsCounter.textContent = formatCurrency(currentValue);
+            savingsProgressBar.style.width = `${easedProgress * 100}%`;
+            savingsProgressBar.setAttribute('aria-valuenow', easedProgress * 100);
+            
+            // Continue animation if not complete
+            if (progress < 1) {
+                requestAnimationFrame(animateSavings);
+            } else {
+                // Ensure final value is exactly the target value
+                savingsCounter.textContent = formatCurrency(targetValue);
+                
+                // Add a pulse effect at the end for visual emphasis
+                savingsCounter.classList.add('text-pulse');
+                setTimeout(() => {
+                    savingsCounter.classList.remove('text-pulse');
+                }, 500);
+            }
+        };
+        
+        // Start animation after a slight delay
+        setTimeout(() => {
+            requestAnimationFrame(animateSavings);
+        }, 300);
     }
 });
 </script>
