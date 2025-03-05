@@ -141,10 +141,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Process receipt image and send to server
     function processReceiptImage(file) {
-        // Prevent multiple submissions of the same file
+        // Reset any stuck processing state
         if (window.processingReceipt) {
-            console.log('Already processing a receipt, ignoring duplicate request');
-            return;
+            console.log('Resetting previous processing state');
+            resetProcessingState();
         }
         
         window.processingReceipt = true;
@@ -171,14 +171,37 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingText.innerHTML = 'Uploading receipt... <br>This might take a moment.';
         }
         
+        // Function to reset the processing state and UI
+        function resetProcessingState() {
+            window.processingReceipt = false;
+            
+            if (uploadArea) {
+                uploadArea.classList.remove('d-none');
+            }
+            
+            if (loadingElement) {
+                loadingElement.classList.add('d-none');
+            }
+            
+            // Reattach the file input listener
+            document.dispatchEvent(new Event('resetFileInput'));
+        }
+        
         // Send request to server - using the preview endpoint
         fetch('/preview/scan', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
         })
         .then(response => {
-            // Log the response status for debugging
+            // Log the response status and headers for debugging
             console.log('Preview scan response status:', response.status);
+            console.log('Preview scan response headers:', [...response.headers.entries()].reduce((obj, [key, value]) => {
+                obj[key] = value;
+                return obj;
+            }, {}));
             
             // Check if the response is OK first
             if (!response.ok) {
@@ -193,11 +216,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!contentType || !contentType.includes('application/json')) {
                 return response.text().then(text => {
                     console.error('Response is not JSON:', text.substring(0, 500)); // Log first 500 chars
-                    throw new Error('Server returned non-JSON response. This might be due to an image format issue.');
+                    throw new Error('Server returned non-JSON response. Please try again or try with a different image.');
                 });
             }
             
-            return response.json();
+            // Try parsing JSON with additional error handling
+            try {
+                return response.json();
+            } catch (jsonError) {
+                console.error('Error parsing JSON response:', jsonError);
+                throw new Error('Failed to parse server response. This may be due to a temporary issue.');
+            }
         })
         .then(data => {
             if (data.error) {
@@ -225,24 +254,39 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Detailed error information:', error.toString());
             
-            // Special error handling for JSON parse errors
+            // Special error handling for different error types
             if (error.toString().includes("Unexpected token")) {
                 console.error("JSON parse error:", error);
-                showError("Error processing receipt. Please try with a different image format (JPEG/PNG).");
+                showError("Error processing receipt: The server response was not in the expected format. Please try again or with a different image.");
+            } else if (error.toString().includes("non-JSON response")) {
+                console.error("Content type error:", error);
+                showError("The server returned an unexpected response type. Please try with a JPEG or PNG image.");
+            } else if (error.toString().includes("Failed to fetch")) {
+                console.error("Network error:", error);
+                showError("Network error while communicating with the server. Please check your connection and try again.");
             } else {
-                console.error('Error:', error);
+                console.error('General error:', error);
                 showError(error.message || 'An error occurred while processing the receipt');
             }
+            
+            // Hide loading indicator
             loadingElement.classList.add('d-none');
             
             // Reset processing flag
             window.processingReceipt = false;
             
-            // Show reset button when there's an error
-            if (uploadArea) {
-                uploadArea.classList.remove('d-none');
-                // Dispatch event to reattach the file input listener
-                document.dispatchEvent(new Event('resetFileInput'));
+            // Completely reset the UI to initial state
+            resetProcessingState();
+            
+            // Additionally, try to reset the file input element itself
+            const fileInput = document.getElementById('receipt-input');
+            if (fileInput) {
+                // Clone and replace to completely reset the file input
+                const newFileInput = fileInput.cloneNode(true);
+                fileInput.parentNode.replaceChild(newFileInput, fileInput);
+                
+                // Add change event listener to the new file input
+                newFileInput.addEventListener('change', handleFileSelect, { once: true });
             }
         });
     }

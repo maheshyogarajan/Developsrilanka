@@ -820,16 +820,22 @@ def preview_update_data():
         updated_data = request.json
         
         if 'receipt_data' not in session:
-            return jsonify({'error': 'No receipt data found in session'}), 400
+            response = jsonify({'error': 'No receipt data found in session'})
+            response.headers.set('Content-Type', 'application/json')
+            return response, 400
             
         # Update the session data with corrected values
         session['receipt_data'] = updated_data
         
-        return jsonify({'success': True, 'data': updated_data})
+        response = jsonify({'success': True, 'data': updated_data})
+        response.headers.set('Content-Type', 'application/json')
+        return response
     
     except Exception as e:
         logging.error(f"Error updating data in preview mode: {str(e)}")
-        return jsonify({'error': f'Error updating data: {str(e)}'}), 500
+        response = jsonify({'error': f'Error updating data: {str(e)}'})
+        response.headers.set('Content-Type', 'application/json')
+        return response, 500
 
 @app.route('/update_data', methods=['POST'])
 @login_required
@@ -839,16 +845,22 @@ def update_data():
         updated_data = request.json
         
         if 'receipt_data' not in session:
-            return jsonify({'error': 'No receipt data found in session'}), 400
+            response = jsonify({'error': 'No receipt data found in session'})
+            response.headers.set('Content-Type', 'application/json')
+            return response, 400
             
         # Update the session data with corrected values
         session['receipt_data'] = updated_data
         
-        return jsonify({'success': True, 'data': updated_data})
+        response = jsonify({'success': True, 'data': updated_data})
+        response.headers.set('Content-Type', 'application/json')
+        return response
     
     except Exception as e:
         logging.error(f"Error updating data: {str(e)}")
-        return jsonify({'error': f'Error updating data: {str(e)}'}), 500
+        response = jsonify({'error': f'Error updating data: {str(e)}'})
+        response.headers.set('Content-Type', 'application/json')
+        return response, 500
 
 @app.route('/save', methods=['POST'])
 @login_required
