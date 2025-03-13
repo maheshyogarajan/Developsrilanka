@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Allocate Receipt to Client{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Allocate Receipt to Client</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Receipt Details</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Vendor</h6>
+                            <p class="fw-bold">{{ receipt.vendor_name }}</p>
+                            <p>{{ receipt.vendor_address }}</p>
+                            <p>{{ receipt.vendor_contact }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Receipt Information</h6>
+                            <p><strong>Date:</strong> {{ receipt.date.strftime('%Y-%m-%d') if receipt.date else 'N/A' }}</p>
+                            <p><strong>Total Amount:</strong> {{ '%.2f'|format(receipt.total_amount) }}</p>
+                            <p><strong>Category:</strong> {{ receipt.expense_major_category }} - {{ receipt.expense_minor_category }}</p>
+                        </div>
+                    </div>
+
+                    {% if receipt.image_path %}
+                    <div class="text-center mb-4">
+                        <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
+                            alt="Receipt Image" class="img-fluid" style="max-height: 300px;">
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('client_expense.allocate_to_client', receipt_id=receipt.id) }}">
+                        <div class="mb-3">
+                            <label for="client_id" class="form-label">Client</label>
+                            <select class="form-select" id="client_id" name="client_id" required>
+                                <option value="">Select a client</option>
+                                {% for client in clients %}
+                                <option value="{{ client.id }}">{{ client.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Select the client to allocate this expense to</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="project_name" class="form-label">Project Name</label>
+                            <input type="text" class="form-control" id="project_name" name="project_name">
+                            <small class="text-muted">Optional project name for this expense</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Expense Description</label>
+                            <input type="text" class="form-control" id="description" name="description" 
+                                   value="{{ receipt.vendor_name }}" required>
+                            <small class="text-muted">Short description of the expense purpose</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view_receipt', receipt_id=receipt.id) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Allocate to Client</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

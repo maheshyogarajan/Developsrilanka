@@ -83,6 +83,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading expense management routes: {str(e)}")
 
+# Import client expense management routes
+try:
+    import client_expense_routes
+    # Register client expense routes
+    client_expense_routes.register_routes(app)
+    logger.info("Client expense management routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading client expense management routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
