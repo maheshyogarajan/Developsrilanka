@@ -213,7 +213,7 @@ def index():
 @login_required
 def receipt_history():
     """Render the receipt history page."""
-    return render_template('receipts.html')
+    return render_template('receipt_history.html')
 
 @app.route('/analytics')
 @login_required

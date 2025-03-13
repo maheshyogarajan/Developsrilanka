@@ -1,0 +1,884 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Receipt History</h2>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Scan New Receipt
+        </a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form id="receipt-filters" class="row g-3">
+                <div class="col-md-4">
+                    <label for="filter-date-from" class="form-label">Date From</label>
+                    <input type="date" class="form-control" id="filter-date-from">
+                </div>
+                <div class="col-md-4">
+                    <label for="filter-date-to" class="form-label">Date To</label>
+                    <input type="date" class="form-control" id="filter-date-to">
+                </div>
+                <div class="col-md-4">
+                    <label for="filter-category" class="form-label">Category</label>
+                    <select class="form-select" id="filter-category">
+                        <option value="">All Categories</option>
+                        <!-- Categories will be populated by JavaScript -->
+                    </select>
+                </div>
+                <div class="col-md-12 text-end">
+                    <button type="button" id="clear-filters" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </button>
+                    <button type="button" id="apply-filters" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i>Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Receipts Grid -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Your Receipts</h5>
+            <div class="btn-group">
+                <button type="button" id="view-mode-grid" class="btn btn-outline-primary active" title="Grid View">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button type="button" id="view-mode-list" class="btn btn-outline-primary" title="List View">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <!-- Loading State -->
+            <div id="loading-receipts" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3">Loading your receipts...</p>
+            </div>
+            
+            <!-- Error State -->
+            <div id="error-container" class="alert alert-danger m-4 d-none">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <span id="error-message">Error loading receipts</span>
+                <button id="retry-load" class="btn btn-sm btn-outline-danger ms-3">Retry</button>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="no-receipts" class="text-center py-5 d-none">
+                <div class="py-4">
+                    <i class="fas fa-receipt fa-4x text-muted mb-3"></i>
+                    <h4>No receipts found</h4>
+                    <p class="text-muted">You haven't scanned any receipts yet.</p>
+                    <a href="{{ url_for('index') }}" class="btn btn-primary mt-2">
+                        <i class="fas fa-camera me-2"></i>Scan Your First Receipt
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Grid View -->
+            <div id="receipts-grid" class="row g-3 p-3 d-none">
+                <!-- Receipts will be loaded here -->
+            </div>
+            
+            <!-- List View -->
+            <div id="receipts-list-view" class="d-none">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Vendor</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receipts-table-body">
+                            <!-- Receipts will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer with pagination -->
+        <div class="card-footer bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div id="receipt-count" class="text-muted">
+                    <span id="total-receipts">0</span> receipts found
+                </div>
+                <nav aria-label="Receipt pagination">
+                    <ul class="pagination pagination-sm mb-0" id="receipts-pagination">
+                        <!-- Pagination will be populated by JavaScript -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Details Modal -->
+<div class="modal fade" id="receipt-detail-modal" tabindex="-1" aria-labelledby="receiptDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="receiptDetailModalLabel">Receipt Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="receipt-detail-content">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading receipt details...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" id="view-full-receipt" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt me-1"></i>
+                    View Full Details
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="delete-receipt-modal" tabindex="-1" aria-labelledby="deleteReceiptModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteReceiptModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this receipt? This action cannot be undone.</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Warning: Deleting this receipt will also remove any associated data like expense allocations.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirm-delete-receipt" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i>
+                    Delete Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom JavaScript for this template -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Receipt history page loaded");
+    // DOM elements
+    const loadingEl = document.getElementById('loading-receipts');
+    const errorContainerEl = document.getElementById('error-container');
+    const errorMessageEl = document.getElementById('error-message');
+    const noReceiptsEl = document.getElementById('no-receipts');
+    const receiptsGridEl = document.getElementById('receipts-grid');
+    const receiptsListViewEl = document.getElementById('receipts-list-view');
+    const receiptsTableBodyEl = document.getElementById('receipts-table-body');
+    const totalReceiptsEl = document.getElementById('total-receipts');
+    const receiptsPaginationEl = document.getElementById('receipts-pagination');
+    const retryButtonEl = document.getElementById('retry-load');
+    const filterDateFromEl = document.getElementById('filter-date-from');
+    const filterDateToEl = document.getElementById('filter-date-to');
+    const filterCategoryEl = document.getElementById('filter-category');
+    const applyFiltersBtn = document.getElementById('apply-filters');
+    const clearFiltersBtn = document.getElementById('clear-filters');
+    const viewModeGridBtn = document.getElementById('view-mode-grid');
+    const viewModeListBtn = document.getElementById('view-mode-list');
+    const receiptDetailModalEl = document.getElementById('receipt-detail-modal');
+    const receiptDetailContentEl = document.getElementById('receipt-detail-content');
+    const viewFullReceiptBtn = document.getElementById('view-full-receipt');
+    const deleteReceiptModalEl = document.getElementById('delete-receipt-modal');
+    const confirmDeleteReceiptBtn = document.getElementById('confirm-delete-receipt');
+    
+    // State variables
+    let allReceipts = [];
+    let filteredReceipts = [];
+    let categories = new Set();
+    let currentPage = 1;
+    let itemsPerPage = 12;
+    let viewMode = 'grid';
+    let receiptToDelete = null;
+    
+    // Initialize receipt history
+    loadReceipts();
+    
+    // Set up event listeners
+    retryButtonEl.addEventListener('click', loadReceipts);
+    applyFiltersBtn.addEventListener('click', applyFilters);
+    clearFiltersBtn.addEventListener('click', clearFilters);
+    viewModeGridBtn.addEventListener('click', () => setViewMode('grid'));
+    viewModeListBtn.addEventListener('click', () => setViewMode('list'));
+    confirmDeleteReceiptBtn.addEventListener('click', deleteSelectedReceipt);
+    
+    // Load receipts from server
+    function loadReceipts() {
+        console.log("Loading receipts from server");
+        // Show loading, hide other states
+        showLoadingState();
+        
+        // Fetch receipts
+        fetch('/list_receipts')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Received receipt data:", data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Process receipts
+                if (!data.receipts || data.receipts.length === 0) {
+                    showEmptyState();
+                    return;
+                }
+                
+                // Store receipts and extract categories
+                allReceipts = data.receipts;
+                filteredReceipts = [...allReceipts];
+                
+                // Extract unique categories
+                categories = new Set();
+                allReceipts.forEach(receipt => {
+                    if (receipt.expense_major_category) {
+                        categories.add(receipt.expense_major_category);
+                    }
+                });
+                
+                // Populate category filter
+                populateCategoryFilter();
+                
+                // Update UI
+                totalReceiptsEl.textContent = allReceipts.length;
+                renderPagination();
+                renderReceipts();
+                
+                // Show receipts
+                showReceiptsState();
+            })
+            .catch(error => {
+                console.error("Error loading receipts:", error);
+                showErrorState(error.message);
+            });
+    }
+    
+    // Render receipts based on current view mode
+    function renderReceipts() {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, filteredReceipts.length);
+        const receiptsToShow = filteredReceipts.slice(startIndex, endIndex);
+        
+        if (viewMode === 'grid') {
+            renderGridView(receiptsToShow);
+        } else {
+            renderListView(receiptsToShow);
+        }
+    }
+    
+    // Render grid view
+    function renderGridView(receipts) {
+        receiptsGridEl.innerHTML = '';
+        
+        receipts.forEach(receipt => {
+            const date = receipt.date ? new Date(receipt.date) : null;
+            const formattedDate = date ? date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            }) : 'Unknown date';
+            
+            const formattedAmount = `Rs ${parseFloat(receipt.total_amount).toFixed(2)}`;
+            
+            const gridItem = document.createElement('div');
+            gridItem.className = 'col-md-4 col-lg-3';
+            gridItem.innerHTML = `
+                <div class="card h-100 receipt-card" data-receipt-id="${receipt.id}">
+                    <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
+                        <span class="badge bg-primary">${receipt.expense_major_category || 'Uncategorized'}</span>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-link text-dark" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item view-receipt" href="#" data-receipt-id="${receipt.id}">
+                                    <i class="fas fa-eye me-2"></i>View
+                                </a></li>
+                                <li><a class="dropdown-item" href="/view_receipt/${receipt.id}">
+                                    <i class="fas fa-external-link-alt me-2"></i>Full Details
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger delete-receipt" href="#" data-receipt-id="${receipt.id}">
+                                    <i class="fas fa-trash me-2"></i>Delete
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body p-3">
+                        <h5 class="card-title text-truncate mb-1">${receipt.vendor_name}</h5>
+                        <p class="text-muted small mb-2">
+                            <i class="fas fa-calendar-alt me-1"></i> ${formattedDate}
+                        </p>
+                        <p class="mb-1">
+                            <span class="badge rounded-pill bg-light text-dark">
+                                ${receipt.expense_minor_category || 'Uncategorized'}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="card-footer bg-white px-3 py-2 text-end">
+                        <span class="fw-bold">${formattedAmount}</span>
+                    </div>
+                </div>
+            `;
+            
+            receiptsGridEl.appendChild(gridItem);
+        });
+        
+        // Add event listeners to grid items
+        addGridEventListeners();
+    }
+    
+    // Render list view
+    function renderListView(receipts) {
+        receiptsTableBodyEl.innerHTML = '';
+        
+        receipts.forEach(receipt => {
+            const date = receipt.date ? new Date(receipt.date) : null;
+            const formattedDate = date ? date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            }) : 'Unknown date';
+            
+            const formattedAmount = `Rs ${parseFloat(receipt.total_amount).toFixed(2)}`;
+            
+            const row = document.createElement('tr');
+            row.setAttribute('data-receipt-id', receipt.id);
+            row.innerHTML = `
+                <td>${formattedDate}</td>
+                <td class="text-truncate" style="max-width: 200px;">${receipt.vendor_name}</td>
+                <td>
+                    <span class="badge bg-primary">${receipt.expense_major_category || 'Uncategorized'}</span>
+                    <br>
+                    <span class="badge rounded-pill bg-light text-dark mt-1">
+                        ${receipt.expense_minor_category || 'Uncategorized'}
+                    </span>
+                </td>
+                <td>${formattedAmount}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary view-receipt" data-receipt-id="${receipt.id}">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <a href="/view_receipt/${receipt.id}" class="btn btn-outline-secondary">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                        <button class="btn btn-outline-danger delete-receipt" data-receipt-id="${receipt.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            
+            receiptsTableBodyEl.appendChild(row);
+        });
+        
+        // Add event listeners to list items
+        addListEventListeners();
+    }
+    
+    // Render pagination controls
+    function renderPagination() {
+        receiptsPaginationEl.innerHTML = '';
+        
+        const totalPages = Math.ceil(filteredReceipts.length / itemsPerPage);
+        
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `
+            <a class="page-link" href="#" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        `;
+        prevLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage > 1) {
+                currentPage--;
+                renderPagination();
+                renderReceipts();
+            }
+        });
+        receiptsPaginationEl.appendChild(prevLi);
+        
+        // Page numbers
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        
+        if (endPage - startPage < 4 && startPage > 1) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+            pageLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                currentPage = i;
+                renderPagination();
+                renderReceipts();
+            });
+            receiptsPaginationEl.appendChild(pageLi);
+        }
+        
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `
+            <a class="page-link" href="#" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        `;
+        nextLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPagination();
+                renderReceipts();
+            }
+        });
+        receiptsPaginationEl.appendChild(nextLi);
+    }
+    
+    // Populate category filter dropdown
+    function populateCategoryFilter() {
+        // Clear existing options (except the first one)
+        while (filterCategoryEl.options.length > 1) {
+            filterCategoryEl.remove(1);
+        }
+        
+        // Add new category options
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            filterCategoryEl.appendChild(option);
+        });
+    }
+    
+    // Apply filters to receipts
+    function applyFilters() {
+        const dateFrom = filterDateFromEl.value ? new Date(filterDateFromEl.value) : null;
+        const dateTo = filterDateToEl.value ? new Date(filterDateToEl.value) : null;
+        const category = filterCategoryEl.value;
+        
+        // Apply filters
+        filteredReceipts = allReceipts.filter(receipt => {
+            // Filter by date range
+            if (dateFrom || dateTo) {
+                const receiptDate = receipt.date ? new Date(receipt.date) : null;
+                if (!receiptDate) return false;
+                
+                if (dateFrom && receiptDate < dateFrom) return false;
+                if (dateTo) {
+                    // Set time to end of day for "to" date
+                    const adjustedDateTo = new Date(dateTo);
+                    adjustedDateTo.setHours(23, 59, 59, 999);
+                    if (receiptDate > adjustedDateTo) return false;
+                }
+            }
+            
+            // Filter by category
+            if (category && receipt.expense_major_category !== category) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Reset to first page
+        currentPage = 1;
+        
+        // Update UI
+        totalReceiptsEl.textContent = filteredReceipts.length;
+        
+        // Show appropriate state
+        if (filteredReceipts.length === 0) {
+            showEmptyState();
+        } else {
+            renderPagination();
+            renderReceipts();
+            showReceiptsState();
+        }
+    }
+    
+    // Clear all filters
+    function clearFilters() {
+        filterDateFromEl.value = '';
+        filterDateToEl.value = '';
+        filterCategoryEl.value = '';
+        
+        // Reset to unfiltered data
+        filteredReceipts = [...allReceipts];
+        currentPage = 1;
+        
+        // Update UI
+        totalReceiptsEl.textContent = filteredReceipts.length;
+        
+        // Show appropriate state
+        if (filteredReceipts.length === 0) {
+            showEmptyState();
+        } else {
+            renderPagination();
+            renderReceipts();
+            showReceiptsState();
+        }
+    }
+    
+    // Set the view mode (grid or list)
+    function setViewMode(mode) {
+        viewMode = mode;
+        
+        // Update active button
+        if (mode === 'grid') {
+            viewModeGridBtn.classList.add('active');
+            viewModeListBtn.classList.remove('active');
+            receiptsGridEl.classList.remove('d-none');
+            receiptsListViewEl.classList.add('d-none');
+        } else {
+            viewModeGridBtn.classList.remove('active');
+            viewModeListBtn.classList.add('active');
+            receiptsGridEl.classList.add('d-none');
+            receiptsListViewEl.classList.remove('d-none');
+        }
+        
+        // Render receipts in the selected view
+        renderReceipts();
+    }
+    
+    // Add event listeners to grid items
+    function addGridEventListeners() {
+        // View receipt details
+        document.querySelectorAll('.view-receipt').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const receiptId = button.getAttribute('data-receipt-id');
+                showReceiptDetails(receiptId);
+            });
+        });
+        
+        // Delete receipt
+        document.querySelectorAll('.delete-receipt').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const receiptId = button.getAttribute('data-receipt-id');
+                showDeleteConfirmation(receiptId);
+            });
+        });
+        
+        // Card click for details
+        document.querySelectorAll('.receipt-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                // Only trigger if not clicking on an action button
+                if (!e.target.closest('.dropdown') && !e.target.closest('a')) {
+                    const receiptId = card.getAttribute('data-receipt-id');
+                    showReceiptDetails(receiptId);
+                }
+            });
+        });
+    }
+    
+    // Add event listeners to list items
+    function addListEventListeners() {
+        // View receipt details
+        document.querySelectorAll('.view-receipt').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const receiptId = button.getAttribute('data-receipt-id');
+                showReceiptDetails(receiptId);
+            });
+        });
+        
+        // Delete receipt
+        document.querySelectorAll('.delete-receipt').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const receiptId = button.getAttribute('data-receipt-id');
+                showDeleteConfirmation(receiptId);
+            });
+        });
+        
+        // Row click for details
+        document.querySelectorAll('tr[data-receipt-id]').forEach(row => {
+            row.addEventListener('click', (e) => {
+                // Only trigger if not clicking on an action button
+                if (!e.target.closest('button') && !e.target.closest('a')) {
+                    const receiptId = row.getAttribute('data-receipt-id');
+                    showReceiptDetails(receiptId);
+                }
+            });
+        });
+    }
+    
+    // Show receipt details in modal
+    function showReceiptDetails(receiptId) {
+        // Find receipt by ID
+        const receipt = allReceipts.find(r => r.id == receiptId);
+        if (!receipt) {
+            console.error("Receipt not found:", receiptId);
+            return;
+        }
+        
+        // Format data
+        const date = receipt.date ? new Date(receipt.date) : null;
+        const formattedDate = date ? date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }) : 'Unknown date';
+        
+        const formattedAmount = `Rs ${parseFloat(receipt.total_amount).toFixed(2)}`;
+        
+        // Set modal content
+        receiptDetailContentEl.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="mb-3">${receipt.vendor_name}</h5>
+                    <p class="mb-1"><i class="fas fa-calendar-alt me-2"></i> ${formattedDate}</p>
+                    <p class="mb-1"><i class="fas fa-map-marker-alt me-2"></i> ${receipt.vendor_address || 'No address'}</p>
+                    <p class="mb-1"><i class="fas fa-phone me-2"></i> ${receipt.vendor_contact || 'No contact info'}</p>
+                    <p class="mb-3"><i class="fas fa-receipt me-2"></i> VAT: ${receipt.vat_registration_number || 'Not provided'}</p>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-primary p-2">${receipt.expense_major_category || 'Uncategorized'}</span>
+                        <span class="badge bg-light text-dark p-2">${receipt.expense_minor_category || 'Uncategorized'}</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Financial Summary</h5>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Subtotal:</span>
+                                <span>Rs ${(parseFloat(receipt.total_amount) - (parseFloat(receipt.vat_tax || 0) + parseFloat(receipt.sscl_tax || 0))).toFixed(2)}</span>
+                            </div>
+                            ${receipt.vat_tax ? `
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>VAT Tax:</span>
+                                <span>Rs ${parseFloat(receipt.vat_tax).toFixed(2)}</span>
+                            </div>
+                            ` : ''}
+                            ${receipt.sscl_tax ? `
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>SSCL Tax:</span>
+                                <span>Rs ${parseFloat(receipt.sscl_tax).toFixed(2)}</span>
+                            </div>
+                            ` : ''}
+                            ${receipt.service_charge ? `
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Service Charge:</span>
+                                <span>Rs ${parseFloat(receipt.service_charge).toFixed(2)}</span>
+                            </div>
+                            ` : ''}
+                            <hr>
+                            <div class="d-flex justify-content-between fw-bold">
+                                <span>Total:</span>
+                                <span>${formattedAmount}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <span>Tax Deductible:</span>
+                                <span>Rs ${parseFloat(receipt.tax_deductible_amount || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Set the full details link
+        viewFullReceiptBtn.href = `/view_receipt/${receiptId}`;
+        
+        // Show the modal
+        const modalInstance = new bootstrap.Modal(receiptDetailModalEl);
+        modalInstance.show();
+    }
+    
+    // Show delete confirmation modal
+    function showDeleteConfirmation(receiptId) {
+        receiptToDelete = receiptId;
+        const modalInstance = new bootstrap.Modal(deleteReceiptModalEl);
+        modalInstance.show();
+    }
+    
+    // Delete the selected receipt
+    function deleteSelectedReceipt() {
+        if (!receiptToDelete) return;
+        
+        console.log("Deleting receipt:", receiptToDelete);
+        
+        fetch('/receipts/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                receipt_ids: [receiptToDelete]
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Close the modal
+            const modalInstance = bootstrap.Modal.getInstance(deleteReceiptModalEl);
+            modalInstance.hide();
+            
+            // Remove receipt from arrays
+            allReceipts = allReceipts.filter(r => r.id != receiptToDelete);
+            filteredReceipts = filteredReceipts.filter(r => r.id != receiptToDelete);
+            
+            // Update UI
+            if (filteredReceipts.length === 0) {
+                showEmptyState();
+            } else {
+                totalReceiptsEl.textContent = filteredReceipts.length;
+                renderPagination();
+                renderReceipts();
+            }
+            
+            // Show success message
+            showSuccessNotification("Receipt deleted successfully.");
+            
+            // Reset
+            receiptToDelete = null;
+        })
+        .catch(error => {
+            console.error("Error deleting receipt:", error);
+            showErrorNotification("Failed to delete receipt: " + error.message);
+            
+            // Close the modal
+            const modalInstance = bootstrap.Modal.getInstance(deleteReceiptModalEl);
+            modalInstance.hide();
+        });
+    }
+    
+    // Show success notification
+    function showSuccessNotification(message) {
+        const notification = document.createElement('div');
+        notification.className = 'toast align-items-center text-white bg-success border-0 position-fixed bottom-0 end-0 m-3';
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', 'assertive');
+        notification.setAttribute('aria-atomic', 'true');
+        
+        notification.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-check-circle me-2"></i> ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        const toast = new bootstrap.Toast(notification, { autohide: true, delay: 3000 });
+        toast.show();
+        
+        // Remove from DOM after it's hidden
+        notification.addEventListener('hidden.bs.toast', () => {
+            notification.remove();
+        });
+    }
+    
+    // Show error notification
+    function showErrorNotification(message) {
+        const notification = document.createElement('div');
+        notification.className = 'toast align-items-center text-white bg-danger border-0 position-fixed bottom-0 end-0 m-3';
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', 'assertive');
+        notification.setAttribute('aria-atomic', 'true');
+        
+        notification.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-exclamation-circle me-2"></i> ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        const toast = new bootstrap.Toast(notification, { autohide: true, delay: 5000 });
+        toast.show();
+        
+        // Remove from DOM after it's hidden
+        notification.addEventListener('hidden.bs.toast', () => {
+            notification.remove();
+        });
+    }
+    
+    // State management functions
+    function showLoadingState() {
+        loadingEl.classList.remove('d-none');
+        errorContainerEl.classList.add('d-none');
+        noReceiptsEl.classList.add('d-none');
+        receiptsGridEl.classList.add('d-none');
+        receiptsListViewEl.classList.add('d-none');
+    }
+    
+    function showErrorState(message) {
+        loadingEl.classList.add('d-none');
+        errorContainerEl.classList.remove('d-none');
+        noReceiptsEl.classList.add('d-none');
+        receiptsGridEl.classList.add('d-none');
+        receiptsListViewEl.classList.add('d-none');
+        
+        errorMessageEl.textContent = message || 'Error loading receipts';
+    }
+    
+    function showEmptyState() {
+        loadingEl.classList.add('d-none');
+        errorContainerEl.classList.add('d-none');
+        noReceiptsEl.classList.remove('d-none');
+        receiptsGridEl.classList.add('d-none');
+        receiptsListViewEl.classList.add('d-none');
+    }
+    
+    function showReceiptsState() {
+        loadingEl.classList.add('d-none');
+        errorContainerEl.classList.add('d-none');
+        noReceiptsEl.classList.add('d-none');
+        
+        if (viewMode === 'grid') {
+            receiptsGridEl.classList.remove('d-none');
+            receiptsListViewEl.classList.add('d-none');
+        } else {
+            receiptsGridEl.classList.add('d-none');
+            receiptsListViewEl.classList.remove('d-none');
+        }
+    }
+});
+</script>
+{% endblock %}
