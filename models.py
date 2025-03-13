@@ -39,6 +39,22 @@ class Organization(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Personal vs Business designation
+    is_personal = db.Column(db.Boolean, default=False)  # Flag for personal organization
+    
+    # Tax-related fields
+    tax_rate_type = db.Column(db.String(20), default="business")  # "business" or "personal"
+    
+    # Business tax rate fields (used when tax_rate_type = "business")
+    corporate_tax_rate = db.Column(db.Float, nullable=True, default=24.0)  # Corporate tax rate percentage
+    dividend_tax_rate = db.Column(db.Float, nullable=True, default=14.0)  # Dividend tax rate percentage
+    
+    # Personal tax rate fields (used when tax_rate_type = "personal")
+    employment_tax_rate = db.Column(db.Float, nullable=True, default=24.0)  # Employment income tax rate
+    investment_tax_rate = db.Column(db.Float, nullable=True, default=14.0)  # Investment income tax rate
+    business_income_tax_rate = db.Column(db.Float, nullable=True, default=36.0)  # Personal business income tax
+    consulting_tax_rate = db.Column(db.Float, nullable=True, default=15.0)  # Consulting income tax rate
+    
     # Branding and customization
     primary_color = db.Column(db.String(20), nullable=True, default="#4a6da7")
     secondary_color = db.Column(db.String(20), nullable=True, default="#f5f8ff")
@@ -50,6 +66,7 @@ class Organization(db.Model):
     clients = db.relationship('Client', backref='organization', lazy=True)
     invoices = db.relationship('Invoice', backref='organization', lazy=True)
     bank_accounts = db.relationship('BankAccount', backref='organization', lazy=True)
+    personal_users = db.relationship('User', back_populates='personal_organization', lazy=True)
     
     def to_dict(self):
         """Convert the organization to a dictionary."""
@@ -151,10 +168,13 @@ class User(UserMixin, db.Model):
     # Social login information
     social_id = db.Column(db.String(255), unique=True, nullable=True)
     social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
+    # Reference to personal organization
+    personal_organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
     organizations = db.relationship('OrganizationUser', back_populates='user', lazy=True, cascade='all, delete-orphan')
+    personal_organization = db.relationship('Organization', foreign_keys=[personal_organization_id], back_populates='personal_users')
     receipts = db.relationship('Receipt', backref='user', lazy=True)
     income_details = db.relationship('UserIncome', backref='user', lazy=True, uselist=False)
     clients = db.relationship('Client', backref='user', lazy=True)
@@ -198,6 +218,8 @@ class User(UserMixin, db.Model):
             'role': self.role,
             'provider': self.social_provider,
             'created_at': self.created_at.isoformat(),
+            'personal_organization_id': self.personal_organization_id,
+            'personal_organization': self.personal_organization.to_dict() if self.personal_organization else None,
             'organizations': [org_user.to_dict() for org_user in self.organizations]
         }
 
