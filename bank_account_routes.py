@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import text
 
 from app import db
-from models import BankAccount, Invoice
+from models import BankAccount, Invoice, User, Organization, OrganizationUser, UserRole
 
 # Create a Blueprint for bank account routes
 bank_account_bp = Blueprint('bank_account', __name__)
@@ -329,6 +329,346 @@ def api_default_bank_account():
         return jsonify(account)
     return jsonify({})
 
+@bank_account_bp.route('/organization/<int:org_id>/bank-accounts')
+@login_required
+def organization_bank_accounts(org_id):
+    """Render the organization bank accounts page for organization owners."""
+    # Check if user is allowed to manage this organization's bank accounts
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id, 
+        organization_id=org_id
+    ).first()
+    
+    if not org_user or org_user.role != UserRole.OWNER.value:
+        flash('You must be an organization owner to manage bank accounts.', 'danger')
+        return redirect(url_for('organizations'))
+    
+    # Get organization details
+    organization = Organization.query.get_or_404(org_id)
+    
+    # Get all bank accounts for this organization
+    result = db.session.execute(text("""
+        SELECT id, user_id, organization_id, account_name, bank_name, account_number, 
+               branch_name, swift_code, iban, is_default, created_at, updated_at 
+        FROM bank_account 
+        WHERE organization_id = :org_id
+        ORDER BY is_default DESC, account_name ASC
+    """), {'org_id': org_id})
+    
+    # Convert to list of dictionaries
+    accounts = []
+    for row in result:
+        accounts.append({
+            'id': row[0],
+            'user_id': row[1],
+            'organization_id': row[2],
+            'account_name': row[3],
+            'bank_name': row[4],
+            'account_number': row[5],
+            'branch_name': row[6],
+            'swift_code': row[7],
+            'iban': row[8],
+            'is_default': row[9],
+            'created_at': row[10],
+            'updated_at': row[11]
+        })
+    
+    return render_template('organization_bank_accounts.html', 
+                           organization=organization,
+                           accounts=accounts)
+
+@bank_account_bp.route('/organization/<int:org_id>/bank-accounts/create', methods=['GET', 'POST'])
+@login_required
+def create_organization_bank_account(org_id):
+    """Create a new bank account for an organization (owner only)."""
+    # Check if user is allowed to manage this organization's bank accounts
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first()
+    
+    if not org_user or org_user.role != UserRole.OWNER.value:
+        flash('You must be an organization owner to add bank accounts.', 'danger')
+        return redirect(url_for('organizations'))
+    
+    # Get organization details
+    organization = Organization.query.get_or_404(org_id)
+    
+    if request.method == 'POST':
+        account_name = request.form.get('account_name')
+        bank_name = request.form.get('bank_name')
+        account_number = request.form.get('account_number')
+        branch_name = request.form.get('branch_name')
+        swift_code = request.form.get('swift_code')
+        iban = request.form.get('iban')
+        is_default = True if request.form.get('is_default') else False
+        
+        # Validate required fields
+        if not account_name or not bank_name or not account_number:
+            flash('Please fill in all required fields.', 'danger')
+            return render_template('create_organization_bank_account.html', organization=organization)
+        
+        # If this account is set as default, unset any existing default accounts
+        if is_default:
+            db.session.execute(text("""
+                UPDATE bank_account 
+                SET is_default = false 
+                WHERE organization_id = :org_id AND is_default = true
+            """), {'org_id': org_id})
+        
+        # Create new bank account for organization
+        new_account = BankAccount(
+            user_id=current_user.id,  # For audit purposes, track who created it
+            organization_id=org_id,
+            account_name=account_name,
+            bank_name=bank_name,
+            account_number=account_number,
+            branch_name=branch_name,
+            swift_code=swift_code,
+            iban=iban,
+            is_default=is_default
+        )
+        
+        db.session.add(new_account)
+        db.session.commit()
+        
+        flash('Organization bank account added successfully.', 'success')
+        return redirect(url_for('organization_bank_accounts', org_id=org_id))
+    
+    return render_template('create_organization_bank_account.html', organization=organization)
+
+@bank_account_bp.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_organization_bank_account(org_id, account_id):
+    """Edit an organization bank account (owner only)."""
+    # Check if user is allowed to manage this organization's bank accounts
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first()
+    
+    if not org_user or org_user.role != UserRole.OWNER.value:
+        flash('You must be an organization owner to edit bank accounts.', 'danger')
+        return redirect(url_for('organizations'))
+    
+    # Get organization details
+    organization = Organization.query.get_or_404(org_id)
+    
+    # Get the bank account, ensuring it belongs to this organization
+    result = db.session.execute(text("""
+        SELECT id, user_id, organization_id, account_name, bank_name, account_number, 
+               branch_name, swift_code, iban, is_default, created_at, updated_at 
+        FROM bank_account 
+        WHERE id = :account_id AND organization_id = :org_id
+    """), {'account_id': account_id, 'org_id': org_id}).first()
+    
+    if not result:
+        abort(404)
+    
+    # Create a proper account object
+    class AccountObject:
+        def __init__(self, data):
+            self.id = data[0]
+            self.user_id = data[1]
+            self.organization_id = data[2]
+            self.account_name = data[3]
+            self.bank_name = data[4]
+            self.account_number = data[5]
+            self.branch_name = data[6]
+            self.swift_code = data[7]
+            self.iban = data[8]
+            self.is_default = data[9]
+            self.created_at = data[10]
+            self.updated_at = data[11]
+    
+    account = AccountObject(result)
+    
+    if request.method == 'POST':
+        account_name = request.form.get('account_name')
+        bank_name = request.form.get('bank_name')
+        account_number = request.form.get('account_number')
+        branch_name = request.form.get('branch_name')
+        swift_code = request.form.get('swift_code')
+        iban = request.form.get('iban')
+        is_default = True if request.form.get('is_default') else False
+        
+        # Validate required fields
+        if not account_name or not bank_name or not account_number:
+            flash('Please fill in all required fields.', 'danger')
+            return render_template('edit_organization_bank_account.html', account=account, organization=organization)
+        
+        # If this account is set as default, unset any existing default accounts
+        if is_default and not account.is_default:
+            db.session.execute(text("""
+                UPDATE bank_account 
+                SET is_default = false 
+                WHERE organization_id = :org_id AND id != :account_id AND is_default = true
+            """), {'org_id': org_id, 'account_id': account_id})
+        
+        # Update the account details
+        db.session.execute(text("""
+            UPDATE bank_account 
+            SET account_name = :account_name,
+                bank_name = :bank_name,
+                account_number = :account_number,
+                branch_name = :branch_name,
+                swift_code = :swift_code,
+                iban = :iban,
+                is_default = :is_default,
+                updated_at = :updated_at
+            WHERE id = :id AND organization_id = :org_id
+        """), {
+            'account_name': account_name,
+            'bank_name': bank_name,
+            'account_number': account_number,
+            'branch_name': branch_name,
+            'swift_code': swift_code,
+            'iban': iban,
+            'is_default': is_default,
+            'updated_at': datetime.utcnow(),
+            'id': account.id,
+            'org_id': org_id
+        })
+        
+        db.session.commit()
+        
+        flash('Organization bank account updated successfully.', 'success')
+        return redirect(url_for('organization_bank_accounts', org_id=org_id))
+    
+    return render_template('edit_organization_bank_account.html', account=account, organization=organization)
+
+@bank_account_bp.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/delete', methods=['POST'])
+@login_required
+def delete_organization_bank_account(org_id, account_id):
+    """Delete an organization bank account (owner only)."""
+    # Check if user is allowed to manage this organization's bank accounts
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first()
+    
+    if not org_user or org_user.role != UserRole.OWNER.value:
+        flash('You must be an organization owner to delete bank accounts.', 'danger')
+        return redirect(url_for('organizations'))
+    
+    # Get the bank account, ensuring it belongs to this organization
+    result = db.session.execute(text("""
+        SELECT id, organization_id, is_default 
+        FROM bank_account 
+        WHERE id = :account_id AND organization_id = :org_id
+    """), {'account_id': account_id, 'org_id': org_id}).first()
+    
+    if not result:
+        abort(404)
+    
+    # Check if account is used in any invoices
+    invoices_using_account = Invoice.query.filter_by(bank_account_id=account_id).count()
+    if invoices_using_account > 0:
+        flash(f'Cannot delete this account as it is used in {invoices_using_account} invoice(s).', 'danger')
+        return redirect(url_for('organization_bank_accounts', org_id=org_id))
+    
+    # If this was the default account, set another one as default if available
+    if result[2]:  # is_default
+        other_account = db.session.execute(text("""
+            SELECT id FROM bank_account 
+            WHERE organization_id = :org_id AND id != :account_id 
+            LIMIT 1
+        """), {'org_id': org_id, 'account_id': account_id}).first()
+        
+        if other_account:
+            db.session.execute(text("""
+                UPDATE bank_account 
+                SET is_default = true 
+                WHERE id = :id
+            """), {'id': other_account[0]})
+    
+    # Delete the account
+    db.session.execute(text("""
+        DELETE FROM bank_account 
+        WHERE id = :id AND organization_id = :org_id
+    """), {'id': account_id, 'org_id': org_id})
+    
+    db.session.commit()
+    
+    flash('Organization bank account deleted successfully.', 'success')
+    return redirect(url_for('organization_bank_accounts', org_id=org_id))
+
+@bank_account_bp.route('/api/organization/<int:org_id>/bank-accounts')
+@login_required
+def api_organization_bank_accounts(org_id):
+    """API endpoint to get all bank accounts for an organization."""
+    # Check if user has access to this organization
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first()
+    
+    if not org_user:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get all bank accounts for this organization
+    result = db.session.execute(text("""
+        SELECT id, account_name, bank_name, account_number, 
+               branch_name, swift_code, iban, is_default
+        FROM bank_account 
+        WHERE organization_id = :org_id
+        ORDER BY is_default DESC, account_name ASC
+    """), {'org_id': org_id})
+    
+    # Convert to list of dictionaries
+    accounts = []
+    for row in result:
+        accounts.append({
+            'id': row[0],
+            'account_name': row[1],
+            'bank_name': row[2],
+            'account_number': row[3],
+            'branch_name': row[4],
+            'swift_code': row[5],
+            'iban': row[6],
+            'is_default': row[7]
+        })
+    
+    return jsonify(accounts)
+
+@bank_account_bp.route('/api/organization/<int:org_id>/bank-accounts/default')
+@login_required
+def api_organization_default_bank_account(org_id):
+    """API endpoint to get default bank account for an organization."""
+    # Check if user has access to this organization
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first()
+    
+    if not org_user:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get the default bank account for this organization
+    result = db.session.execute(text("""
+        SELECT id, account_name, bank_name, account_number, 
+               branch_name, swift_code, iban, is_default
+        FROM bank_account 
+        WHERE organization_id = :org_id AND is_default = true
+        LIMIT 1
+    """), {'org_id': org_id})
+    
+    row = result.first()
+    if row:
+        account = {
+            'id': row[0],
+            'account_name': row[1],
+            'bank_name': row[2],
+            'account_number': row[3],
+            'branch_name': row[4],
+            'swift_code': row[5],
+            'iban': row[6],
+            'is_default': row[7]
+        }
+        return jsonify(account)
+    
+    return jsonify({})
+
 # These are the routes to be registered in app.py
 def register_routes(app):
     """Register the bank account routes with the app."""
@@ -340,3 +680,11 @@ def register_routes(app):
     app.route('/bank-accounts/<int:account_id>/delete', methods=['POST'])(delete_bank_account)
     app.route('/api/bank-accounts')(api_bank_accounts)
     app.route('/api/bank-accounts/default')(api_default_bank_account)
+    
+    # Organization bank account routes
+    app.route('/organization/<int:org_id>/bank-accounts')(organization_bank_accounts)
+    app.route('/organization/<int:org_id>/bank-accounts/create', methods=['GET', 'POST'])(create_organization_bank_account)
+    app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])(edit_organization_bank_account)
+    app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/delete', methods=['POST'])(delete_organization_bank_account)
+    app.route('/api/organization/<int:org_id>/bank-accounts')(api_organization_bank_accounts)
+    app.route('/api/organization/<int:org_id>/bank-accounts/default')(api_organization_default_bank_account)
