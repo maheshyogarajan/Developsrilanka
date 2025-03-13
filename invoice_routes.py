@@ -64,14 +64,14 @@ def invoices():
                 break
     
     # If no org is selected or invalid org ID, use the default org
-    if not selected_org and organizations:
+    if not selected_org and organizations and not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         for org in organizations:
             if org['is_default']:
                 selected_org = org
                 break
         
         # If no default, just use the first one
-        if not selected_org:
+        if not selected_org and organizations:
             selected_org = organizations[0]
     
     # Use raw SQL to query invoices to avoid organization_id column issues
@@ -210,6 +210,16 @@ def invoices():
     
     db.session.commit()
     
+    # If this is an AJAX request, return the partial HTML
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render_template('invoices.html', 
+                              invoices=invoices, 
+                              clients=clients, 
+                              organizations=organizations,
+                              selected_org=selected_org,
+                              invoice_statuses=[(status.name, status.value) for status in InvoiceStatus])
+    
+    # Regular full page render
     return render_template('invoices.html', 
                            invoices=invoices, 
                            clients=clients, 
