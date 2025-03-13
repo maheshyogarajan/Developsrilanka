@@ -392,6 +392,7 @@ def edit_invoice(invoice_id):
         try:
             # Update invoice details
             invoice.client_id = request.form.get('client_id')
+            invoice.bank_account_id = request.form.get('bank_account_id') or None
             invoice.issue_date = datetime.strptime(request.form.get('issue_date'), '%Y-%m-%d')
             invoice.due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
             invoice.currency = request.form.get('currency', 'LKR')
@@ -468,9 +469,42 @@ def edit_invoice(invoice_id):
     # GET request - render the form
     clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
     
+    # Get organization for this invoice
+    result = db.session.execute(text("""
+        SELECT organization_id FROM invoice
+        WHERE id = :invoice_id
+        LIMIT 1
+    """), {'invoice_id': invoice.id}).first()
+    
+    organization_id = result[0] if result else None
+    
+    # Get bank accounts for this organization
+    bank_accounts = []
+    if organization_id:
+        result = db.session.execute(text("""
+            SELECT id, account_name, bank_name, account_number, 
+                   branch_name, swift_code, iban, is_default
+            FROM bank_account 
+            WHERE organization_id = :org_id
+            ORDER BY is_default DESC, account_name ASC
+        """), {'org_id': organization_id})
+        
+        for row in result:
+            bank_accounts.append({
+                'id': row[0],
+                'account_name': row[1],
+                'bank_name': row[2],
+                'account_number': row[3],
+                'branch_name': row[4],
+                'swift_code': row[5],
+                'iban': row[6],
+                'is_default': row[7]
+            })
+    
     return render_template('edit_invoice.html', 
                            invoice=invoice,
-                           clients=clients)
+                           clients=clients,
+                           bank_accounts=bank_accounts)
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
 @login_required

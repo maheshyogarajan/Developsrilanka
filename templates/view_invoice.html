@@ -146,6 +146,22 @@
                                     {% endif %}
                                 </span>
                             </div>
+                            {% if bank_account %}
+                            <div class="mb-3 mt-3">
+                                <div class="fw-bold">Payment Information</div>
+                                <div>{{ bank_account.bank_name }}</div>
+                                <div>Account: {{ bank_account.account_number }}</div>
+                                {% if bank_account.branch_name %}
+                                    <div>Branch: {{ bank_account.branch_name }}</div>
+                                {% endif %}
+                                {% if bank_account.swift_code %}
+                                    <div>SWIFT/BIC: {{ bank_account.swift_code }}</div>
+                                {% endif %}
+                                {% if bank_account.iban %}
+                                    <div>IBAN: {{ bank_account.iban }}</div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
                             <div class="d-flex justify-content-between mb-2">
                                 <span>Amount:</span>
                                 <span class="fw-bold">{{ invoice.total|currency }}</span>
