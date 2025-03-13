@@ -746,14 +746,15 @@
                                                 <span>Total USD Income:</span>
                                                 <strong>USD {{ "{:,.0f}".format(total_usd_consulting_income) }}</strong>
                                             </div>
-                                            {% set remaining_deductible = total_tax_deductible - min(total_tax_deductible, total_business_income) %}
+                                            {% set business_deductible = total_tax_deductible if total_tax_deductible < total_business_income else total_business_income %}
+                                            {% set remaining_deductible = total_tax_deductible - business_deductible %}
                                             <div class="d-flex justify-content-between mb-2">
                                                 <span>Remaining Deductible:</span>
                                                 <strong>Rs {{ "{:,.0f}".format(remaining_deductible) }}</strong>
                                             </div>
                                             <div class="d-flex justify-content-between">
                                                 <span>Tax Savings at 15%:</span>
-                                                <strong class="text-success">Rs {{ "{:,.0f}".format(min(remaining_deductible, total_usd_consulting_income) * 0.15) }}</strong>
+                                                <strong class="text-success">Rs {{ "{:,.0f}".format((remaining_deductible if remaining_deductible < total_usd_consulting_income else total_usd_consulting_income) * 0.15) }}</strong>
                                             </div>
                                         </div>
                                     </div>
