@@ -24,7 +24,7 @@ def allocate_to_client(receipt_id):
     # Check if there's already a client expense for this receipt
     existing_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
     if existing_expense:
-        flash('This receipt has already been allocated to a client', 'warning')
+        flash('This receipt has already been allocated to a client. You can edit the existing allocation instead.', 'warning')
         return redirect(url_for('client_expense.view_client_expense', expense_id=existing_expense.id))
     
     # Get the user's default organization

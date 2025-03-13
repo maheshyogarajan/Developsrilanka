@@ -16,6 +16,10 @@
                     <li><a class="dropdown-item" href="{{ url_for('client_expense.allocate_to_client', receipt_id=receipt.id) }}">
                         <i class="fas fa-user-tie me-2"></i>Allocate to Client
                     </a></li>
+                    <li><div class="dropdown-divider"></div></li>
+                    <li><div class="dropdown-item text-muted fst-italic small">
+                        <i class="fas fa-info-circle me-2"></i>You can allocate to both company and client
+                    </div></li>
                 </ul>
             </div>
             <a href="{{ url_for('receipt_history') }}" class="btn btn-secondary">Back to List</a>
@@ -74,6 +78,35 @@
                                 <tr>
                                     <th scope="row">Added on:</th>
                                     <td>{{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% endif %}
+                                
+                                <!-- Display allocation information -->
+                                {% if company_expense %}
+                                <tr>
+                                    <th scope="row">Company Expense:</th>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-building me-1"></i> Yes
+                                        </span>
+                                        <a href="{{ url_for('expense.view_expense', expense_id=company_expense.id) }}" class="ms-2 small">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                
+                                {% if client_expense %}
+                                <tr>
+                                    <th scope="row">Client Expense:</th>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-user-tie me-1"></i> Yes
+                                        </span>
+                                        <a href="{{ url_for('client_expense.view_client_expense', expense_id=client_expense.id) }}" class="ms-2 small">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
                                 </tr>
                                 {% endif %}
                             </tbody>

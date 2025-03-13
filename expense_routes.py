@@ -230,56 +230,48 @@ def view_expense(expense_id):
     
     user_org_role = role_result[0] if role_result else None
     
-    # Get the expense with detailed information
-    expense_result = db.session.execute(text("""
-        SELECT e.id, e.receipt_id, e.user_id, e.organization_id, e.description, 
-               e.status, e.submitted_date, e.approval_date, e.reimbursed_date,
-               e.approved_by_user_id, e.reimbursed_by_user_id, e.notes,
-               r.vendor_name, r.date, r.total_amount, r.image_path,
-               r.vendor_address, r.vendor_contact, r.vat_registration_number,
-               u.name as submitter_name, u.email as submitter_email,
-               a.name as approver_name, rb.name as reimburser_name
-        FROM company_expense e
-        JOIN receipt r ON e.receipt_id = r.id
-        JOIN user u ON e.user_id = u.id
-        LEFT JOIN user a ON e.approved_by_user_id = a.id
-        LEFT JOIN user rb ON e.reimbursed_by_user_id = rb.id
-        WHERE e.id = :expense_id
-        LIMIT 1
-    """), {'expense_id': expense_id}).first()
-    
-    if not expense_result:
-        abort(404)
+    # Get the expense with detailed information using ORM instead of raw SQL
+    expense_obj = CompanyExpense.query.get_or_404(expense_id)
     
     # Check if user has permission to view this expense
     # Allow if: user is the submitter, or user is owner/admin of the organization
-    if expense_result[2] != current_user.id and user_org_role not in ['owner', 'admin']:
+    if expense_obj.user_id != current_user.id and user_org_role not in ['owner', 'admin']:
         abort(403)
     
+    # Get the related receipt
+    receipt = Receipt.query.get_or_404(expense_obj.receipt_id)
+    
+    # Get user information for submitter, approver, and reimburser
+    submitter = User.query.get(expense_obj.user_id)
+    approver = User.query.get(expense_obj.approved_by_user_id) if expense_obj.approved_by_user_id else None
+    reimburser = User.query.get(expense_obj.reimbursed_by_user_id) if expense_obj.reimbursed_by_user_id else None
+    
+    # Build expense dictionary
     expense = {
-        'id': expense_result[0],
-        'receipt_id': expense_result[1],
-        'user_id': expense_result[2],
-        'organization_id': expense_result[3],
-        'description': expense_result[4],
-        'status': expense_result[5],
-        'submitted_date': expense_result[6],
-        'approval_date': expense_result[7],
-        'reimbursed_date': expense_result[8],
-        'approved_by_user_id': expense_result[9],
-        'reimbursed_by_user_id': expense_result[10],
-        'notes': expense_result[11],
-        'vendor_name': expense_result[12],
-        'receipt_date': expense_result[13],
-        'total_amount': expense_result[14],
-        'image_path': expense_result[15],
-        'vendor_address': expense_result[16],
-        'vendor_contact': expense_result[17],
-        'vat_registration_number': expense_result[18],
-        'submitter_name': expense_result[19],
-        'submitter_email': expense_result[20],
-        'approver_name': expense_result[21],
-        'reimburser_name': expense_result[22]
+        'id': expense_obj.id,
+        'receipt_id': expense_obj.receipt_id,
+        'user_id': expense_obj.user_id,
+        'organization_id': expense_obj.organization_id,
+        'description': expense_obj.description,
+        'status': expense_obj.status,
+        'submitted_date': expense_obj.submitted_date,
+        'approval_date': expense_obj.approval_date,
+        'reimbursed_date': expense_obj.reimbursed_date,
+        'approved_by_user_id': expense_obj.approved_by_user_id,
+        'reimbursed_by_user_id': expense_obj.reimbursed_by_user_id,
+        'notes': expense_obj.notes,
+        'vendor_name': receipt.vendor_name,
+        'receipt_date': receipt.date,
+        'total_amount': receipt.total_amount,
+        'image_path': receipt.image_path,
+        'vendor_address': receipt.vendor_address,
+        'vendor_contact': receipt.vendor_contact,
+        'vat_registration_number': receipt.vat_registration_number,
+        'submitter_name': submitter.name if submitter else 'Unknown',
+        'submitter_email': submitter.email if submitter else '',
+        'approver_name': approver.name if approver else None,
+        'reimburser_name': reimburser.name if reimburser else None,
+        'is_reimbursable': getattr(expense_obj, 'is_reimbursable', True)  # Add support for is_reimbursable field
     }
     
     # Get receipt items
@@ -539,7 +531,8 @@ def create_expense_from_receipt(receipt_id):
     # Check if there's already an expense for this receipt
     existing_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
     if existing_expense:
-        flash('This receipt has already been submitted as an expense', 'warning')
+        # Allow viewing/editing existing expense instead of creating a new one
+        flash('This receipt has already been submitted as a company expense. You can edit the existing expense.', 'info')
         return redirect(url_for('expense.view_expense', expense_id=existing_expense.id))
     
     # Get the user's default organization
