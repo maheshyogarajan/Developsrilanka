@@ -1,0 +1,174 @@
+{% extends "layout.html" %}
+
+{% block title %}Company Expenses - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Company Expenses</h2>
+            <p class="text-muted">Submit, track, and manage company expenses for reimbursement.</p>
+        </div>
+        <div class="col-md-auto">
+            <a href="{{ url_for('expense.submit_expense') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-2"></i>Submit New Expense
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Stats cards -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
+            <div class="card shadow-sm bg-warning text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-warning me-3">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Submitted</div>
+                            <div class="fs-3">{{ stats.submitted.count }}</div>
+                            <div class="fs-6">{{ stats.submitted.amount|currency }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
+            <div class="card shadow-sm bg-info text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-info me-3">
+                            <i class="fas fa-thumbs-up"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Approved</div>
+                            <div class="fs-3">{{ stats.approved.count }}</div>
+                            <div class="fs-6">{{ stats.approved.amount|currency }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
+            <div class="card shadow-sm bg-success text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-success me-3">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Reimbursed</div>
+                            <div class="fs-3">{{ stats.reimbursed.count }}</div>
+                            <div class="fs-6">{{ stats.reimbursed.amount|currency }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
+            <div class="card shadow-sm bg-danger text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-danger me-3">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Rejected</div>
+                            <div class="fs-3">{{ stats.rejected.count }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expenses List -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0">
+                {% if user_org_role in ['owner', 'admin'] %}
+                    All Organization Expenses
+                {% else %}
+                    My Expenses
+                {% endif %}
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if expenses %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Vendor</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                {% if user_org_role in ['owner', 'admin'] %}
+                                <th>Submitted By</th>
+                                {% endif %}
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in expenses %}
+                                <tr>
+                                    <td>{{ expense.receipt_date|date }}</td>
+                                    <td>{{ expense.vendor_name }}</td>
+                                    <td>{{ expense.total_amount|currency }}</td>
+                                    <td>
+                                        {% if expense.status == 'submitted' %}
+                                            <span class="badge bg-warning">Submitted</span>
+                                        {% elif expense.status == 'approved' %}
+                                            <span class="badge bg-info">Approved</span>
+                                        {% elif expense.status == 'reimbursed' %}
+                                            <span class="badge bg-success">Reimbursed</span>
+                                        {% elif expense.status == 'rejected' %}
+                                            <span class="badge bg-danger">Rejected</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if user_org_role in ['owner', 'admin'] %}
+                                    <td>{{ expense.submitter_name }}</td>
+                                    {% endif %}
+                                    <td>
+                                        <a href="{{ url_for('expense.view_expense', expense_id=expense.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if expense.status == 'submitted' and expense.user_id == current_user.id %}
+                                            <a href="{{ url_for('expense.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-3 text-muted">
+                        <i class="fas fa-clipboard-list fa-4x"></i>
+                    </div>
+                    <h4>No expenses found</h4>
+                    <p class="text-muted">Submit your first expense for reimbursement</p>
+                    <a href="{{ url_for('expense.submit_expense') }}" class="btn btn-primary">
+                        <i class="fas fa-plus-circle me-2"></i>Submit New Expense
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

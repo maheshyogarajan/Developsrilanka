@@ -1,0 +1,280 @@
+{% extends "layout.html" %}
+
+{% block title %}View Expense - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Expense Details</h2>
+            <p class="text-muted">View expense details and reimbursement status.</p>
+        </div>
+        <div class="col-md-auto">
+            <a href="{{ url_for('expense.expenses') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Expenses
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <!-- Left Column - Expense Details -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Expense Information</h5>
+                    <div>
+                        {% if expense.status == 'submitted' %}
+                            <span class="badge bg-warning">Submitted</span>
+                        {% elif expense.status == 'approved' %}
+                            <span class="badge bg-info">Approved</span>
+                        {% elif expense.status == 'reimbursed' %}
+                            <span class="badge bg-success">Reimbursed</span>
+                        {% elif expense.status == 'rejected' %}
+                            <span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Submitted by</h6>
+                            <p>{{ expense.submitter_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Email</h6>
+                            <p>{{ expense.submitter_email }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Submitted Date</h6>
+                            <p>{{ expense.submitted_date|datetime }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Receipt Date</h6>
+                            <p>{{ expense.receipt_date|date }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Vendor</h6>
+                            <p>{{ expense.vendor_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Amount</h6>
+                            <p class="fs-5 fw-bold">{{ expense.total_amount|currency }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if expense.vendor_address %}
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Vendor Address</h6>
+                            <p>{{ expense.vendor_address|nl2br }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Vendor Contact</h6>
+                            <p>{{ expense.vendor_contact or 'Not available' }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if expense.vat_registration_number %}
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>VAT Registration Number</h6>
+                            <p>{{ expense.vat_registration_number }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6>Expense Description</h6>
+                            <p>{{ expense.description or 'No description provided' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6>Additional Notes</h6>
+                            <p>{{ expense.notes|nl2br or 'No notes provided' }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Receipt Items -->
+                    <h6 class="border-bottom pb-2 mb-3">Receipt Items</h6>
+                    {% if expense.receipt_items %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-end">Quantity</th>
+                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-center">Tax Deductible</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in expense.receipt_items %}
+                                    <tr>
+                                        <td>{{ item.name }}</td>
+                                        <td class="text-end">{{ item.quantity }}</td>
+                                        <td class="text-end">{{ item.price|currency }}</td>
+                                        <td class="text-end">{{ (item.quantity * item.price)|currency }}</td>
+                                        <td class="text-center">
+                                            {% if item.tax_deductible %}
+                                                <i class="fas fa-check text-success"></i>
+                                            {% else %}
+                                                <i class="fas fa-times text-muted"></i>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No items available</p>
+                    {% endif %}
+                    
+                    <!-- Approval and Reimbursement Info -->
+                    {% if expense.status in ['approved', 'reimbursed'] %}
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Approval Information</h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Approved By</h6>
+                            <p>{{ expense.approver_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Approval Date</h6>
+                            <p>{{ expense.approval_date|datetime }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if expense.status == 'reimbursed' %}
+                    <h6 class="border-bottom pb-2 mb-3">Reimbursement Information</h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Reimbursed By</h6>
+                            <p>{{ expense.reimburser_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Reimbursement Date</h6>
+                            <p>{{ expense.reimbursed_date|datetime }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Action Buttons for Admins/Owners -->
+                    {% if user_org_role in ['owner', 'admin'] and expense.status == 'submitted' %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <form method="POST" action="{{ url_for('expense.approve_expense', expense_id=expense.id) }}">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-thumbs-up me-2"></i>Approve
+                                    </button>
+                                </form>
+                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                                    <i class="fas fa-times-circle me-2"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if user_org_role in ['owner', 'admin'] and expense.status == 'approved' %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <form method="POST" action="{{ url_for('expense.reimburse_expense', expense_id=expense.id) }}">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check-circle me-2"></i>Mark as Reimbursed
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Edit button for submitter -->
+                    {% if expense.user_id == current_user.id and expense.status == 'submitted' %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <a href="{{ url_for('expense.edit_expense', expense_id=expense.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-edit me-2"></i>Edit Expense
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column - Receipt Image -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0">Receipt Image</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if expense.image_path %}
+                    <img src="{{ url_for('static', filename=expense.image_path.replace('static/', '')) }}" 
+                         class="img-fluid mb-3" alt="Receipt image">
+                    <div class="d-grid">
+                        <a href="{{ url_for('static', filename=expense.image_path.replace('static/', '')) }}" 
+                           class="btn btn-outline-primary" target="_blank">
+                            <i class="fas fa-search-plus me-2"></i>View Full Size
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="text-muted my-5">
+                        <i class="fas fa-receipt fa-4x mb-3"></i>
+                        <p>No receipt image available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('expense.reject_expense', expense_id=expense.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rejectModalLabel">Reject Expense</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="rejection_reason" class="form-label">Reason for Rejection</label>
+                        <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="3" 
+                                placeholder="Please provide a reason for rejecting this expense" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Reject Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

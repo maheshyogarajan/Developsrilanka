@@ -493,6 +493,62 @@ class BankAccount(db.Model):
         }
 
 
+class ExpenseStatus(Enum):
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    REIMBURSED = "reimbursed"
+    REJECTED = "rejected"
+
+class CompanyExpense(db.Model):
+    """Model for storing company expense information for reimbursement."""
+    id = db.Column(db.Integer, primary_key=True)
+    receipt_id = db.Column(db.Integer, db.ForeignKey('receipt.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
+    
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default=ExpenseStatus.SUBMITTED.value)
+    
+    submitted_date = db.Column(db.DateTime, default=datetime.utcnow)
+    approval_date = db.Column(db.DateTime, nullable=True)
+    reimbursed_date = db.Column(db.DateTime, nullable=True)
+    
+    approved_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    reimbursed_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    receipt = db.relationship('Receipt', backref='company_expense', lazy=True, uselist=False)
+    submitter = db.relationship('User', foreign_keys=[user_id], backref='submitted_expenses', lazy=True)
+    approver = db.relationship('User', foreign_keys=[approved_by_user_id], backref='approved_expenses', lazy=True)
+    reimburser = db.relationship('User', foreign_keys=[reimbursed_by_user_id], backref='reimbursed_expenses', lazy=True)
+    
+    def to_dict(self):
+        """Convert the company expense to a dictionary."""
+        return {
+            'id': self.id,
+            'receipt_id': self.receipt_id,
+            'user_id': self.user_id,
+            'organization_id': self.organization_id,
+            'description': self.description or '',
+            'status': self.status,
+            'submitted_date': self.submitted_date.isoformat() if self.submitted_date else None,
+            'approval_date': self.approval_date.isoformat() if self.approval_date else None,
+            'reimbursed_date': self.reimbursed_date.isoformat() if self.reimbursed_date else None,
+            'approved_by_user_id': self.approved_by_user_id,
+            'reimbursed_by_user_id': self.reimbursed_by_user_id,
+            'notes': self.notes or '',
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'receipt': self.receipt.to_dict() if self.receipt else None,
+            'submitter_name': self.submitter.name if self.submitter else '',
+            'approver_name': self.approver.name if self.approver else '',
+            'reimburser_name': self.reimburser.name if self.reimburser else ''
+        }
+
 class UserIncome(db.Model):
     """Model for storing user income details for tax calculations."""
     id = db.Column(db.Integer, primary_key=True)

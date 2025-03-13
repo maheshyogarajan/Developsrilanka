@@ -1,0 +1,190 @@
+{% extends "layout.html" %}
+
+{% block title %}Submit Expense - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Submit Expense</h2>
+            <p class="text-muted">Submit a receipt for company expense reimbursement.</p>
+        </div>
+        <div class="col-md-auto">
+            <a href="{{ url_for('expense.expenses') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Expenses
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0">Select Receipt</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for receipt in receipts %}
+                <div class="col-md-4 mb-4">
+                    <div class="card receipt-card h-100" data-receipt-id="{{ receipt.id }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ receipt.vendor_name }}</h5>
+                            <p class="card-text mb-1">Date: {{ receipt.date|date }}</p>
+                            <p class="card-text mb-1">Amount: {{ receipt.total_amount|currency }}</p>
+                            <p class="card-text mb-3">
+                                Category: 
+                                {% if receipt.expense_major_category %}
+                                    {{ receipt.expense_major_category }}
+                                    {% if receipt.expense_minor_category %}
+                                        / {{ receipt.expense_minor_category }}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Not categorized</span>
+                                {% endif %}
+                            </p>
+                            
+                            {% if receipt.image_path %}
+                            <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
+                                class="img-fluid receipt-thumbnail mb-3" alt="Receipt image">
+                            {% endif %}
+                            
+                            <button class="btn btn-primary select-receipt-btn w-100">
+                                <i class="fas fa-check-circle me-2"></i>Select
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Details Form - Hidden until receipt is selected -->
+    <form id="expenseForm" method="POST" style="display: none;" class="mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0">Expense Details</h5>
+                <p class="text-muted mb-0" id="selectedReceiptInfo"></p>
+            </div>
+            <div class="card-body">
+                <input type="hidden" id="receipt_id" name="receipt_id" value="">
+                
+                <div class="mb-3">
+                    <label for="description" class="form-label">Expense Description*</label>
+                    <input type="text" class="form-control" id="description" name="description" 
+                           placeholder="Brief description of the expense" required>
+                    <div class="form-text">Provide a clear description of the business purpose of this expense.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Additional Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                              placeholder="Any additional details about this expense"></textarea>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="button" id="cancelBtn" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Submit Expense
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle receipt selection
+        const receiptCards = document.querySelectorAll('.receipt-card');
+        const expenseForm = document.getElementById('expenseForm');
+        const receiptIdInput = document.getElementById('receipt_id');
+        const selectedReceiptInfo = document.getElementById('selectedReceiptInfo');
+        const cancelBtn = document.getElementById('cancelBtn');
+        
+        receiptCards.forEach(card => {
+            const selectBtn = card.querySelector('.select-receipt-btn');
+            selectBtn.addEventListener('click', function() {
+                // Reset all cards to unselected state
+                receiptCards.forEach(c => {
+                    c.classList.remove('border-primary');
+                    c.querySelector('.select-receipt-btn').textContent = 'Select';
+                    c.querySelector('.select-receipt-btn').innerHTML = '<i class="fas fa-check-circle me-2"></i>Select';
+                });
+                
+                // Mark this card as selected
+                card.classList.add('border-primary');
+                selectBtn.textContent = 'Selected';
+                selectBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Selected';
+                
+                // Set form values
+                const receiptId = card.dataset.receiptId;
+                receiptIdInput.value = receiptId;
+                
+                // Show form
+                expenseForm.style.display = 'block';
+                expenseForm.scrollIntoView({ behavior: 'smooth' });
+                
+                // Set selected receipt info
+                const vendorName = card.querySelector('.card-title').textContent;
+                const dateText = card.querySelector('.card-text:nth-child(2)').textContent;
+                const amountText = card.querySelector('.card-text:nth-child(3)').textContent;
+                selectedReceiptInfo.textContent = `${vendorName} - ${dateText} - ${amountText}`;
+            });
+        });
+        
+        // Handle cancel button
+        cancelBtn.addEventListener('click', function() {
+            // Reset all cards to unselected state
+            receiptCards.forEach(card => {
+                card.classList.remove('border-primary');
+                card.querySelector('.select-receipt-btn').textContent = 'Select';
+                card.querySelector('.select-receipt-btn').innerHTML = '<i class="fas fa-check-circle me-2"></i>Select';
+            });
+            
+            // Hide form
+            expenseForm.style.display = 'none';
+            
+            // Reset form values
+            receiptIdInput.value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('notes').value = '';
+        });
+    });
+</script>
+
+<style>
+    .receipt-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .receipt-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .receipt-card.border-primary {
+        border-width: 2px;
+    }
+    
+    .receipt-thumbnail {
+        max-height: 150px;
+        object-fit: contain;
+    }
+</style>
+{% endblock %}
