@@ -47,7 +47,7 @@ def expenses():
                    u.name as submitter_name
             FROM company_expense e
             JOIN receipt r ON e.receipt_id = r.id
-            JOIN user u ON e.user_id = u.id
+            JOIN "user" u ON e.user_id = u.id
             WHERE e.organization_id = :org_id
             ORDER BY e.submitted_date DESC
         """), {'org_id': organization_id})
@@ -60,7 +60,7 @@ def expenses():
                    u.name as submitter_name
             FROM company_expense e
             JOIN receipt r ON e.receipt_id = r.id
-            JOIN user u ON e.user_id = u.id
+            JOIN "user" u ON e.user_id = u.id
             WHERE e.user_id = :user_id AND e.organization_id = :org_id
             ORDER BY e.submitted_date DESC
         """), {'user_id': current_user.id, 'org_id': organization_id})
