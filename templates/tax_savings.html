@@ -183,7 +183,7 @@
                     </div>
                 </div>
                 
-                <!-- LKR Income Section -->
+                <!-- LKR Income Section - Personal Organization Only -->
                 <div class="card shadow-sm mb-3 personal-org-section">
                     <div class="card-header bg-primary text-white py-2">
                         <h5 class="mb-0 fs-6 fs-md-5">LKR Income</h5>
@@ -221,6 +221,43 @@
                             </div>
                             <div class="form-text small">Your annual income from investments, dividends, rent, etc.</div>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Business Organization Tax Settings - Business Organization Only -->
+                <div class="card shadow-sm mb-3 business-org-section">
+                    <div class="card-header bg-info text-white py-2">
+                        <h5 class="mb-0 fs-6 fs-md-5">Business Tax Settings</h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="alert alert-info py-2 mb-3">
+                            <small><i class="fas fa-info-circle"></i> Business tax calculation is based on corporate and dividend tax rates.</small>
+                        </div>
+                        
+                        {% if selected_organization and not selected_organization.is_personal %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label small">Corporate Tax Rate</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="{{ selected_organization.corporate_tax_rate|default(24.0) }}%" readonly>
+                                    </div>
+                                    <div class="form-text small">Corporate income tax rate</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label small">Dividend Tax Rate</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="{{ selected_organization.dividend_tax_rate|default(14.0) }}%" readonly>
+                                    </div>
+                                    <div class="form-text small">Dividend distribution tax rate</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted small">Select a business organization to view business tax settings.</p>
+                        {% endif %}
                     </div>
                 </div>
                 
