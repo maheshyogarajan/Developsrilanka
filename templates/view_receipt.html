@@ -13,7 +13,7 @@
                     <li><a class="dropdown-item" href="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}">
                         <i class="fas fa-building me-2"></i>Submit as Company Expense
                     </a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('allocate_to_client', receipt_id=receipt.id) }}">
+                    <li><a class="dropdown-item" href="{{ url_for('client_expense.allocate_to_client', receipt_id=receipt.id) }}">
                         <i class="fas fa-user-tie me-2"></i>Allocate to Client
                     </a></li>
                 </ul>
