@@ -57,6 +57,76 @@
 </style>
 {% endblock %}
 
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle organization type switching
+        const organizationSelect = document.getElementById('organization_id');
+        if (organizationSelect) {
+            organizationSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const isPersonal = selectedOption.getAttribute('data-is-personal') === 'true';
+                
+                // Show/hide appropriate sections based on organization type
+                toggleOrganizationSpecificFields(isPersonal);
+            });
+            
+            // Initial setup based on currently selected organization
+            const selectedOption = organizationSelect.options[organizationSelect.selectedIndex];
+            if (selectedOption) {
+                const isPersonal = selectedOption.getAttribute('data-is-personal') === 'true';
+                toggleOrganizationSpecificFields(isPersonal);
+            }
+        }
+        
+        // Toggle visibility of fields based on organization type
+        function toggleOrganizationSpecificFields(isPersonal) {
+            const personalSections = document.querySelectorAll('.personal-org-section');
+            const businessSections = document.querySelectorAll('.business-org-section');
+            
+            if (isPersonal) {
+                personalSections.forEach(section => section.style.display = 'block');
+                businessSections.forEach(section => section.style.display = 'none');
+            } else {
+                personalSections.forEach(section => section.style.display = 'none');
+                businessSections.forEach(section => section.style.display = 'block');
+            }
+        }
+        
+        // Counter animation for tax savings amount
+        const savingsCounter = document.getElementById('savingsCounter');
+        if (savingsCounter) {
+            const targetValue = parseFloat(savingsCounter.getAttribute('data-value'));
+            let currentValue = 0;
+            const duration = 1000; // 1 second
+            const framesPerSecond = 60;
+            const increment = targetValue / (duration / 1000 * framesPerSecond);
+            
+            const timer = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= targetValue) {
+                    currentValue = targetValue;
+                    clearInterval(timer);
+                    savingsCounter.classList.add('text-pulse');
+                }
+                savingsCounter.textContent = currentValue.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }, 1000 / framesPerSecond);
+            
+            // Progress bar animation
+            const progressBar = document.getElementById('savingsProgressBar');
+            if (progressBar) {
+                setTimeout(() => {
+                    progressBar.style.width = '100%';
+                }, 200);
+            }
+        }
+    });
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container py-3 py-md-4">
     <h1 class="page-title mb-3">Tax Savings Calculator</h1>
@@ -79,13 +149,23 @@
                         <div class="mb-3">
                             <label for="organization_id" class="form-label small">Select Organization</label>
                             <select class="form-select" id="organization_id" name="organization_id">
-                                {% for org in organizations %}
-                                <option value="{{ org.id }}" 
-                                    {% if selected_organization and selected_organization.id == org.id %}selected{% endif %}
-                                    data-is-personal="{{ 'true' if org.is_personal else 'false' }}">
-                                    {{ org.name }} {% if org.is_personal %}(Personal){% endif %}
-                                </option>
-                                {% endfor %}
+                                {% if organizations %}
+                                    {% for org in organizations %}
+                                    <option value="{{ org.id }}" 
+                                        {% if selected_organization and selected_organization.id == org.id %}selected{% endif %}
+                                        data-is-personal="{{ 'true' if org.is_personal else 'false' }}"
+                                        {% if org.is_personal %}class="text-primary fw-bold"{% endif %}>
+                                        {{ org.name }} 
+                                        {% if org.is_personal %}
+                                            <i class="fas fa-user"></i> (Personal)
+                                        {% else %}
+                                            <i class="fas fa-building"></i> (Business)
+                                        {% endif %}
+                                    </option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="" disabled selected>No organizations available</option>
+                                {% endif %}
                             </select>
                             <div class="form-text small">Choose which organization to calculate tax savings for</div>
                         </div>

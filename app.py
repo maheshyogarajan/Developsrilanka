@@ -477,14 +477,21 @@ def tax_savings():
     
     try:
         # Get the user's organizations
-        organizations = [org_user.organization for org_user in current_user.organizations]
+        organizations = []
         
-        # Add personal organization if it exists
+        # First, add the personal organization if it exists (for priority placement)
         if current_user.personal_organization:
-            # Check if personal org is already in the list
-            personal_org_ids = [org.id for org in organizations if org.is_personal]
-            if current_user.personal_organization_id not in personal_org_ids:
-                organizations.append(current_user.personal_organization)
+            logging.info(f"User {current_user.id} has personal organization: {current_user.personal_organization.name}")
+            organizations.append(current_user.personal_organization)
+        else:
+            logging.warning(f"User {current_user.id} has no personal organization")
+        
+        # Add business organizations
+        business_orgs = [org_user.organization for org_user in current_user.organizations if not org_user.organization.is_personal]
+        organizations.extend(business_orgs)
+        
+        # Log organization count for debugging
+        logging.info(f"Total organizations for user {current_user.id}: {len(organizations)} (Personal: {1 if current_user.personal_organization else 0}, Business: {len(business_orgs)})")
         
         # Get the user's income details if they exist
         income_details = UserIncome.query.filter_by(user_id=current_user.id).first()
@@ -544,9 +551,37 @@ def tax_savings():
                 
             time_period = request.args.get('time_period', 'all')
             
+        # Check if user needs a personal organization
+        if not current_user.personal_organization_id:
+            # Create personal organization if it doesn't exist
+            logging.info(f"Creating personal organization for user {current_user.id}")
+            personal_org = Organization(
+                name=f"{current_user.name}'s Personal Finances",
+                is_personal=True,
+                tax_rate_type="personal",
+                email=current_user.email,
+                # Default personal tax settings
+                employment_tax_rate=24.0,
+                business_income_tax_rate=36.0,
+                investment_tax_rate=14.0,
+                consulting_tax_rate=15.0
+            )
+            db.session.add(personal_org)
+            db.session.flush()  # Get the ID without committing yet
+            
+            # Link to user
+            current_user.personal_organization_id = personal_org.id
+            
+            # Add organization to the list for this page view
+            organizations.insert(0, personal_org)
+            
+            db.session.commit()
+            logging.info(f"Created personal organization {personal_org.id} for user {current_user.id}")
+            
         # Default to personal organization if none selected
         if not selected_organization_id and current_user.personal_organization_id:
             selected_organization_id = current_user.personal_organization_id
+            logging.info(f"Defaulting to personal organization {selected_organization_id} for user {current_user.id}")
         
         # Use the new tax calculator to calculate tax savings
         if selected_organization_id:
