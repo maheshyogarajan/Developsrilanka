@@ -1,9 +1,10 @@
 from datetime import datetime
 import logging
 import os
-from flask import render_template, request, jsonify, flash, redirect, url_for
+from flask import render_template, request, jsonify, flash, redirect, url_for, abort
 from flask_login import current_user, login_required
 from flask_mail import Mail, Message
+from sqlalchemy import text
 from app import app, db
 from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount
 
@@ -33,11 +34,79 @@ else:
 @login_required
 def invoices():
     """Render the invoices page showing list of user's invoices."""
-    # Get all invoices for the current user
-    invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.created_at.desc()).all()
+    # Use raw SQL to query invoices to avoid organization_id column issues
+    result = db.session.execute(text("""
+        SELECT id, user_id, client_id, bank_account_id, invoice_number, 
+               issue_date, due_date, status, notes, currency, 
+               subtotal, tax_percent, tax_amount, discount_percent, 
+               discount_amount, total, sender_name, sender_company, 
+               sender_address, sender_phone, sender_email, 
+               sender_tax_registration, last_sent_at, created_at, updated_at
+        FROM invoice
+        WHERE user_id = :user_id
+        ORDER BY created_at DESC
+    """), {'user_id': current_user.id})
+    
+    # Convert raw SQL results to Invoice objects
+    invoices = []
+    for row in result:
+        invoice = Invoice(
+            id=row[0],
+            user_id=row[1],
+            client_id=row[2],
+            bank_account_id=row[3],
+            invoice_number=row[4],
+            issue_date=row[5],
+            due_date=row[6],
+            status=row[7],
+            notes=row[8],
+            currency=row[9],
+            subtotal=row[10],
+            tax_percent=row[11],
+            tax_amount=row[12],
+            discount_percent=row[13],
+            discount_amount=row[14],
+            total=row[15],
+            sender_name=row[16],
+            sender_company=row[17],
+            sender_address=row[18],
+            sender_phone=row[19],
+            sender_email=row[20],
+            sender_tax_registration=row[21],
+            last_sent_at=row[22],
+            created_at=row[23],
+            updated_at=row[24]
+        )
+        invoices.append(invoice)
     
     # Get all clients for the current user (for creating new invoices)
-    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
+    # Use raw SQL to avoid organization_id issues
+    result = db.session.execute(text("""
+        SELECT id, user_id, name, company_name, contact_person, email, 
+               phone, address, tax_registration_number, notes, created_at, updated_at
+        FROM client
+        WHERE user_id = :user_id
+        ORDER BY name
+    """), {'user_id': current_user.id})
+    
+    # Convert raw SQL results to Client objects
+    clients = []
+    for row in result:
+        client = Client(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            company_name=row[3],
+            contact_person=row[4],
+            email=row[5],
+            phone=row[6],
+            address=row[7],
+            tax_registration_number=row[8],
+            notes=row[9],
+            created_at=row[10],
+            updated_at=row[11]
+        )
+        clients.append(client)
     
     # Update invoice statuses based on due dates and payments
     for invoice in invoices:
@@ -67,8 +136,44 @@ def create_invoice():
             # Generate unique invoice number
             invoice_number = f"INV-{uuid.uuid4().hex[:8].upper()}"
             
-            # Create new invoice
+            # Get the user's default organization
+            result = db.session.execute(text("""
+                SELECT organization_id FROM organization_user
+                WHERE user_id = :user_id AND is_default = true
+                LIMIT 1
+            """), {'user_id': current_user.id}).first()
+            
+            organization_id = result[0] if result else None
+            
+            # Create new invoice using raw SQL to include organization_id
+            result = db.session.execute(text("""
+                INSERT INTO invoice (
+                    user_id, client_id, organization_id, invoice_number, 
+                    issue_date, due_date, status, currency, notes, created_at, updated_at
+                ) 
+                VALUES (
+                    :user_id, :client_id, :organization_id, :invoice_number, 
+                    :issue_date, :due_date, :status, :currency, :notes, 
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                RETURNING id
+            """), {
+                'user_id': current_user.id,
+                'client_id': client_id,
+                'organization_id': organization_id,
+                'invoice_number': invoice_number,
+                'issue_date': issue_date,
+                'due_date': due_date,
+                'status': InvoiceStatus.DRAFT.value,
+                'currency': currency,
+                'notes': notes
+            })
+            
+            invoice_id = result.first()[0]
+            
+            # Create an Invoice object to work with for the rest of the function
             invoice = Invoice(
+                id=invoice_id,
                 user_id=current_user.id,
                 client_id=client_id,
                 invoice_number=invoice_number,
@@ -78,8 +183,6 @@ def create_invoice():
                 currency=currency,
                 notes=notes
             )
-            db.session.add(invoice)
-            db.session.commit()
             
             # Extract and create invoice items
             item_descriptions = request.form.getlist('item_description[]')
@@ -157,7 +260,50 @@ def create_invoice():
 @login_required
 def view_invoice(invoice_id):
     """View a specific invoice."""
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    # Use raw SQL to avoid organization_id issues
+    result = db.session.execute(text("""
+        SELECT id, user_id, client_id, bank_account_id, invoice_number, 
+               issue_date, due_date, status, notes, currency, 
+               subtotal, tax_percent, tax_amount, discount_percent, 
+               discount_amount, total, sender_name, sender_company, 
+               sender_address, sender_phone, sender_email, 
+               sender_tax_registration, last_sent_at, created_at, updated_at
+        FROM invoice
+        WHERE id = :invoice_id AND user_id = :user_id
+        LIMIT 1
+    """), {'invoice_id': invoice_id, 'user_id': current_user.id}).first()
+    
+    if not result:
+        abort(404)
+    
+    # Convert row to Invoice object
+    invoice = Invoice(
+        id=result[0],
+        user_id=result[1],
+        client_id=result[2],
+        bank_account_id=result[3],
+        invoice_number=result[4],
+        issue_date=result[5],
+        due_date=result[6],
+        status=result[7],
+        notes=result[8],
+        currency=result[9],
+        subtotal=result[10],
+        tax_percent=result[11],
+        tax_amount=result[12],
+        discount_percent=result[13],
+        discount_amount=result[14],
+        total=result[15],
+        sender_name=result[16],
+        sender_company=result[17],
+        sender_address=result[18],
+        sender_phone=result[19],
+        sender_email=result[20],
+        sender_tax_registration=result[21],
+        last_sent_at=result[22],
+        created_at=result[23],
+        updated_at=result[24]
+    )
     
     # Update invoice status
     invoice.update_status()
