@@ -1,6 +1,11 @@
 
 {% extends 'layout.html' %}
 
+{% block head_js %}
+<!-- Add receipt history error logger -->
+<script src="{{ url_for('static', filename='js/receipt_history_error_logger.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -281,7 +286,46 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error("Error loading receipts:", error);
-                showError(error.message);
+                
+                // Try to extract error details from server response
+                let errorMessage = error.message;
+                let errorId = null;
+                let errorType = null;
+                
+                // Check if the error message contains a JSON structure from our backend
+                if (typeof errorMessage === 'string' && 
+                    errorMessage.includes('error_id') && 
+                    (errorMessage.includes('{') || errorMessage.includes('}'))) {
+                    try {
+                        // Extract the JSON part of the error message
+                        const jsonMatch = errorMessage.match(/\{.*\}/);
+                        if (jsonMatch) {
+                            const errorData = JSON.parse(jsonMatch[0]);
+                            if (errorData.error) {
+                                errorMessage = errorData.error;
+                            }
+                            errorId = errorData.error_id;
+                            errorType = errorData.error_type;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to parse error JSON", e);
+                    }
+                }
+                
+                // Log the error using our error logger
+                if (window.ReceiptHistoryErrorLogger) {
+                    window.ReceiptHistoryErrorLogger.logApiError(
+                        error,
+                        '/list_receipts',
+                        'GET',
+                        {
+                            error_id: errorId,
+                            error_type: errorType
+                        }
+                    );
+                }
+                
+                showError(errorMessage, errorId, errorType);
             });
     }
     
@@ -857,14 +901,35 @@ document.addEventListener('DOMContentLoaded', function() {
         listView.classList.add('d-none');
     }
     
-    function showError(message) {
+    function showError(message, errorId = null, errorType = null) {
         loadingContainer.classList.add('d-none');
         errorContainer.classList.remove('d-none');
         emptyContainer.classList.add('d-none');
         gridView.classList.add('d-none');
         listView.classList.add('d-none');
         
-        errorMessage.textContent = message || 'Error loading receipts';
+        // Format message with error ID if provided
+        let displayMessage = message || 'Error loading receipts';
+        if (errorId) {
+            displayMessage += ` (Ref: ${errorId})`;
+        }
+        
+        errorMessage.textContent = displayMessage;
+        
+        // Log client-side error for tracking
+        if (window.ReceiptHistoryErrorLogger) {
+            window.ReceiptHistoryErrorLogger.logReceiptHistoryError(
+                message,
+                "display_error",
+                { 
+                    error_id: errorId,
+                    error_type: errorType,
+                    page: "receipt_history" 
+                }
+            );
+        } else {
+            console.error("ReceiptHistoryErrorLogger not loaded", message);
+        }
     }
     
     function showEmpty() {
