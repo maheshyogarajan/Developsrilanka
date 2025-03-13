@@ -34,17 +34,16 @@
                     <div class="card-body">
                         <div class="d-flex flex-wrap gap-2" id="organizationFilterContainer">
                             {% for org in organizations %}
-                            <button type="button" 
-                                   class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}"
-                                   data-org-id="{{ org.id }}">
+                            <a href="{{ url_for('invoices', organization_id=org.id) }}" 
+                               class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
                                 {{ org.name }}
                                 {% if org.is_default %}<i class="fas fa-star ms-1 text-warning"></i>{% endif %}
-                            </button>
+                            </a>
                             {% endfor %}
                             {% if selected_org %}
-                            <button type="button" class="btn btn-outline-secondary" id="clearOrgFilter">
+                            <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-times me-1"></i> Clear Filter
-                            </button>
+                            </a>
                             {% endif %}
                         </div>
                     </div>
@@ -60,13 +59,20 @@
                     </div>
                     <div class="card-body">
                         <div class="btn-group d-flex flex-wrap" role="group" aria-label="Invoice Status Filter">
-                            <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
-                            <button type="button" class="btn btn-outline-success" data-filter="paid">Paid</button>
-                            <button type="button" class="btn btn-outline-warning" data-filter="partially_paid">Partially Paid</button>
-                            <button type="button" class="btn btn-outline-info" data-filter="sent">Sent</button>
-                            <button type="button" class="btn btn-outline-danger" data-filter="overdue">Overdue</button>
-                            <button type="button" class="btn btn-outline-secondary" data-filter="draft">Draft</button>
-                            <button type="button" class="btn btn-outline-dark" data-filter="cancelled">Cancelled</button>
+                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None) }}" 
+                               class="btn btn-outline-secondary {% if not request.args.get('status') %}active{% endif %}">All</a>
+                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='paid') }}" 
+                               class="btn btn-outline-success {% if request.args.get('status') == 'paid' %}active{% endif %}">Paid</a>
+                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='partially_paid') }}" 
+                               class="btn btn-outline-warning {% if request.args.get('status') == 'partially_paid' %}active{% endif %}">Partially Paid</a>
+                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='sent') }}" 
+                               class="btn btn-outline-info {% if request.args.get('status') == 'sent' %}active{% endif %}">Sent</a>
+                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='overdue') }}" 
+                               class="btn btn-outline-danger {% if request.args.get('status') == 'overdue' %}active{% endif %}">Overdue</a>
+                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='draft') }}" 
+                               class="btn btn-outline-secondary {% if request.args.get('status') == 'draft' %}active{% endif %}">Draft</a>
+                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='cancelled') }}" 
+                               class="btn btn-outline-dark {% if request.args.get('status') == 'cancelled' %}active{% endif %}">Cancelled</a>
                         </div>
                     </div>
                 </div>
@@ -265,237 +271,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('page-title').textContent = 'Invoice Management';
-        
-        // Organization filter functionality with AJAX
-        console.log('Initializing organization filter...');
-        const orgFilterContainer = document.getElementById('organizationFilterContainer');
-        const clearOrgFilterBtn = document.getElementById('clearOrgFilter');
-        
-        console.log('Organization filter container:', orgFilterContainer);
-        
-        if (orgFilterContainer) {
-            // Handle organization filter buttons click
-            const orgButtons = orgFilterContainer.querySelectorAll('[data-org-id]');
-            console.log('Organization buttons found:', orgButtons.length);
-            
-            orgButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    console.log('Organization button clicked:', this.textContent);
-                    const orgId = this.getAttribute('data-org-id');
-                    console.log('Organization ID:', orgId);
-                    fetchInvoicesByOrganization(orgId);
-                    
-                    // Update active state
-                    orgButtons.forEach(btn => {
-                        btn.classList.remove('btn-primary');
-                        btn.classList.add('btn-outline-primary');
-                    });
-                    this.classList.remove('btn-outline-primary');
-                    this.classList.add('btn-primary');
-                    
-                    // Show clear filter button
-                    if (clearOrgFilterBtn) {
-                        clearOrgFilterBtn.style.display = '';
-                    } else {
-                        // Create clear filter button if it doesn't exist
-                        const clearBtn = document.createElement('button');
-                        clearBtn.id = 'clearOrgFilter';
-                        clearBtn.className = 'btn btn-outline-secondary';
-                        clearBtn.innerHTML = '<i class="fas fa-times me-1"></i> Clear Filter';
-                        clearBtn.addEventListener('click', () => fetchInvoicesByOrganization(null));
-                        orgFilterContainer.appendChild(clearBtn);
-                    }
-                });
-            });
-            
-            // Handle clear filter button click
-            if (clearOrgFilterBtn) {
-                clearOrgFilterBtn.addEventListener('click', function() {
-                    fetchInvoicesByOrganization(null);
-                });
-            }
-        }
-        
-        // Function to fetch invoices by organization
-        function fetchInvoicesByOrganization(orgId) {
-            console.log('Fetching invoices for organization ID:', orgId);
-            
-            // Show loading indicator
-            const tableBody = document.querySelector('#invoicesTable tbody');
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
-            }
-            
-            // Prepare URL
-            let url = '{{ url_for('invoices') }}';
-            if (orgId) {
-                url += '?organization_id=' + orgId;
-            }
-            
-            console.log('Fetching from URL:', url);
-            
-            // Fetch data
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.text();
-            })
-            .then(html => {
-                console.log('Received HTML response');
-                
-                // Create a temporary element to parse the HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                
-                // Extract the table body content
-                const newTableBody = tempDiv.querySelector('#invoicesTable tbody');
-                if (newTableBody && tableBody) {
-                    console.log('Updating table body');
-                    
-                    // Debug the action buttons
-                    const actionButtons = newTableBody.querySelectorAll('.btn-group');
-                    console.log('Action buttons in response:', actionButtons.length);
-                    actionButtons.forEach((group, index) => {
-                        console.log(`Action group ${index} buttons:`, group.querySelectorAll('a').length);
-                    });
-                    
-                    tableBody.innerHTML = newTableBody.innerHTML;
-                    
-                    // Verify buttons after update
-                    const updatedActionButtons = tableBody.querySelectorAll('.btn-group');
-                    console.log('Action buttons after update:', updatedActionButtons.length);
-                } else {
-                    console.error('Could not find table body in response');
-                }
-                
-                // Update the status count cards
-                const statCards = document.querySelectorAll('.card-body .fs-3');
-                const newStatCards = tempDiv.querySelectorAll('.card-body .fs-3');
-                if (statCards.length === newStatCards.length) {
-                    console.log('Updating status cards');
-                    for (let i = 0; i < statCards.length; i++) {
-                        statCards[i].textContent = newStatCards[i].textContent;
-                    }
-                }
-                
-                // Reset status filter
-                const statusFilterButtons = document.querySelectorAll('[data-filter]');
-                statusFilterButtons.forEach(btn => {
-                    if (btn.getAttribute('data-filter') === 'all') {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                });
-                
-                // Update organization filter buttons
-                if (orgId) {
-                    console.log('Updating organization filter buttons for selected org');
-                    // Update active state
-                    const orgButtons = orgFilterContainer.querySelectorAll('[data-org-id]');
-                    orgButtons.forEach(btn => {
-                        if (btn.getAttribute('data-org-id') === orgId) {
-                            btn.classList.remove('btn-outline-primary');
-                            btn.classList.add('btn-primary');
-                        } else {
-                            btn.classList.remove('btn-primary');
-                            btn.classList.add('btn-outline-primary');
-                        }
-                    });
-                } else if (orgFilterContainer) {
-                    console.log('Resetting organization filter buttons');
-                    // Reset all buttons
-                    const orgButtons = orgFilterContainer.querySelectorAll('[data-org-id]');
-                    orgButtons.forEach(btn => {
-                        btn.classList.remove('btn-primary');
-                        btn.classList.add('btn-outline-primary');
-                    });
-                    
-                    // Hide clear filter button
-                    if (clearOrgFilterBtn) {
-                        clearOrgFilterBtn.style.display = 'none';
-                    }
-                }
-                
-                // Reattach status filter event listeners
-                console.log('Reinitializing status filter');
-                initStatusFilter();
-            })
-            .catch(error => {
-                console.error('Error fetching invoices:', error);
-                if (tableBody) {
-                    tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-danger">Error loading invoices. Please refresh the page.</td></tr>';
-                }
-            });
-        }
-        
-        // Initialize status filter functionality
-        function initStatusFilter() {
-            console.log('Initializing status filter');
-            
-            const filterButtons = document.querySelectorAll('[data-filter]');
-            const invoicesTable = document.getElementById('invoicesTable');
-            
-            console.log('Status filter buttons found:', filterButtons.length);
-            console.log('Invoices table found:', invoicesTable ? 'Yes' : 'No');
-            
-            if (filterButtons.length && invoicesTable) {
-                const tableRows = invoicesTable.querySelectorAll('tbody tr');
-                console.log('Table rows found:', tableRows.length);
-                
-                // Remove any existing event listeners (to avoid duplicates)
-                filterButtons.forEach(button => {
-                    const oldButton = button.cloneNode(true);
-                    button.parentNode.replaceChild(oldButton, button);
-                });
-                
-                // Re-select after replacing
-                const newFilterButtons = document.querySelectorAll('[data-filter]');
-                
-                newFilterButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        console.log('Status filter clicked:', this.getAttribute('data-filter'));
-                        
-                        // Update active state of buttons
-                        newFilterButtons.forEach(btn => btn.classList.remove('active'));
-                        this.classList.add('active');
-                        
-                        const filterValue = this.getAttribute('data-filter');
-                        
-                        // Get fresh rows (might have changed due to AJAX)
-                        const currentRows = invoicesTable.querySelectorAll('tbody tr');
-                        console.log('Current rows for filtering:', currentRows.length);
-                        
-                        // Show/hide rows based on filter
-                        currentRows.forEach(row => {
-                            const statusCell = row.querySelector('td:nth-child(7)');  // Updated column index for status
-                            
-                            if (statusCell) {
-                                const statusText = statusCell.textContent.trim().toLowerCase();
-                                console.log('Row status:', statusText, 'Filter:', filterValue);
-                                
-                                if (filterValue === 'all' || statusText.includes(filterValue)) {
-                                    row.style.display = '';
-                                } else {
-                                    row.style.display = 'none';
-                                }
-                            } else {
-                                console.error('Status cell not found in row', row);
-                            }
-                        });
-                    });
-                });
-            }
-        }
-        
-        // Initialize status filter on page load
-        initStatusFilter();
     });
 </script>
 {% endblock %}

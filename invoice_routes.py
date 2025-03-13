@@ -97,6 +97,12 @@ def invoices():
         sql_query += " AND i.organization_id = :organization_id"
         params['organization_id'] = selected_org['id']
     
+    # Filter by status if specified
+    status_filter = request.args.get('status')
+    if status_filter:
+        sql_query += " AND i.status = :status"
+        params['status'] = status_filter
+    
     sql_query += " ORDER BY i.created_at DESC"
     
     result = db.session.execute(text(sql_query), params)
