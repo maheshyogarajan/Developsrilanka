@@ -16,7 +16,33 @@ bank_account_bp = Blueprint('bank_account', __name__)
 @login_required
 def bank_accounts():
     """Render the bank accounts page showing list of user's bank accounts."""
-    accounts = BankAccount.query.filter_by(user_id=current_user.id).all()
+    # Temporarily use raw SQL to avoid the organization_id column issue
+    from sqlalchemy import text
+    
+    # Execute raw SQL that doesn't reference the new column
+    result = db.session.execute(text(
+        'SELECT id, user_id, account_name, bank_name, account_number, '
+        'branch_name, swift_code, iban, is_default, created_at, updated_at '
+        'FROM bank_account WHERE user_id = :user_id'
+    ), {'user_id': current_user.id})
+    
+    # Convert to list of dictionaries
+    accounts = [
+        {
+            'id': row[0], 
+            'user_id': row[1],
+            'account_name': row[2],
+            'bank_name': row[3], 
+            'account_number': row[4],
+            'branch_name': row[5],
+            'swift_code': row[6],
+            'iban': row[7],
+            'is_default': row[8],
+            'created_at': row[9],
+            'updated_at': row[10]
+        } for row in result
+    ]
+    
     return render_template('bank_accounts.html', accounts=accounts)
 
 @bank_account_bp.route('/bank-accounts/create', methods=['GET', 'POST'])
@@ -67,7 +93,32 @@ def create_bank_account():
 @login_required
 def view_bank_account(account_id):
     """View a specific bank account."""
-    account = BankAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    # Temporarily use raw SQL to avoid the organization_id column issue
+    from sqlalchemy import text
+    
+    # Execute raw SQL that doesn't reference the new column
+    result = db.session.execute(text(
+        'SELECT id, user_id, account_name, bank_name, account_number, '
+        'branch_name, swift_code, iban, is_default, created_at, updated_at '
+        'FROM bank_account WHERE id = :account_id AND user_id = :user_id'
+    ), {'account_id': account_id, 'user_id': current_user.id}).first()
+    
+    if not result:
+        abort(404)
+        
+    account = {
+        'id': result[0], 
+        'user_id': result[1],
+        'account_name': result[2],
+        'bank_name': result[3], 
+        'account_number': result[4],
+        'branch_name': result[5],
+        'swift_code': result[6],
+        'iban': result[7],
+        'is_default': result[8],
+        'created_at': result[9],
+        'updated_at': result[10]
+    }
     return render_template('view_bank_account.html', account=account)
 
 @bank_account_bp.route('/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])
@@ -144,16 +195,64 @@ def delete_bank_account(account_id):
 @login_required
 def api_bank_accounts():
     """API endpoint to get all bank accounts for current user."""
-    accounts = BankAccount.query.filter_by(user_id=current_user.id).all()
-    return jsonify([account.to_dict() for account in accounts])
+    # Temporarily use raw SQL to avoid the organization_id column issue
+    from sqlalchemy import text
+    
+    # Execute raw SQL that doesn't reference the new column
+    result = db.session.execute(text(
+        'SELECT id, user_id, account_name, bank_name, account_number, '
+        'branch_name, swift_code, iban, is_default, created_at, updated_at '
+        'FROM bank_account WHERE user_id = :user_id'
+    ), {'user_id': current_user.id})
+    
+    # Convert to list of dictionaries
+    accounts = [
+        {
+            'id': row[0], 
+            'user_id': row[1],
+            'account_name': row[2],
+            'bank_name': row[3], 
+            'account_number': row[4],
+            'branch_name': row[5],
+            'swift_code': row[6],
+            'iban': row[7],
+            'is_default': row[8],
+            'created_at': row[9],
+            'updated_at': row[10]
+        } for row in result
+    ]
+    
+    return jsonify(accounts)
 
 @bank_account_bp.route('/api/bank-accounts/default')
 @login_required
 def api_default_bank_account():
     """API endpoint to get default bank account for current user."""
-    account = BankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
-    if account:
-        return jsonify(account.to_dict())
+    # Temporarily use raw SQL to avoid the organization_id column issue
+    from sqlalchemy import text
+    
+    # Execute raw SQL that doesn't reference the new column
+    result = db.session.execute(text(
+        'SELECT id, user_id, account_name, bank_name, account_number, '
+        'branch_name, swift_code, iban, is_default, created_at, updated_at '
+        'FROM bank_account WHERE user_id = :user_id AND is_default = true LIMIT 1'
+    ), {'user_id': current_user.id}).first()
+    
+    if result:
+        account = {
+            'id': result[0], 
+            'user_id': result[1],
+            'account_name': result[2],
+            'bank_name': result[3], 
+            'account_number': result[4],
+            'branch_name': result[5],
+            'swift_code': result[6],
+            'iban': result[7],
+            'is_default': result[8],
+            'created_at': result[9],
+            'updated_at': result[10]
+        }
+        return jsonify(account)
     return jsonify({})
 
 # These are the routes to be registered in app.py
