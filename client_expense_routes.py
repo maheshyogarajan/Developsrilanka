@@ -349,6 +349,3 @@ def client_expenses_by_client(client_id):
 def register_routes(app):
     """Register the client expense routes with the app."""
     app.register_blueprint(client_expense_bp, url_prefix='')
-    app.add_url_rule('/receipts/<int:receipt_id>/allocate-to-client', 
-                     endpoint='allocate_to_client', 
-                     view_func=allocate_to_client)
