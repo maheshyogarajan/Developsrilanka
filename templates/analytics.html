@@ -233,6 +233,12 @@
                             <div class="chart-container">
                                 <canvas id="majorCategoriesChart"></canvas>
                             </div>
+                            
+                            <!-- Hidden data for charts -->
+                            <div id="majorCategoriesData" 
+                                 data-labels="{{ major_categories|map(attribute='category')|list|tojson }}" 
+                                 data-values="{{ major_categories|map(attribute='total')|list|tojson }}" 
+                                 class="d-none"></div>
                             <div class="mt-3">
                                 <table class="table table-striped table-sm">
                                     <thead>
@@ -277,6 +283,12 @@
                             <div class="chart-container">
                                 <canvas id="minorCategoriesChart"></canvas>
                             </div>
+                            
+                            <!-- Hidden data for charts -->
+                            <div id="minorCategoriesData" 
+                                 data-labels="{{ minor_categories|map(attribute='category')|list|tojson }}" 
+                                 data-values="{{ minor_categories|map(attribute='total')|list|tojson }}" 
+                                 class="d-none"></div>
                             <div class="mt-3">
                                 <table class="table table-striped table-sm">
                                     <thead>
@@ -470,6 +482,14 @@
                                 <canvas id="incomeSourcesChart"></canvas>
                             </div>
                             
+                            <!-- Hidden data for charts -->
+                            <div id="incomeData" 
+                                 data-business-income="{{ total_business_income }}"
+                                 data-employment-income="{{ total_employment_income }}"
+                                 data-investment-income="{{ total_investment_income }}"
+                                 data-usd-income="{{ total_usd_consulting_income }}"
+                                 class="d-none"></div>
+                            
                             <hr class="my-3">
                             
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -618,6 +638,10 @@
                             <div class="chart-container">
                                 <canvas id="personalIncomeChart"></canvas>
                             </div>
+                            
+                            <!-- Hidden data elements for chart access -->
+                            <span id="employmentIncomeValue" class="d-none">{{ total_employment_income }}</span>
+                            <span id="investmentIncomeValue" class="d-none">{{ total_investment_income }}</span>
                             
                             <hr class="my-3">
                             

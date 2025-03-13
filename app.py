@@ -377,8 +377,46 @@ def analytics():
             usd_deduction = min(remaining_deductible, total_usd_consulting_income)
             potential_savings += usd_deduction * tax_rate_usd
         
+        # Get organizations for the filter dropdown
+        from models import OrganizationUser, Organization
+        user_organizations = []
+        default_org = None
+        try:
+            org_users = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+            user_organizations = [ou.organization for ou in org_users]
+            default_org = current_user.get_default_organization()
+        except Exception as org_error:
+            logging.error(f"Error fetching organizations: {str(org_error)}")
+        
+        # Define personal income tax rates
+        employment_tax_rate = 24.0
+        investment_tax_rate = 14.0
+        personal_tax_rate = 24.0  # Default personal tax rate
+        
+        # Calculate weighted average if there's income
+        if total_employment_income > 0 or total_investment_income > 0:
+            total_personal = total_employment_income + total_investment_income
+            if total_personal > 0:
+                personal_tax_rate = (
+                    (total_employment_income * employment_tax_rate) + 
+                    (total_investment_income * investment_tax_rate)
+                ) / total_personal
+        
+        # Get selected organization id from query param
+        selected_organization_id = request.args.get('org_id', None)
+        if selected_organization_id:
+            try:
+                selected_organization_id = int(selected_organization_id)
+            except ValueError:
+                selected_organization_id = None
+                
         return render_template(
             'analytics.html',
+            # Organization data
+            user_organizations=user_organizations,
+            selected_organization_id=selected_organization_id,
+            default_organization=default_org,
+            
             # Expense Analytics
             total_expenses=total_expenses,
             major_categories=major_category_data,
@@ -387,6 +425,7 @@ def analytics():
             recent_receipts=recent_receipt_data,
             company_expense_total=company_expense_total,
             client_expense_total=client_expense_total,
+            
             # Revenue Analytics
             income_data=income_data,
             total_income=total_income,
@@ -395,6 +434,12 @@ def analytics():
             total_business_income=total_business_income,
             total_investment_income=total_investment_income,
             total_usd_consulting_income=total_usd_consulting_income,
+            
+            # Personal Income Analytics
+            employment_tax_rate=employment_tax_rate,
+            investment_tax_rate=investment_tax_rate,
+            personal_tax_rate=personal_tax_rate,
+            
             # Invoice Analytics
             invoice_status_data=invoice_status_data,
             total_invoiced=total_invoiced,
@@ -402,6 +447,7 @@ def analytics():
             total_outstanding=total_outstanding,
             payment_rate=payment_rate,
             recent_invoices=recent_invoices,
+            
             # Tax Analytics
             tax_summary=tax_summary,
             total_tax_deductible=total_tax_deductible,

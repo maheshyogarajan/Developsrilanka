@@ -377,6 +377,11 @@
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     
+    <!-- Analytics Charts JavaScript -->
+    {% if request.path == '/analytics' %}
+    <script src="{{ url_for('static', filename='js/analytics-charts.js') }}"></script>
+    {% endif %}
+    
     <!-- Mobile Navigation Toggle Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
