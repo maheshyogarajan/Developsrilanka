@@ -490,6 +490,15 @@ def record_payment(invoice_id):
     """Record a payment for an invoice."""
     invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     
+    # Check if invoice is already fully paid
+    amount_paid = invoice.get_amount_paid()
+    amount_due = invoice.get_amount_due()
+    
+    # If the invoice is already paid, prevent recording a new payment
+    if amount_paid >= invoice.total:
+        flash('This invoice has already been fully paid. No additional payments can be recorded.', 'warning')
+        return redirect(url_for('view_invoice', invoice_id=invoice.id))
+    
     if request.method == 'POST':
         try:
             # Get form data
@@ -502,6 +511,10 @@ def record_payment(invoice_id):
             # Validate amount
             if amount <= 0:
                 raise ValueError("Payment amount must be greater than zero")
+                
+            # Validate that payment doesn't exceed remaining amount
+            if amount > amount_due:
+                raise ValueError(f"Payment amount (${amount}) exceeds the remaining balance (${amount_due})")
             
             # Create new payment
             payment = Payment(
@@ -516,6 +529,10 @@ def record_payment(invoice_id):
             
             # Update invoice status
             invoice.update_status()
+            
+            # Force refresh the invoice object to ensure latest status
+            db.session.flush()  # Ensure the payment is written to DB
+            db.session.refresh(invoice)  # Reload the invoice with fresh data
             db.session.commit()
             
             flash('Payment recorded successfully!', 'success')
