@@ -146,6 +146,7 @@ def submit_expense():
             receipt_id = request.form.get('receipt_id')
             description = request.form.get('description', '')
             notes = request.form.get('notes', '')
+            is_reimbursable = request.form.get('is_reimbursable') == 'true'
             
             # Verify the receipt belongs to the user
             receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
@@ -160,6 +161,7 @@ def submit_expense():
                 organization_id=organization_id,
                 description=description,
                 status=ExpenseStatus.SUBMITTED.value,
+                is_reimbursable=is_reimbursable,
                 notes=notes,
                 submitted_date=datetime.utcnow()
             )
@@ -557,6 +559,7 @@ def create_expense_from_receipt(receipt_id):
         try:
             description = request.form.get('description', '')
             notes = request.form.get('notes', '')
+            is_reimbursable = request.form.get('is_reimbursable') == 'true'
             
             # Create the company expense
             company_expense = CompanyExpense(
@@ -565,6 +568,7 @@ def create_expense_from_receipt(receipt_id):
                 organization_id=organization_id,
                 description=description,
                 status=ExpenseStatus.SUBMITTED.value,
+                is_reimbursable=is_reimbursable,
                 notes=notes,
                 submitted_date=datetime.utcnow()
             )
