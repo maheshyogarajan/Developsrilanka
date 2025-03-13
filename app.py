@@ -1127,7 +1127,7 @@ def save_receipt():
 @login_required
 def list_receipts():
     """Get a list of all saved receipts for the current user, with organization-aware filtering."""
-    from models import Receipt
+    from models import Receipt, OrganizationUser
     import traceback
     from sqlalchemy import or_, and_
     from error_logger import log_receipt_history_error, log_database_error, handle_and_log_exception, ErrorTypes
@@ -1137,23 +1137,59 @@ def list_receipts():
         user_id = current_user.id
         logging.debug(f"list_receipts: Processing for user_id={user_id}")
         
-        # Get the user's default organization
-        org = current_user.get_default_organization()
+        # Check if we should show all organizations or filter by a specific one
+        show_all_organizations = request.args.get('show_all') == 'true'
+        selected_org_id = request.args.get('organization_id')
         
-        if org:
-            org_id = org.id
-            logging.debug(f"list_receipts: Found default organization_id={org_id} for user_id={user_id}")
-            
-            # Comprehensive query that handles legacy data (null organization_id)
-            # This handles 3 cases:
-            # 1. Receipts belonging to the user's organization
-            # 2. Receipts belonging to the user directly (for compatibility with old data)
-            # 3. Receipts with null organization_id that belong to the user
-            try:
+        # Get all user's organizations for the filter dropdown
+        user_organizations = OrganizationUser.query.filter_by(user_id=user_id).all()
+        organizations = []
+        for org_user in user_organizations:
+            organizations.append({
+                'id': org_user.organization_id,
+                'name': org_user.organization.name,
+                'is_default': org_user.is_default
+            })
+        
+        # Default organization for filtering if not showing all and no specific org selected
+        default_org = None
+        if not show_all_organizations and not selected_org_id:
+            default_org = current_user.get_default_organization()
+            if default_org:
+                selected_org_id = str(default_org.id)
+        
+        # Prepare the query based on organization filtering
+        try:
+            if show_all_organizations:
+                # Show all receipts across all user's organizations and user's personal receipts
+                logging.debug(f"list_receipts: Showing receipts from all organizations for user_id={user_id}")
+                
+                org_ids = [org['id'] for org in organizations]
+                
+                receipts = Receipt.query.filter(
+                    or_(
+                        Receipt.organization_id.in_(org_ids) if org_ids else False,  # All organization receipts
+                        and_(                                                       # Legacy/personal receipts
+                            Receipt.user_id == user_id,
+                            or_(
+                                Receipt.organization_id.is_(None),
+                                Receipt.organization_id == 0
+                            )
+                        )
+                    )
+                ).order_by(Receipt.date.desc()).all()
+                
+                logging.debug(f"list_receipts: Found {len(receipts)} receipts across all organizations for user_id={user_id}")
+                
+            elif selected_org_id:
+                # Filter by specific organization
+                org_id = int(selected_org_id)
+                logging.debug(f"list_receipts: Filtering by organization_id={org_id} for user_id={user_id}")
+                
                 receipts = Receipt.query.filter(
                     or_(
                         Receipt.organization_id == org_id,  # Organization receipts
-                        and_(                              # Legacy receipts
+                        and_(                              # Legacy receipts that match selected org
                             Receipt.user_id == user_id,
                             or_(
                                 Receipt.organization_id.is_(None),
@@ -1164,37 +1200,26 @@ def list_receipts():
                 ).order_by(Receipt.date.desc()).all()
                 
                 logging.debug(f"list_receipts: Found {len(receipts)} receipts for organization_id={org_id} and user_id={user_id}")
-            except Exception as db_error:
-                # Log database-specific error and re-raise
-                log_database_error(
-                    error=db_error,
-                    operation="query",
-                    model="Receipt",
-                    additional_info={
-                        "user_id": user_id,
-                        "organization_id": org_id,
-                        "query_type": "organization_receipts"
-                    }
-                )
-                raise
-        else:
-            logging.debug(f"list_receipts: No default organization found for user_id={user_id}, using user_id filter")
-            # Fallback to just user's receipts if no organization is set
-            try:
-                receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
+            else:
+                # No organization filtering - fall back to user's receipts
+                logging.debug(f"list_receipts: No organization filter, using user_id filter")
+                receipts = Receipt.query.filter_by(user_id=user_id).order_by(Receipt.date.desc()).all()
                 logging.debug(f"list_receipts: Found {len(receipts)} receipts for user_id={user_id}")
-            except Exception as db_error:
-                # Log database-specific error and re-raise
-                log_database_error(
-                    error=db_error,
-                    operation="query",
-                    model="Receipt",
-                    additional_info={
-                        "user_id": user_id,
-                        "query_type": "user_receipts"
-                    }
-                )
-                raise
+                
+        except Exception as db_error:
+            # Log database-specific error and re-raise
+            log_database_error(
+                error=db_error,
+                operation="query",
+                model="Receipt",
+                additional_info={
+                    "user_id": user_id,
+                    "selected_org_id": selected_org_id,
+                    "show_all": show_all_organizations,
+                    "query_type": "filtered_receipts"
+                }
+            )
+            raise
         
         # Convert to list of dictionaries
         receipt_list = []
@@ -1206,7 +1231,17 @@ def list_receipts():
                 receipt_list.append(receipt_dict)
             
             logging.debug(f"list_receipts: Returning {len(receipt_list)} receipts to client")
-            return jsonify({'success': True, 'receipts': receipt_list})
+            
+            # Return organizations along with receipts for the filter UI
+            response_data = {
+                'success': True, 
+                'receipts': receipt_list,
+                'organizations': organizations,
+                'selected_org_id': selected_org_id,
+                'show_all': show_all_organizations
+            }
+            
+            return jsonify(response_data)
         except Exception as conversion_error:
             # Log specific error for data conversion issues
             log_receipt_history_error(

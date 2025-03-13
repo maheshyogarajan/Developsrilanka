@@ -22,19 +22,26 @@
         </div>
         <div class="card-body">
             <form id="filter-form" class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="date-from" class="form-label">Date From</label>
                     <input type="date" class="form-control" id="date-from">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="date-to" class="form-label">Date To</label>
                     <input type="date" class="form-control" id="date-to">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="category" class="form-label">Category</label>
                     <select class="form-select" id="category">
                         <option value="">All Categories</option>
                         <!-- Categories will be populated by JavaScript -->
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="organization" class="form-label">Organization</label>
+                    <select class="form-select" id="organization">
+                        <option value="all">All Organizations</option>
+                        <!-- Organizations will be populated by JavaScript -->
                     </select>
                 </div>
                 <div class="col-md-12 text-end">
@@ -208,6 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const dateFromInput = document.getElementById('date-from');
     const dateToInput = document.getElementById('date-to');
     const categorySelect = document.getElementById('category');
+    const organizationSelect = document.getElementById('organization');
     const applyFiltersBtn = document.getElementById('apply-filters');
     const clearFiltersBtn = document.getElementById('clear-filters');
     const gridViewBtn = document.getElementById('grid-view-btn');
@@ -222,10 +230,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let allReceipts = [];
     let filteredReceipts = [];
     let categories = new Set();
+    let organizations = [];
     let currentPage = 1;
     let itemsPerPage = 12;
     let viewMode = 'grid';
     let receiptToDelete = null;
+    let selectedOrgId = null;
+    let showAllOrganizations = true;
     
     // Initialize
     loadReceipts();
