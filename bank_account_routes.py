@@ -3,8 +3,9 @@ Routes for bank account management.
 """
 from datetime import datetime
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, abort
 from flask_login import login_required, current_user
+from sqlalchemy import text
 
 from app import db
 from models import BankAccount, Invoice
@@ -16,8 +17,6 @@ bank_account_bp = Blueprint('bank_account', __name__)
 @login_required
 def bank_accounts():
     """Render the bank accounts page showing list of user's bank accounts."""
-    # Temporarily use raw SQL to avoid the organization_id column issue
-    from sqlalchemy import text
     
     # Execute raw SQL that doesn't reference the new column
     result = db.session.execute(text(
@@ -94,7 +93,6 @@ def create_bank_account():
 def view_bank_account(account_id):
     """View a specific bank account."""
     # Temporarily use raw SQL to avoid the organization_id column issue
-    from sqlalchemy import text
     
     # Execute raw SQL that doesn't reference the new column
     result = db.session.execute(text(

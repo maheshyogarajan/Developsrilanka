@@ -38,18 +38,37 @@ def add_organization_id_to_bank_account():
             logger.info("Updating existing bank accounts with default organization...")
             
             # Get all bank accounts without organization_id
-            accounts = db.session.execute(db.text(
-                'SELECT ba.id, ou.organization_id FROM bank_account ba '
-                'JOIN user u ON ba.user_id = u.id '
-                'JOIN organization_user ou ON u.id = ou.user_id '
-                'WHERE ba.organization_id IS NULL AND ou.is_default = true'
+            # Note: Using a different approach since we may not have the user table query working correctly
+            logger.info("Gathering bank accounts without organization association...")
+            accounts = []
+            
+            # First, get all accounts with NULL organization_id
+            null_org_accounts = db.session.execute(db.text(
+                'SELECT id, user_id FROM bank_account WHERE organization_id IS NULL'
             )).fetchall()
+            
+            # For each account, find the user's default organization
+            for account in null_org_accounts:
+                default_org = db.session.execute(db.text(
+                    'SELECT organization_id FROM organization_user '
+                    'WHERE user_id = :user_id AND is_default = true'
+                ), {'user_id': account.user_id}).first()
+                
+                if default_org:
+                    accounts.append({
+                        'id': account.id,
+                        'organization_id': default_org.organization_id
+                    })
+                else:
+                    logger.warning(f"No default organization found for user ID {account.user_id}")
+            
+            logger.info(f"Found {len(accounts)} bank accounts to update")
             
             # Update the accounts
             for account in accounts:
                 db.session.execute(db.text(
                     'UPDATE bank_account SET organization_id = :org_id WHERE id = :account_id'
-                ), {'org_id': account.organization_id, 'account_id': account.id})
+                ), {'org_id': account['organization_id'], 'account_id': account['id']})
             
             db.session.commit()
             logger.info(f"Updated {len(accounts)} bank accounts with their default organization.")
