@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice #{{ invoice.invoice_number }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-height: 80px;
+            margin-bottom: 15px;
+        }
+        h1 {
+            color: #4a6da7;
+            margin-bottom: 5px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 25px;
+        }
+        .invoice-details {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f5f8ff;
+            border-radius: 5px;
+        }
+        .invoice-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .invoice-details th {
+            text-align: left;
+            padding: 8px;
+            color: #4a6da7;
+        }
+        .invoice-details td {
+            padding: 8px;
+        }
+        .amount {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        .payment-info {
+            background-color: #f0f7ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4a6da7;
+            color: white;
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            color: #777;
+            text-align: center;
+        }
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Invoice #{{ invoice.invoice_number }}</h1>
+            <p>From {{ sender_name }}</p>
+        </div>
+        
+        <p class="greeting">Dear {{ invoice.client.name }},</p>
+        
+        <p>I hope this email finds you well. Please find attached your invoice #{{ invoice.invoice_number }} for your recent services.</p>
+        
+        <div class="invoice-details">
+            <table>
+                <tr>
+                    <th>Invoice Number:</th>
+                    <td>#{{ invoice.invoice_number }}</td>
+                </tr>
+                <tr>
+                    <th>Issue Date:</th>
+                    <td>{{ invoice.issue_date.strftime('%B %d, %Y') }}</td>
+                </tr>
+                <tr>
+                    <th>Due Date:</th>
+                    <td>{{ invoice.due_date.strftime('%B %d, %Y') }}</td>
+                </tr>
+                <tr>
+                    <th>Amount Due:</th>
+                    <td class="amount">{{ invoice.currency }} {{ "%.2f"|format(invoice.total) }}</td>
+                </tr>
+                <tr>
+                    <th>Status:</th>
+                    <td>
+                        {% if invoice.status == 'paid' %}
+                            <strong style="color: #27ae60;">PAID</strong>
+                        {% elif invoice.status == 'partially_paid' %}
+                            <strong style="color: #f39c12;">PARTIALLY PAID</strong>
+                        {% elif invoice.status == 'overdue' %}
+                            <strong style="color: #e74c3c;">OVERDUE</strong>
+                        {% else %}
+                            <strong style="color: #3498db;">{{ invoice.status|upper }}</strong>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        {% if bank_account %}
+            <div class="payment-info">
+                <h3>Payment Information</h3>
+                <p>Please make payment to the following bank account:</p>
+                <p><strong>Bank:</strong> {{ bank_account.bank_name }}</p>
+                <p><strong>Account Name:</strong> {{ bank_account.account_name }}</p>
+                <p><strong>Account Number:</strong> {{ bank_account.account_number }}</p>
+                {% if bank_account.branch_name %}
+                    <p><strong>Branch:</strong> {{ bank_account.branch_name }}</p>
+                {% endif %}
+                {% if bank_account.swift_code %}
+                    <p><strong>SWIFT/BIC:</strong> {{ bank_account.swift_code }}</p>
+                {% endif %}
+                {% if bank_account.iban %}
+                    <p><strong>IBAN:</strong> {{ bank_account.iban }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <p>Please don't hesitate to reach out if you have any questions about this invoice.</p>
+        
+        <p>Thank you for your business!</p>
+        
+        <p>Warm regards,<br>
+        {{ sender_name }}
+        {% if invoice.sender_company %}
+            <br>{{ invoice.sender_company }}
+        {% endif %}
+        </p>
+        
+        <div class="footer">
+            <p>This email was sent from DevelopSriLanka.com financial platform.</p>
+            <p>© 2025 DevelopSriLanka.com. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

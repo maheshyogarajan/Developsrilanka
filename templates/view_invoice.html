@@ -262,6 +262,14 @@
                             <button type="button" class="btn btn-outline-primary ms-2" onclick="window.print()">
                                 <i class="fas fa-print me-1"></i> Print Invoice
                             </button>
+                            
+                            {% if invoice.client.email and invoice.status != 'draft' %}
+                                <form method="POST" action="{{ url_for('email_invoice', invoice_id=invoice.id) }}" class="d-inline ms-2">
+                                    <button type="submit" class="btn btn-outline-info">
+                                        <i class="fas fa-envelope me-1"></i> Email Invoice
+                                    </button>
+                                </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

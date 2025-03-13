@@ -1,9 +1,31 @@
 from datetime import datetime
 import logging
+import os
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import current_user, login_required
+from flask_mail import Mail, Message
 from app import app, db
-from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod
+from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount
+
+# Initialize Flask-Mail with Gmail settings if not already initialized
+if not hasattr(app, 'mail'):
+    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_USERNAME')
+    app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('GMAIL_USERNAME')
+    
+    # Log mail configuration
+    logging.info(f"Mail configuration: Server={app.config['MAIL_SERVER']}, Port={app.config['MAIL_PORT']}")
+    logging.info(f"Mail username configured: {bool(app.config['MAIL_USERNAME'])}")
+    logging.info(f"Mail password configured: {bool(app.config['MAIL_PASSWORD'])}")
+    
+    # Initialize Flask-Mail
+    mail = Mail(app)
+    app.mail = mail
+else:
+    mail = app.mail
 
 # ================ Invoice Management Routes ================
 
@@ -357,6 +379,67 @@ def delete_payment(invoice_id, payment_id):
         db.session.rollback()
         logging.error(f"Error deleting payment: {str(e)}")
         flash(f'Error deleting payment: {str(e)}', 'danger')
+    
+    return redirect(url_for('view_invoice', invoice_id=invoice.id))
+
+@app.route('/invoices/<int:invoice_id>/email', methods=['POST'])
+@login_required
+def email_invoice(invoice_id):
+    """Email the invoice to the client."""
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    
+    # Check if invoice can be emailed (must have client email and not be a draft)
+    if not invoice.client.email:
+        flash('Client does not have an email address', 'danger')
+        return redirect(url_for('view_invoice', invoice_id=invoice.id))
+    
+    if invoice.status == InvoiceStatus.DRAFT.value:
+        flash('You cannot email a draft invoice. Please mark it as sent first.', 'warning')
+        return redirect(url_for('view_invoice', invoice_id=invoice.id))
+    
+    try:
+        # Create email message
+        subject = f"Invoice #{invoice.invoice_number} from {invoice.sender_name or current_user.name}"
+        
+        # Get sender name (use user's name if sender_name is not set)
+        sender_name = invoice.sender_name or current_user.name
+        
+        # Get bank account details if available
+        bank_account = None
+        if invoice.bank_account_id:
+            bank_account = BankAccount.query.get(invoice.bank_account_id)
+        else:
+            # Use default bank account if available
+            bank_account = BankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
+        
+        # Render HTML email template
+        html_body = render_template(
+            'email/invoice_email.html',
+            invoice=invoice,
+            sender_name=sender_name,
+            bank_account=bank_account,
+            view_url=url_for('view_invoice', invoice_id=invoice.id, _external=True)
+        )
+        
+        # Create message
+        msg = Message(
+            subject=subject,
+            recipients=[invoice.client.email],
+            html=html_body,
+            sender=(sender_name, app.config['MAIL_USERNAME'])
+        )
+        
+        # Send email
+        mail.send(msg)
+        
+        # Update invoice sent timestamp
+        invoice.last_sent_at = datetime.utcnow()
+        db.session.commit()
+        
+        flash(f'Invoice has been emailed to {invoice.client.email} successfully!', 'success')
+    except Exception as e:
+        logging.error(f"Error sending invoice email: {str(e)}")
+        flash(f'Error sending email: {str(e)}', 'danger')
     
     return redirect(url_for('view_invoice', invoice_id=invoice.id))
 
