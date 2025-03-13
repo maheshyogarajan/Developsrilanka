@@ -1125,12 +1125,19 @@ def save_receipt():
 @app.route('/receipts', methods=['GET'])
 @login_required
 def list_receipts():
-    """Get a list of all saved receipts for the current user."""
+    """Get a list of all saved receipts for the current user's organization."""
     from models import Receipt
     
     try:
-        # Query receipts for the current user, ordered by date (newest first)
-        receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
+        # Get the user's default organization
+        org = current_user.get_default_organization()
+        
+        if org:
+            # Query receipts for the current user's organization, ordered by date (newest first)
+            receipts = Receipt.query.filter_by(organization_id=org.id).order_by(Receipt.date.desc()).all()
+        else:
+            # Fallback to just user's receipts if no organization is set
+            receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
         
         # Convert to list of dictionaries
         receipt_list = []
@@ -1149,7 +1156,7 @@ def list_receipts():
 @app.route('/receipts/delete', methods=['POST'])
 @login_required
 def delete_receipts():
-    """Delete multiple receipts by ID, ensuring they belong to the current user."""
+    """Delete multiple receipts by ID, ensuring they belong to the current user's organization."""
     from models import Receipt
     
     try:
@@ -1163,11 +1170,21 @@ def delete_receipts():
         # Convert string IDs to integers
         receipt_ids = [int(id) for id in receipt_ids]
         
-        # Find receipts to delete that belong to the current user
-        receipts_to_delete = Receipt.query.filter(
-            Receipt.id.in_(receipt_ids),
-            Receipt.user_id == current_user.id
-        ).all()
+        # Get the user's default organization
+        org = current_user.get_default_organization()
+        
+        if org:
+            # Find receipts to delete that belong to the user's organization
+            receipts_to_delete = Receipt.query.filter(
+                Receipt.id.in_(receipt_ids),
+                Receipt.organization_id == org.id
+            ).all()
+        else:
+            # Fallback to user's receipts if no organization
+            receipts_to_delete = Receipt.query.filter(
+                Receipt.id.in_(receipt_ids),
+                Receipt.user_id == current_user.id
+            ).all()
         
         deleted_count = len(receipts_to_delete)
         
@@ -1193,15 +1210,22 @@ def delete_receipts():
 @app.route('/receipts/<int:receipt_id>', methods=['GET'])
 @login_required
 def get_receipt(receipt_id):
-    """Get details of a specific receipt that belongs to the current user."""
+    """Get details of a specific receipt that belongs to the current user's organization."""
     from models import Receipt
     
     try:
-        # Find the receipt by ID and user_id to ensure ownership
-        receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
+        # Get the user's default organization
+        org = current_user.get_default_organization()
+        
+        if org:
+            # Find the receipt by ID and organization_id to ensure ownership
+            receipt = Receipt.query.filter_by(id=receipt_id, organization_id=org.id).first()
+        else:
+            # Fallback to user ownership if no organization
+            receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
         
         if not receipt:
-            return jsonify({'error': 'Receipt not found or does not belong to you'}), 404
+            return jsonify({'error': 'Receipt not found or does not belong to your organization'}), 404
         
         # Convert to dictionary with all details
         receipt_dict = receipt.to_dict()
@@ -1215,18 +1239,26 @@ def get_receipt(receipt_id):
 @app.route('/view_receipt/<int:receipt_id>')
 @login_required
 def view_receipt(receipt_id):
-    """Display a specific receipt detail page for the current user."""
+    """Display a specific receipt detail page for the current user's organization."""
     from models import Receipt, CompanyExpense, ClientExpense
     from utils import format_currency
     
     try:
-        # Find the receipt by ID and user_id to ensure ownership
-        logging.debug(f"Fetching receipt {receipt_id} for user {current_user.id}")
-        receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
+        # Get the user's default organization
+        org = current_user.get_default_organization()
+        
+        if org:
+            # Find the receipt by ID and organization_id to ensure ownership
+            logging.debug(f"Fetching receipt {receipt_id} for organization {org.id}")
+            receipt = Receipt.query.filter_by(id=receipt_id, organization_id=org.id).first()
+        else:
+            # Fallback to user ownership if no organization
+            logging.debug(f"Fetching receipt {receipt_id} for user {current_user.id} (no organization)")
+            receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
         
         if not receipt:
-            logging.warning(f"Receipt {receipt_id} not found for user {current_user.id}")
-            flash('Receipt not found or does not belong to you', 'danger')
+            logging.warning(f"Receipt {receipt_id} not found for user/organization")
+            flash('Receipt not found or does not belong to your organization', 'danger')
             return redirect(url_for('receipt_history'))
         
         # Check if this receipt is already allocated
@@ -1261,15 +1293,22 @@ def export_data():
 @app.route('/export/excel', methods=['GET'])
 @login_required
 def export_excel():
-    """Export the current user's receipts as Excel file."""
+    """Export the current user's organization receipts as Excel file."""
     import pandas as pd
     import io
     from models import Receipt
     from datetime import datetime
     
     try:
-        # Query the current user's receipts, ordered by date (newest first)
-        receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
+        # Get the user's default organization
+        org = current_user.get_default_organization()
+        
+        if org:
+            # Query the current organization's receipts, ordered by date (newest first)
+            receipts = Receipt.query.filter_by(organization_id=org.id).order_by(Receipt.date.desc()).all()
+        else:
+            # Fallback to user's receipts if no organization is set
+            receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
         
         if not receipts:
             return jsonify({'error': 'No receipts to export'}), 404

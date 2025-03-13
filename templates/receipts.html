@@ -535,7 +535,19 @@
                             receipt_ids: selectedReceipts
                         }),
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        // Check if we got redirected to the login page
+                        if (response.redirected || !response.ok) {
+                            if (response.url.includes('/login')) {
+                                console.log('Redirected to login page. User not authenticated.');
+                                // Redirect the browser to the login page
+                                window.location.href = '/login';
+                                throw new Error('Authentication required');
+                            }
+                            throw new Error('Failed to delete receipts');
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.error) {
                             throw new Error(data.error);
@@ -620,6 +632,16 @@
                 // Use the server-side Excel export which provides better formatting
                 fetch('/export/excel')
                     .then(response => {
+                        // Check if we got redirected to the login page
+                        if (response.redirected) {
+                            if (response.url.includes('/login')) {
+                                console.log('Redirected to login page. User not authenticated.');
+                                // Redirect the browser to the login page
+                                window.location.href = '/login';
+                                throw new Error('Authentication required');
+                            }
+                        }
+                        
                         if (!response.ok) {
                             // If we get a JSON error response, parse it
                             if (response.headers.get('content-type')?.includes('application/json')) {
