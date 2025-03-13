@@ -38,6 +38,7 @@ class User(UserMixin, db.Model):
     income_details = db.relationship('UserIncome', backref='user', lazy=True, uselist=False)
     clients = db.relationship('Client', backref='user', lazy=True)
     invoices = db.relationship('Invoice', backref='user', lazy=True)
+    bank_accounts = db.relationship('BankAccount', backref='user', lazy=True)
     
     def is_admin(self):
         """Check if user has admin role."""
@@ -168,6 +169,7 @@ class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey('bank_account.id'), nullable=True)
     invoice_number = db.Column(db.String(50), nullable=False)
     issue_date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
     due_date = db.Column(db.Date, nullable=False)
@@ -218,6 +220,8 @@ class Invoice(db.Model):
             'client_name': self.client.name if self.client else '',
             'client_company_name': self.client.company_name if self.client and self.client.company_name else '',
             'client_contact_person': self.client.contact_person if self.client and self.client.contact_person else '',
+            'bank_account_id': self.bank_account_id,
+            'bank_account': self.bank_account.to_dict() if self.bank_account else None,
             'invoice_number': self.invoice_number,
             'issue_date': self.issue_date.strftime('%Y-%m-%d'),
             'due_date': self.due_date.strftime('%Y-%m-%d'),
@@ -287,6 +291,41 @@ class Payment(db.Model):
             'notes': self.notes or '',
             'created_at': self.created_at.isoformat()
         }
+
+class BankAccount(db.Model):
+    """Model for storing user bank account information."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    account_name = db.Column(db.String(255), nullable=False)  # Name identifier for the account (e.g., "Primary Business Account")
+    bank_name = db.Column(db.String(255), nullable=False)  # Name of the bank
+    account_number = db.Column(db.String(100), nullable=False)  # Account number
+    branch_name = db.Column(db.String(255), nullable=True)  # Branch name (optional)
+    swift_code = db.Column(db.String(50), nullable=True)  # SWIFT/BIC code (optional)
+    iban = db.Column(db.String(100), nullable=True)  # IBAN for international transfers (optional)
+    is_default = db.Column(db.Boolean, default=False)  # Whether this is the default account
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship with invoices is defined in the Invoice model
+    
+    def to_dict(self):
+        """Convert the bank account to a dictionary."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'account_name': self.account_name,
+            'bank_name': self.bank_name,
+            'account_number': self.account_number,
+            'branch_name': self.branch_name or '',
+            'swift_code': self.swift_code or '',
+            'iban': self.iban or '',
+            'is_default': self.is_default,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
 
 class UserIncome(db.Model):
     """Model for storing user income details for tax calculations."""
