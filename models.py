@@ -79,6 +79,16 @@ class Organization(db.Model):
             'phone': self.phone or '',
             'address': self.address or '',
             'tax_registration_number': self.tax_registration_number or '',
+            'is_personal': self.is_personal,
+            'tax_rate_type': self.tax_rate_type,
+            # Tax rates
+            'corporate_tax_rate': self.corporate_tax_rate,
+            'dividend_tax_rate': self.dividend_tax_rate,
+            'employment_tax_rate': self.employment_tax_rate,
+            'investment_tax_rate': self.investment_tax_rate,
+            'business_income_tax_rate': self.business_income_tax_rate,
+            'consulting_tax_rate': self.consulting_tax_rate,
+            # Branding
             'primary_color': self.primary_color,
             'secondary_color': self.secondary_color,
             'email_footer_text': self.email_footer_text or '',
