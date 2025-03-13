@@ -823,7 +823,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log("Fetching receipts from server...");
         // Fetch receipts from server
-        fetch('/receipts')
+        fetch('/list_receipts')
             .then(response => {
                 console.log("Received response:", response.status);
                 return response.json();

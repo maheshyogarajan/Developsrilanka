@@ -57,133 +57,6 @@
 </style>
 {% endblock %}
 
-{% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Handle organization type switching
-        const organizationSelect = document.getElementById('organization_id');
-        if (organizationSelect) {
-            organizationSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const isPersonal = selectedOption.getAttribute('data-is-personal') === 'true';
-                
-                // Show/hide appropriate sections based on organization type
-                toggleOrganizationSpecificFields(isPersonal);
-            });
-            
-            // Initial setup based on currently selected organization
-            const selectedOption = organizationSelect.options[organizationSelect.selectedIndex];
-            if (selectedOption) {
-                const isPersonal = selectedOption.getAttribute('data-is-personal') === 'true';
-                toggleOrganizationSpecificFields(isPersonal);
-            }
-        }
-        
-        // Toggle visibility of fields based on organization type
-        function toggleOrganizationSpecificFields(isPersonal) {
-            const personalSections = document.querySelectorAll('.personal-org-section');
-            const businessSections = document.querySelectorAll('.business-org-section');
-            
-            if (isPersonal) {
-                personalSections.forEach(section => section.style.display = 'block');
-                businessSections.forEach(section => section.style.display = 'none');
-            } else {
-                personalSections.forEach(section => section.style.display = 'none');
-                businessSections.forEach(section => section.style.display = 'block');
-            }
-        }
-        
-        // Format numbers with thousands separator as the user types
-        const formatNumber = (input) => {
-            input.addEventListener('blur', function() {
-                if (this.value) {
-                    const value = parseFloat(this.value.replace(/,/g, ''));
-                    if (!isNaN(value)) {
-                        this.value = value;
-                    }
-                }
-            });
-        };
-        
-        // Apply formatting to all income inputs
-        document.querySelectorAll('input[type="number"]').forEach(formatNumber);
-        
-        // Save Income Button functionality
-        const saveIncomeBtn = document.getElementById('saveIncomeBtn');
-        if (saveIncomeBtn) {
-            saveIncomeBtn.addEventListener('click', function() {
-                const form = document.getElementById('income-form');
-                // Create a hidden input to indicate this is a save operation
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = 'save_only';
-                hiddenInput.value = 'true';
-                form.appendChild(hiddenInput);
-                
-                // Submit the form
-                form.submit();
-            });
-        }
-        
-        // Tax Savings Counter Animation
-        const savingsCounter = document.getElementById('savingsCounter');
-        const savingsProgressBar = document.getElementById('savingsProgressBar');
-        
-        if (savingsCounter && savingsProgressBar) {
-            const targetValue = parseFloat(savingsCounter.getAttribute('data-value') || 0);
-            let currentValue = 0;
-            const duration = 1500; // Animation duration in milliseconds
-            const startTime = performance.now();
-            
-            // Format number with commas and decimals
-            const formatCurrency = (value) => {
-                return new Intl.NumberFormat('en-LK', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }).format(value);
-            };
-            
-            // Animation function
-            const animateSavings = (timestamp) => {
-                const elapsed = timestamp - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                // Easing function for smoother animation
-                const easeOutCubic = progress => 1 - Math.pow(1 - progress, 3);
-                const easedProgress = easeOutCubic(progress);
-                
-                // Calculate current value
-                currentValue = easedProgress * targetValue;
-                
-                // Update counter and progress bar
-                savingsCounter.textContent = formatCurrency(currentValue);
-                savingsProgressBar.style.width = `${easedProgress * 100}%`;
-                savingsProgressBar.setAttribute('aria-valuenow', easedProgress * 100);
-                
-                // Continue animation if not complete
-                if (progress < 1) {
-                    requestAnimationFrame(animateSavings);
-                } else {
-                    // Ensure final value is exactly the target value
-                    savingsCounter.textContent = formatCurrency(targetValue);
-                    
-                    // Add a pulse effect at the end for visual emphasis
-                    savingsCounter.classList.add('text-pulse');
-                    setTimeout(() => {
-                        savingsCounter.classList.remove('text-pulse');
-                    }, 500);
-                }
-            };
-            
-            // Start animation after a slight delay
-            setTimeout(() => {
-                requestAnimationFrame(animateSavings);
-            }, 300);
-        }
-    });
-</script>
-{% endblock %}
-
 {% block content %}
 <div class="container py-3 py-md-4">
     <h1 class="page-title mb-3">Tax Savings Calculator</h1>
@@ -197,51 +70,8 @@
     <div class="row">
         <div class="col-lg-6 mb-4">
             <form method="post" id="income-form">
-                <!-- Organization Selection Section -->
+                <!-- LKR Income Section -->
                 <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-dark text-white py-2">
-                        <h5 class="mb-0 fs-6 fs-md-5">Organization & Time Period</h5>
-                    </div>
-                    <div class="card-body p-3">
-                        <div class="mb-3">
-                            <label for="organization_id" class="form-label small">Select Organization</label>
-                            <select class="form-select" id="organization_id" name="organization_id">
-                                {% if organizations %}
-                                    {% for org in organizations %}
-                                    <option value="{{ org.id }}" 
-                                        {% if selected_organization and selected_organization.id == org.id %}selected{% endif %}
-                                        data-is-personal="{{ 'true' if org.is_personal else 'false' }}"
-                                        {% if org.is_personal %}class="text-primary fw-bold"{% endif %}>
-                                        {{ org.name }} 
-                                        {% if org.is_personal %}
-                                            <i class="fas fa-user"></i> (Personal)
-                                        {% else %}
-                                            <i class="fas fa-building"></i> (Business)
-                                        {% endif %}
-                                    </option>
-                                    {% endfor %}
-                                {% else %}
-                                    <option value="" disabled selected>No organizations available</option>
-                                {% endif %}
-                            </select>
-                            <div class="form-text small">Choose which organization to calculate tax savings for</div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="time_period" class="form-label small">Time Period</label>
-                            <select class="form-select" id="time_period" name="time_period">
-                                <option value="all" {% if time_period == 'all' %}selected{% endif %}>All Time</option>
-                                <option value="year" {% if time_period == 'year' %}selected{% endif %}>This Year</option>
-                                <option value="quarter" {% if time_period == 'quarter' %}selected{% endif %}>This Quarter</option>
-                                <option value="month" {% if time_period == 'month' %}selected{% endif %}>This Month</option>
-                            </select>
-                            <div class="form-text small">Filter receipts by time period for tax calculations</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- LKR Income Section - Personal Organization Only -->
-                <div class="card shadow-sm mb-3 personal-org-section">
                     <div class="card-header bg-primary text-white py-2">
                         <h5 class="mb-0 fs-6 fs-md-5">LKR Income</h5>
                     </div>
@@ -278,43 +108,6 @@
                             </div>
                             <div class="form-text small">Your annual income from investments, dividends, rent, etc.</div>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Business Organization Tax Settings - Business Organization Only -->
-                <div class="card shadow-sm mb-3 business-org-section">
-                    <div class="card-header bg-info text-white py-2">
-                        <h5 class="mb-0 fs-6 fs-md-5">Business Tax Settings</h5>
-                    </div>
-                    <div class="card-body p-3">
-                        <div class="alert alert-info py-2 mb-3">
-                            <small><i class="fas fa-info-circle"></i> Business tax calculation is based on corporate and dividend tax rates.</small>
-                        </div>
-                        
-                        {% if selected_organization and not selected_organization.is_personal %}
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label small">Corporate Tax Rate</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" value="{{ selected_organization.corporate_tax_rate|default(24.0) }}%" readonly>
-                                    </div>
-                                    <div class="form-text small">Corporate income tax rate</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label small">Dividend Tax Rate</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" value="{{ selected_organization.dividend_tax_rate|default(14.0) }}%" readonly>
-                                    </div>
-                                    <div class="form-text small">Dividend distribution tax rate</div>
-                                </div>
-                            </div>
-                        </div>
-                        {% else %}
-                        <p class="text-muted small">Select a business organization to view business tax settings.</p>
-                        {% endif %}
                     </div>
                 </div>
                 
@@ -372,184 +165,17 @@
             <!-- Tax Savings Summary Card -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-danger text-white py-2">
-                    <h5 class="mb-0 fs-6 fs-md-5">
-                        {% if selected_organization %}
-                            Tax Savings Summary - {{ selected_organization.name }}
-                            {% if selected_organization.is_personal %}(Personal){% else %}(Business){% endif %}
-                        {% else %}
-                            Tax Savings Summary
-                        {% endif %}
-                    </h5>
+                    <h5 class="mb-0 fs-6 fs-md-5">Tax Savings Summary</h5>
                 </div>
                 <div class="card-body p-3">
                     <div class="alert alert-success py-2 savings-highlight">
                         <strong>Potential Tax Savings:</strong> 
-                        <h3 class="text-success mt-2 fs-4">Rs <span id="savingsCounter" data-value="{{ tax_savings_estimate.tax_savings }}">0.00</span></h3>
+                        <h3 class="text-success mt-2 fs-4">Rs <span id="savingsCounter" data-value="{{ tax_savings_estimate.total_tax_savings_in_lkr }}">0.00</span></h3>
                         <div class="progress mt-2" style="height: 6px;">
                             <div id="savingsProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                     </div>
                     
-                    {% if tax_savings_estimate.organization_type == 'personal' %}
-                    <!-- Personal Organization Tax Summary -->
-                    
-                    <!-- Income Summary -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light py-2">
-                            <h6 class="mb-0 small">Income Summary</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <tbody>
-                                        <tr>
-                                            <th class="small">Business Income:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.business_income.income) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th class="small">Consulting Income (USD):</th>
-                                            <td class="text-end small">$ {{ "{:,.2f}".format(tax_savings_estimate.details.consulting_income.income) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th class="small">Employment Income:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.employment_income.income) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th class="small">Investment Income:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.investment_income.income) }}</td>
-                                        </tr>
-                                        <tr class="table-primary">
-                                            <th class="small">Total Income:</th>
-                                            <td class="text-end small fw-bold">Rs {{ "{:,.2f}".format(tax_savings_estimate.total_income) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Tax Savings Breakdown -->
-                    <div class="card">
-                        <div class="card-header bg-light py-2">
-                            <h6 class="mb-0 small">Tax Savings Breakdown</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th class="small">Income Type</th>
-                                            <th class="small text-center">Tax Rate</th>
-                                            <th class="small text-center">Deduction</th>
-                                            <th class="small text-end">Savings</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td class="small">Business Income</td>
-                                            <td class="text-center small">{{ "{:,.1f}%".format(tax_savings_estimate.details.business_income.tax_rate) }}</td>
-                                            <td class="text-center small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.business_income.deduction) }}</td>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.business_income.savings) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="small">Consulting Income</td>
-                                            <td class="text-center small">{{ "{:,.1f}%".format(tax_savings_estimate.details.consulting_income.tax_rate) }}</td>
-                                            <td class="text-center small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.consulting_income.deduction) }}</td>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.consulting_income.savings) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="small">Employment Income</td>
-                                            <td class="text-center small">{{ "{:,.1f}%".format(tax_savings_estimate.details.employment_income.tax_rate) }}</td>
-                                            <td class="text-center small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.employment_income.deduction) }}</td>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.employment_income.savings) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="small">Investment Income</td>
-                                            <td class="text-center small">{{ "{:,.1f}%".format(tax_savings_estimate.details.investment_income.tax_rate) }}</td>
-                                            <td class="text-center small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.investment_income.deduction) }}</td>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.investment_income.savings) }}</td>
-                                        </tr>
-                                        <tr class="table-success">
-                                            <th class="small">Total Savings</th>
-                                            <td class="text-center small">-</td>
-                                            <td class="text-center small">Rs {{ "{:,.2f}".format(tax_savings_estimate.tax_deductible_amount) }}</td>
-                                            <td class="text-end small fw-bold">Rs {{ "{:,.2f}".format(tax_savings_estimate.tax_savings) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {% elif tax_savings_estimate.organization_type == 'business' %}
-                    <!-- Business Organization Tax Summary -->
-                    
-                    <!-- Business Tax Summary -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light py-2">
-                            <h6 class="mb-0 small">Business Tax Summary</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <tbody>
-                                        <tr>
-                                            <th class="small">Tax Deductible Amount:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.tax_deductible_amount) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th class="small">Corporate Tax Rate:</th>
-                                            <td class="text-end small">{{ "{:,.1f}%".format(tax_savings_estimate.details.corporate_tax.tax_rate) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th class="small">Dividend Tax Rate:</th>
-                                            <td class="text-end small">{{ "{:,.1f}%".format(tax_savings_estimate.details.dividend_tax.tax_rate) }}</td>
-                                        </tr>
-                                        <tr class="table-info">
-                                            <th class="small">Effective Tax Rate:</th>
-                                            <td class="text-end small fw-bold">{{ "{:,.1f}%".format(tax_savings_estimate.effective_tax_rate) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Tax Savings Breakdown -->
-                    <div class="card">
-                        <div class="card-header bg-light py-2">
-                            <h6 class="mb-0 small">Tax Savings Breakdown</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <tbody>
-                                        <tr>
-                                            <th class="small">Corporate Tax Savings:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.corporate_tax.savings) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th class="small">After-Corporate-Tax Amount:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.dividend_tax.after_corporate_tax_amount) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th class="small">Dividend Tax Savings:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.details.dividend_tax.savings) }}</td>
-                                        </tr>
-                                        <tr class="table-success">
-                                            <th class="small">Total Tax Savings:</th>
-                                            <td class="text-end small fw-bold">Rs {{ "{:,.2f}".format(tax_savings_estimate.tax_savings) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="alert alert-info mt-3 p-2 small">
-                                <i class="fas fa-info-circle"></i> Business tax savings include both corporate tax savings and dividend tax savings. This reflects the combined effect of tax deductions on both the company's profits and the distributed dividends.
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <!-- Legacy Summary Display (for backward compatibility) -->
                     <!-- LKR Income Summary -->
                     <div class="card mb-3">
                         <div class="card-header bg-light py-2">
@@ -619,7 +245,6 @@
                             </div>
                         </div>
                     </div>
-                    {% endif %}
                 </div>
             </div>
             
@@ -729,3 +354,96 @@
 </div>
 {% endblock %}
 
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Format numbers with thousands separator as the user types
+    const formatNumber = (input) => {
+        input.addEventListener('blur', function() {
+            if (this.value) {
+                const value = parseFloat(this.value.replace(/,/g, ''));
+                if (!isNaN(value)) {
+                    this.value = value;
+                }
+            }
+        });
+    };
+    
+    // Apply formatting to all income inputs
+    document.querySelectorAll('input[type="number"]').forEach(formatNumber);
+    
+    // Save Income Button functionality
+    const saveIncomeBtn = document.getElementById('saveIncomeBtn');
+    if (saveIncomeBtn) {
+        saveIncomeBtn.addEventListener('click', function() {
+            const form = document.getElementById('income-form');
+            // Create a hidden input to indicate this is a save operation
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'save_only';
+            hiddenInput.value = 'true';
+            form.appendChild(hiddenInput);
+            
+            // Submit the form
+            form.submit();
+        });
+    }
+    
+    // Tax Savings Counter Animation
+    const savingsCounter = document.getElementById('savingsCounter');
+    const savingsProgressBar = document.getElementById('savingsProgressBar');
+    
+    if (savingsCounter && savingsProgressBar) {
+        const targetValue = parseFloat(savingsCounter.getAttribute('data-value') || 0);
+        let currentValue = 0;
+        const duration = 1500; // Animation duration in milliseconds
+        const startTime = performance.now();
+        
+        // Format number with commas and decimals
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat('en-LK', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        };
+        
+        // Animation function
+        const animateSavings = (timestamp) => {
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Easing function for smoother animation
+            const easeOutCubic = progress => 1 - Math.pow(1 - progress, 3);
+            const easedProgress = easeOutCubic(progress);
+            
+            // Calculate current value
+            currentValue = easedProgress * targetValue;
+            
+            // Update counter and progress bar
+            savingsCounter.textContent = formatCurrency(currentValue);
+            savingsProgressBar.style.width = `${easedProgress * 100}%`;
+            savingsProgressBar.setAttribute('aria-valuenow', easedProgress * 100);
+            
+            // Continue animation if not complete
+            if (progress < 1) {
+                requestAnimationFrame(animateSavings);
+            } else {
+                // Ensure final value is exactly the target value
+                savingsCounter.textContent = formatCurrency(targetValue);
+                
+                // Add a pulse effect at the end for visual emphasis
+                savingsCounter.classList.add('text-pulse');
+                setTimeout(() => {
+                    savingsCounter.classList.remove('text-pulse');
+                }, 500);
+            }
+        };
+        
+        // Start animation after a slight delay
+        setTimeout(() => {
+            requestAnimationFrame(animateSavings);
+        }, 300);
+    }
+});
+</script>
+{% endblock %}

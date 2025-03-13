@@ -462,50 +462,27 @@ def analytics():
 @login_required
 def tax_savings():
     """Render the tax savings calculator page."""
-    from models import Receipt, UserIncome, Organization
+    from models import Receipt, UserIncome
     from sqlalchemy import func
-    import tax_calculator  # Import the new tax calculator module
     
     # Initialize variables
     income_details = None
     tax_savings_estimate = None
     total_tax_deductible = 0.0
     error = None
-    organizations = []
-    selected_organization_id = None
-    time_period = "all"  # Default to all time
     
     try:
-        # Get the user's organizations
-        organizations = []
-        
-        # First, add the personal organization if it exists (for priority placement)
-        if current_user.personal_organization:
-            logging.info(f"User {current_user.id} has personal organization: {current_user.personal_organization.name}")
-            organizations.append(current_user.personal_organization)
-        else:
-            logging.warning(f"User {current_user.id} has no personal organization")
-        
-        # Add business organizations
-        business_orgs = [org_user.organization for org_user in current_user.organizations if not org_user.organization.is_personal]
-        organizations.extend(business_orgs)
-        
-        # Log organization count for debugging
-        logging.info(f"Total organizations for user {current_user.id}: {len(organizations)} (Personal: {1 if current_user.personal_organization else 0}, Business: {len(business_orgs)})")
-        
         # Get the user's income details if they exist
         income_details = UserIncome.query.filter_by(user_id=current_user.id).first()
         
-        # Process the request
+        # Calculate total tax deductible expenses
+        receipts = Receipt.query.filter_by(user_id=current_user.id).all()
+        for receipt in receipts:
+            tax_deductible = receipt.get_tax_deductible_amount()
+            total_tax_deductible += min(tax_deductible, receipt.total_amount)
+        
         if request.method == 'POST':
-            # Get selected organization and time period
-            selected_organization_id = request.form.get('organization_id')
-            if selected_organization_id:
-                selected_organization_id = int(selected_organization_id)
-                
-            time_period = request.form.get('time_period', 'all')
-            
-            # Process income form submission
+            # Process form submission
             # LKR Income
             employment_income = float(request.form.get('employment_income', 0) or 0)
             business_income = float(request.form.get('business_income', 0) or 0)
@@ -526,10 +503,6 @@ def tax_savings():
                     income_details.investment_income = investment_income
                     income_details.usd_consulting_income = usd_consulting_income
                     income_details.updated_at = datetime.utcnow()
-                    
-                    # Link to organization if specified
-                    if selected_organization_id:
-                        income_details.organization_id = selected_organization_id
                 else:
                     # Create new record
                     income_details = UserIncome(
@@ -537,100 +510,36 @@ def tax_savings():
                         employment_income=employment_income,
                         business_income=business_income,
                         investment_income=investment_income,
-                        usd_consulting_income=usd_consulting_income,
-                        organization_id=selected_organization_id
+                        usd_consulting_income=usd_consulting_income
                     )
                     db.session.add(income_details)
                 
                 db.session.commit()
-        else:
-            # If GET request, check for query parameters
-            selected_organization_id = request.args.get('organization_id')
-            if selected_organization_id:
-                selected_organization_id = int(selected_organization_id)
                 
-            time_period = request.args.get('time_period', 'all')
-            
-        # Check if user needs a personal organization
-        if not current_user.personal_organization_id:
-            # Create personal organization if it doesn't exist
-            logging.info(f"Creating personal organization for user {current_user.id}")
-            personal_org = Organization(
-                name=f"{current_user.name}'s Personal Finances",
-                is_personal=True,
-                tax_rate_type="personal",
-                email=current_user.email,
-                # Default personal tax settings
-                employment_tax_rate=24.0,
-                business_income_tax_rate=36.0,
-                investment_tax_rate=14.0,
-                consulting_tax_rate=15.0
-            )
-            db.session.add(personal_org)
-            db.session.flush()  # Get the ID without committing yet
-            
-            # Link to user
-            current_user.personal_organization_id = personal_org.id
-            
-            # Add organization to the list for this page view
-            organizations.insert(0, personal_org)
-            
-            db.session.commit()
-            logging.info(f"Created personal organization {personal_org.id} for user {current_user.id}")
-            
-        # Default to personal organization if none selected
-        if not selected_organization_id and current_user.personal_organization_id:
-            selected_organization_id = current_user.personal_organization_id
-            logging.info(f"Defaulting to personal organization {selected_organization_id} for user {current_user.id}")
-        
-        # Use the new tax calculator to calculate tax savings
-        if selected_organization_id:
-            # Calculate tax savings using the appropriate calculator based on organization type
-            tax_savings_estimate = tax_calculator.calculate_tax_savings_by_organization_type(
-                user_id=current_user.id,
-                organization_id=selected_organization_id,
-                time_period=time_period if time_period != 'all' else None
-            )
-            
-            # Get tax deductible amount for display
-            total_tax_deductible = tax_calculator.get_tax_deductible_amount(
-                user_id=current_user.id,
-                organization_id=selected_organization_id,
-                time_period=time_period if time_period != 'all' else None
-            )
-        else:
-            # Fallback to old calculation method if no organization is available
-            logging.warning("No organization selected for tax calculation, using simplified method")
-            total_tax_deductible = 0.0
-            
-            # Calculate total tax deductible expenses
-            receipts = Receipt.query.filter_by(user_id=current_user.id).all()
-            for receipt in receipts:
-                tax_deductible = receipt.get_tax_deductible_amount()
-                total_tax_deductible += min(tax_deductible, receipt.total_amount)
-            
-            if income_details:
+                # Calculate potential tax savings
                 tax_savings_estimate = calculate_tax_savings_simplified(
-                    income_details.employment_income,
-                    income_details.business_income,
-                    income_details.investment_income,
-                    income_details.usd_consulting_income,
+                    employment_income,
+                    business_income,
+                    investment_income,
+                    usd_consulting_income,
                     total_tax_deductible
                 )
         
-        # Get the selected organization object
-        selected_organization = None
-        if selected_organization_id:
-            selected_organization = Organization.query.get(selected_organization_id)
+        elif income_details:
+            # If GET request and income details exist, calculate based on existing data
+            tax_savings_estimate = calculate_tax_savings_simplified(
+                income_details.employment_income,
+                income_details.business_income,
+                income_details.investment_income,
+                income_details.usd_consulting_income,
+                total_tax_deductible
+            )
         
         return render_template(
             'tax_savings.html',
             income_details=income_details,
             total_tax_deductible=total_tax_deductible,
             tax_savings_estimate=tax_savings_estimate,
-            organizations=organizations,
-            selected_organization=selected_organization,
-            time_period=time_period,
             error=error
         )
     

@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from flask_mail import Mail, Message
 from sqlalchemy import text
 from app import app, db
-from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount, Organization, OrganizationUser, CompanyExpense, Receipt
+from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount
 
 # Initialize Flask-Mail with Gmail settings if not already initialized
 if not hasattr(app, 'mail'):
@@ -164,28 +164,23 @@ def create_invoice():
         try:
             # Get form data
             client_id = request.form.get('client_id')
-            organization_id = request.form.get('organization_id')
             bank_account_id = request.form.get('bank_account_id') or None
             issue_date = datetime.strptime(request.form.get('issue_date'), '%Y-%m-%d')
             due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
             currency = request.form.get('currency', 'LKR')
             notes = request.form.get('notes', '')
             
-            # Process selected reimbursements (company expenses)
-            reimbursement_ids = request.form.getlist('reimbursement_ids[]')
-            
             # Generate unique invoice number
             invoice_number = f"INV-{uuid.uuid4().hex[:8].upper()}"
             
-            # If organization_id is not provided, use the user's default organization
-            if not organization_id:
-                result = db.session.execute(text("""
-                    SELECT organization_id FROM organization_user
-                    WHERE user_id = :user_id AND is_default = true
-                    LIMIT 1
-                """), {'user_id': current_user.id}).first()
-                
-                organization_id = result[0] if result else None
+            # Get the user's default organization
+            result = db.session.execute(text("""
+                SELECT organization_id FROM organization_user
+                WHERE user_id = :user_id AND is_default = true
+                LIMIT 1
+            """), {'user_id': current_user.id}).first()
+            
+            organization_id = result[0] if result else None
             
             # Create new invoice using raw SQL to include organization_id and bank_account_id
             result = db.session.execute(text("""
@@ -295,55 +290,25 @@ def create_invoice():
         flash('Please add a client first before creating an invoice', 'warning')
         return redirect(url_for('clients'))
     
-    # Get all organizations for this user
-    organization_results = db.session.execute(text("""
-        SELECT ou.organization_id, o.name, ou.is_default
-        FROM organization_user ou
-        JOIN organization o ON ou.organization_id = o.id
-        WHERE ou.user_id = :user_id
-        ORDER BY ou.is_default DESC, o.name ASC
-    """), {'user_id': current_user.id})
+    # Get the user's default organization
+    default_org = db.session.execute(text("""
+        SELECT organization_id FROM organization_user
+        WHERE user_id = :user_id AND is_default = true
+        LIMIT 1
+    """), {'user_id': current_user.id}).first()
     
-    organizations = []
-    default_organization_id = None
+    organization_id = default_org[0] if default_org else None
     
-    for row in organization_results:
-        org = {
-            'id': row[0],
-            'name': row[1],
-            'is_default': row[2]
-        }
-        organizations.append(org)
-        if org['is_default']:
-            default_organization_id = org['id']
-    
-    # Get clients with their organization_id
-    client_results = db.session.execute(text("""
-        SELECT id, name, organization_id
-        FROM client
-        WHERE user_id = :user_id
-        ORDER BY name ASC
-    """), {'user_id': current_user.id})
-    
-    clients_with_org = []
-    for row in client_results:
-        client = {
-            'id': row[0],
-            'name': row[1],
-            'organization_id': row[2]
-        }
-        clients_with_org.append(client)
-    
-    # Get bank accounts for the default organization
+    # Get bank accounts for this organization
     bank_accounts = []
-    if default_organization_id:
+    if organization_id:
         result = db.session.execute(text("""
             SELECT id, account_name, bank_name, account_number, 
                    branch_name, swift_code, iban, is_default
             FROM bank_account 
             WHERE organization_id = :org_id
             ORDER BY is_default DESC, account_name ASC
-        """), {'org_id': default_organization_id})
+        """), {'org_id': organization_id})
         
         for row in result:
             bank_accounts.append({
@@ -358,8 +323,7 @@ def create_invoice():
             })
     
     return render_template('create_invoice.html', 
-                           clients=clients_with_org,
-                           organizations=organizations,
+                           clients=clients,
                            bank_accounts=bank_accounts,
                            today=datetime.now().strftime('%Y-%m-%d'),
                            next_month=datetime.now().replace(month=datetime.now().month + 1 if datetime.now().month < 12 else 1).strftime('%Y-%m-%d'))
@@ -807,53 +771,6 @@ def email_invoice(invoice_id):
         flash(f'Error sending email: {str(e)}', 'danger')
     
     return redirect(url_for('view_invoice', invoice_id=invoice.id))
-
-# ================ API Endpoints for Invoicing ================
-
-@app.route('/api/clients/<int:client_id>/reimbursements')
-@login_required
-def api_client_reimbursements(client_id):
-    """API endpoint to get reimbursable expenses for a client."""
-    # Verify client belongs to the current user
-    client = Client.query.filter_by(id=client_id, user_id=current_user.id).first_or_404()
-    
-    # Get organization_id from query parameters (if provided)
-    organization_id = request.args.get('organization_id')
-    
-    # Fetch expenses that have been assigned to this client
-    query = """
-        SELECT ce.id, r.date, r.vendor_name, ce.description, r.total_amount
-        FROM client_expense ce
-        JOIN receipt r ON ce.receipt_id = r.id
-        WHERE ce.client_id = :client_id 
-        AND ce.user_id = :user_id
-    """
-    
-    params = {'client_id': client_id, 'user_id': current_user.id}
-    
-    # Add organization filter if provided
-    if organization_id:
-        query += " AND (ce.organization_id = :org_id OR ce.organization_id IS NULL)"
-        params['org_id'] = organization_id
-        
-    # Order by date, newest first
-    query += " ORDER BY r.date DESC"
-    
-    # Execute the query
-    results = db.session.execute(text(query), params)
-    
-    # Convert results to list of dictionaries
-    reimbursements = []
-    for row in results:
-        reimbursements.append({
-            'id': row[0],
-            'date': row[1].strftime('%Y-%m-%d') if row[1] else 'N/A',
-            'vendor_name': row[2],
-            'description': row[3],
-            'total_amount': float(row[4])
-        })
-    
-    return jsonify(reimbursements)
 
 # ================ Client Management Routes ================
 
