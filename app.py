@@ -1061,7 +1061,7 @@ def get_receipt(receipt_id):
 @login_required
 def view_receipt(receipt_id):
     """Display a specific receipt detail page for the current user."""
-    from models import Receipt
+    from models import Receipt, CompanyExpense, ClientExpense
     from utils import format_currency
     
     try:
@@ -1072,9 +1072,15 @@ def view_receipt(receipt_id):
             flash('Receipt not found or does not belong to you', 'danger')
             return redirect(url_for('receipt_history'))
         
+        # Check if this receipt is already allocated
+        company_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
+        client_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
+        
         return render_template(
             'view_receipt.html', 
             receipt=receipt, 
+            company_expense=company_expense,
+            client_expense=client_expense,
             format_currency=format_currency
         )
         
