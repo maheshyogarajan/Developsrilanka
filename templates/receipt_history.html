@@ -658,6 +658,112 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Load receipts with organization filter
+    function loadReceiptsWithOrganizationFilter(organizationId) {
+        console.log(`Loading receipts with organization filter: ${organizationId}`);
+        showLoading();
+        
+        // Construct URL with organization filter
+        let url = '/list_receipts';
+        if (organizationId === 'all') {
+            url += '?show_all=true';
+        } else if (organizationId) {
+            url += `?organization_id=${organizationId}`;
+        }
+        
+        fetch(url)
+            .then(response => {
+                console.log("Server response status:", response.status);
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Data received:", data);
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                if (!data.receipts || data.receipts.length === 0) {
+                    showEmpty();
+                    return;
+                }
+                
+                // Store receipts and extract categories
+                allReceipts = data.receipts;
+                filteredReceipts = [...allReceipts];
+                
+                // Store organization data
+                organizations = data.organizations || [];
+                selectedOrgId = data.selected_org_id || null;
+                showAllOrganizations = data.show_all || false;
+                
+                // Extract unique categories
+                categories = new Set();
+                allReceipts.forEach(receipt => {
+                    if (receipt.expense_major_category) {
+                        categories.add(receipt.expense_major_category);
+                    }
+                });
+                
+                // Populate filters
+                populateCategoryFilter();
+                populateOrganizationFilter();
+                
+                // Update UI
+                totalReceiptsSpan.textContent = allReceipts.length;
+                renderPagination();
+                renderReceipts();
+                
+                showContent();
+            })
+            .catch(error => {
+                console.error("Error loading receipts:", error);
+                
+                // Try to extract error details from server response
+                let errorMessage = error.message;
+                let errorId = null;
+                let errorType = null;
+                
+                // Check if the error message contains a JSON structure from our backend
+                if (typeof errorMessage === 'string' && 
+                    errorMessage.includes('error_id') && 
+                    (errorMessage.includes('{') || errorMessage.includes('}'))) {
+                    try {
+                        // Extract the JSON part of the error message
+                        const jsonMatch = errorMessage.match(/\{.*\}/);
+                        if (jsonMatch) {
+                            const errorData = JSON.parse(jsonMatch[0]);
+                            if (errorData.error) {
+                                errorMessage = errorData.error;
+                            }
+                            errorId = errorData.error_id;
+                            errorType = errorData.error_type;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to parse error JSON", e);
+                    }
+                }
+                
+                // Log the error using our error logger
+                if (window.ReceiptHistoryErrorLogger) {
+                    window.ReceiptHistoryErrorLogger.logApiError(
+                        error,
+                        url,
+                        'GET',
+                        {
+                            error_id: errorId,
+                            error_type: errorType,
+                            organization_id: organizationId
+                        }
+                    );
+                }
+                
+                showError(errorMessage, errorId, errorType);
+            });
+    }
+    
     // Set view mode (grid or list)
     function setViewMode(mode) {
         viewMode = mode;

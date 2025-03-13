@@ -1161,10 +1161,14 @@ def list_receipts():
                     # Validate that this organization belongs to the user
                     user_org_ids = [str(org.organization_id) for org in OrganizationUser.query.filter_by(user_id=user_id).all()]
                     if selected_org_id not in user_org_ids:
+                        logging.warning(f"Organization ID {selected_org_id} does not belong to user {user_id}")
                         selected_org_id = None
                 except Exception as e:
                     logging.warning(f"Invalid organization_id parameter: {org_id_param}. Error: {str(e)}")
                     selected_org_id = None
+                    
+        # Add diagnostic logging for organization filtering
+        logging.debug(f"Receipt organization filtering: show_all={show_all_organizations}, org_id={selected_org_id}")
         
         # Get all user's organizations for the filter dropdown
         user_organizations = OrganizationUser.query.filter_by(user_id=user_id).all()
