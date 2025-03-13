@@ -789,18 +789,44 @@ def clients():
     
     logging.debug(f"Listing clients for user_id: {current_user.id}, organization_id: {organization_id}")
     
+    # First check if there are any clients at all for debugging
+    all_clients_count = db.session.execute(text("""
+        SELECT COUNT(*) FROM client
+    """)).first()[0]
+    
+    user_clients_count = db.session.execute(text("""
+        SELECT COUNT(*) FROM client WHERE user_id = :user_id
+    """), {'user_id': current_user.id}).first()[0]
+    
+    org_clients_count = 0
+    if organization_id:
+        org_clients_count = db.session.execute(text("""
+            SELECT COUNT(*) FROM client WHERE organization_id = :organization_id
+        """), {'organization_id': organization_id}).first()[0]
+    
+    logging.debug(f"Database has {all_clients_count} total clients")
+    logging.debug(f"User has {user_clients_count} clients")
+    logging.debug(f"Organization {organization_id} has {org_clients_count} clients")
+    
+    # Expand WHERE clause to see exactly what might be matched
+    logging.debug(f"Running query for user_id={current_user.id} AND (organization_id={organization_id} OR organization_id IS NULL)")
+    
     # Use raw SQL to get clients for the current user with organization context
-    result = db.session.execute(text("""
+    query = text("""
         SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
                phone, address, tax_registration_number, notes, created_at, updated_at
         FROM client
         WHERE user_id = :user_id AND (organization_id = :organization_id OR organization_id IS NULL)
         ORDER BY name
-    """), {'user_id': current_user.id, 'organization_id': organization_id})
+    """)
+    
+    result = db.session.execute(query, {'user_id': current_user.id, 'organization_id': organization_id})
     
     # Convert raw SQL results to Client objects
     clients = []
+    row_count = 0
     for row in result:
+        row_count += 1
         client = Client(
             id=row[0],
             user_id=row[1],
@@ -817,6 +843,9 @@ def clients():
             updated_at=row[12]
         )
         clients.append(client)
+        logging.debug(f"Added client: {client.id}, {client.name}, org: {client.organization_id}")
+    
+    logging.debug(f"Query returned {row_count} rows, processed {len(clients)} clients")
     
     return render_template('clients.html', clients=clients)
 
@@ -850,19 +879,9 @@ def create_client():
             organization_id = result[0] if result else None
             
             # Create new client using raw SQL to include organization_id
-            result = db.session.execute(text("""
-                INSERT INTO client (
-                    user_id, organization_id, name, company_name, contact_person, 
-                    email, phone, address, tax_registration_number, notes, 
-                    created_at, updated_at
-                ) 
-                VALUES (
-                    :user_id, :organization_id, :name, :company_name, :contact_person, 
-                    :email, :phone, :address, :tax_registration_number, :notes, 
-                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-                )
-                RETURNING id
-            """), {
+            logging.debug(f"Inserting client with organization_id: {organization_id}")
+            
+            insert_params = {
                 'user_id': current_user.id,
                 'organization_id': organization_id,
                 'name': name,
@@ -873,9 +892,44 @@ def create_client():
                 'address': address,
                 'tax_registration_number': tax_registration_number,
                 'notes': notes
-            })
+            }
             
-            client_id = result.first()[0]
+            logging.debug(f"Insert params: {insert_params}")
+            
+            try:
+                result = db.session.execute(text("""
+                    INSERT INTO client (
+                        user_id, organization_id, name, company_name, contact_person, 
+                        email, phone, address, tax_registration_number, notes, 
+                        created_at, updated_at
+                    ) 
+                    VALUES (
+                        :user_id, :organization_id, :name, :company_name, :contact_person, 
+                        :email, :phone, :address, :tax_registration_number, :notes, 
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    )
+                    RETURNING id
+                """), insert_params)
+                
+                client_id = result.first()[0]
+                logging.debug(f"Client inserted successfully with ID: {client_id}")
+                
+                # Verify the client was created
+                verify_result = db.session.execute(text("""
+                    SELECT id, organization_id FROM client WHERE id = :client_id
+                """), {'client_id': client_id}).first()
+                
+                if verify_result:
+                    logging.debug(f"Verification successful - Client exists with ID: {verify_result[0]}, organization_id: {verify_result[1]}")
+                else:
+                    logging.error(f"Verification failed - Client with ID {client_id} not found after insert")
+                
+                # Explicitly commit to make sure the transaction is completed
+                db.session.commit()
+            except Exception as e:
+                logging.error(f"Error during client insert: {str(e)}")
+                db.session.rollback()
+                raise
             
             flash('Client created successfully!', 'success')
             return redirect(url_for('clients'))
