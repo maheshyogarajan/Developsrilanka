@@ -146,6 +146,58 @@
         </div>
     </div>
 
+    <!-- Active Filters Section -->
+    <div class="mb-4">
+        <div class="d-flex align-items-center mb-2">
+            <h5 class="mb-0 me-2">Active Filters:</h5>
+            <div id="activeFiltersContainer">
+                {% if selected_org %}
+                    <span class="badge bg-primary rounded-pill me-1">
+                        {{ selected_org.name }} <i class="fas fa-building ms-1"></i>
+                    </span>
+                {% elif organizations and organizations|length > 1 %}
+                    <span class="badge bg-info rounded-pill me-1">
+                        All Organizations <i class="fas fa-building ms-1"></i>
+                    </span>
+                {% endif %}
+                
+                {% if request.args.get('status') %}
+                    {% set status_label = {
+                        'paid': 'Paid',
+                        'partially_paid': 'Partially Paid',
+                        'sent': 'Sent',
+                        'overdue': 'Overdue',
+                        'draft': 'Draft',
+                        'cancelled': 'Cancelled'
+                    }[request.args.get('status')] %}
+                    
+                    {% set status_class = {
+                        'paid': 'bg-success',
+                        'partially_paid': 'bg-warning',
+                        'sent': 'bg-info',
+                        'overdue': 'bg-danger',
+                        'draft': 'bg-secondary',
+                        'cancelled': 'bg-dark'
+                    }[request.args.get('status')] %}
+                    
+                    <span class="badge {{ status_class }} rounded-pill me-1">
+                        Status: {{ status_label }} <i class="fas fa-tag ms-1"></i>
+                    </span>
+                {% endif %}
+                
+                {% if not selected_org and not request.args.get('status') and (not organizations or organizations|length <= 1) %}
+                    <span class="text-muted">No filters applied</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div id="filterDescription" class="text-muted small mb-2">
+            {% if selected_org or request.args.get('status') %}
+                Showing {{ invoices|length }} invoices matching the selected filters
+            {% endif %}
+        </div>
+    </div>
+
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Your Invoices</h5>

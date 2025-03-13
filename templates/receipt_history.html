@@ -634,6 +634,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update UI
         totalReceiptsSpan.textContent = filteredReceipts.length;
         
+        // Update the active filters display
+        updateActiveFiltersDisplay();
+        
         if (filteredReceipts.length === 0) {
             showEmpty();
         } else {
@@ -654,8 +657,15 @@ document.addEventListener('DOMContentLoaded', function() {
         filteredReceipts = [...allReceipts];
         currentPage = 1;
         
+        // Update show all flag
+        showAllOrganizations = true;
+        
         // Update UI
         totalReceiptsSpan.textContent = filteredReceipts.length;
+        
+        // Clear filter display
+        activeFiltersContainer.innerHTML = '';
+        filterDescription.innerHTML = '';
         
         if (filteredReceipts.length === 0) {
             showEmpty();
