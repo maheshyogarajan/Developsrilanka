@@ -182,6 +182,15 @@ class Invoice(db.Model):
     discount_percent = db.Column(db.Float, nullable=False, default=0.0)
     discount_amount = db.Column(db.Float, nullable=False, default=0.0)
     total = db.Column(db.Float, nullable=False, default=0.0)
+    # Sender's information fields
+    sender_name = db.Column(db.String(255), nullable=True)
+    sender_company = db.Column(db.String(255), nullable=True)
+    sender_address = db.Column(db.Text, nullable=True)
+    sender_phone = db.Column(db.String(50), nullable=True)
+    sender_email = db.Column(db.String(255), nullable=True)
+    sender_tax_registration = db.Column(db.String(100), nullable=True)
+    # Email tracking
+    last_sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     items = db.relationship('InvoiceItem', backref='invoice', lazy=True, cascade='all, delete-orphan')
@@ -236,6 +245,14 @@ class Invoice(db.Model):
             'total': self.total,
             'amount_paid': self.get_amount_paid(),
             'amount_due': self.get_amount_due(),
+            # Sender information
+            'sender_name': self.sender_name or '',
+            'sender_company': self.sender_company or '',
+            'sender_address': self.sender_address or '',
+            'sender_phone': self.sender_phone or '',
+            'sender_email': self.sender_email or '',
+            'sender_tax_registration': self.sender_tax_registration or '',
+            'last_sent_at': self.last_sent_at.isoformat() if self.last_sent_at else None,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'items': [item.to_dict() for item in self.items],
