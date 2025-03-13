@@ -114,12 +114,34 @@ def register_remaining_template_filters(app):
         except (TypeError, AttributeError):
             return ""
     
+    @app.template_filter('nl2br')
+    def nl2br_filter(value):
+        """
+        Convert newlines to HTML line breaks.
+        
+        Args:
+            value: The text containing newlines
+        
+        Returns:
+            Text with newlines converted to <br> tags
+        """
+        if value is None:
+            return ""
+        
+        try:
+            # Replace newlines with HTML breaks
+            return value.replace('\n', '<br>')
+        except (TypeError, AttributeError):
+            return ""
+    
     # Explicitly register all filters in Jinja environment
     app.jinja_env.filters['percent'] = percent_filter
     app.jinja_env.filters['datetime'] = datetime_filter
     app.jinja_env.filters['truncate_text'] = truncate_text_filter
+    app.jinja_env.filters['nl2br'] = nl2br_filter
     
-    return (percent_filter, datetime_filter, truncate_text_filter)
+    return (percent_filter, datetime_filter, truncate_text_filter, nl2br_filter)
 
 # Register remaining filters
-percent_filter, datetime_filter, truncate_text_filter = register_remaining_template_filters(app)
+filters = register_remaining_template_filters(app)
+# No need to unpack the tuple if we're not using the individual filters elsewhere

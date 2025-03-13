@@ -17,7 +17,7 @@ try:
     
     # Make sure Flask's Jinja environment has all our filters
     with app.app_context():
-        for filter_name in ['currency', 'percent', 'datetime', 'truncate_text']:
+        for filter_name in ['currency', 'percent', 'datetime', 'truncate_text', 'nl2br']:
             if filter_name not in app.jinja_env.filters:
                 logger.warning(f"Filter '{filter_name}' not properly registered, manually adding")
                 # Add a simple fallback filter if needed
@@ -32,6 +32,7 @@ except Exception as e:
         app.jinja_env.filters['percent'] = lambda x, *args, **kwargs: str(x)
         app.jinja_env.filters['datetime'] = lambda x, *args, **kwargs: str(x)
         app.jinja_env.filters['truncate_text'] = lambda x, *args, **kwargs: str(x)
+        app.jinja_env.filters['nl2br'] = lambda x, *args, **kwargs: str(x).replace('\n', '<br>') if x else ''
         logger.info("Registered emergency fallback filters")
 
 # Import admin routes
