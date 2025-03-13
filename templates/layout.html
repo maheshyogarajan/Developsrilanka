@@ -239,6 +239,10 @@
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span>Invoices</span>
                         </a>
+                        <a href="{{ url_for('bank_accounts') }}" class="nav-link {% if '/bank-accounts' in request.path %}active{% endif %}">
+                            <i class="fas fa-university"></i>
+                            <span>Banks</span>
+                        </a>
                         <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
                             <i class="fas fa-user"></i>
                             <span>Profile</span>
@@ -291,6 +295,10 @@
                         <a href="{{ url_for('invoices') }}" class="nav-link {% if '/invoices' in request.path or '/clients' in request.path %}active{% endif %}">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span>Invoices</span>
+                        </a>
+                        <a href="{{ url_for('bank_accounts') }}" class="nav-link {% if '/bank-accounts' in request.path %}active{% endif %}">
+                            <i class="fas fa-university"></i>
+                            <span>Banks</span>
                         </a>
                         <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
                             <i class="fas fa-user"></i>

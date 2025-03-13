@@ -55,6 +55,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading invoice management routes: {str(e)}")
 
+# Import bank account management routes
+try:
+    import bank_account_routes
+    # Register bank account routes
+    bank_account_routes.register_routes(app)
+    logger.info("Bank account management routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading bank account management routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()

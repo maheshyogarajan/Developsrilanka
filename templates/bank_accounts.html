@@ -4,57 +4,98 @@
 
 {% block content %}
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mb-0">Bank Accounts</h1>
-        <a href="{{ url_for('create_bank_account') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-1"></i> Add Bank Account
-        </a>
-    </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">Bank Accounts</h2>
+                    <a href="{{ url_for('create_bank_account') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> Add New Account
+                    </a>
                 </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    {% if accounts %}
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            {% for account in accounts %}
-                <div class="col">
-                    <div class="card h-100 {% if account.is_default %}border-primary{% endif %}">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">{{ account.account_name }}</h5>
-                            {% if account.is_default %}
-                                <span class="badge bg-primary rounded-pill">Default</span>
-                            {% endif %}
+                <div class="card-body">
+                    {% if accounts %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Account Name</th>
+                                        <th>Bank</th>
+                                        <th>Account Number</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for account in accounts %}
+                                        <tr>
+                                            <td>{{ account.account_name }}</td>
+                                            <td>{{ account.bank_name }}</td>
+                                            <td>{{ account.account_number }}</td>
+                                            <td>
+                                                {% if account.is_default %}
+                                                    <span class="badge bg-primary rounded-pill">Default</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary rounded-pill">Secondary</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{{ url_for('view_bank_account', account_id=account.id) }}" class="btn btn-outline-primary">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <a href="{{ url_for('edit_bank_account', account_id=account.id) }}" class="btn btn-outline-secondary">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="mb-3">
+                                <i class="bi bi-bank text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                            <h4 class="text-muted">No Bank Accounts Yet</h4>
+                            <p class="text-muted">Add your bank accounts to use them for invoicing.</p>
+                            <a href="{{ url_for('create_bank_account') }}" class="btn btn-primary mt-2">
+                                <i class="bi bi-plus-circle me-1"></i> Add First Account
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if accounts %}
+                <div class="mt-4">
+                    <div class="card bg-light">
                         <div class="card-body">
-                            <p class="card-text"><strong>Bank:</strong> {{ account.bank_name }}</p>
-                            <p class="card-text"><strong>Account #:</strong> {{ account.account_number }}</p>
-                            {% if account.branch_name %}
-                                <p class="card-text"><strong>Branch:</strong> {{ account.branch_name }}</p>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer">
-                            <a href="{{ url_for('view_bank_account', account_id=account.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                            <a href="{{ url_for('edit_bank_account', account_id=account.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <h5 class="card-title">
+                                <i class="bi bi-info-circle me-2"></i>About Bank Accounts
+                            </h5>
+                            <p class="card-text">
+                                Your bank accounts can be selected when creating invoices to provide payment details to your clients.
+                                Set one as default to have it pre-selected during invoice creation.
+                            </p>
                         </div>
                     </div>
                 </div>
-            {% endfor %}
+            {% endif %}
         </div>
-    {% else %}
-        <div class="alert alert-info" role="alert">
-            <p>You don't have any bank accounts set up yet. Add your first bank account to include it on your invoices.</p>
-            <a href="{{ url_for('create_bank_account') }}" class="btn btn-primary mt-2">
-                <i class="bi bi-plus-circle me-1"></i> Add Bank Account
-            </a>
-        </div>
-    {% endif %}
+    </div>
 </div>
 {% endblock %}
