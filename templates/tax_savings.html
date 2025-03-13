@@ -93,35 +93,92 @@
             }
         }
         
-        // Counter animation for tax savings amount
-        const savingsCounter = document.getElementById('savingsCounter');
-        if (savingsCounter) {
-            const targetValue = parseFloat(savingsCounter.getAttribute('data-value'));
-            let currentValue = 0;
-            const duration = 1000; // 1 second
-            const framesPerSecond = 60;
-            const increment = targetValue / (duration / 1000 * framesPerSecond);
-            
-            const timer = setInterval(() => {
-                currentValue += increment;
-                if (currentValue >= targetValue) {
-                    currentValue = targetValue;
-                    clearInterval(timer);
-                    savingsCounter.classList.add('text-pulse');
+        // Format numbers with thousands separator as the user types
+        const formatNumber = (input) => {
+            input.addEventListener('blur', function() {
+                if (this.value) {
+                    const value = parseFloat(this.value.replace(/,/g, ''));
+                    if (!isNaN(value)) {
+                        this.value = value;
+                    }
                 }
-                savingsCounter.textContent = currentValue.toLocaleString('en-US', {
+            });
+        };
+        
+        // Apply formatting to all income inputs
+        document.querySelectorAll('input[type="number"]').forEach(formatNumber);
+        
+        // Save Income Button functionality
+        const saveIncomeBtn = document.getElementById('saveIncomeBtn');
+        if (saveIncomeBtn) {
+            saveIncomeBtn.addEventListener('click', function() {
+                const form = document.getElementById('income-form');
+                // Create a hidden input to indicate this is a save operation
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'save_only';
+                hiddenInput.value = 'true';
+                form.appendChild(hiddenInput);
+                
+                // Submit the form
+                form.submit();
+            });
+        }
+        
+        // Tax Savings Counter Animation
+        const savingsCounter = document.getElementById('savingsCounter');
+        const savingsProgressBar = document.getElementById('savingsProgressBar');
+        
+        if (savingsCounter && savingsProgressBar) {
+            const targetValue = parseFloat(savingsCounter.getAttribute('data-value') || 0);
+            let currentValue = 0;
+            const duration = 1500; // Animation duration in milliseconds
+            const startTime = performance.now();
+            
+            // Format number with commas and decimals
+            const formatCurrency = (value) => {
+                return new Intl.NumberFormat('en-LK', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
-                });
-            }, 1000 / framesPerSecond);
+                }).format(value);
+            };
             
-            // Progress bar animation
-            const progressBar = document.getElementById('savingsProgressBar');
-            if (progressBar) {
-                setTimeout(() => {
-                    progressBar.style.width = '100%';
-                }, 200);
-            }
+            // Animation function
+            const animateSavings = (timestamp) => {
+                const elapsed = timestamp - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function for smoother animation
+                const easeOutCubic = progress => 1 - Math.pow(1 - progress, 3);
+                const easedProgress = easeOutCubic(progress);
+                
+                // Calculate current value
+                currentValue = easedProgress * targetValue;
+                
+                // Update counter and progress bar
+                savingsCounter.textContent = formatCurrency(currentValue);
+                savingsProgressBar.style.width = `${easedProgress * 100}%`;
+                savingsProgressBar.setAttribute('aria-valuenow', easedProgress * 100);
+                
+                // Continue animation if not complete
+                if (progress < 1) {
+                    requestAnimationFrame(animateSavings);
+                } else {
+                    // Ensure final value is exactly the target value
+                    savingsCounter.textContent = formatCurrency(targetValue);
+                    
+                    // Add a pulse effect at the end for visual emphasis
+                    savingsCounter.classList.add('text-pulse');
+                    setTimeout(() => {
+                        savingsCounter.classList.remove('text-pulse');
+                    }, 500);
+                }
+            };
+            
+            // Start animation after a slight delay
+            setTimeout(() => {
+                requestAnimationFrame(animateSavings);
+            }, 300);
         }
     });
 </script>
@@ -672,96 +729,3 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Format numbers with thousands separator as the user types
-    const formatNumber = (input) => {
-        input.addEventListener('blur', function() {
-            if (this.value) {
-                const value = parseFloat(this.value.replace(/,/g, ''));
-                if (!isNaN(value)) {
-                    this.value = value;
-                }
-            }
-        });
-    };
-    
-    // Apply formatting to all income inputs
-    document.querySelectorAll('input[type="number"]').forEach(formatNumber);
-    
-    // Save Income Button functionality
-    const saveIncomeBtn = document.getElementById('saveIncomeBtn');
-    if (saveIncomeBtn) {
-        saveIncomeBtn.addEventListener('click', function() {
-            const form = document.getElementById('income-form');
-            // Create a hidden input to indicate this is a save operation
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'hidden';
-            hiddenInput.name = 'save_only';
-            hiddenInput.value = 'true';
-            form.appendChild(hiddenInput);
-            
-            // Submit the form
-            form.submit();
-        });
-    }
-    
-    // Tax Savings Counter Animation
-    const savingsCounter = document.getElementById('savingsCounter');
-    const savingsProgressBar = document.getElementById('savingsProgressBar');
-    
-    if (savingsCounter && savingsProgressBar) {
-        const targetValue = parseFloat(savingsCounter.getAttribute('data-value') || 0);
-        let currentValue = 0;
-        const duration = 1500; // Animation duration in milliseconds
-        const startTime = performance.now();
-        
-        // Format number with commas and decimals
-        const formatCurrency = (value) => {
-            return new Intl.NumberFormat('en-LK', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(value);
-        };
-        
-        // Animation function
-        const animateSavings = (timestamp) => {
-            const elapsed = timestamp - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Easing function for smoother animation
-            const easeOutCubic = progress => 1 - Math.pow(1 - progress, 3);
-            const easedProgress = easeOutCubic(progress);
-            
-            // Calculate current value
-            currentValue = easedProgress * targetValue;
-            
-            // Update counter and progress bar
-            savingsCounter.textContent = formatCurrency(currentValue);
-            savingsProgressBar.style.width = `${easedProgress * 100}%`;
-            savingsProgressBar.setAttribute('aria-valuenow', easedProgress * 100);
-            
-            // Continue animation if not complete
-            if (progress < 1) {
-                requestAnimationFrame(animateSavings);
-            } else {
-                // Ensure final value is exactly the target value
-                savingsCounter.textContent = formatCurrency(targetValue);
-                
-                // Add a pulse effect at the end for visual emphasis
-                savingsCounter.classList.add('text-pulse');
-                setTimeout(() => {
-                    savingsCounter.classList.remove('text-pulse');
-                }, 500);
-            }
-        };
-        
-        // Start animation after a slight delay
-        setTimeout(() => {
-            requestAnimationFrame(animateSavings);
-        }, 300);
-    }
-});
-</script>
-{% endblock %}
