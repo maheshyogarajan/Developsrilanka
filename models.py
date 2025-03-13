@@ -551,6 +551,41 @@ class CompanyExpense(db.Model):
             'reimburser_name': self.reimburser.name if self.reimburser else ''
         }
 
+class ClientExpense(db.Model):
+    """Model for storing expenses allocated to clients for project billing."""
+    id = db.Column(db.Integer, primary_key=True)
+    receipt_id = db.Column(db.Integer, db.ForeignKey('receipt.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
+    
+    description = db.Column(db.Text, nullable=True)
+    project_name = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Define relationships
+    receipt = db.relationship('Receipt', backref='client_expenses', lazy=True)
+    client = db.relationship('Client', backref='expenses', lazy=True)
+    user = db.relationship('User', foreign_keys=[user_id], backref='client_expenses', lazy=True)
+    
+    def to_dict(self):
+        """Convert the client expense to a dictionary."""
+        return {
+            'id': self.id,
+            'receipt_id': self.receipt_id,
+            'client_id': self.client_id,
+            'user_id': self.user_id,
+            'organization_id': self.organization_id,
+            'description': self.description,
+            'project_name': self.project_name,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'receipt': self.receipt.to_dict() if self.receipt else None,
+            'client_name': self.client.name if self.client else None
+        }
+
+
 class UserIncome(db.Model):
     """Model for storing user income details for tax calculations."""
     id = db.Column(db.Integer, primary_key=True)

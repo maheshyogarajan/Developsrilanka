@@ -1,120 +1,66 @@
-{% extends "layout.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Submit as Expense - Develop Sri Lanka{% endblock %}
+{% block title %}Create Expense from Receipt{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
-        <div class="col">
-            <h2 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Submit as Company Expense</h2>
-            <p class="text-muted">Submit this receipt for company expense reimbursement.</p>
-        </div>
-        <div class="col-md-auto">
-            <a href="{{ url_for('view_receipt', receipt_id=receipt.id) }}" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i>Back to Receipt
-            </a>
-        </div>
-    </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
+<div class="container mt-4">
     <div class="row">
-        <!-- Left Column - Form -->
-        <div class="col-lg-8 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">Expense Details</h5>
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Create Company Expense</h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <h6>Vendor</h6>
-                                <p>{{ receipt.vendor_name }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <h6>Amount</h6>
-                                <p class="fs-5 fw-bold">{{ receipt.total_amount|currency }}</p>
-                            </div>
+                    <h5 class="card-title">Receipt Details</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Vendor</h6>
+                            <p class="fw-bold">{{ receipt.vendor_name }}</p>
+                            <p>{{ receipt.vendor_address }}</p>
+                            <p>{{ receipt.vendor_contact }}</p>
                         </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <h6>Date</h6>
-                                <p>{{ receipt.date|date }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <h6>Category</h6>
-                                <p>
-                                    {% if receipt.expense_major_category %}
-                                        {{ receipt.expense_major_category }}
-                                        {% if receipt.expense_minor_category %}
-                                            / {{ receipt.expense_minor_category }}
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-muted">Not categorized</span>
-                                    {% endif %}
-                                </p>
-                            </div>
+                        <div class="col-md-6">
+                            <h6>Receipt Information</h6>
+                            <p><strong>Date:</strong> {{ receipt.date.strftime('%Y-%m-%d') if receipt.date else 'N/A' }}</p>
+                            <p><strong>Total Amount:</strong> {{ '%.2f'|format(receipt.total_amount) }}</p>
+                            <p><strong>Category:</strong> {{ receipt.expense_major_category }} - {{ receipt.expense_minor_category }}</p>
                         </div>
-                        
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Expense Description*</label>
-                            <input type="text" class="form-control" id="description" name="description" 
-                                   placeholder="Brief description of the expense" required>
-                            <div class="form-text">Provide a clear description of the business purpose of this expense.</div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="notes" class="form-label">Additional Notes</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3" 
-                                      placeholder="Any additional details about this expense"></textarea>
-                        </div>
-                        
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('view_receipt', receipt_id=receipt.id) }}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-paper-plane me-2"></i>Submit Expense
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Right Column - Receipt Image -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">Receipt Image</h5>
-                </div>
-                <div class="card-body text-center">
-                    {% if receipt.image_path %}
-                    <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
-                         class="img-fluid mb-3" alt="Receipt image">
-                    <div class="d-grid">
-                        <a href="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
-                           class="btn btn-outline-primary" target="_blank">
-                            <i class="fas fa-search-plus me-2"></i>View Full Size
-                        </a>
                     </div>
-                    {% else %}
-                    <div class="text-muted my-5">
-                        <i class="fas fa-receipt fa-4x mb-3"></i>
-                        <p>No receipt image available</p>
+
+                    {% if receipt.image_path %}
+                    <div class="text-center mb-4">
+                        <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
+                            alt="Receipt Image" class="img-fluid" style="max-height: 300px;">
                     </div>
                     {% endif %}
+
+                    <form method="POST" action="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}">
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Expense Description</label>
+                            <input type="text" class="form-control" id="description" name="description" 
+                                   value="{{ receipt.vendor_name }}" required>
+                            <small class="text-muted">Short description of the expense purpose</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_reimbursable" name="is_reimbursable" value="true" checked>
+                                <label class="form-check-label" for="is_reimbursable">Request Reimbursement</label>
+                            </div>
+                            <small class="text-muted">Uncheck if this expense should not be reimbursed to you</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                            <small class="text-muted">Any additional details or justification for this expense</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view_receipt', receipt_id=receipt.id) }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Submit Expense</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
