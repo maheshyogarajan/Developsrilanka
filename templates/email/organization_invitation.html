@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <title>{{ organization.name }} Invitation</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+        .logo {
+            max-width: 150px;
+            max-height: 80px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .invitation-box {
+            background-color: {{ organization.secondary_color }};
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .button {
+            display: inline-block;
+            background-color: {{ organization.primary_color }};
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .footer {
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .role-badge {
+            display: inline-block;
+            background-color: #6c757d;
+            color: white;
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            {% if organization.logo_path %}
+                <img src="{{ organization.logo_path }}" alt="{{ organization.name }}" class="logo">
+            {% else %}
+                <h2 style="color: {{ organization.primary_color }};">{{ organization.name }}</h2>
+            {% endif %}
+        </div>
+        
+        <div class="content">
+            <h2>You've been invited to join {{ organization.name }}</h2>
+            
+            <p>Hello,</p>
+            
+            <p>{{ inviter.name or inviter.email }} has invited you to join <strong>{{ organization.name }}</strong> on DevelopSriLanka as a <span class="role-badge">{{ invitation.role|title }}</span></p>
+            
+            <div class="invitation-box">
+                <h3>Organization Details</h3>
+                
+                {% if organization.website %}
+                    <p><strong>Website:</strong> {{ organization.website }}</p>
+                {% endif %}
+                
+                {% if organization.email %}
+                    <p><strong>Email:</strong> {{ organization.email }}</p>
+                {% endif %}
+                
+                {% if organization.phone %}
+                    <p><strong>Phone:</strong> {{ organization.phone }}</p>
+                {% endif %}
+                
+                <p><strong>Role:</strong> {{ invitation.role|title }}</p>
+                <p><strong>Expires:</strong> {{ invitation.expires_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+            
+            <p>Click the button below to accept this invitation:</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ accept_url }}" class="button">Accept Invitation</a>
+            </div>
+            
+            <p style="margin-top: 20px; font-size: 14px;">If you don't already have an account, you'll be prompted to create one.</p>
+        </div>
+        
+        <div class="footer">
+            {% if organization.email_footer_text %}
+                {{ organization.email_footer_text|safe }}
+            {% else %}
+                <p>&copy; {{ now().year }} {{ organization.name }}. All rights reserved.</p>
+            {% endif %}
+            <p>
+                DevelopSriLanka.com | Receipt Management System
+            </p>
+        </div>
+    </div>
+</body>
+</html>

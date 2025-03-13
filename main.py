@@ -64,6 +64,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading bank account management routes: {str(e)}")
 
+# Import organization management routes
+try:
+    import organization_routes
+    # Register organization routes
+    organization_routes.register_routes(app)
+    logger.info("Organization management routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading organization management routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()

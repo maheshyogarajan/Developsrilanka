@@ -7,8 +7,11 @@
     <div class="row">
         <div class="col-md-8 offset-md-2">
             <div class="card">
-                <div class="card-header">
-                    <h2>Create New Organization</h2>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2>Create Organization</h2>
+                    <a href="{{ url_for('organizations.organizations') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
                 </div>
                 <div class="card-body">
                     <form method="post">
@@ -63,6 +66,12 @@
                                     <input type="color" class="form-control form-control-color" id="secondary_color" name="secondary_color" value="#f5f8ff">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email_footer_text" class="form-label">Email Footer Text</label>
+                            <textarea class="form-control" id="email_footer_text" name="email_footer_text" rows="3" placeholder="© 2025 Your Organization. All rights reserved."></textarea>
+                            <div class="form-text">Custom text to appear in the footer of emails. HTML is allowed.</div>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">

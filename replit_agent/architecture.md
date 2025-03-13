@@ -6,6 +6,8 @@ The Receipt Scanner application is a web-based system designed to help users in 
 
 The system follows a monolithic architecture pattern built on Flask, with PostgreSQL for data storage, and integrates with Google's Generative AI for receipt processing. It utilizes Celery for asynchronous task processing, making it suitable for handling computationally intensive operations like image processing.
 
+A key feature of the system is its multi-organization architecture, which allows users to manage multiple organizations with custom branding, team management with role-based access, and organization-specific data isolation.
+
 ## System Architecture
 
 ### High-Level Architecture
@@ -47,6 +49,7 @@ The application follows a traditional three-tier architecture:
    - Admin routes for administrative functions
    - Invoice routes for invoice management
    - Bank account routes for managing financial accounts
+   - Organization routes for multi-org management
 
 4. **Image Processing (`image_processor.py`)**
    - Image upload and storage
@@ -75,13 +78,17 @@ The application uses Flask-Login for session management with multiple authentica
 The primary data models include:
 
 1. **User**: Account information, authentication details, and role
-2. **Receipt**: Scanned receipt metadata and processing results
-3. **ReceiptItem**: Individual line items from receipts
-4. **BankAccount**: User's bank account information
-5. **Invoice**: Generated invoices with status tracking
-6. **InvoiceItem**: Line items for invoices
-7. **Payment**: Payment records for invoices
-8. **UserIncome**: Income tracking for users
+2. **Organization**: Organization details and branding settings
+3. **OrganizationUser**: User-organization relationship with roles
+4. **OrganizationInvitation**: Team member invitations
+5. **Receipt**: Scanned receipt metadata and processing results (organization-scoped)
+6. **ReceiptItem**: Individual line items from receipts
+7. **BankAccount**: User's bank account information (organization-scoped)
+8. **Invoice**: Generated invoices with status tracking (organization-scoped)
+9. **InvoiceItem**: Line items for invoices
+10. **Payment**: Payment records for invoices
+11. **Client**: Client information for invoicing (organization-scoped)
+12. **UserIncome**: Income tracking for users (organization-scoped)
 
 ## Data Flow
 

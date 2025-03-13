@@ -1,130 +1,126 @@
 """
 Routes for organization management and team invitations.
 """
-import json
-import logging
 import os
 import uuid
+import logging
 from datetime import datetime, timedelta
-
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
+from models import db, Organization, OrganizationUser, OrganizationInvitation, UserRole
+from decorators import role_required
 from flask_mail import Message
 
-from models import db, Organization, OrganizationUser, OrganizationInvitation, User, UserRole
-from app import mail
-from decorators import role_required
-
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create Blueprint
-bp = Blueprint('organizations', __name__, url_prefix='/organizations')
+# Create blueprint
+organizations_bp = Blueprint('organizations', __name__, url_prefix='/organizations')
 
-@bp.route('/')
+@organizations_bp.route('/')
 @login_required
 def organizations():
     """Render the organizations dashboard with list of user's organizations."""
     user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
-    return render_template('organizations/index.html', user_orgs=user_orgs)
+    
+    # Get the default organization
+    default_org = None
+    for org_user in user_orgs:
+        if org_user.is_default:
+            default_org = org_user.organization
+            break
+    
+    return render_template('organizations/index.html', 
+                          organizations=user_orgs,
+                          default_org=default_org)
 
-@bp.route('/create', methods=['GET', 'POST'])
+@organizations_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create_organization():
     """Create a new organization."""
     if request.method == 'POST':
         name = request.form.get('name')
-        website = request.form.get('website')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        address = request.form.get('address')
-        tax_registration_number = request.form.get('tax_registration_number')
-        primary_color = request.form.get('primary_color', '#4a6da7')
-        secondary_color = request.form.get('secondary_color', '#f5f8ff')
-        
         if not name:
-            flash('Organization name is required', 'danger')
+            flash('Organization name is required.', 'danger')
             return redirect(url_for('organizations.create_organization'))
         
-        # Create the organization
-        org = Organization(
+        # Create new organization
+        new_org = Organization(
             name=name,
-            website=website,
-            email=email,
-            phone=phone,
-            address=address,
-            tax_registration_number=tax_registration_number,
-            primary_color=primary_color,
-            secondary_color=secondary_color
+            website=request.form.get('website'),
+            email=request.form.get('email'),
+            phone=request.form.get('phone'),
+            address=request.form.get('address'),
+            tax_registration_number=request.form.get('tax_registration_number'),
+            primary_color=request.form.get('primary_color', '#4a6da7'),
+            secondary_color=request.form.get('secondary_color', '#f5f8ff'),
+            email_footer_text=request.form.get('email_footer_text')
         )
-        db.session.add(org)
-        db.session.flush()  # Get the org ID
         
-        # Link the current user as owner
+        db.session.add(new_org)
+        db.session.flush()  # Get the ID without committing
+        
+        # Create organization-user relationship
+        is_first_org = OrganizationUser.query.filter_by(user_id=current_user.id).count() == 0
         org_user = OrganizationUser(
             user_id=current_user.id,
-            organization_id=org.id,
+            organization_id=new_org.id,
             role=UserRole.OWNER.value,
-            is_default=True
+            is_default=is_first_org  # First organization is default
         )
+        
         db.session.add(org_user)
-        
-        # Make this the default organization if it's the user's first
-        user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
-        if not user_orgs:
-            org_user.is_default = True
-        
         db.session.commit()
-        flash('Organization created successfully', 'success')
-        return redirect(url_for('organizations.view_organization', org_id=org.id))
+        
+        flash(f'Organization "{name}" created successfully!', 'success')
+        return redirect(url_for('organizations.view_organization', org_id=new_org.id))
     
     return render_template('organizations/create.html')
 
-@bp.route('/<int:org_id>')
+@organizations_bp.route('/<int:org_id>')
 @login_required
 def view_organization(org_id):
     """View a specific organization."""
-    # Check if user is a member of this organization
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
-    ).first()
+    ).first_or_404()
     
-    if not org_user and not current_user.is_admin():
-        flash('You do not have access to this organization', 'danger')
-        return redirect(url_for('organizations.organizations'))
+    organization = org_user.organization
     
-    organization = Organization.query.get_or_404(org_id)
-    team_members = OrganizationUser.query.filter_by(organization_id=org_id).all()
+    # Get all members of this organization
+    team_members = OrganizationUser.query.filter_by(
+        organization_id=org_id
+    ).all()
+    
+    # Get pending invitations for this organization
     pending_invitations = OrganizationInvitation.query.filter_by(
-        organization_id=org_id, 
+        organization_id=org_id,
         accepted=False
     ).all()
     
-    return render_template(
-        'organizations/view.html',
-        organization=organization,
-        org_user=org_user,
-        team_members=team_members,
-        pending_invitations=pending_invitations
-    )
+    return render_template('organizations/view.html',
+                          organization=organization,
+                          org_user=org_user,
+                          team_members=team_members,
+                          pending_invitations=pending_invitations)
 
-@bp.route('/<int:org_id>/edit', methods=['GET', 'POST'])
+@organizations_bp.route('/<int:org_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_organization(org_id):
     """Edit an existing organization."""
-    # Check if user has admin or owner role in this organization
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
-    ).first()
+    ).first_or_404()
     
-    if not org_user or (org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]) and not current_user.is_admin():
-        flash('You do not have permission to edit this organization', 'danger')
+    # Check permissions
+    if org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value] and not current_user.is_admin():
+        flash('You do not have permission to edit this organization.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    organization = Organization.query.get_or_404(org_id)
+    organization = org_user.organization
     
     if request.method == 'POST':
         organization.name = request.form.get('name')
@@ -133,115 +129,126 @@ def edit_organization(org_id):
         organization.phone = request.form.get('phone')
         organization.address = request.form.get('address')
         organization.tax_registration_number = request.form.get('tax_registration_number')
-        organization.primary_color = request.form.get('primary_color', '#4a6da7')
-        organization.secondary_color = request.form.get('secondary_color', '#f5f8ff')
+        organization.primary_color = request.form.get('primary_color')
+        organization.secondary_color = request.form.get('secondary_color')
         organization.email_footer_text = request.form.get('email_footer_text')
         
         db.session.commit()
-        flash('Organization updated successfully', 'success')
+        
+        flash('Organization updated successfully!', 'success')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    return render_template('organizations/edit.html', organization=organization)
+    return render_template('organizations/edit.html', 
+                          organization=organization,
+                          org_user=org_user)
 
-@bp.route('/<int:org_id>/delete', methods=['POST'])
+@organizations_bp.route('/<int:org_id>/delete', methods=['POST'])
 @login_required
 def delete_organization(org_id):
     """Delete an organization (owner only)."""
-    # Check if user is owner of this organization
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
-        organization_id=org_id,
-        role=UserRole.OWNER.value
-    ).first()
+        organization_id=org_id
+    ).first_or_404()
     
-    if not org_user and not current_user.is_admin():
-        flash('You do not have permission to delete this organization', 'danger')
+    # Only owner or global admin can delete an organization
+    if org_user.role != UserRole.OWNER.value and not current_user.is_admin():
+        flash('You do not have permission to delete this organization.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    organization = Organization.query.get_or_404(org_id)
+    organization = org_user.organization
+    org_name = organization.name
     
-    # Check if this is the user's only organization
-    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
-    if len(user_orgs) == 1 and user_orgs[0].organization_id == org_id:
-        flash('You cannot delete your only organization', 'danger')
+    # Check if this is the user's last organization
+    if OrganizationUser.query.filter_by(user_id=current_user.id).count() == 1:
+        flash('You cannot delete your last organization. Create a new one first.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    # If this was the default organization, set another one as default
-    if org_user and org_user.is_default:
-        other_org = OrganizationUser.query.filter(
+    # Set a new default organization if this was the default
+    if org_user.is_default:
+        # Find any other organization for this user
+        another_org_user = OrganizationUser.query.filter(
             OrganizationUser.user_id == current_user.id,
             OrganizationUser.organization_id != org_id
         ).first()
-        if other_org:
-            other_org.is_default = True
+        
+        if another_org_user:
+            another_org_user.is_default = True
+            db.session.add(another_org_user)
     
-    # Delete the organization and all its team memberships
+    # Delete the organization
     db.session.delete(organization)
     db.session.commit()
     
-    flash('Organization deleted successfully', 'success')
+    flash(f'Organization "{org_name}" has been deleted.', 'success')
     return redirect(url_for('organizations.organizations'))
 
-@bp.route('/<int:org_id>/set-default', methods=['POST'])
+@organizations_bp.route('/<int:org_id>/set-default', methods=['POST'])
 @login_required
 def set_default_organization(org_id):
     """Set an organization as the user's default."""
-    # Check if user is a member of this organization
+    # Find the organization and check if user is a member
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
-    ).first()
+    ).first_or_404()
     
-    if not org_user:
-        flash('You are not a member of this organization', 'danger')
+    # Already default
+    if org_user.is_default:
         return redirect(url_for('organizations.organizations'))
     
-    # Remove default from all other organizations
-    OrganizationUser.query.filter_by(user_id=current_user.id).update({'is_default': False})
+    # Clear current default
+    current_default = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        is_default=True
+    ).first()
     
-    # Set this one as default
+    if current_default:
+        current_default.is_default = False
+        db.session.add(current_default)
+    
+    # Set new default
     org_user.is_default = True
+    db.session.add(org_user)
     db.session.commit()
     
-    flash('Default organization updated successfully', 'success')
+    flash(f'"{org_user.organization.name}" is now your default organization.', 'success')
     return redirect(url_for('organizations.organizations'))
 
-@bp.route('/<int:org_id>/invite', methods=['GET', 'POST'])
+@organizations_bp.route('/<int:org_id>/invite', methods=['GET', 'POST'])
 @login_required
 def invite_team_member(org_id):
     """Invite a new team member to the organization."""
-    # Check if user has permission to invite members
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
-    ).first()
+    ).first_or_404()
     
-    if not org_user or (org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]) and not current_user.is_admin():
-        flash('You do not have permission to invite team members', 'danger')
+    # Check permissions
+    if org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value] and not current_user.is_admin():
+        flash('You do not have permission to invite members to this organization.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    organization = Organization.query.get_or_404(org_id)
+    organization = org_user.organization
     
     if request.method == 'POST':
         email = request.form.get('email')
-        role = request.form.get('role', UserRole.MEMBER.value)
+        role = request.form.get('role')
         
+        # Validate email
         if not email:
-            flash('Email address is required', 'danger')
+            flash('Email address is required.', 'danger')
             return redirect(url_for('organizations.invite_team_member', org_id=org_id))
         
-        # Check if user already exists
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            # Check if already a member
-            existing_membership = OrganizationUser.query.filter_by(
-                user_id=existing_user.id,
-                organization_id=org_id
-            ).first()
-            
-            if existing_membership:
-                flash('This user is already a member of your organization', 'warning')
-                return redirect(url_for('organizations.view_organization', org_id=org_id))
+        # Check if user is already a member
+        existing_member = OrganizationUser.query.join(OrganizationUser.user).filter(
+            OrganizationUser.organization_id == org_id,
+            OrganizationUser.user.has(email=email)
+        ).first()
+        
+        if existing_member:
+            flash(f'User with email {email} is already a member of this organization.', 'warning')
+            return redirect(url_for('organizations.view_organization', org_id=org_id))
         
         # Check for existing invitation
         existing_invitation = OrganizationInvitation.query.filter_by(
@@ -251,14 +258,13 @@ def invite_team_member(org_id):
         ).first()
         
         if existing_invitation and not existing_invitation.is_expired():
-            flash('An invitation has already been sent to this email address', 'warning')
+            flash(f'An invitation has already been sent to {email} and is still pending.', 'warning')
             return redirect(url_for('organizations.view_organization', org_id=org_id))
         
-        # Generate invitation token
+        # Create new invitation with token
         token = str(uuid.uuid4())
-        expires_at = datetime.utcnow() + timedelta(days=7)
+        expires_at = datetime.utcnow() + timedelta(days=7)  # 7 days expiration
         
-        # Create invitation
         invitation = OrganizationInvitation(
             organization_id=org_id,
             invited_by_user_id=current_user.id,
@@ -267,244 +273,244 @@ def invite_team_member(org_id):
             token=token,
             expires_at=expires_at
         )
+        
         db.session.add(invitation)
         db.session.commit()
         
         # Send invitation email
         try:
             send_invitation_email(invitation)
-            flash('Invitation sent successfully', 'success')
+            flash(f'Invitation sent to {email} successfully!', 'success')
         except Exception as e:
             logger.error(f"Failed to send invitation email: {str(e)}")
-            flash('Invitation created but email could not be sent', 'warning')
+            flash(f'Invitation created but email could not be sent. Error: {str(e)}', 'warning')
         
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    return render_template(
-        'organizations/invite.html',
-        organization=organization,
-        roles=[role.value for role in UserRole if role != UserRole.OWNER]  # Don't allow inviting owners
-    )
+    # Get available roles (owner can only be assigned by transferring ownership)
+    roles = [UserRole.ADMIN.value, UserRole.MEMBER.value, UserRole.VIEWER.value]
+    
+    return render_template('organizations/invite.html', 
+                          organization=organization,
+                          roles=roles)
 
-@bp.route('/invitations/<token>')
+@organizations_bp.route('/invitation/<token>')
 def accept_invitation(token):
     """Accept an organization invitation."""
     invitation = OrganizationInvitation.query.filter_by(token=token).first_or_404()
     
+    # Check if invitation is expired
     if invitation.is_expired():
-        flash('This invitation has expired', 'danger')
+        flash('This invitation has expired.', 'danger')
         return redirect(url_for('home'))
     
+    # Check if invitation is already accepted
     if invitation.accepted:
-        flash('This invitation has already been accepted', 'warning')
+        flash('This invitation has already been accepted.', 'warning')
         return redirect(url_for('home'))
     
-    organization = Organization.query.get_or_404(invitation.organization_id)
-    
-    # Check if user is logged in
-    if current_user.is_authenticated:
-        # If logged in user doesn't match invitation email
-        if current_user.email != invitation.email:
-            flash('This invitation was sent to a different email address', 'danger')
-            return redirect(url_for('home'))
-        
-        # Add user to organization
-        existing_membership = OrganizationUser.query.filter_by(
-            user_id=current_user.id,
-            organization_id=invitation.organization_id
-        ).first()
-        
-        if existing_membership:
-            flash('You are already a member of this organization', 'info')
-        else:
-            org_user = OrganizationUser(
-                user_id=current_user.id,
-                organization_id=invitation.organization_id,
-                role=invitation.role
-            )
-            
-            # Check if this is the user's first organization
-            user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
-            if not user_orgs:
-                org_user.is_default = True
-            
-            db.session.add(org_user)
-            
-            # Mark invitation as accepted
-            invitation.accepted = True
-            db.session.commit()
-            
-            flash(f'You have joined {organization.name}!', 'success')
-        
-        return redirect(url_for('organizations.view_organization', org_id=organization.id))
-    else:
-        # Store invitation token in session and redirect to login
-        # Use Flask sessions to store the token temporarily
+    # If user is not logged in, redirect to login
+    if not current_user.is_authenticated:
+        flash('Please log in or create an account to accept this invitation.', 'info')
+        # Store invitation token in session to redirect back after login
         session = {}
-        session['pending_invitation_token'] = token
-        return redirect(url_for('login', next=url_for('organizations.accept_invitation', token=token)))
+        session['invitation_token'] = token
+        return redirect(url_for('login'))
+    
+    # Check if user is already a member
+    existing_member = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=invitation.organization_id
+    ).first()
+    
+    if existing_member:
+        flash('You are already a member of this organization.', 'warning')
+        invitation.accepted = True
+        db.session.commit()
+        return redirect(url_for('organizations.view_organization', org_id=invitation.organization_id))
+    
+    # Create organization membership
+    is_first_org = OrganizationUser.query.filter_by(user_id=current_user.id).count() == 0
+    org_user = OrganizationUser(
+        user_id=current_user.id,
+        organization_id=invitation.organization_id,
+        role=invitation.role,
+        is_default=is_first_org  # First organization is default
+    )
+    
+    # Mark invitation as accepted
+    invitation.accepted = True
+    
+    db.session.add(org_user)
+    db.session.commit()
+    
+    flash(f'You have joined {invitation.organization.name} successfully!', 'success')
+    return redirect(url_for('organizations.view_organization', org_id=invitation.organization_id))
 
-@bp.route('/<int:org_id>/members/<int:user_id>/role', methods=['POST'])
+@organizations_bp.route('/<int:org_id>/member/<int:user_id>/role', methods=['POST'])
 @login_required
 def update_member_role(org_id, user_id):
     """Update a team member's role."""
-    # Check if current user is owner or admin
-    current_org_user = OrganizationUser.query.filter_by(
+    org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
-        organization_id=org_id
-    ).first()
-    
-    if not current_org_user or (current_org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]) and not current_user.is_admin():
-        flash('You do not have permission to update member roles', 'danger')
-        return redirect(url_for('organizations.view_organization', org_id=org_id))
-    
-    # Cannot change role of organization owner
-    target_org_user = OrganizationUser.query.filter_by(
-        user_id=user_id, 
         organization_id=org_id
     ).first_or_404()
     
-    if target_org_user.role == UserRole.OWNER.value and current_org_user.role != UserRole.OWNER.value:
-        flash('Only the organization owner can change an owner\'s role', 'danger')
+    # Check permissions - only owner or admin can update roles
+    if org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value] and not current_user.is_admin():
+        flash('You do not have permission to update member roles.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    # Update role
+    # Only owner can set another user as owner (transfer ownership)
     new_role = request.form.get('role')
-    if new_role not in [role.value for role in UserRole]:
-        flash('Invalid role', 'danger')
+    if new_role == UserRole.OWNER.value and org_user.role != UserRole.OWNER.value and not current_user.is_admin():
+        flash('Only the organization owner can transfer ownership.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    # Prevent creating multiple owners
+    # Get the member to update
+    member = OrganizationUser.query.filter_by(
+        user_id=user_id,
+        organization_id=org_id
+    ).first_or_404()
+    
+    # Prevent users from changing their own role
+    if member.user_id == current_user.id and not current_user.is_admin():
+        flash('You cannot change your own role.', 'danger')
+        return redirect(url_for('organizations.view_organization', org_id=org_id))
+    
+    # Handle ownership transfer
     if new_role == UserRole.OWNER.value:
-        existing_owner = OrganizationUser.query.filter_by(
+        # Find current owner and demote to admin
+        current_owner = OrganizationUser.query.filter_by(
             organization_id=org_id,
             role=UserRole.OWNER.value
         ).first()
         
-        if existing_owner and existing_owner.user_id != user_id:
-            flash('An organization can only have one owner. Please remove the existing owner first.', 'danger')
-            return redirect(url_for('organizations.view_organization', org_id=org_id))
+        if current_owner:
+            current_owner.role = UserRole.ADMIN.value
+            db.session.add(current_owner)
     
-    target_org_user.role = new_role
+    # Update the member's role
+    member.role = new_role
+    db.session.add(member)
     db.session.commit()
     
-    flash('Member role updated successfully', 'success')
+    flash(f'Role updated successfully to {new_role}.', 'success')
     return redirect(url_for('organizations.view_organization', org_id=org_id))
 
-@bp.route('/<int:org_id>/members/<int:user_id>/remove', methods=['POST'])
+@organizations_bp.route('/<int:org_id>/member/<int:user_id>/remove', methods=['POST'])
 @login_required
 def remove_team_member(org_id, user_id):
     """Remove a team member from the organization."""
-    # Check if current user is owner or admin
-    current_org_user = OrganizationUser.query.filter_by(
+    org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
-        organization_id=org_id
-    ).first()
-    
-    if not current_org_user or (current_org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]) and not current_user.is_admin():
-        flash('You do not have permission to remove team members', 'danger')
-        return redirect(url_for('organizations.view_organization', org_id=org_id))
-    
-    # Cannot remove organization owner
-    target_org_user = OrganizationUser.query.filter_by(
-        user_id=user_id, 
         organization_id=org_id
     ).first_or_404()
     
-    if target_org_user.role == UserRole.OWNER.value:
-        flash('The organization owner cannot be removed', 'danger')
+    # Check permissions - only owner or admin can remove members
+    if org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value] and not current_user.is_admin():
+        flash('You do not have permission to remove members.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    # Cannot remove yourself
-    if target_org_user.user_id == current_user.id:
-        flash('You cannot remove yourself from the organization', 'danger')
+    # Get the member to remove
+    member = OrganizationUser.query.filter_by(
+        user_id=user_id,
+        organization_id=org_id
+    ).first_or_404()
+    
+    # Prevent removing owner
+    if member.role == UserRole.OWNER.value and not current_user.is_admin():
+        flash('The organization owner cannot be removed.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    # Remove member
-    db.session.delete(target_org_user)
+    # Prevent users from removing themselves
+    if member.user_id == current_user.id and not current_user.is_admin():
+        flash('You cannot remove yourself from the organization.', 'danger')
+        return redirect(url_for('organizations.view_organization', org_id=org_id))
+    
+    # Delete the membership
+    db.session.delete(member)
     db.session.commit()
     
-    flash('Team member removed successfully', 'success')
+    flash('Member removed successfully.', 'success')
     return redirect(url_for('organizations.view_organization', org_id=org_id))
 
-@bp.route('/<int:org_id>/invitations/<int:invitation_id>/cancel', methods=['POST'])
+@organizations_bp.route('/<int:org_id>/invitation/<int:invitation_id>/cancel', methods=['POST'])
 @login_required
 def cancel_invitation(org_id, invitation_id):
     """Cancel a pending invitation."""
-    # Check if current user is owner or admin
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
-        organization_id=org_id
-    ).first()
-    
-    if not org_user or (org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]) and not current_user.is_admin():
-        flash('You do not have permission to cancel invitations', 'danger')
-        return redirect(url_for('organizations.view_organization', org_id=org_id))
-    
-    invitation = OrganizationInvitation.query.filter_by(
-        id=invitation_id, 
         organization_id=org_id
     ).first_or_404()
     
-    if invitation.accepted:
-        flash('This invitation has already been accepted and cannot be cancelled', 'warning')
+    # Check permissions - only owner or admin can cancel invitations
+    if org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value] and not current_user.is_admin():
+        flash('You do not have permission to cancel invitations.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
+    # Get the invitation to cancel
+    invitation = OrganizationInvitation.query.filter_by(
+        id=invitation_id,
+        organization_id=org_id,
+        accepted=False
+    ).first_or_404()
+    
+    # Delete the invitation
     db.session.delete(invitation)
     db.session.commit()
     
-    flash('Invitation cancelled successfully', 'success')
+    flash('Invitation cancelled successfully.', 'success')
     return redirect(url_for('organizations.view_organization', org_id=org_id))
 
-@bp.route('/<int:org_id>/branding', methods=['GET', 'POST'])
+@organizations_bp.route('/<int:org_id>/branding', methods=['GET', 'POST'])
 @login_required
 def edit_branding(org_id):
     """Edit the organization's branding settings."""
-    # Check if user has admin or owner role in this organization
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
-    ).first()
+    ).first_or_404()
     
-    if not org_user or (org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]) and not current_user.is_admin():
-        flash('You do not have permission to edit branding settings', 'danger')
+    # Check permissions
+    if org_user.role not in [UserRole.OWNER.value, UserRole.ADMIN.value] and not current_user.is_admin():
+        flash('You do not have permission to edit branding.', 'danger')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    organization = Organization.query.get_or_404(org_id)
+    organization = org_user.organization
     
     if request.method == 'POST':
-        organization.primary_color = request.form.get('primary_color', '#4a6da7')
-        organization.secondary_color = request.form.get('secondary_color', '#f5f8ff')
+        # Handle logo upload if provided
+        if 'logo' in request.files and request.files['logo'].filename:
+            logo_file = request.files['logo']
+            if logo_file:
+                # Save the logo
+                filename = secure_filename(logo_file.filename)
+                # Create unique filename to avoid overwriting
+                unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+                
+                # Create directory if it doesn't exist
+                logo_dir = os.path.join(current_app.static_folder, 'uploads', 'logos')
+                os.makedirs(logo_dir, exist_ok=True)
+                
+                logo_path = os.path.join(logo_dir, unique_filename)
+                logo_file.save(logo_path)
+                
+                # Update the logo path in database (store relative path for URL generation)
+                organization.logo_path = f"/static/uploads/logos/{unique_filename}"
+        
+        # Update branding settings
+        organization.primary_color = request.form.get('primary_color')
+        organization.secondary_color = request.form.get('secondary_color')
         organization.email_footer_text = request.form.get('email_footer_text')
         
-        # Handle logo upload if provided
-        if 'logo' in request.files and request.files['logo']:
-            logo_file = request.files['logo']
-            if logo_file.filename != '':
-                try:
-                    # Create uploads directory if it doesn't exist
-                    upload_dir = os.path.join(current_app.static_folder, 'uploads', 'logos')
-                    os.makedirs(upload_dir, exist_ok=True)
-                    
-                    # Generate unique filename
-                    filename = f"{org_id}_{uuid.uuid4()}.{logo_file.filename.split('.')[-1]}"
-                    file_path = os.path.join(upload_dir, filename)
-                    
-                    # Save file
-                    logo_file.save(file_path)
-                    
-                    # Update logo path in database (store relative path)
-                    organization.logo_path = f"/static/uploads/logos/{filename}"
-                    
-                except Exception as e:
-                    logger.error(f"Failed to upload logo: {str(e)}")
-                    flash('Failed to upload logo', 'danger')
-        
         db.session.commit()
-        flash('Branding settings updated successfully', 'success')
+        
+        flash('Branding updated successfully!', 'success')
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
-    return render_template('organizations/branding.html', organization=organization)
+    return render_template('organizations/branding.html', 
+                          organization=organization)
 
 def send_invitation_email(invitation):
     """
@@ -513,69 +519,46 @@ def send_invitation_email(invitation):
     Args:
         invitation: OrganizationInvitation object
     """
-    organization = Organization.query.get(invitation.organization_id)
-    invited_by = User.query.get(invitation.invited_by_user_id)
+    organization = invitation.organization
+    inviter = invitation.invited_by
     
-    subject = f"{invited_by.name or 'Someone'} invited you to join {organization.name}"
+    # Create the accept invitation URL
+    accept_url = url_for('organizations.accept_invitation', 
+                         token=invitation.token, 
+                         _external=True)
     
-    accept_url = url_for('organizations.accept_invitation', token=invitation.token, _external=True)
+    # Create the message with organization branding
+    subject = f"Invitation to join {organization.name} on DevelopSriLanka"
     
-    # HTML email body
-    html_content = f"""
-    <html>
-    <head>
-        <style>
-            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .header {{ text-align: center; margin-bottom: 20px; }}
-            .button {{ display: inline-block; background-color: {organization.primary_color}; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; }}
-            .footer {{ margin-top: 30px; font-size: 12px; color: #777; text-align: center; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>You've been invited!</h1>
-            </div>
-            
-            <p>Hello,</p>
-            
-            <p>{invited_by.name or 'Someone'} has invited you to join <strong>{organization.name}</strong> on the financial platform.</p>
-            
-            <p>You've been invited to join as: <strong>{invitation.role}</strong></p>
-            
-            <p style="text-align: center; margin: 30px 0;">
-                <a href="{accept_url}" class="button">Accept Invitation</a>
-            </p>
-            
-            <p>This invitation will expire in 7 days.</p>
-            
-            <p>If you don't have an account yet, you'll be able to create one when you accept the invitation.</p>
-            
-            <div class="footer">
-                <p>If you received this email by mistake, you can simply ignore it.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+    # Get mail instance from app
+    mail = current_app.extensions.get('mail')
+    if not mail:
+        logger.error("Mail extension not found!")
+        raise Exception("Email service is not configured")
     
-    # Create message
     msg = Message(
         subject=subject,
         recipients=[invitation.email],
-        html=html_content,
-        sender=(organization.name, organization.email if organization.email else os.environ.get('GMAIL_USERNAME'))
+        sender=(f"{organization.name} via DevelopSriLanka", current_app.config.get('MAIL_USERNAME'))
     )
     
-    # Send email
+    # Create HTML email with organization branding
+    msg.html = render_template('email/organization_invitation.html',
+                              organization=organization,
+                              inviter=inviter,
+                              accept_url=accept_url,
+                              invitation=invitation)
+    
+    # Send the email
     mail.send(msg)
+    logger.info(f"Sent organization invitation email to {invitation.email}")
 
 def register_routes(app):
     """Register the organization routes with the app."""
-    app.register_blueprint(bp)
+    app.register_blueprint(organizations_bp)
+    logger.info("Organization routes registered")
     
-    # Add additional helpers to Jinja environment
-    app.jinja_env.globals.update(
-        UserRole=UserRole
-    )
+    # Add jinja function for current time
+    @app.template_filter('now')
+    def _jinja2_filter_now():
+        return datetime.utcnow()

@@ -4,52 +4,64 @@
 
 {% block content %}
 <div class="container mt-5">
-    <div class="row mb-4">
-        <div class="col">
-            <h1>My Organizations</h1>
-            <p class="text-muted">Manage your organizations and team settings</p>
-        </div>
-        <div class="col-auto">
-            <a href="{{ url_for('organizations.create_organization') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Create Organization
-            </a>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>My Organizations</h1>
+        <a href="{{ url_for('organizations.create_organization') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Organization
+        </a>
     </div>
 
-    {% if user_orgs %}
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            {% for org_user in user_orgs %}
-                {% set org = org_user.organization %}
-                <div class="col">
+    {% if organizations %}
+        <div class="row">
+            {% for org_user in organizations %}
+                <div class="col-md-4 mb-4">
                     <div class="card h-100 {% if org_user.is_default %}border-primary{% endif %}">
-                        {% if org.logo_path %}
-                            <div class="card-img-top pt-3 px-3 text-center">
-                                <img src="{{ org.logo_path }}" alt="{{ org.name }}" class="org-logo" style="max-height: 80px; max-width: 100%;">
+                        {% if org_user.is_default %}
+                            <div class="card-header bg-primary text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Default Organization</span>
+                                    <i class="fas fa-star"></i>
+                                </div>
                             </div>
                         {% endif %}
+                        
                         <div class="card-body">
-                            <h5 class="card-title">{{ org.name }}</h5>
-                            <p class="card-text">
-                                <span class="badge bg-secondary">{{ org_user.role|title }}</span>
-                                {% if org_user.is_default %}
-                                    <span class="badge bg-primary">Default</span>
+                            <div class="d-flex align-items-center mb-3">
+                                {% if org_user.organization.logo_path %}
+                                    <img src="{{ org_user.organization.logo_path }}" alt="{{ org_user.organization.name }}" style="max-height: 40px; max-width: 100px; margin-right: 10px;">
                                 {% endif %}
-                            </p>
-                            {% if org.email %}
-                                <p class="card-text text-muted small">
-                                    <i class="fas fa-envelope"></i> {{ org.email }}
-                                </p>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer">
-                            <div class="btn-group w-100">
-                                <a href="{{ url_for('organizations.view_organization', org_id=org.id) }}" class="btn btn-outline-primary">
-                                    <i class="fas fa-eye"></i> View
+                                <h5 class="card-title mb-0">{{ org_user.organization.name }}</h5>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <span class="badge {% if org_user.role == 'owner' %}bg-danger{% elif org_user.role == 'admin' %}bg-warning{% elif org_user.role == 'member' %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ org_user.role|title }}
+                                </span>
+                            </div>
+                            
+                            <div class="small text-muted mb-3">
+                                {% if org_user.organization.address %}
+                                    <div><i class="fas fa-map-marker-alt"></i> {{ org_user.organization.address }}</div>
+                                {% endif %}
+                                
+                                {% if org_user.organization.website %}
+                                    <div><i class="fas fa-globe"></i> <a href="{{ org_user.organization.website }}" target="_blank">{{ org_user.organization.website }}</a></div>
+                                {% endif %}
+                                
+                                {% if org_user.organization.email %}
+                                    <div><i class="fas fa-envelope"></i> {{ org_user.organization.email }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('organizations.view_organization', org_id=org_user.organization.id) }}" class="btn btn-outline-primary">
+                                    View Organization
                                 </a>
+                                
                                 {% if not org_user.is_default %}
-                                    <form action="{{ url_for('organizations.set_default_organization', org_id=org.id) }}" method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-secondary">
-                                            <i class="fas fa-star"></i> Set Default
+                                    <form action="{{ url_for('organizations.set_default_organization', org_id=org_user.organization.id) }}" method="post">
+                                        <button type="submit" class="btn btn-outline-secondary w-100">
+                                            Set as Default
                                         </button>
                                     </form>
                                 {% endif %}
@@ -60,9 +72,54 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info">
-            <p>You don't have any organizations yet. <a href="{{ url_for('organizations.create_organization') }}">Create your first organization</a> to get started.</p>
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-building fa-4x mb-3 text-muted"></i>
+                <h3>You don't have any organizations yet</h3>
+                <p class="text-muted">Organizations allow you to manage receipts, invoices, and team members under a single entity.</p>
+                <a href="{{ url_for('organizations.create_organization') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Your First Organization
+                </a>
+            </div>
         </div>
     {% endif %}
+
+    <div class="mt-5">
+        <h4>About Organizations</h4>
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="feature-item">
+                            <i class="fas fa-users-cog fa-2x text-primary mb-3"></i>
+                            <h5>Team Management</h5>
+                            <p>Invite team members to collaborate on financial data with custom roles and permissions.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-item">
+                            <i class="fas fa-paint-brush fa-2x text-primary mb-3"></i>
+                            <h5>Custom Branding</h5>
+                            <p>Personalize your organization with your logo, colors, and custom email templates.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-item">
+                            <i class="fas fa-lock fa-2x text-primary mb-3"></i>
+                            <h5>Data Isolation</h5>
+                            <p>Keep financial data separate across different organizations for better management.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .feature-item {
+        text-align: center;
+        padding: 1rem;
+    }
+</style>
 {% endblock %}
