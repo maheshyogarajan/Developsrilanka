@@ -778,14 +778,25 @@ def email_invoice(invoice_id):
 @login_required
 def clients():
     """Render the clients page showing list of user's clients."""
+    # Get the user's default organization
+    org_result = db.session.execute(text("""
+        SELECT organization_id FROM organization_user
+        WHERE user_id = :user_id AND is_default = true
+        LIMIT 1
+    """), {'user_id': current_user.id}).first()
+    
+    organization_id = org_result[0] if org_result else None
+    
+    logging.debug(f"Listing clients for user_id: {current_user.id}, organization_id: {organization_id}")
+    
     # Use raw SQL to get clients for the current user with organization context
     result = db.session.execute(text("""
-        SELECT id, user_id, name, company_name, contact_person, email, 
+        SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
                phone, address, tax_registration_number, notes, created_at, updated_at
         FROM client
-        WHERE user_id = :user_id
+        WHERE user_id = :user_id AND (organization_id = :organization_id OR organization_id IS NULL)
         ORDER BY name
-    """), {'user_id': current_user.id})
+    """), {'user_id': current_user.id, 'organization_id': organization_id})
     
     # Convert raw SQL results to Client objects
     clients = []
@@ -793,16 +804,17 @@ def clients():
         client = Client(
             id=row[0],
             user_id=row[1],
-            name=row[2],
-            company_name=row[3],
-            contact_person=row[4],
-            email=row[5],
-            phone=row[6],
-            address=row[7],
-            tax_registration_number=row[8],
-            notes=row[9],
-            created_at=row[10],
-            updated_at=row[11]
+            organization_id=row[2],
+            name=row[3],
+            company_name=row[4],
+            contact_person=row[5],
+            email=row[6],
+            phone=row[7],
+            address=row[8],
+            tax_registration_number=row[9],
+            notes=row[10],
+            created_at=row[11],
+            updated_at=row[12]
         )
         clients.append(client)
     
@@ -886,7 +898,7 @@ def view_client(client_id):
     """View a specific client."""
     # Use raw SQL to get a specific client by ID
     result = db.session.execute(text("""
-        SELECT id, user_id, name, company_name, contact_person, email, 
+        SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
                phone, address, tax_registration_number, notes, created_at, updated_at
         FROM client
         WHERE id = :client_id AND user_id = :user_id
@@ -900,16 +912,17 @@ def view_client(client_id):
     client = Client(
         id=result[0],
         user_id=result[1],
-        name=result[2],
-        company_name=result[3],
-        contact_person=result[4],
-        email=result[5],
-        phone=result[6],
-        address=result[7],
-        tax_registration_number=result[8],
-        notes=result[9],
-        created_at=result[10],
-        updated_at=result[11]
+        organization_id=result[2],
+        name=result[3],
+        company_name=result[4],
+        contact_person=result[5],
+        email=result[6],
+        phone=result[7],
+        address=result[8],
+        tax_registration_number=result[9],
+        notes=result[10],
+        created_at=result[11],
+        updated_at=result[12]
     )
     
     # Get invoices for this client using raw SQL
@@ -998,6 +1011,7 @@ def edit_client(client_id):
     client = Client(
         id=result[0],
         user_id=result[1],
+        organization_id=result[2],
         name=result[3],
         company_name=result[4],
         contact_person=result[5],
@@ -1009,9 +1023,6 @@ def edit_client(client_id):
         created_at=result[11],
         updated_at=result[12]
     )
-    
-    # Store the organization_id
-    organization_id = result[2]
     
     if request.method == 'POST':
         try:
