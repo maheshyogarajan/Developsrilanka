@@ -98,24 +98,28 @@
                     <div class="card bg-light">
                         <div class="card-body">
                             <h5 class="card-title">Client Information</h5>
-                            <div class="fw-bold">{{ invoice.client.name }}</div>
-                            {% if invoice.client.company_name %}
-                                <div>{{ invoice.client.company_name }}</div>
-                            {% endif %}
-                            {% if invoice.client.contact_person %}
-                                <div>Attn: {{ invoice.client.contact_person }}</div>
-                            {% endif %}
-                            {% if invoice.client.address %}
-                                <div>{{ invoice.client.address|replace('\n', '<br>')|safe }}</div>
-                            {% endif %}
-                            {% if invoice.client.email %}
-                                <div>{{ invoice.client.email }}</div>
-                            {% endif %}
-                            {% if invoice.client.phone %}
-                                <div>{{ invoice.client.phone }}</div>
-                            {% endif %}
-                            {% if invoice.client.tax_registration_number %}
-                                <div>Tax Reg: {{ invoice.client.tax_registration_number }}</div>
+                            {% if invoice.client %}
+                                <div class="fw-bold">{{ invoice.client.name }}</div>
+                                {% if invoice.client.company_name %}
+                                    <div>{{ invoice.client.company_name }}</div>
+                                {% endif %}
+                                {% if invoice.client.contact_person %}
+                                    <div>Attn: {{ invoice.client.contact_person }}</div>
+                                {% endif %}
+                                {% if invoice.client.address %}
+                                    <div>{{ invoice.client.address|replace('\n', '<br>')|safe }}</div>
+                                {% endif %}
+                                {% if invoice.client.email %}
+                                    <div>{{ invoice.client.email }}</div>
+                                {% endif %}
+                                {% if invoice.client.phone %}
+                                    <div>{{ invoice.client.phone }}</div>
+                                {% endif %}
+                                {% if invoice.client.tax_registration_number %}
+                                    <div>Tax Reg: {{ invoice.client.tax_registration_number }}</div>
+                                {% endif %}
+                            {% else %}
+                                <div class="text-muted">No client information available</div>
                             {% endif %}
                         </div>
                     </div>
@@ -263,7 +267,7 @@
                                 <i class="fas fa-print me-1"></i> Print Invoice
                             </button>
                             
-                            {% if invoice.client.email and invoice.status != 'draft' %}
+                            {% if invoice.client and invoice.client.email and invoice.status != 'draft' %}
                                 <form method="POST" action="{{ url_for('email_invoice', invoice_id=invoice.id) }}" class="d-inline ms-2">
                                     <button type="submit" class="btn btn-outline-info">
                                         <i class="fas fa-envelope me-1"></i> Email Invoice

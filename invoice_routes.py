@@ -36,18 +36,20 @@ def invoices():
     """Render the invoices page showing list of user's invoices."""
     # Use raw SQL to query invoices to avoid organization_id column issues
     result = db.session.execute(text("""
-        SELECT id, user_id, client_id, bank_account_id, invoice_number, 
-               issue_date, due_date, status, notes, currency, 
-               subtotal, tax_percent, tax_amount, discount_percent, 
-               discount_amount, total, sender_name, sender_company, 
-               sender_address, sender_phone, sender_email, 
-               sender_tax_registration, last_sent_at, created_at, updated_at
-        FROM invoice
-        WHERE user_id = :user_id
-        ORDER BY created_at DESC
+        SELECT i.id, i.user_id, i.client_id, i.bank_account_id, i.invoice_number, 
+               i.issue_date, i.due_date, i.status, i.notes, i.currency, 
+               i.subtotal, i.tax_percent, i.tax_amount, i.discount_percent, 
+               i.discount_amount, i.total, i.sender_name, i.sender_company, 
+               i.sender_address, i.sender_phone, i.sender_email, 
+               i.sender_tax_registration, i.last_sent_at, i.created_at, i.updated_at,
+               c.id as client_id, c.name as client_name, c.company_name as client_company_name
+        FROM invoice i
+        LEFT JOIN client c ON i.client_id = c.id
+        WHERE i.user_id = :user_id
+        ORDER BY i.created_at DESC
     """), {'user_id': current_user.id})
     
-    # Convert raw SQL results to Invoice objects
+    # Convert raw SQL results to Invoice objects with client info
     invoices = []
     for row in result:
         invoice = Invoice(
@@ -77,6 +79,17 @@ def invoices():
             created_at=row[23],
             updated_at=row[24]
         )
+        
+        # Add client info if available
+        if row[25]:  # If client_id is not None
+            invoice.client_info = type('ClientInfo', (), {
+                'id': row[25],
+                'name': row[26],
+                'company_name': row[27]
+            })
+        else:
+            invoice.client_info = None
+            
         invoices.append(invoice)
     
     # Get all clients for the current user (for creating new invoices)
@@ -260,16 +273,19 @@ def create_invoice():
 @login_required
 def view_invoice(invoice_id):
     """View a specific invoice."""
-    # Use raw SQL to avoid organization_id issues
+    # Use raw SQL to avoid organization_id issues with joined client info
     result = db.session.execute(text("""
-        SELECT id, user_id, client_id, bank_account_id, invoice_number, 
-               issue_date, due_date, status, notes, currency, 
-               subtotal, tax_percent, tax_amount, discount_percent, 
-               discount_amount, total, sender_name, sender_company, 
-               sender_address, sender_phone, sender_email, 
-               sender_tax_registration, last_sent_at, created_at, updated_at
-        FROM invoice
-        WHERE id = :invoice_id AND user_id = :user_id
+        SELECT i.id, i.user_id, i.client_id, i.bank_account_id, i.invoice_number, 
+               i.issue_date, i.due_date, i.status, i.notes, i.currency, 
+               i.subtotal, i.tax_percent, i.tax_amount, i.discount_percent, 
+               i.discount_amount, i.total, i.sender_name, i.sender_company, 
+               i.sender_address, i.sender_phone, i.sender_email, 
+               i.sender_tax_registration, i.last_sent_at, i.created_at, i.updated_at,
+               c.id as client_id, c.name as client_name, c.company_name as client_company_name,
+               c.contact_person, c.email, c.phone, c.address, c.tax_registration_number
+        FROM invoice i
+        LEFT JOIN client c ON i.client_id = c.id
+        WHERE i.id = :invoice_id AND i.user_id = :user_id
         LIMIT 1
     """), {'invoice_id': invoice_id, 'user_id': current_user.id}).first()
     
@@ -304,6 +320,20 @@ def view_invoice(invoice_id):
         created_at=result[23],
         updated_at=result[24]
     )
+    
+    # Add client info if available
+    if result[25]:  # If client_id is not None
+        client = Client(
+            id=result[25],
+            name=result[26],
+            company_name=result[27],
+            contact_person=result[28],
+            email=result[29],
+            phone=result[30],
+            address=result[31],
+            tax_registration_number=result[32]
+        )
+        invoice.client = client
     
     # Update invoice status
     invoice.update_status()
@@ -532,14 +562,31 @@ def delete_payment(invoice_id, payment_id):
 @login_required
 def email_invoice(invoice_id):
     """Email the invoice to the client."""
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    # Use raw SQL to get invoice with client info
+    result = db.session.execute(text("""
+        SELECT i.id, i.user_id, i.client_id, i.status,
+               c.email as client_email
+        FROM invoice i
+        LEFT JOIN client c ON i.client_id = c.id
+        WHERE i.id = :invoice_id AND i.user_id = :user_id
+        LIMIT 1
+    """), {'invoice_id': invoice_id, 'user_id': current_user.id}).first()
     
-    # Check if invoice can be emailed (must have client email and not be a draft)
-    if not invoice.client.email:
+    if not result:
+        abort(404)
+        
+    invoice = Invoice.query.get(invoice_id)
+    
+    # Check if invoice can be emailed (must have client and client email, and not be a draft)
+    if not result[2]:  # client_id is None
+        flash('This invoice is not linked to a client', 'danger')
+        return redirect(url_for('view_invoice', invoice_id=invoice.id))
+        
+    if not result[4]:  # client_email is None
         flash('Client does not have an email address', 'danger')
         return redirect(url_for('view_invoice', invoice_id=invoice.id))
     
-    if invoice.status == InvoiceStatus.DRAFT.value:
+    if result[3] == InvoiceStatus.DRAFT.value:  # invoice status
         flash('You cannot email a draft invoice. Please mark it as sent first.', 'warning')
         return redirect(url_for('view_invoice', invoice_id=invoice.id))
     
@@ -567,10 +614,13 @@ def email_invoice(invoice_id):
             view_url=url_for('view_invoice', invoice_id=invoice.id, _external=True)
         )
         
+        # Get client email from the query result
+        client_email = result[4]  # From the raw SQL select
+        
         # Create message
         msg = Message(
             subject=subject,
-            recipients=[invoice.client.email],
+            recipients=[client_email],
             html=html_body,
             sender=(sender_name, app.config['MAIL_USERNAME'])
         )
@@ -582,7 +632,7 @@ def email_invoice(invoice_id):
         invoice.last_sent_at = datetime.utcnow()
         db.session.commit()
         
-        flash(f'Invoice has been emailed to {invoice.client.email} successfully!', 'success')
+        flash(f'Invoice has been emailed to {client_email} successfully!', 'success')
     except Exception as e:
         logging.error(f"Error sending invoice email: {str(e)}")
         flash(f'Error sending email: {str(e)}', 'danger')
