@@ -211,12 +211,13 @@
                                             <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="View Invoice">
                                                 <i class="fas fa-eye"></i>
                                             </a>
+                                            <!-- Debug status: {{ invoice.status }} -->
                                             {% if invoice.status == 'draft' %}
                                                 <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Invoice">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                             {% endif %}
-                                            {% if invoice.status in ('sent', 'partially_paid', 'overdue') %}
+                                            {% if invoice.status == 'sent' or invoice.status == 'partially_paid' or invoice.status == 'overdue' %}
                                                 <a href="{{ url_for('record_payment', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-success" title="Record Payment">
                                                     <i class="fas fa-money-bill"></i>
                                                 </a>
