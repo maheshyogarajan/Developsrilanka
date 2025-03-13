@@ -1138,8 +1138,33 @@ def list_receipts():
         logging.debug(f"list_receipts: Processing for user_id={user_id}")
         
         # Check if we should show all organizations or filter by a specific one
-        show_all_organizations = request.args.get('show_all') == 'true'
-        selected_org_id = request.args.get('organization_id')
+        # Enhanced parameter handling with better type conversion
+        show_all_param = request.args.get('show_all')
+        org_id_param = request.args.get('organization_id')
+        
+        # Convert show_all parameter properly (handle strings and booleans)
+        show_all_organizations = False
+        if show_all_param:
+            if isinstance(show_all_param, str):
+                show_all_organizations = show_all_param.lower() == 'true'
+            else:
+                show_all_organizations = bool(show_all_param)
+        
+        # Handle organization_id parameter
+        selected_org_id = None
+        if org_id_param:
+            if org_id_param.lower() == 'all':
+                show_all_organizations = True
+            else:
+                try:
+                    selected_org_id = org_id_param
+                    # Validate that this organization belongs to the user
+                    user_org_ids = [str(org.organization_id) for org in OrganizationUser.query.filter_by(user_id=user_id).all()]
+                    if selected_org_id not in user_org_ids:
+                        selected_org_id = None
+                except Exception as e:
+                    logging.warning(f"Invalid organization_id parameter: {org_id_param}. Error: {str(e)}")
+                    selected_org_id = None
         
         # Get all user's organizations for the filter dropdown
         user_organizations = OrganizationUser.query.filter_by(user_id=user_id).all()

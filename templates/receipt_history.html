@@ -249,6 +249,13 @@ document.addEventListener('DOMContentLoaded', function() {
     listViewBtn.addEventListener('click', () => setViewMode('list'));
     confirmDeleteBtn.addEventListener('click', deleteReceipt);
     
+    // Add organization filter change listener (auto-reload when organization changes)
+    organizationSelect.addEventListener('change', function() {
+        const selectedValue = this.value;
+        // Reload receipts with organization filter
+        loadReceiptsWithOrganizationFilter(selectedValue);
+    });
+    
     // Load receipts from server
     function loadReceipts() {
         console.log("Loading receipts from server...");
