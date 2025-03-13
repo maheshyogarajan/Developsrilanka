@@ -474,6 +474,29 @@ def view_invoice(invoice_id):
         )
         invoice.client = client
     
+    # Load payment information for the invoice
+    payment_results = db.session.execute(text("""
+        SELECT id, date, amount, payment_method, reference, notes, created_at
+        FROM payment
+        WHERE invoice_id = :invoice_id
+        ORDER BY date DESC
+    """), {'invoice_id': invoice.id}).fetchall()
+    
+    # Add payments to the invoice
+    invoice.payments = []
+    for p in payment_results:
+        payment = Payment(
+            id=p[0],
+            invoice_id=invoice.id,
+            date=p[1],
+            amount=p[2],
+            payment_method=p[3],
+            reference=p[4],
+            notes=p[5],
+            created_at=p[6]
+        )
+        invoice.payments.append(payment)
+    
     # Update invoice status
     invoice.update_status()
     db.session.commit()
