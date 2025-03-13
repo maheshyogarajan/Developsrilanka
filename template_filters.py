@@ -91,6 +91,26 @@ def register_remaining_template_filters(app):
             return value.strftime(format)
         except (ValueError, TypeError, AttributeError):
             return ""
+            
+    @app.template_filter('date')
+    def date_filter(value, format="%Y-%m-%d"):
+        """
+        Format a date object.
+        
+        Args:
+            value: The date to format
+            format: The format string to use
+        
+        Returns:
+            Formatted date string
+        """
+        if value is None:
+            return ""
+        
+        try:
+            return value.strftime(format)
+        except (ValueError, TypeError, AttributeError):
+            return ""
     
     @app.template_filter('truncate_text')
     def truncate_text_filter(value, length=50):
@@ -137,10 +157,11 @@ def register_remaining_template_filters(app):
     # Explicitly register all filters in Jinja environment
     app.jinja_env.filters['percent'] = percent_filter
     app.jinja_env.filters['datetime'] = datetime_filter
+    app.jinja_env.filters['date'] = date_filter
     app.jinja_env.filters['truncate_text'] = truncate_text_filter
     app.jinja_env.filters['nl2br'] = nl2br_filter
     
-    return (percent_filter, datetime_filter, truncate_text_filter, nl2br_filter)
+    return (percent_filter, datetime_filter, date_filter, truncate_text_filter, nl2br_filter)
 
 # Register remaining filters
 filters = register_remaining_template_filters(app)

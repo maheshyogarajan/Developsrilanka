@@ -816,6 +816,7 @@ def create_client():
         try:
             # Get form data
             name = request.form.get('name')
+            # Get the new fields that we added to the form
             company_name = request.form.get('company_name', '')
             contact_person = request.form.get('contact_person', '')
             email = request.form.get('email', '')
