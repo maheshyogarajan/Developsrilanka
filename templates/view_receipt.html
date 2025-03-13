@@ -4,7 +4,12 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="page-title mb-0">Receipt Details</h1>
-        <a href="{{ url_for('receipt_history') }}" class="btn btn-secondary">Back to List</a>
+        <div>
+            <a href="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}" class="btn btn-primary me-2">
+                <i class="fas fa-clipboard-list me-2"></i>Submit as Company Expense
+            </a>
+            <a href="{{ url_for('receipt_history') }}" class="btn btn-secondary">Back to List</a>
+        </div>
     </div>
     
     <div class="card shadow-sm">
