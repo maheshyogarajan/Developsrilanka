@@ -64,7 +64,7 @@
                         </div>
                         <div class="col-md-6">
                             <h6>Receipt Date</h6>
-                            <p>{{ expense.receipt_date|date }}</p>
+                            <p>{{ expense.receipt_date.strftime('%Y-%m-%d') if expense.receipt_date else 'N/A' }}</p>
                         </div>
                     </div>
                     
