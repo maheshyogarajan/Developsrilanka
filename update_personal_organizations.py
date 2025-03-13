@@ -108,27 +108,50 @@ def update_income_organization_links(batch_size=50):
         logging.info(f"Total: Updated {total_count} income records with personal organization links")
         return total_count
 
-def update_receipt_organization_links():
-    """Update receipt records to link to personal organizations."""
+def update_receipt_organization_links(batch_size=50):
+    """
+    Update receipt records to link to personal organizations in batches.
+    
+    Args:
+        batch_size: Number of receipt records to process in each batch
+    """
     with app.app_context():
-        # Get all receipts
-        receipts = Receipt.query.all()
-        count = 0
+        total_count = 0
         
-        for receipt in receipts:
-            user = User.query.get(receipt.user_id)
-            if not user:
-                logging.warning(f"Receipt {receipt.id} has no valid user {receipt.user_id}")
-                continue
+        # Process receipt records in batches
+        offset = 0
+        while True:
+            # Get receipt records with no organization
+            receipts = Receipt.query.filter(Receipt.organization_id.is_(None)).limit(batch_size).offset(offset).all()
+            if not receipts:
+                break
                 
-            # If receipt has no organization or organization doesn't match user's personal org
-            if not receipt.organization_id and user.personal_organization_id:
-                receipt.organization_id = user.personal_organization_id
-                count += 1
+            count = 0
+            for receipt in receipts:
+                user = User.query.get(receipt.user_id)
+                if not user:
+                    logging.warning(f"Receipt {receipt.id} has no valid user {receipt.user_id}")
+                    continue
+                    
+                # If user has personal organization, link receipt record to it
+                if user.personal_organization_id:
+                    receipt.organization_id = user.personal_organization_id
+                    count += 1
+                    
+            db.session.commit()
+            total_count += count
+            logging.info(f"Batch processed: Updated {count} receipt records")
+            print(f"Batch processed: Updated {count} receipt records")
+            
+            # If we processed fewer records than the batch size, we're done
+            if len(receipts) < batch_size:
+                break
                 
-        db.session.commit()
-        logging.info(f"Updated {count} receipt records with personal organization links")
-        return count
+            # Move to the next batch
+            offset += batch_size
+            
+        logging.info(f"Total: Updated {total_count} receipt records with personal organization links")
+        return total_count
 
 if __name__ == "__main__":
     print("Creating personal organizations...")
