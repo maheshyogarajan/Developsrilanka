@@ -218,11 +218,19 @@ def receipt_history():
 @app.route('/analytics')
 @login_required
 def analytics():
-    """Render the analytics page with expense category summaries."""
-    from models import Receipt, ReceiptItem
-    from sqlalchemy import func
+    """Render the enhanced analytics page with expense, revenue, invoice, and tax analytics."""
+    from models import Receipt, ReceiptItem, Invoice, InvoiceItem, Payment, UserIncome, CompanyExpense, ClientExpense
+    from sqlalchemy import func, desc, case
     
     try:
+        # Get the user's default organization
+        org_id = None
+        if hasattr(current_user, 'get_default_organization'):
+            default_org = current_user.get_default_organization()
+            if default_org:
+                org_id = default_org.id
+        
+        # ----------------- EXPENSE ANALYTICS -----------------
         # Get total expenses for the current user
         total_expenses = db.session.query(func.sum(Receipt.total_amount))\
             .filter(Receipt.user_id == current_user.id).scalar() or 0
@@ -253,27 +261,6 @@ def analytics():
         .order_by(func.sum(Receipt.total_amount).desc())\
         .all()
         
-        # Get tax totals for the current user
-        tax_summary = db.session.query(
-            func.sum(Receipt.vat_tax).label('vat_tax'),
-            func.sum(Receipt.sscl_tax).label('sscl_tax')
-        ).filter(Receipt.user_id == current_user.id).first()
-        
-        # Calculate total tax deductible amount using the Receipt model method
-        # This approach ensures we don't double count or exceed the total expense
-        receipts = Receipt.query.filter_by(user_id=current_user.id).all()
-        
-        # Get the tax deductible amount for each receipt, ensuring none exceeds its total_amount
-        total_tax_deductible = 0.0
-        for receipt in receipts:
-            tax_deductible = receipt.get_tax_deductible_amount()
-            # The method already has a min() check, but let's be extra safe
-            total_tax_deductible += min(tax_deductible, receipt.total_amount)
-        
-        # Convert to dictionaries for easier template handling
-        major_category_data = [{'category': cat, 'total': total} for cat, total in major_categories]
-        minor_category_data = [{'category': cat, 'total': total} for cat, total in minor_categories]
-        
         # Total count of receipts for current user
         receipt_count = Receipt.query.filter_by(user_id=current_user.id).count()
         
@@ -288,15 +275,137 @@ def analytics():
             } for receipt in recent_receipts
         ]
         
+        # Get company expenses for the current user
+        company_expense_total = db.session.query(func.sum(Receipt.total_amount))\
+            .join(CompanyExpense, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(CompanyExpense.user_id == current_user.id).scalar() or 0
+            
+        # Get client expenses for the current user
+        client_expense_total = db.session.query(func.sum(Receipt.total_amount))\
+            .join(ClientExpense, ClientExpense.receipt_id == Receipt.id)\
+            .filter(ClientExpense.user_id == current_user.id).scalar() or 0
+            
+        # Convert to dictionaries for easier template handling
+        major_category_data = [{'category': cat, 'total': total} for cat, total in major_categories]
+        minor_category_data = [{'category': cat, 'total': total} for cat, total in minor_categories]
+        
+        # ----------------- REVENUE ANALYTICS -----------------
+        # Get income data for the current user
+        income_data = UserIncome.query.filter_by(user_id=current_user.id).first()
+        
+        # Calculate total invoice revenue
+        invoice_revenue = db.session.query(func.sum(Invoice.total))\
+            .filter(Invoice.user_id == current_user.id)\
+            .filter(Invoice.status.in_(['paid', 'partially_paid']))\
+            .scalar() or 0
+            
+        # Get total income by type
+        total_employment_income = income_data.employment_income if income_data else 0
+        total_business_income = income_data.business_income if income_data else 0
+        total_investment_income = income_data.investment_income if income_data else 0
+        total_usd_consulting_income = income_data.usd_consulting_income if income_data else 0
+        
+        # Calculate total income
+        total_income = (total_employment_income + total_business_income + 
+                       total_investment_income + total_usd_consulting_income)
+                       
+        # ----------------- INVOICE ANALYTICS -----------------
+        # Get invoice counts by status
+        invoice_status_counts = db.session.query(
+            Invoice.status, 
+            func.count(Invoice.id).label('count')
+        ).filter(Invoice.user_id == current_user.id)\
+        .group_by(Invoice.status)\
+        .all()
+        
+        # Convert to dictionary for easier template handling
+        invoice_status_data = {status: count for status, count in invoice_status_counts}
+        
+        # Get total invoiced amount
+        total_invoiced = db.session.query(func.sum(Invoice.total))\
+            .filter(Invoice.user_id == current_user.id)\
+            .scalar() or 0
+            
+        # Get total paid amount
+        total_paid = db.session.query(func.sum(Payment.amount))\
+            .join(Invoice, Payment.invoice_id == Invoice.id)\
+            .filter(Invoice.user_id == current_user.id)\
+            .scalar() or 0
+            
+        # Get total outstanding amount
+        total_outstanding = total_invoiced - total_paid
+        
+        # Get recent invoices
+        recent_invoices = Invoice.query.filter_by(user_id=current_user.id)\
+            .order_by(Invoice.issue_date.desc())\
+            .limit(5)\
+            .all()
+            
+        # Calculate payment rate
+        payment_rate = (total_paid / total_invoiced * 100) if total_invoiced > 0 else 0
+        
+        # ----------------- TAX ANALYTICS -----------------
+        # Get tax totals for the current user
+        tax_summary = db.session.query(
+            func.sum(Receipt.vat_tax).label('vat_tax'),
+            func.sum(Receipt.sscl_tax).label('sscl_tax')
+        ).filter(Receipt.user_id == current_user.id).first()
+        
+        # Calculate total tax deductible amount using the Receipt model method
+        receipts = Receipt.query.filter_by(user_id=current_user.id).all()
+        
+        # Get the tax deductible amount for each receipt
+        total_tax_deductible = 0.0
+        for receipt in receipts:
+            tax_deductible = receipt.get_tax_deductible_amount()
+            total_tax_deductible += min(tax_deductible, receipt.total_amount)
+        
+        # Calculate potential tax savings (simplified)
+        tax_rate_business = 0.36  # 36% for LKR business income
+        tax_rate_usd = 0.15      # 15% for USD consulting income
+        
+        potential_savings = 0.0
+        remaining_deductible = total_tax_deductible
+        
+        # Apply deductions to business income first (higher tax rate)
+        business_deduction = min(remaining_deductible, total_business_income)
+        potential_savings += business_deduction * tax_rate_business
+        remaining_deductible -= business_deduction
+        
+        # Apply any remaining deductions to USD consulting income
+        if remaining_deductible > 0:
+            usd_deduction = min(remaining_deductible, total_usd_consulting_income)
+            potential_savings += usd_deduction * tax_rate_usd
+        
         return render_template(
             'analytics.html',
+            # Expense Analytics
             total_expenses=total_expenses,
             major_categories=major_category_data,
             minor_categories=minor_category_data,
-            tax_summary=tax_summary,
             receipt_count=receipt_count,
             recent_receipts=recent_receipt_data,
-            total_tax_deductible=total_tax_deductible
+            company_expense_total=company_expense_total,
+            client_expense_total=client_expense_total,
+            # Revenue Analytics
+            income_data=income_data,
+            total_income=total_income,
+            invoice_revenue=invoice_revenue,
+            total_employment_income=total_employment_income,
+            total_business_income=total_business_income,
+            total_investment_income=total_investment_income,
+            total_usd_consulting_income=total_usd_consulting_income,
+            # Invoice Analytics
+            invoice_status_data=invoice_status_data,
+            total_invoiced=total_invoiced,
+            total_paid=total_paid,
+            total_outstanding=total_outstanding,
+            payment_rate=payment_rate,
+            recent_invoices=recent_invoices,
+            # Tax Analytics
+            tax_summary=tax_summary,
+            total_tax_deductible=total_tax_deductible,
+            potential_tax_savings=potential_savings
         )
     
     except Exception as e:
