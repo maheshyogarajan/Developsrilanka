@@ -812,6 +812,7 @@ def clients():
 @login_required
 def create_client():
     """Create a new client."""
+    logging.debug("Starting client creation process")
     if request.method == 'POST':
         try:
             # Get form data
@@ -824,6 +825,8 @@ def create_client():
             address = request.form.get('address', '')
             tax_registration_number = request.form.get('tax_registration_number', '')
             notes = request.form.get('notes', '')
+            
+            logging.debug(f"Create client form data - Name: {name}, Company: {company_name}, Contact: {contact_person}")
             
             # Get the user's default organization
             result = db.session.execute(text("""
@@ -867,7 +870,10 @@ def create_client():
             
         except Exception as e:
             db.session.rollback()
+            import traceback
+            error_traceback = traceback.format_exc()
             logging.error(f"Error creating client: {str(e)}")
+            logging.error(f"Traceback: {error_traceback}")
             flash(f'Error creating client: {str(e)}', 'danger')
             return redirect(url_for('clients'))
     
