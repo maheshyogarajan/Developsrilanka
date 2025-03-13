@@ -68,9 +68,20 @@ def create_bank_account():
             for account in default_accounts:
                 account.is_default = False
             
-        # Create new bank account
+        # Get user's default organization
+        default_org = db.session.execute(text(
+            'SELECT organization_id FROM organization_user '
+            'WHERE user_id = :user_id AND is_default = true LIMIT 1'
+        ), {'user_id': current_user.id}).first()
+        
+        if not default_org:
+            flash('You need to have a default organization to create a bank account.', 'danger')
+            return render_template('create_bank_account.html')
+
+        # Create new bank account with organization association
         new_account = BankAccount(
             user_id=current_user.id,
+            organization_id=default_org.organization_id, 
             account_name=account_name,
             bank_name=bank_name,
             account_number=account_number,
@@ -123,7 +134,33 @@ def view_bank_account(account_id):
 @login_required
 def edit_bank_account(account_id):
     """Edit an existing bank account."""
-    account = BankAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    # Get the account using raw SQL to avoid organization_id issues
+    result = db.session.execute(text(
+        'SELECT id, user_id, organization_id, account_name, bank_name, account_number, '
+        'branch_name, swift_code, iban, is_default, created_at, updated_at '
+        'FROM bank_account WHERE id = :account_id AND user_id = :user_id'
+    ), {'account_id': account_id, 'user_id': current_user.id}).first()
+    
+    if not result:
+        abort(404)
+        
+    # Create an account object with properties to mimic original implementation
+    class AccountObject:
+        def __init__(self, data):
+            self.id = data[0]
+            self.user_id = data[1]
+            self.organization_id = data[2]
+            self.account_name = data[3]
+            self.bank_name = data[4]
+            self.account_number = data[5]
+            self.branch_name = data[6]
+            self.swift_code = data[7]
+            self.iban = data[8]
+            self.is_default = data[9]
+            self.created_at = data[10]
+            self.updated_at = data[11]
+    
+    account = AccountObject(result)
     
     if request.method == 'POST':
         account_name = request.form.get('account_name')
@@ -141,19 +178,35 @@ def edit_bank_account(account_id):
         
         # If this account is set as default, unset any existing default accounts
         if is_default and not account.is_default:
-            default_accounts = BankAccount.query.filter_by(user_id=current_user.id, is_default=True).all()
-            for default_account in default_accounts:
-                default_account.is_default = False
+            # Clear default flag from any other accounts for this user
+            db.session.execute(text(
+                'UPDATE bank_account SET is_default = false '
+                'WHERE user_id = :user_id AND id != :account_id AND is_default = true'
+            ), {'user_id': current_user.id, 'account_id': account.id})
         
-        # Update account details
-        account.account_name = account_name
-        account.bank_name = bank_name
-        account.account_number = account_number
-        account.branch_name = branch_name
-        account.swift_code = swift_code
-        account.iban = iban
-        account.is_default = is_default
-        account.updated_at = datetime.utcnow()
+        # Use raw SQL to update account details while preserving organization_id
+        db.session.execute(text("""
+            UPDATE bank_account 
+            SET account_name = :account_name,
+                bank_name = :bank_name,
+                account_number = :account_number,
+                branch_name = :branch_name,
+                swift_code = :swift_code,
+                iban = :iban,
+                is_default = :is_default,
+                updated_at = :updated_at
+            WHERE id = :id
+        """), {
+            'account_name': account_name,
+            'bank_name': bank_name,
+            'account_number': account_number,
+            'branch_name': branch_name,
+            'swift_code': swift_code,
+            'iban': iban,
+            'is_default': is_default,
+            'updated_at': datetime.utcnow(),
+            'id': account.id
+        })
         
         db.session.commit()
         
@@ -166,7 +219,24 @@ def edit_bank_account(account_id):
 @login_required
 def delete_bank_account(account_id):
     """Delete a bank account."""
-    account = BankAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    # Get the account using raw SQL to avoid organization_id issues
+    result = db.session.execute(text(
+        'SELECT id, user_id, organization_id, is_default '
+        'FROM bank_account WHERE id = :account_id AND user_id = :user_id'
+    ), {'account_id': account_id, 'user_id': current_user.id}).first()
+    
+    if not result:
+        abort(404)
+        
+    # Create a simple object with needed properties
+    class AccountObject:
+        def __init__(self, data):
+            self.id = data[0]
+            self.user_id = data[1]
+            self.organization_id = data[2]
+            self.is_default = data[3]
+    
+    account = AccountObject(result)
     
     # Check if account is used in any invoices
     invoices_using_account = Invoice.query.filter_by(bank_account_id=account.id).count()
@@ -176,14 +246,22 @@ def delete_bank_account(account_id):
     
     # If deleting the default account, set another one as default if available
     if account.is_default:
-        other_account = BankAccount.query.filter(
-            BankAccount.user_id == current_user.id,
-            BankAccount.id != account.id
-        ).first()
+        # Find another account to set as default
+        other_account = db.session.execute(text(
+            'SELECT id FROM bank_account WHERE user_id = :user_id AND id != :account_id LIMIT 1'
+        ), {'user_id': current_user.id, 'account_id': account.id}).first()
+        
         if other_account:
-            other_account.is_default = True
+            # Set the other account as default
+            db.session.execute(text(
+                'UPDATE bank_account SET is_default = true WHERE id = :id'
+            ), {'id': other_account.id})
     
-    db.session.delete(account)
+    # Use raw SQL to delete the account
+    db.session.execute(text(
+        'DELETE FROM bank_account WHERE id = :id'
+    ), {'id': account.id})
+    
     db.session.commit()
     
     flash('Bank account deleted successfully.', 'success')
@@ -194,7 +272,6 @@ def delete_bank_account(account_id):
 def api_bank_accounts():
     """API endpoint to get all bank accounts for current user."""
     # Temporarily use raw SQL to avoid the organization_id column issue
-    from sqlalchemy import text
     
     # Execute raw SQL that doesn't reference the new column
     result = db.session.execute(text(
@@ -227,7 +304,6 @@ def api_bank_accounts():
 def api_default_bank_account():
     """API endpoint to get default bank account for current user."""
     # Temporarily use raw SQL to avoid the organization_id column issue
-    from sqlalchemy import text
     
     # Execute raw SQL that doesn't reference the new column
     result = db.session.execute(text(
