@@ -20,6 +20,124 @@ class PaymentMethod(Enum):
     PAYPAL = "paypal"
     OTHER = "other"
 
+class UserRole(Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+    VIEWER = "viewer"
+
+class Organization(db.Model):
+    """Organization model for multi-tenant functionality."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    logo_path = db.Column(db.String(255), nullable=True)
+    website = db.Column(db.String(255), nullable=True)
+    email = db.Column(db.String(255), nullable=True)
+    phone = db.Column(db.String(50), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+    tax_registration_number = db.Column(db.String(100), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Branding and customization
+    primary_color = db.Column(db.String(20), nullable=True, default="#4a6da7")
+    secondary_color = db.Column(db.String(20), nullable=True, default="#f5f8ff")
+    email_footer_text = db.Column(db.Text, nullable=True)
+    
+    # Relationships
+    users = db.relationship('OrganizationUser', back_populates='organization', lazy=True, cascade='all, delete-orphan')
+    receipts = db.relationship('Receipt', backref='organization', lazy=True)
+    clients = db.relationship('Client', backref='organization', lazy=True)
+    invoices = db.relationship('Invoice', backref='organization', lazy=True)
+    bank_accounts = db.relationship('BankAccount', backref='organization', lazy=True)
+    
+    def to_dict(self):
+        """Convert the organization to a dictionary."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'logo_path': self.logo_path or '',
+            'website': self.website or '',
+            'email': self.email or '',
+            'phone': self.phone or '',
+            'address': self.address or '',
+            'tax_registration_number': self.tax_registration_number or '',
+            'primary_color': self.primary_color,
+            'secondary_color': self.secondary_color,
+            'email_footer_text': self.email_footer_text or '',
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+class OrganizationUser(db.Model):
+    """Join table for users and organizations with role information."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default=UserRole.MEMBER.value)
+    is_default = db.Column(db.Boolean, default=False)  # Is this the user's default organization
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    organization = db.relationship('Organization', back_populates='users')
+    user = db.relationship('User', back_populates='organizations')
+    
+    def to_dict(self):
+        """Convert the organization user to a dictionary."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'organization_id': self.organization_id,
+            'role': self.role,
+            'is_default': self.is_default,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'organization': self.organization.to_dict(),
+            'user': {
+                'id': self.user.id,
+                'name': self.user.name,
+                'email': self.user.email
+            }
+        }
+
+class OrganizationInvitation(db.Model):
+    """Model for storing organization invitations."""
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+    invited_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default=UserRole.MEMBER.value)
+    token = db.Column(db.String(255), nullable=False, unique=True)
+    accepted = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    
+    # Relationships
+    organization = db.relationship('Organization')
+    invited_by = db.relationship('User', foreign_keys=[invited_by_user_id])
+    
+    def is_expired(self):
+        """Check if the invitation is expired."""
+        return datetime.utcnow() > self.expires_at
+    
+    def to_dict(self):
+        """Convert the invitation to a dictionary."""
+        return {
+            'id': self.id,
+            'organization_id': self.organization_id,
+            'organization_name': self.organization.name,
+            'invited_by_user_id': self.invited_by_user_id,
+            'invited_by_name': self.invited_by.name,
+            'email': self.email,
+            'role': self.role,
+            'token': self.token,
+            'accepted': self.accepted,
+            'created_at': self.created_at.isoformat(),
+            'expires_at': self.expires_at.isoformat(),
+            'is_expired': self.is_expired()
+        }
+
 class User(UserMixin, db.Model):
     """User model for authentication."""
     id = db.Column(db.Integer, primary_key=True)
@@ -28,25 +146,47 @@ class User(UserMixin, db.Model):
     profile_pic = db.Column(db.String(255), nullable=True)
     # Password authentication
     password_hash = db.Column(db.String(256), nullable=True)
-    # Role-based access control
+    # Global role (superadmin access)
     role = db.Column(db.String(20), nullable=False, default='user')  # 'user', 'admin', etc.
     # Social login information
     social_id = db.Column(db.String(255), unique=True, nullable=True)
     social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    organizations = db.relationship('OrganizationUser', back_populates='user', lazy=True, cascade='all, delete-orphan')
     receipts = db.relationship('Receipt', backref='user', lazy=True)
     income_details = db.relationship('UserIncome', backref='user', lazy=True, uselist=False)
     clients = db.relationship('Client', backref='user', lazy=True)
     invoices = db.relationship('Invoice', backref='user', lazy=True)
     bank_accounts = db.relationship('BankAccount', backref='user', lazy=True)
+    sent_invitations = db.relationship('OrganizationInvitation', foreign_keys='OrganizationInvitation.invited_by_user_id', backref='sender', lazy=True)
     
     def is_admin(self):
-        """Check if user has admin role."""
+        """Check if user has global admin role."""
         return self.role == 'admin'
     
     def has_role(self, role):
-        """Check if user has a specific role."""
+        """Check if user has a specific global role."""
         return self.role == role
+    
+    def get_default_organization(self):
+        """Get the user's default organization."""
+        org_user = OrganizationUser.query.filter_by(user_id=self.id, is_default=True).first()
+        if org_user:
+            return org_user.organization
+        # If no default is set but user has organizations, return the first
+        org_user = OrganizationUser.query.filter_by(user_id=self.id).first()
+        if org_user:
+            return org_user.organization
+        return None
+    
+    def has_organization_role(self, organization_id, role):
+        """Check if user has a specific role in an organization."""
+        org_user = OrganizationUser.query.filter_by(user_id=self.id, organization_id=organization_id).first()
+        if not org_user:
+            return False
+        return org_user.role == role
     
     def to_dict(self):
         """Convert the user to a dictionary."""
@@ -57,13 +197,15 @@ class User(UserMixin, db.Model):
             'profile_pic': self.profile_pic,
             'role': self.role,
             'provider': self.social_provider,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat(),
+            'organizations': [org_user.to_dict() for org_user in self.organizations]
         }
 
 class Receipt(db.Model):
     """Model for storing receipt information."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Link to user
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)  # Link to organization
     vendor_name = db.Column(db.String(255), nullable=False)
     vendor_address = db.Column(db.Text, nullable=True)
     vendor_contact = db.Column(db.String(255), nullable=True)
@@ -135,6 +277,7 @@ class Client(db.Model):
     """Model for storing client information for invoicing."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
     name = db.Column(db.String(255), nullable=False)  # Required primary name for client (could be person or company)
     company_name = db.Column(db.String(255), nullable=True)  # Optional company name if client is a company
     contact_person = db.Column(db.String(255), nullable=True)  # Optional contact person if client is a company
@@ -168,6 +311,7 @@ class Invoice(db.Model):
     """Model for storing invoice information."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
     bank_account_id = db.Column(db.Integer, db.ForeignKey('bank_account.id'), nullable=True)
     invoice_number = db.Column(db.String(50), nullable=False)
@@ -313,6 +457,7 @@ class BankAccount(db.Model):
     """Model for storing user bank account information."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
     
     account_name = db.Column(db.String(255), nullable=False)  # Name identifier for the account (e.g., "Primary Business Account")
     bank_name = db.Column(db.String(255), nullable=False)  # Name of the bank
@@ -348,6 +493,7 @@ class UserIncome(db.Model):
     """Model for storing user income details for tax calculations."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
     # LKR Income
     employment_income = db.Column(db.Float, nullable=True, default=0.0)
     business_income = db.Column(db.Float, nullable=True, default=0.0)

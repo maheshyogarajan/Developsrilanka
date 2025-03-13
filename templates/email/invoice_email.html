@@ -32,7 +32,7 @@
             margin-bottom: 15px;
         }
         h1 {
-            color: #4a6da7;
+            color: {{ organization.primary_color if organization else '#4a6da7' }};
             margin-bottom: 5px;
         }
         .greeting {
@@ -169,8 +169,12 @@
         </p>
         
         <div class="footer">
-            <p>This email was sent from DevelopSriLanka.com financial platform.</p>
-            <p>© 2025 DevelopSriLanka.com. All rights reserved.</p>
+            {% if organization and organization.email_footer_text %}
+                <p>{{ organization.email_footer_text | safe }}</p>
+            {% else %}
+                <p>This email was sent from the financial platform.</p>
+                <p>© {{ now.year }} All rights reserved.</p>
+            {% endif %}
         </div>
     </div>
 </body>
