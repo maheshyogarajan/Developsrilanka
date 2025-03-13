@@ -1125,9 +1125,10 @@ def save_receipt():
 @app.route('/receipts', methods=['GET'])
 @login_required
 def list_receipts():
-    """Get a list of all saved receipts for the current user's organization."""
+    """Get a list of all saved receipts for the current user, with organization-aware filtering."""
     from models import Receipt
     import traceback
+    from sqlalchemy import or_, and_
     
     try:
         # Add detailed logging to troubleshoot
@@ -1138,10 +1139,28 @@ def list_receipts():
         org = current_user.get_default_organization()
         
         if org:
-            logging.debug(f"list_receipts: Found default organization_id={org.id} for user_id={user_id}")
-            # Query receipts for the current user's organization, ordered by date (newest first)
-            receipts = Receipt.query.filter_by(organization_id=org.id).order_by(Receipt.date.desc()).all()
-            logging.debug(f"list_receipts: Found {len(receipts)} receipts for organization_id={org.id}")
+            org_id = org.id
+            logging.debug(f"list_receipts: Found default organization_id={org_id} for user_id={user_id}")
+            
+            # Comprehensive query that handles legacy data (null organization_id)
+            # This handles 3 cases:
+            # 1. Receipts belonging to the user's organization
+            # 2. Receipts belonging to the user directly (for compatibility with old data)
+            # 3. Receipts with null organization_id that belong to the user
+            receipts = Receipt.query.filter(
+                or_(
+                    Receipt.organization_id == org_id,  # Organization receipts
+                    and_(                              # Legacy receipts
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
+                        )
+                    )
+                )
+            ).order_by(Receipt.date.desc()).all()
+            
+            logging.debug(f"list_receipts: Found {len(receipts)} receipts for organization_id={org_id} and user_id={user_id}")
         else:
             logging.debug(f"list_receipts: No default organization found for user_id={user_id}, using user_id filter")
             # Fallback to just user's receipts if no organization is set
@@ -1169,6 +1188,7 @@ def list_receipts():
 def delete_receipts():
     """Delete multiple receipts by ID, ensuring they belong to the current user's organization."""
     from models import Receipt
+    from sqlalchemy import or_, and_
     
     try:
         # Get receipt IDs from request
@@ -1183,12 +1203,24 @@ def delete_receipts():
         
         # Get the user's default organization
         org = current_user.get_default_organization()
+        user_id = current_user.id
         
         if org:
+            org_id = org.id
             # Find receipts to delete that belong to the user's organization
+            # or receipts that belong to the user and have null organization_id (legacy data)
             receipts_to_delete = Receipt.query.filter(
                 Receipt.id.in_(receipt_ids),
-                Receipt.organization_id == org.id
+                or_(
+                    Receipt.organization_id == org_id,
+                    and_(
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
+                        )
+                    )
+                )
             ).all()
         else:
             # Fallback to user's receipts if no organization
@@ -1223,19 +1255,37 @@ def delete_receipts():
 def get_receipt(receipt_id):
     """Get details of a specific receipt that belongs to the current user's organization."""
     from models import Receipt
+    from sqlalchemy import or_, and_
     
     try:
         # Get the user's default organization
         org = current_user.get_default_organization()
+        user_id = current_user.id
         
         if org:
-            # Find the receipt by ID and organization_id to ensure ownership
-            receipt = Receipt.query.filter_by(id=receipt_id, organization_id=org.id).first()
+            org_id = org.id
+            # Find the receipt by ID and either:
+            # 1. matching organization_id, or
+            # 2. null organization_id and user ownership (legacy data)
+            receipt = Receipt.query.filter(
+                Receipt.id == receipt_id,
+                or_(
+                    Receipt.organization_id == org_id,
+                    and_(
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
+                        )
+                    )
+                )
+            ).first()
         else:
             # Fallback to user ownership if no organization
             receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
         
         if not receipt:
+            logging.warning(f"Receipt {receipt_id} not found or doesn't belong to user {user_id} or org {org.id if org else 'None'}")
             return jsonify({'error': 'Receipt not found or does not belong to your organization'}), 404
         
         # Convert to dictionary with all details
@@ -1253,19 +1303,36 @@ def view_receipt(receipt_id):
     """Display a specific receipt detail page for the current user's organization."""
     from models import Receipt, CompanyExpense, ClientExpense
     from utils import format_currency
+    from sqlalchemy import or_, and_
     
     try:
         # Get the user's default organization
         org = current_user.get_default_organization()
+        user_id = current_user.id
         
         if org:
-            # Find the receipt by ID and organization_id to ensure ownership
-            logging.debug(f"Fetching receipt {receipt_id} for organization {org.id}")
-            receipt = Receipt.query.filter_by(id=receipt_id, organization_id=org.id).first()
+            org_id = org.id
+            # Find the receipt by ID and either:
+            # 1. matching organization_id, or
+            # 2. null organization_id and user ownership (legacy data)
+            logging.debug(f"Fetching receipt {receipt_id} for organization {org_id} or user {user_id} with legacy data support")
+            receipt = Receipt.query.filter(
+                Receipt.id == receipt_id,
+                or_(
+                    Receipt.organization_id == org_id,
+                    and_(
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
+                        )
+                    )
+                )
+            ).first()
         else:
             # Fallback to user ownership if no organization
-            logging.debug(f"Fetching receipt {receipt_id} for user {current_user.id} (no organization)")
-            receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
+            logging.debug(f"Fetching receipt {receipt_id} for user {user_id} (no organization)")
+            receipt = Receipt.query.filter_by(id=receipt_id, user_id=user_id).first()
         
         if not receipt:
             logging.warning(f"Receipt {receipt_id} not found for user/organization")
@@ -1309,14 +1376,32 @@ def export_excel():
     import io
     from models import Receipt
     from datetime import datetime
+    from sqlalchemy import or_, and_
     
     try:
         # Get the user's default organization
         org = current_user.get_default_organization()
+        user_id = current_user.id
         
         if org:
-            # Query the current organization's receipts, ordered by date (newest first)
-            receipts = Receipt.query.filter_by(organization_id=org.id).order_by(Receipt.date.desc()).all()
+            org_id = org.id
+            # Comprehensive query that handles legacy data (null organization_id)
+            # This handles 3 cases:
+            # 1. Receipts belonging to the user's organization
+            # 2. Receipts belonging to the user directly (for compatibility with old data)
+            # 3. Receipts with null organization_id that belong to the user
+            receipts = Receipt.query.filter(
+                or_(
+                    Receipt.organization_id == org_id,  # Organization receipts
+                    and_(                              # Legacy receipts
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
+                        )
+                    )
+                )
+            ).order_by(Receipt.date.desc()).all()
         else:
             # Fallback to user's receipts if no organization is set
             receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
