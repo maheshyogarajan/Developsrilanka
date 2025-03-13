@@ -235,9 +235,13 @@
                             <i class="fas fa-calculator"></i>
                             <span>Tax Savings</span>
                         </a>
-                        <a href="{{ url_for('invoices') }}" class="nav-link {% if '/invoices' in request.path or '/clients' in request.path %}active{% endif %}">
+                        <a href="{{ url_for('invoices') }}" class="nav-link {% if '/invoices' in request.path %}active{% endif %}">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span>Invoices</span>
+                        </a>
+                        <a href="{{ url_for('clients') }}" class="nav-link {% if '/clients' in request.path %}active{% endif %}">
+                            <i class="fas fa-users"></i>
+                            <span>Clients</span>
                         </a>
                         <a href="{{ url_for('bank_accounts') }}" class="nav-link {% if '/bank-accounts' in request.path %}active{% endif %}">
                             <i class="fas fa-university"></i>
@@ -300,9 +304,13 @@
                             <i class="fas fa-calculator"></i>
                             <span>Tax Savings</span>
                         </a>
-                        <a href="{{ url_for('invoices') }}" class="nav-link {% if '/invoices' in request.path or '/clients' in request.path %}active{% endif %}">
+                        <a href="{{ url_for('invoices') }}" class="nav-link {% if '/invoices' in request.path %}active{% endif %}">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span>Invoices</span>
+                        </a>
+                        <a href="{{ url_for('clients') }}" class="nav-link {% if '/clients' in request.path %}active{% endif %}">
+                            <i class="fas fa-users"></i>
+                            <span>Clients</span>
                         </a>
                         <a href="{{ url_for('bank_accounts') }}" class="nav-link {% if '/bank-accounts' in request.path %}active{% endif %}">
                             <i class="fas fa-university"></i>
@@ -376,16 +384,47 @@
                 mobileMenuToggle.addEventListener('click', function() {
                     if (mobileNavContainer.style.display === 'block') {
                         mobileNavContainer.style.display = 'none';
-                        mobileMenuToggle.innerHTML = '<i class="fas fa-bars"></i>';
                     } else {
                         mobileNavContainer.style.display = 'block';
-                        mobileMenuToggle.innerHTML = '<i class="fas fa-times"></i>';
                     }
                 });
             }
+            
+            // Update page title
+            const pageTitleElement = document.getElementById('page-title');
+            if (pageTitleElement) {
+                const path = window.location.pathname;
+                let pageTitle = "Develop Sri Lanka";
+                
+                if (path === '/') {
+                    pageTitle = "Home";
+                } else if (path === '/scan') {
+                    pageTitle = "Scan Receipt";
+                } else if (path === '/history') {
+                    pageTitle = "Receipt History";
+                } else if (path === '/analytics') {
+                    pageTitle = "Analytics";
+                } else if (path.includes('/tax-savings')) {
+                    pageTitle = "Tax Savings Calculator";
+                } else if (path.includes('/invoices')) {
+                    pageTitle = "Invoice Management";
+                } else if (path.includes('/clients')) {
+                    pageTitle = "Client Management";
+                } else if (path.includes('/bank-accounts')) {
+                    pageTitle = "Bank Accounts";
+                } else if (path.includes('/organizations')) {
+                    pageTitle = "Organization Management";
+                } else if (path.includes('/expenses')) {
+                    pageTitle = "Expense Management";
+                } else if (path === '/profile') {
+                    pageTitle = "User Profile";
+                } else if (path.includes('/admin/')) {
+                    pageTitle = "Admin Dashboard";
+                }
+                
+                pageTitleElement.textContent = pageTitle;
+            }
         });
     </script>
-    
-    {% block scripts %}{% endblock %}
 </body>
 </html>
