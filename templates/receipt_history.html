@@ -790,10 +790,55 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error("Error loading receipt details:", error);
+                
+                // Extract error details with same pattern as main receipt loading
+                let errorMessage = error.message;
+                let errorId = null;
+                let errorType = null;
+                
+                // Check if the error message contains a JSON structure from our backend
+                if (typeof errorMessage === 'string' && 
+                    errorMessage.includes('error_id') && 
+                    (errorMessage.includes('{') || errorMessage.includes('}'))) {
+                    try {
+                        const jsonMatch = errorMessage.match(/\{.*\}/);
+                        if (jsonMatch) {
+                            const errorData = JSON.parse(jsonMatch[0]);
+                            if (errorData.error) {
+                                errorMessage = errorData.error;
+                            }
+                            errorId = errorData.error_id;
+                            errorType = errorData.error_type;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to parse error JSON", e);
+                    }
+                }
+                
+                // Log the error using our error logger
+                if (window.ReceiptHistoryErrorLogger) {
+                    window.ReceiptHistoryErrorLogger.logApiError(
+                        error,
+                        `/receipts/${receiptId}`,
+                        'GET',
+                        {
+                            error_id: errorId,
+                            error_type: errorType,
+                            receipt_id: receiptId
+                        }
+                    );
+                }
+                
+                // Error display in modal with error ID if available
+                let errorDisplay = errorMessage;
+                if (errorId) {
+                    errorDisplay += ` (Ref: ${errorId})`;
+                }
+                
                 receiptModalContent.innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-circle me-2"></i>
-                        Error loading receipt details: ${error.message}
+                        Error loading receipt details: ${errorDisplay}
                     </div>
                 `;
             });
@@ -855,12 +900,56 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error("Error deleting receipt:", error);
             
+            // Extract error details with same pattern as other error handling
+            let errorMessage = error.message;
+            let errorId = null;
+            let errorType = null;
+            
+            // Check if the error message contains a JSON structure from our backend
+            if (typeof errorMessage === 'string' && 
+                errorMessage.includes('error_id') && 
+                (errorMessage.includes('{') || errorMessage.includes('}'))) {
+                try {
+                    const jsonMatch = errorMessage.match(/\{.*\}/);
+                    if (jsonMatch) {
+                        const errorData = JSON.parse(jsonMatch[0]);
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                        errorId = errorData.error_id;
+                        errorType = errorData.error_type;
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse error JSON", e);
+                }
+            }
+            
+            // Log the error using our error logger
+            if (window.ReceiptHistoryErrorLogger) {
+                window.ReceiptHistoryErrorLogger.logApiError(
+                    error,
+                    '/receipts/delete',
+                    'POST',
+                    {
+                        error_id: errorId,
+                        error_type: errorType,
+                        receipt_id: receiptToDelete
+                    }
+                );
+            }
+            
+            // Format error display message with reference ID if available
+            let errorDisplay = errorMessage;
+            if (errorId) {
+                errorDisplay += ` (Ref: ${errorId})`;
+            }
+            
             // Close the modal
             const modal = bootstrap.Modal.getInstance(deleteModal);
             modal.hide();
             
             // Show error notification
-            showNotification('danger', `Failed to delete receipt: ${error.message}`);
+            showNotification('danger', `Failed to delete receipt: ${errorDisplay}`);
         });
     }
     
