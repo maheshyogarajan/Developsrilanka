@@ -37,6 +37,20 @@
                 <div class="mb-3">
                     <label for="name" class="form-label">Client Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="name" name="name" value="{{ client.name }}" required>
+                    <div class="form-text">Primary name for the client (could be person or company)</div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="company_name" class="form-label">Company Name</label>
+                        <input type="text" class="form-control" id="company_name" name="company_name" value="{{ client.company_name or '' }}">
+                        <div class="form-text">Optional, if client is a company</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="contact_person" class="form-label">Contact Person</label>
+                        <input type="text" class="form-control" id="contact_person" name="contact_person" value="{{ client.contact_person or '' }}">
+                        <div class="form-text">Optional, main contact at the company</div>
+                    </div>
                 </div>
                 
                 <div class="row">

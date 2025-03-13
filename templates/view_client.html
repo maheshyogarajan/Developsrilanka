@@ -44,6 +44,20 @@
                     <h5 class="mb-0">Client Information</h5>
                 </div>
                 <div class="card-body">
+                    {% if client.company_name %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Company Name</span>
+                        <span>{{ client.company_name }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if client.contact_person %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Contact Person</span>
+                        <span>{{ client.contact_person }}</span>
+                    </div>
+                    {% endif %}
+                    
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span class="fw-bold">Contact Email</span>
                         <span>

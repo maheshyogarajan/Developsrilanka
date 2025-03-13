@@ -379,6 +379,8 @@ def create_client():
         try:
             # Get form data
             name = request.form.get('name')
+            company_name = request.form.get('company_name', '')
+            contact_person = request.form.get('contact_person', '')
             email = request.form.get('email', '')
             phone = request.form.get('phone', '')
             address = request.form.get('address', '')
@@ -389,6 +391,8 @@ def create_client():
             client = Client(
                 user_id=current_user.id,
                 name=name,
+                company_name=company_name,
+                contact_person=contact_person,
                 email=email,
                 phone=phone,
                 address=address,
@@ -441,6 +445,8 @@ def edit_client(client_id):
         try:
             # Update client details
             client.name = request.form.get('name')
+            client.company_name = request.form.get('company_name', '')
+            client.contact_person = request.form.get('contact_person', '')
             client.email = request.form.get('email', '')
             client.phone = request.form.get('phone', '')
             client.address = request.form.get('address', '')
