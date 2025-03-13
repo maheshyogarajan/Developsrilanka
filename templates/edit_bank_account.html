@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Bank Account{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="mb-0">Edit Bank Account</h2>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form action="{{ url_for('edit_bank_account', account_id=account.id) }}" method="post">
+                        <div class="mb-3">
+                            <label for="account_name" class="form-label">Account Name *</label>
+                            <input type="text" class="form-control" id="account_name" name="account_name" required
+                                   value="{{ account.account_name }}"
+                                   placeholder="e.g., Primary Business Account, Personal Account, etc.">
+                            <div class="form-text">A descriptive name to identify this bank account.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="bank_name" class="form-label">Bank Name *</label>
+                            <input type="text" class="form-control" id="bank_name" name="bank_name" required
+                                   value="{{ account.bank_name }}"
+                                   placeholder="e.g., Bank of Ceylon, Commercial Bank, etc.">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="account_number" class="form-label">Account Number *</label>
+                            <input type="text" class="form-control" id="account_number" name="account_number" required
+                                   value="{{ account.account_number }}"
+                                   placeholder="Your bank account number">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="branch_name" class="form-label">Branch Name</label>
+                            <input type="text" class="form-control" id="branch_name" name="branch_name"
+                                   value="{{ account.branch_name or '' }}"
+                                   placeholder="e.g., Colombo Main Branch">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="swift_code" class="form-label">SWIFT/BIC Code</label>
+                                <input type="text" class="form-control" id="swift_code" name="swift_code"
+                                       value="{{ account.swift_code or '' }}"
+                                       placeholder="For international transfers">
+                                <div class="form-text">Required for international transfers.</div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="iban" class="form-label">IBAN</label>
+                                <input type="text" class="form-control" id="iban" name="iban"
+                                       value="{{ account.iban or '' }}"
+                                       placeholder="For international transfers">
+                                <div class="form-text">Required for transfers in certain countries.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_default" name="is_default"
+                                   {% if account.is_default %}checked{% endif %}>
+                            <label class="form-check-label" for="is_default">Set as default account</label>
+                            <div class="form-text">This account will be selected by default when creating invoices.</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('view_bank_account', account_id=account.id) }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Update Bank Account</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
