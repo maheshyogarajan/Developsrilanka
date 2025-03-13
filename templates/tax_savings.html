@@ -226,7 +226,7 @@
                                         </tr>
                                         <tr>
                                             <th class="small">LKR Equivalent:</th>
-                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.usd_consulting_income_in_lkr) }}</td>
+                                            <td class="text-end small">Rs {{ "{:,.2f}".format(tax_savings_estimate.usd_income_in_lkr) }}</td>
                                         </tr>
                                         <tr>
                                             <th class="small">Tax Rate:</th>
@@ -296,7 +296,7 @@
                         {% if unused_percent > 0 %}
                         <div class="d-flex justify-content-between">
                             <span><i class="fas fa-circle text-secondary"></i> Unused Deductible Amount:</span>
-                            <span>Rs {{ "{:,.2f}".format(tax_savings_estimate.unused_tax_deductible_amount) }}</span>
+                            <span>Rs {{ "{:,.2f}".format(tax_savings_estimate.remaining_unused_deduction) }}</span>
                         </div>
                         {% endif %}
                     </div>
