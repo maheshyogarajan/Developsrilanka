@@ -866,7 +866,7 @@ def update_data():
 @login_required
 def save_receipt():
     """Save the receipt data to the database."""
-    from models import Receipt, ReceiptItem
+    from models import Receipt, ReceiptItem, CompanyExpense, ExpenseStatus
     
     try:
         # Check if we have receipt data in the session
@@ -883,9 +883,17 @@ def save_receipt():
             except ValueError:
                 logging.warning(f"Invalid date format: {receipt_data['date']}")
         
+        # Get the user's organization
+        default_org = None
+        if hasattr(current_user, 'get_default_organization'):
+            default_org = current_user.get_default_organization()
+            
+        organization_id = default_org.id if default_org else None
+        
         # Create a new receipt and associate it with the current user
         new_receipt = Receipt(
             user_id=current_user.id,  # Set the user_id from the logged in user
+            organization_id=organization_id,
             vendor_name=receipt_data.get('vendor_name', 'Unknown Vendor'),
             vendor_address=receipt_data.get('vendor_address'),
             vendor_contact=receipt_data.get('vendor_contact'),
@@ -914,16 +922,44 @@ def save_receipt():
                 tax_deductible=bool(item.get('tax_deductible', False))
             )
             db.session.add(new_item)
+            
+        # Check if this receipt should be tagged as a company expense
+        is_company_expense = receipt_data.get('is_company_expense', False)
+        is_reimbursable = receipt_data.get('is_reimbursable', True)
+        expense_description = receipt_data.get('expense_description', '')
+        
+        # If it's a company expense and the user has an organization, create a company expense record
+        company_expense_id = None
+        if is_company_expense and organization_id:
+            company_expense = CompanyExpense(
+                receipt_id=new_receipt.id,
+                user_id=current_user.id,
+                organization_id=organization_id,
+                description=expense_description,
+                status=ExpenseStatus.SUBMITTED.value,
+                is_reimbursable=is_reimbursable,
+                notes="Submitted during receipt scanning",
+                submitted_date=datetime.utcnow()
+            )
+            db.session.add(company_expense)
+            db.session.flush()
+            company_expense_id = company_expense.id
         
         # Commit all changes
         db.session.commit()
         
-        # Return success with the receipt ID
-        return jsonify({
+        # Return success with the receipt ID and company expense ID if applicable
+        response_data = {
             'success': True, 
             'message': 'Receipt saved successfully',
             'receipt_id': new_receipt.id
-        })
+        }
+        
+        if company_expense_id:
+            response_data['company_expense_id'] = company_expense_id
+            response_data['message'] = 'Receipt saved and submitted as company expense'
+            
+        return jsonify(response_data)
     
     except Exception as e:
         # Roll back in case of error
