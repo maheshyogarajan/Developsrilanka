@@ -375,7 +375,30 @@ def view_invoice(invoice_id):
     invoice.update_status()
     db.session.commit()
     
-    return render_template('view_invoice.html', invoice=invoice)
+    # Get bank account information if available
+    bank_account = None
+    if invoice.bank_account_id:
+        bank_result = db.session.execute(text("""
+            SELECT id, account_name, bank_name, account_number, 
+                   branch_name, swift_code, iban, is_default
+            FROM bank_account 
+            WHERE id = :bank_account_id
+            LIMIT 1
+        """), {'bank_account_id': invoice.bank_account_id}).first()
+        
+        if bank_result:
+            bank_account = {
+                'id': bank_result[0],
+                'account_name': bank_result[1],
+                'bank_name': bank_result[2],
+                'account_number': bank_result[3],
+                'branch_name': bank_result[4],
+                'swift_code': bank_result[5],
+                'iban': bank_result[6],
+                'is_default': bank_result[7]
+            }
+    
+    return render_template('view_invoice.html', invoice=invoice, bank_account=bank_account)
 
 @app.route('/invoices/<int:invoice_id>/edit', methods=['GET', 'POST'])
 @login_required
