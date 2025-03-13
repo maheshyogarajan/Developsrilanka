@@ -141,6 +141,7 @@ def create_invoice():
         try:
             # Get form data
             client_id = request.form.get('client_id')
+            bank_account_id = request.form.get('bank_account_id') or None
             issue_date = datetime.strptime(request.form.get('issue_date'), '%Y-%m-%d')
             due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
             currency = request.form.get('currency', 'LKR')
@@ -158,14 +159,14 @@ def create_invoice():
             
             organization_id = result[0] if result else None
             
-            # Create new invoice using raw SQL to include organization_id
+            # Create new invoice using raw SQL to include organization_id and bank_account_id
             result = db.session.execute(text("""
                 INSERT INTO invoice (
-                    user_id, client_id, organization_id, invoice_number, 
+                    user_id, client_id, organization_id, bank_account_id, invoice_number, 
                     issue_date, due_date, status, currency, notes, created_at, updated_at
                 ) 
                 VALUES (
-                    :user_id, :client_id, :organization_id, :invoice_number, 
+                    :user_id, :client_id, :organization_id, :bank_account_id, :invoice_number, 
                     :issue_date, :due_date, :status, :currency, :notes, 
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
@@ -174,6 +175,7 @@ def create_invoice():
                 'user_id': current_user.id,
                 'client_id': client_id,
                 'organization_id': organization_id,
+                'bank_account_id': bank_account_id,
                 'invoice_number': invoice_number,
                 'issue_date': issue_date,
                 'due_date': due_date,
@@ -189,6 +191,7 @@ def create_invoice():
                 id=invoice_id,
                 user_id=current_user.id,
                 client_id=client_id,
+                bank_account_id=bank_account_id,
                 invoice_number=invoice_number,
                 issue_date=issue_date,
                 due_date=due_date,
@@ -264,8 +267,41 @@ def create_invoice():
         flash('Please add a client first before creating an invoice', 'warning')
         return redirect(url_for('clients'))
     
+    # Get the user's default organization
+    default_org = db.session.execute(text("""
+        SELECT organization_id FROM organization_user
+        WHERE user_id = :user_id AND is_default = true
+        LIMIT 1
+    """), {'user_id': current_user.id}).first()
+    
+    organization_id = default_org[0] if default_org else None
+    
+    # Get bank accounts for this organization
+    bank_accounts = []
+    if organization_id:
+        result = db.session.execute(text("""
+            SELECT id, account_name, bank_name, account_number, 
+                   branch_name, swift_code, iban, is_default
+            FROM bank_account 
+            WHERE organization_id = :org_id
+            ORDER BY is_default DESC, account_name ASC
+        """), {'org_id': organization_id})
+        
+        for row in result:
+            bank_accounts.append({
+                'id': row[0],
+                'account_name': row[1],
+                'bank_name': row[2],
+                'account_number': row[3],
+                'branch_name': row[4],
+                'swift_code': row[5],
+                'iban': row[6],
+                'is_default': row[7]
+            })
+    
     return render_template('create_invoice.html', 
                            clients=clients,
+                           bank_accounts=bank_accounts,
                            today=datetime.now().strftime('%Y-%m-%d'),
                            next_month=datetime.now().replace(month=datetime.now().month + 1 if datetime.now().month < 12 else 1).strftime('%Y-%m-%d'))
 
