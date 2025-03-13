@@ -1,0 +1,286 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>
+                {% if organization.logo_path %}
+                    <img src="{{ organization.logo_path }}" alt="{{ organization.name }}" style="max-height: 40px; margin-right: 10px; vertical-align: middle;">
+                {% endif %}
+                {{ organization.name }}
+            </h1>
+            {% if org_user.is_default %}
+                <span class="badge bg-primary">Default Organization</span>
+            {% endif %}
+            <span class="badge bg-secondary">{{ org_user.role|title }}</span>
+        </div>
+        <div class="col-auto">
+            {% if org_user.role in ['owner', 'admin'] or current_user.is_admin() %}
+                <div class="btn-group">
+                    <a href="{{ url_for('organizations.edit_organization', org_id=organization.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{{ url_for('organizations.edit_branding', org_id=organization.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-paint-brush"></i> Branding
+                    </a>
+                    {% if org_user.role == 'owner' or current_user.is_admin() %}
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrgModal">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Organization Details</h5>
+                </div>
+                <div class="card-body">
+                    {% if organization.website %}
+                        <p><strong>Website:</strong> <a href="{{ organization.website }}" target="_blank">{{ organization.website }}</a></p>
+                    {% endif %}
+                    {% if organization.email %}
+                        <p><strong>Email:</strong> {{ organization.email }}</p>
+                    {% endif %}
+                    {% if organization.phone %}
+                        <p><strong>Phone:</strong> {{ organization.phone }}</p>
+                    {% endif %}
+                    {% if organization.address %}
+                        <p><strong>Address:</strong> {{ organization.address|nl2br }}</p>
+                    {% endif %}
+                    {% if organization.tax_registration_number %}
+                        <p><strong>Tax ID:</strong> {{ organization.tax_registration_number }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-palette"></i> Branding</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Primary Color</label>
+                            <div class="color-swatch" style="background-color: {{ organization.primary_color }}; height: 30px; border-radius: 4px;"></div>
+                            <div class="mt-1 small text-muted">{{ organization.primary_color }}</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Secondary Color</label>
+                            <div class="color-swatch" style="background-color: {{ organization.secondary_color }}; height: 30px; border-radius: 4px;"></div>
+                            <div class="mt-1 small text-muted">{{ organization.secondary_color }}</div>
+                        </div>
+                    </div>
+                    {% if org_user.role in ['owner', 'admin'] or current_user.is_admin() %}
+                        <div class="d-grid">
+                            <a href="{{ url_for('organizations.edit_branding', org_id=organization.id) }}" class="btn btn-sm btn-outline-primary">
+                                Edit Branding
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-users"></i> Team Members</h5>
+                    {% if org_user.role in ['owner', 'admin'] or current_user.is_admin() %}
+                        <a href="{{ url_for('organizations.invite_team_member', org_id=organization.id) }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-user-plus"></i> Invite Member
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if team_members %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for member in team_members %}
+                                        <tr>
+                                            <td>
+                                                {% if member.user.profile_pic %}
+                                                    <img src="{{ member.user.profile_pic }}" alt="{{ member.user.name }}" class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                                                {% else %}
+                                                    <div class="avatar-placeholder me-2">{{ member.user.name[0]|upper }}</div>
+                                                {% endif %}
+                                                {{ member.user.name or "User" }}
+                                            </td>
+                                            <td>{{ member.user.email }}</td>
+                                            <td>
+                                                <span class="badge {% if member.role == 'owner' %}bg-danger{% elif member.role == 'admin' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                    {{ member.role|title }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if (org_user.role in ['owner', 'admin'] and member.user.id != current_user.id) or current_user.is_admin() %}
+                                                    <div class="btn-group btn-group-sm">
+                                                        {% if org_user.role == 'owner' or current_user.is_admin() %}
+                                                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                Change Role
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                {% for role in ['admin', 'member', 'viewer'] %}
+                                                                    {% if member.role != role %}
+                                                                        <li>
+                                                                            <form action="{{ url_for('organizations.update_member_role', org_id=organization.id, user_id=member.user.id) }}" method="post">
+                                                                                <input type="hidden" name="role" value="{{ role }}">
+                                                                                <button type="submit" class="dropdown-item">{{ role|title }}</button>
+                                                                            </form>
+                                                                        </li>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                                {% if member.role != 'owner' and (not team_members|selectattr('role', 'equalto', 'owner')|list or current_user.is_admin()) %}
+                                                                    <li>
+                                                                        <form action="{{ url_for('organizations.update_member_role', org_id=organization.id, user_id=member.user.id) }}" method="post">
+                                                                            <input type="hidden" name="role" value="owner">
+                                                                            <button type="submit" class="dropdown-item">Owner</button>
+                                                                        </form>
+                                                                    </li>
+                                                                {% endif %}
+                                                            </ul>
+                                                        {% endif %}
+                                                        
+                                                        {% if member.role != 'owner' and (org_user.role in ['owner', 'admin'] or current_user.is_admin()) %}
+                                                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeMemberModal{{ member.user.id }}">
+                                                                <i class="fas fa-user-times"></i>
+                                                            </button>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <!-- Remove Member Modal -->
+                                                    <div class="modal fade" id="removeMemberModal{{ member.user.id }}" tabindex="-1" aria-labelledby="removeMemberModalLabel{{ member.user.id }}" aria-hidden="true">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title" id="removeMemberModalLabel{{ member.user.id }}">Confirm Removal</h5>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    Are you sure you want to remove {{ member.user.name or member.user.email }} from this organization?
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                    <form action="{{ url_for('organizations.remove_team_member', org_id=organization.id, user_id=member.user.id) }}" method="post">
+                                                                        <button type="submit" class="btn btn-danger">Remove Member</button>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No team members found.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if pending_invitations %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-paper-plane"></i> Pending Invitations</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Invited By</th>
+                                        <th>Expires</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invitation in pending_invitations %}
+                                        <tr>
+                                            <td>{{ invitation.email }}</td>
+                                            <td>{{ invitation.role|title }}</td>
+                                            <td>{{ invitation.invited_by.name or invitation.invited_by.email }}</td>
+                                            <td>
+                                                {% if invitation.is_expired() %}
+                                                    <span class="text-danger">Expired</span>
+                                                {% else %}
+                                                    {{ invitation.expires_at.strftime('%Y-%m-%d') }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if org_user.role in ['owner', 'admin'] or current_user.is_admin() %}
+                                                    <form action="{{ url_for('organizations.cancel_invitation', org_id=organization.id, invitation_id=invitation.id) }}" method="post" class="d-inline">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            <i class="fas fa-times"></i> Cancel
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Organization Modal -->
+<div class="modal fade" id="deleteOrgModal" tabindex="-1" aria-labelledby="deleteOrgModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteOrgModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger fw-bold">Warning: This action cannot be undone!</p>
+                <p>Are you sure you want to delete the organization "{{ organization.name }}"? All data associated with this organization will be permanently deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('organizations.delete_organization', org_id=organization.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Delete Organization</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-placeholder {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        background-color: #4a6da7;
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}

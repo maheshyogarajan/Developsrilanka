@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2>Edit Organization</h2>
+                    <a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Organization Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ organization.name }}" required>
+                            <div class="form-text">The name of your business or organization</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="website" class="form-label">Website</label>
+                            <input type="url" class="form-control" id="website" name="website" value="{{ organization.website or '' }}" placeholder="https://example.com">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ organization.email or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" value="{{ organization.phone or '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea class="form-control" id="address" name="address" rows="3">{{ organization.address or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tax_registration_number" class="form-label">Tax Registration Number</label>
+                            <input type="text" class="form-control" id="tax_registration_number" name="tax_registration_number" value="{{ organization.tax_registration_number or '' }}">
+                            <div class="form-text">VAT, GST, or other tax ID for your business</div>
+                        </div>
+
+                        <h4 class="mt-4">Branding</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="primary_color" class="form-label">Primary Color</label>
+                                    <input type="color" class="form-control form-control-color" id="primary_color" name="primary_color" value="{{ organization.primary_color }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="secondary_color" class="form-label">Secondary Color</label>
+                                    <input type="color" class="form-control form-control-color" id="secondary_color" name="secondary_color" value="{{ organization.secondary_color }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email_footer_text" class="form-label">Email Footer Text</label>
+                            <textarea class="form-control" id="email_footer_text" name="email_footer_text" rows="3">{{ organization.email_footer_text or '' }}</textarea>
+                            <div class="form-text">Custom text to appear in the footer of emails sent from your organization. HTML is allowed.</div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

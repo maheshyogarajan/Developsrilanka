@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block title %}Invite Team Member - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2>Invite Team Member</h2>
+                    <a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Invite a team member to join your organization {{ organization.name }}. They will receive an email with instructions to join.</p>
+                    
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address *</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="form-text">Enter the email address of the person you want to invite</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Role *</label>
+                            <select class="form-select" id="role" name="role" required>
+                                {% for role in roles %}
+                                    <option value="{{ role }}">{{ role|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                <strong>Admin:</strong> Can manage organization settings and invite team members<br>
+                                <strong>Member:</strong> Can access all features but cannot change organization settings<br>
+                                <strong>Viewer:</strong> Can only view data but not make changes
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Send Invitation</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

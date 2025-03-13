@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+
+{% block title %}My Organizations{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>My Organizations</h1>
+            <p class="text-muted">Manage your organizations and team settings</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('organizations.create_organization') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create Organization
+            </a>
+        </div>
+    </div>
+
+    {% if user_orgs %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for org_user in user_orgs %}
+                {% set org = org_user.organization %}
+                <div class="col">
+                    <div class="card h-100 {% if org_user.is_default %}border-primary{% endif %}">
+                        {% if org.logo_path %}
+                            <div class="card-img-top pt-3 px-3 text-center">
+                                <img src="{{ org.logo_path }}" alt="{{ org.name }}" class="org-logo" style="max-height: 80px; max-width: 100%;">
+                            </div>
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ org.name }}</h5>
+                            <p class="card-text">
+                                <span class="badge bg-secondary">{{ org_user.role|title }}</span>
+                                {% if org_user.is_default %}
+                                    <span class="badge bg-primary">Default</span>
+                                {% endif %}
+                            </p>
+                            {% if org.email %}
+                                <p class="card-text text-muted small">
+                                    <i class="fas fa-envelope"></i> {{ org.email }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group w-100">
+                                <a href="{{ url_for('organizations.view_organization', org_id=org.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                {% if not org_user.is_default %}
+                                    <form action="{{ url_for('organizations.set_default_organization', org_id=org.id) }}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-secondary">
+                                            <i class="fas fa-star"></i> Set Default
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p>You don't have any organizations yet. <a href="{{ url_for('organizations.create_organization') }}">Create your first organization</a> to get started.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

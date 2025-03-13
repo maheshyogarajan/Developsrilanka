@@ -1,0 +1,109 @@
+{% extends "layout.html" %}
+
+{% block title %}Branding - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2>Edit Branding</h2>
+                    <a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="logo" class="form-label">Organization Logo</label>
+                            {% if organization.logo_path %}
+                                <div class="mb-2">
+                                    <img src="{{ organization.logo_path }}" alt="{{ organization.name }}" style="max-height: 100px; max-width: 100%;">
+                                </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                            <div class="form-text">Upload a logo for your organization. Recommended size: 300x150px. Supported formats: PNG, JPG, SVG.</div>
+                        </div>
+
+                        <h4 class="mt-4">Brand Colors</h4>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="primary_color" class="form-label">Primary Color</label>
+                                    <input type="color" class="form-control form-control-color w-100" id="primary_color" name="primary_color" value="{{ organization.primary_color }}">
+                                    <div class="form-text">Used for headings, buttons, and links</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="secondary_color" class="form-label">Secondary Color</label>
+                                    <input type="color" class="form-control form-control-color w-100" id="secondary_color" name="secondary_color" value="{{ organization.secondary_color }}">
+                                    <div class="form-text">Used for backgrounds and accents</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h4 class="mt-4">Email Templates</h4>
+                        <div class="mb-3">
+                            <label for="email_footer_text" class="form-label">Email Footer Text</label>
+                            <textarea class="form-control" id="email_footer_text" name="email_footer_text" rows="4">{{ organization.email_footer_text or '' }}</textarea>
+                            <div class="form-text">Custom text to appear in the footer of emails sent from your organization. HTML is allowed.</div>
+                        </div>
+
+                        <div class="mt-4">
+                            <h5>Preview</h5>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                                        <h4 style="color: {{ organization.primary_color }};">Email Heading</h4>
+                                        <p>This is how your emails will appear to recipients.</p>
+                                        <div style="background-color: {{ organization.secondary_color }}; padding: 10px; border-radius: 4px;">
+                                            <p style="margin: 0;">Content area with your secondary color background.</p>
+                                        </div>
+                                        <a href="#" style="color: {{ organization.primary_color }}; text-decoration: none; font-weight: bold;">Links will appear in your primary color</a>
+                                        
+                                        <hr style="margin: 15px 0; border-color: #eee;">
+                                        <div style="font-size: 12px; color: #777; text-align: center;">
+                                            {% if organization.email_footer_text %}
+                                                {{ organization.email_footer_text|safe }}
+                                            {% else %}
+                                                <p>© {{ now().year }} {{ organization.name }}. All rights reserved.</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Branding</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Live preview of color changes
+        const primaryColorInput = document.getElementById('primary_color');
+        const secondaryColorInput = document.getElementById('secondary_color');
+        
+        primaryColorInput.addEventListener('input', function() {
+            document.querySelectorAll('h4, a').forEach(el => {
+                el.style.color = this.value;
+            });
+        });
+        
+        secondaryColorInput.addEventListener('input', function() {
+            document.querySelectorAll('div[style*="background-color:"]').forEach(el => {
+                el.style.backgroundColor = this.value;
+            });
+        });
+    });
+</script>
+{% endblock %}
