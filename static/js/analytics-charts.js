@@ -57,8 +57,25 @@ function initExpenseCharts() {
         const categoriesElement = document.getElementById('majorCategoriesData');
         if (!categoriesElement) return;
         
-        const categoryLabels = JSON.parse(categoriesElement.getAttribute('data-labels') || '[]');
-        const categoryValues = JSON.parse(categoriesElement.getAttribute('data-values') || '[]');
+        // Safely parse JSON with try/catch to prevent errors
+        let categoryLabels = [];
+        let categoryValues = [];
+        
+        try {
+            const labelsAttr = categoriesElement.getAttribute('data-labels') || '[]';
+            categoryLabels = JSON.parse(labelsAttr);
+        } catch (e) {
+            console.error('Error parsing major category labels:', e);
+            categoryLabels = [];
+        }
+        
+        try {
+            const valuesAttr = categoriesElement.getAttribute('data-values') || '[]';
+            categoryValues = JSON.parse(valuesAttr);
+        } catch (e) {
+            console.error('Error parsing major category values:', e);
+            categoryValues = [];
+        }
         
         // Generate vibrant colors
         const categoryColors = generateColors(categoryLabels.length);
@@ -108,8 +125,25 @@ function initExpenseCharts() {
         const categoriesElement = document.getElementById('minorCategoriesData');
         if (!categoriesElement) return;
         
-        const categoryLabels = JSON.parse(categoriesElement.getAttribute('data-labels') || '[]');
-        const categoryValues = JSON.parse(categoriesElement.getAttribute('data-values') || '[]');
+        // Safely parse JSON with try/catch to prevent errors
+        let categoryLabels = [];
+        let categoryValues = [];
+        
+        try {
+            const labelsAttr = categoriesElement.getAttribute('data-labels') || '[]';
+            categoryLabels = JSON.parse(labelsAttr);
+        } catch (e) {
+            console.error('Error parsing minor category labels:', e);
+            categoryLabels = [];
+        }
+        
+        try {
+            const valuesAttr = categoriesElement.getAttribute('data-values') || '[]';
+            categoryValues = JSON.parse(valuesAttr);
+        } catch (e) {
+            console.error('Error parsing minor category values:', e);
+            categoryValues = [];
+        }
         
         // Generate vibrant colors
         const categoryColors = generateColors(categoryLabels.length);
@@ -340,9 +374,34 @@ function initInvoiceCharts() {
         const monthlyElement = document.getElementById('invoiceMonthlyData');
         if (!monthlyElement) return;
         
-        const monthlyLabels = JSON.parse(monthlyElement.getAttribute('data-labels') || '[]');
-        const invoicedValues = JSON.parse(monthlyElement.getAttribute('data-invoiced') || '[]');
-        const paidValues = JSON.parse(monthlyElement.getAttribute('data-paid') || '[]');
+        // Safely parse JSON with try/catch to prevent errors
+        let monthlyLabels = [];
+        let invoicedValues = [];
+        let paidValues = [];
+        
+        try {
+            const labelsAttr = monthlyElement.getAttribute('data-labels') || '[]';
+            monthlyLabels = JSON.parse(labelsAttr);
+        } catch (e) {
+            console.error('Error parsing monthly invoice labels:', e);
+            monthlyLabels = [];
+        }
+        
+        try {
+            const invoicedAttr = monthlyElement.getAttribute('data-invoiced') || '[]';
+            invoicedValues = JSON.parse(invoicedAttr);
+        } catch (e) {
+            console.error('Error parsing invoiced values:', e);
+            invoicedValues = [];
+        }
+        
+        try {
+            const paidAttr = monthlyElement.getAttribute('data-paid') || '[]';
+            paidValues = JSON.parse(paidAttr);
+        } catch (e) {
+            console.error('Error parsing paid values:', e);
+            paidValues = [];
+        }
         
         new Chart(ctx, {
             type: 'bar',
