@@ -190,6 +190,16 @@
             fetch('/receipts')
                 .then(response => {
                     console.log('Received response:', response.status);
+                    // Check if we got redirected to the login page
+                    if (response.redirected || !response.ok) {
+                        if (response.url.includes('/login')) {
+                            console.log('Redirected to login page. User not authenticated.');
+                            // Redirect the browser to the login page
+                            window.location.href = '/login';
+                            throw new Error('Authentication required');
+                        }
+                        throw new Error('Failed to fetch receipts');
+                    }
                     return response.json();
                 })
                 .then(data => {
@@ -283,7 +293,19 @@
             
             // Fetch receipt details from server
             fetch(`/receipts/${receiptId}`)
-                .then(response => response.json())
+                .then(response => {
+                    // Check if we got redirected to the login page
+                    if (response.redirected || !response.ok) {
+                        if (response.url.includes('/login')) {
+                            console.log('Redirected to login page. User not authenticated.');
+                            // Redirect the browser to the login page
+                            window.location.href = '/login';
+                            throw new Error('Authentication required');
+                        }
+                        throw new Error('Failed to fetch receipt details');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.error) {
                         throw new Error(data.error);
@@ -398,7 +420,19 @@
                 
                 // Fetch receipt details for export
                 fetch(`/receipts/${currentReceiptId}`)
-                .then(response => response.json())
+                .then(response => {
+                    // Check if we got redirected to the login page
+                    if (response.redirected || !response.ok) {
+                        if (response.url.includes('/login')) {
+                            console.log('Redirected to login page. User not authenticated.');
+                            // Redirect the browser to the login page
+                            window.location.href = '/login';
+                            throw new Error('Authentication required');
+                        }
+                        throw new Error('Failed to fetch receipt details for export');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.error) {
                         throw new Error(data.error);
