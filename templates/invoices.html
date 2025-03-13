@@ -22,63 +22,62 @@
         {% endif %}
     {% endwith %}
     
-    {% if invoices %}
-        <div class="row mb-4">
-            <!-- Organization Filter Card -->
-            {% if organizations and organizations|length > 1 %}
-            <div class="col-md-6 mb-4 mb-md-0">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-transparent">
-                        <h5 class="mb-0">Organization Filter</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex flex-wrap gap-2" id="organizationFilterContainer">
-                            {% for org in organizations %}
-                            <a href="{{ url_for('invoices', organization_id=org.id) }}" 
-                               class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                                {{ org.name }}
-                                {% if org.is_default %}<i class="fas fa-star ms-1 text-warning"></i>{% endif %}
-                            </a>
-                            {% endfor %}
-                            {% if selected_org %}
-                            <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-1"></i> Clear Filter
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
+    <!-- Filter Section - Always visible -->
+    <div class="row mb-4">
+        <!-- Organization Filter Card -->
+        {% if organizations and organizations|length > 1 %}
+        <div class="col-md-6 mb-4 mb-md-0">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Organization Filter</h5>
                 </div>
-            </div>
-            {% endif %}
-            
-            <!-- Invoice Status Filter Card -->
-            <div class="col-md-{% if organizations and organizations|length > 1 %}6{% else %}12{% endif %}">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-transparent">
-                        <h5 class="mb-0">Invoice Status Filter</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="btn-group d-flex flex-wrap" role="group" aria-label="Invoice Status Filter">
-                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None) }}" 
-                               class="btn btn-outline-secondary {% if not request.args.get('status') %}active{% endif %}">All</a>
-                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='paid') }}" 
-                               class="btn btn-outline-success {% if request.args.get('status') == 'paid' %}active{% endif %}">Paid</a>
-                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='partially_paid') }}" 
-                               class="btn btn-outline-warning {% if request.args.get('status') == 'partially_paid' %}active{% endif %}">Partially Paid</a>
-                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='sent') }}" 
-                               class="btn btn-outline-info {% if request.args.get('status') == 'sent' %}active{% endif %}">Sent</a>
-                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='overdue') }}" 
-                               class="btn btn-outline-danger {% if request.args.get('status') == 'overdue' %}active{% endif %}">Overdue</a>
-                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='draft') }}" 
-                               class="btn btn-outline-secondary {% if request.args.get('status') == 'draft' %}active{% endif %}">Draft</a>
-                            <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='cancelled') }}" 
-                               class="btn btn-outline-dark {% if request.args.get('status') == 'cancelled' %}active{% endif %}">Cancelled</a>
-                        </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2" id="organizationFilterContainer">
+                        {% for org in organizations %}
+                        <a href="{{ url_for('invoices', organization_id=org.id) }}" 
+                           class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            {{ org.name }}
+                            {% if org.is_default %}<i class="fas fa-star ms-1 text-warning"></i>{% endif %}
+                        </a>
+                        {% endfor %}
+                        {% if selected_org %}
+                        <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i> Clear Filter
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    {% endif %}
+        {% endif %}
+        
+        <!-- Invoice Status Filter Card -->
+        <div class="col-md-{% if organizations and organizations|length > 1 %}6{% else %}12{% endif %}">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Invoice Status Filter</h5>
+                </div>
+                <div class="card-body">
+                    <div class="btn-group d-flex flex-wrap" role="group" aria-label="Invoice Status Filter">
+                        <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None) }}" 
+                           class="btn btn-outline-secondary {% if not request.args.get('status') %}active{% endif %}">All</a>
+                        <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='paid') }}" 
+                           class="btn btn-outline-success {% if request.args.get('status') == 'paid' %}active{% endif %}">Paid</a>
+                        <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='partially_paid') }}" 
+                           class="btn btn-outline-warning {% if request.args.get('status') == 'partially_paid' %}active{% endif %}">Partially Paid</a>
+                        <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='sent') }}" 
+                           class="btn btn-outline-info {% if request.args.get('status') == 'sent' %}active{% endif %}">Sent</a>
+                        <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='overdue') }}" 
+                           class="btn btn-outline-danger {% if request.args.get('status') == 'overdue' %}active{% endif %}">Overdue</a>
+                        <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='draft') }}" 
+                           class="btn btn-outline-secondary {% if request.args.get('status') == 'draft' %}active{% endif %}">Draft</a>
+                        <a href="{{ url_for('invoices', organization_id=selected_org.id if selected_org else None, status='cancelled') }}" 
+                           class="btn btn-outline-dark {% if request.args.get('status') == 'cancelled' %}active{% endif %}">Cancelled</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="row mb-4">
         <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
