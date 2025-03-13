@@ -851,6 +851,16 @@
                             <div class="chart-container">
                                 <canvas id="invoiceStatusChart"></canvas>
                             </div>
+                            
+                            <!-- Hidden data for charts -->
+                            <div id="invoiceStatusData" 
+                                 data-draft="{{ invoice_status_data.get('draft', 0) }}"
+                                 data-sent="{{ invoice_status_data.get('sent', 0) }}"
+                                 data-partially-paid="{{ invoice_status_data.get('partially_paid', 0) }}"
+                                 data-paid="{{ invoice_status_data.get('paid', 0) }}"
+                                 data-overdue="{{ invoice_status_data.get('overdue', 0) }}"
+                                 data-cancelled="{{ invoice_status_data.get('cancelled', 0) }}"
+                                 class="d-none"></div>
                         </div>
                     </div>
                 </div>
@@ -1019,6 +1029,12 @@
                             <div class="chart-container mt-4">
                                 <canvas id="taxSavingsChart"></canvas>
                             </div>
+                            
+                            <!-- Hidden data for tax charts -->
+                            <div id="taxData" 
+                                 data-tax-deductible="{{ total_tax_deductible }}"
+                                 data-non-deductible="{{ total_expenses - total_tax_deductible }}"
+                                 class="d-none"></div>
                         </div>
                     </div>
                 </div>
