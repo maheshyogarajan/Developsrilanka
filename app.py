@@ -1123,12 +1123,14 @@ def save_receipt():
         return jsonify({'error': f'Error saving receipt: {str(e)}'}), 500
 
 @app.route('/receipts', methods=['GET'])
+@app.route('/list_receipts', methods=['GET'])  # Add alias route for legacy frontend compatibility
 @login_required
 def list_receipts():
     """Get a list of all saved receipts for the current user, with organization-aware filtering."""
     from models import Receipt
     import traceback
     from sqlalchemy import or_, and_
+    from error_logger import log_receipt_history_error, log_database_error, handle_and_log_exception, ErrorTypes
     
     try:
         # Add detailed logging to troubleshoot
@@ -1147,41 +1149,94 @@ def list_receipts():
             # 1. Receipts belonging to the user's organization
             # 2. Receipts belonging to the user directly (for compatibility with old data)
             # 3. Receipts with null organization_id that belong to the user
-            receipts = Receipt.query.filter(
-                or_(
-                    Receipt.organization_id == org_id,  # Organization receipts
-                    and_(                              # Legacy receipts
-                        Receipt.user_id == user_id,
-                        or_(
-                            Receipt.organization_id.is_(None),
-                            Receipt.organization_id == 0
+            try:
+                receipts = Receipt.query.filter(
+                    or_(
+                        Receipt.organization_id == org_id,  # Organization receipts
+                        and_(                              # Legacy receipts
+                            Receipt.user_id == user_id,
+                            or_(
+                                Receipt.organization_id.is_(None),
+                                Receipt.organization_id == 0
+                            )
                         )
                     )
+                ).order_by(Receipt.date.desc()).all()
+                
+                logging.debug(f"list_receipts: Found {len(receipts)} receipts for organization_id={org_id} and user_id={user_id}")
+            except Exception as db_error:
+                # Log database-specific error and re-raise
+                log_database_error(
+                    error=db_error,
+                    operation="query",
+                    model="Receipt",
+                    additional_info={
+                        "user_id": user_id,
+                        "organization_id": org_id,
+                        "query_type": "organization_receipts"
+                    }
                 )
-            ).order_by(Receipt.date.desc()).all()
-            
-            logging.debug(f"list_receipts: Found {len(receipts)} receipts for organization_id={org_id} and user_id={user_id}")
+                raise
         else:
             logging.debug(f"list_receipts: No default organization found for user_id={user_id}, using user_id filter")
             # Fallback to just user's receipts if no organization is set
-            receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
-            logging.debug(f"list_receipts: Found {len(receipts)} receipts for user_id={user_id}")
+            try:
+                receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
+                logging.debug(f"list_receipts: Found {len(receipts)} receipts for user_id={user_id}")
+            except Exception as db_error:
+                # Log database-specific error and re-raise
+                log_database_error(
+                    error=db_error,
+                    operation="query",
+                    model="Receipt",
+                    additional_info={
+                        "user_id": user_id,
+                        "query_type": "user_receipts"
+                    }
+                )
+                raise
         
         # Convert to list of dictionaries
         receipt_list = []
-        for receipt in receipts:
-            receipt_dict = receipt.to_dict()
-            # Simplify the output for the list view
-            receipt_dict.pop('items', None)  # Remove items to reduce payload size
-            receipt_list.append(receipt_dict)
-        
-        logging.debug(f"list_receipts: Returning {len(receipt_list)} receipts to client")
-        return jsonify({'success': True, 'receipts': receipt_list})
+        try:
+            for receipt in receipts:
+                receipt_dict = receipt.to_dict()
+                # Simplify the output for the list view
+                receipt_dict.pop('items', None)  # Remove items to reduce payload size
+                receipt_list.append(receipt_dict)
+            
+            logging.debug(f"list_receipts: Returning {len(receipt_list)} receipts to client")
+            return jsonify({'success': True, 'receipts': receipt_list})
+        except Exception as conversion_error:
+            # Log specific error for data conversion issues
+            log_receipt_history_error(
+                error=conversion_error,
+                sub_component="data_conversion",
+                additional_info={
+                    "user_id": user_id,
+                    "receipt_count": len(receipts) if receipts else 0
+                }
+            )
+            raise
     
     except Exception as e:
-        logging.error(f"Error listing receipts: {str(e)}")
-        logging.error(traceback.format_exc())  # Log the full traceback
-        return jsonify({'error': f'Error listing receipts: {str(e)}'}), 500
+        # Handle and log the error with our new system
+        error_response = handle_and_log_exception(
+            e=e,
+            error_type=ErrorTypes.RECEIPT_HISTORY,
+            component="list_receipts",
+            additional_info={
+                "user_id": current_user.id if current_user else None,
+                "has_organization": bool(org) if 'org' in locals() else None
+            }
+        )
+        
+        # Return a more informative error to the client with the error_id for support reference
+        return jsonify({
+            'error': f"Error retrieving receipts: {str(e)}",
+            'error_id': error_response.get('error_id', 'unknown'),
+            'error_type': error_response.get('error_type', ErrorTypes.UNKNOWN)
+        }), 500
         
 @app.route('/receipts/delete', methods=['POST'])
 @login_required
@@ -1189,6 +1244,7 @@ def delete_receipts():
     """Delete multiple receipts by ID, ensuring they belong to the current user's organization."""
     from models import Receipt
     from sqlalchemy import or_, and_
+    from error_logger import log_receipt_history_error, log_database_error, handle_and_log_exception, ErrorTypes
     
     try:
         # Get receipt IDs from request
@@ -1198,57 +1254,127 @@ def delete_receipts():
         if not receipt_ids:
             return jsonify({'error': 'No receipt IDs provided'}), 400
         
-        # Convert string IDs to integers
-        receipt_ids = [int(id) for id in receipt_ids]
+        try:
+            # Convert string IDs to integers
+            receipt_ids = [int(id) for id in receipt_ids]
+        except ValueError as ve:
+            # Log validation error
+            log_receipt_history_error(
+                error=ve,
+                sub_component="delete_validation",
+                additional_info={
+                    "invalid_ids": receipt_ids,
+                    "error_details": "Failed to convert receipt IDs to integers"
+                }
+            )
+            return jsonify({'error': 'Invalid receipt ID format'}), 400
         
         # Get the user's default organization
         org = current_user.get_default_organization()
         user_id = current_user.id
         
-        if org:
-            org_id = org.id
-            # Find receipts to delete that belong to the user's organization
-            # or receipts that belong to the user and have null organization_id (legacy data)
-            receipts_to_delete = Receipt.query.filter(
-                Receipt.id.in_(receipt_ids),
-                or_(
-                    Receipt.organization_id == org_id,
-                    and_(
-                        Receipt.user_id == user_id,
-                        or_(
-                            Receipt.organization_id.is_(None),
-                            Receipt.organization_id == 0
+        try:
+            if org:
+                org_id = org.id
+                # Find receipts to delete that belong to the user's organization
+                # or receipts that belong to the user and have null organization_id (legacy data)
+                receipts_to_delete = Receipt.query.filter(
+                    Receipt.id.in_(receipt_ids),
+                    or_(
+                        Receipt.organization_id == org_id,
+                        and_(
+                            Receipt.user_id == user_id,
+                            or_(
+                                Receipt.organization_id.is_(None),
+                                Receipt.organization_id == 0
+                            )
                         )
                     )
+                ).all()
+            else:
+                # Fallback to user's receipts if no organization
+                receipts_to_delete = Receipt.query.filter(
+                    Receipt.id.in_(receipt_ids),
+                    Receipt.user_id == current_user.id
+                ).all()
+            
+            deleted_count = len(receipts_to_delete)
+            
+            # Log if there's a mismatch between requested and actual deletion count
+            if deleted_count != len(receipt_ids):
+                log_receipt_history_error(
+                    error=f"Receipt ID mismatch: {len(receipt_ids)} requested, {deleted_count} found",
+                    sub_component="delete_mismatch",
+                    additional_info={
+                        "user_id": user_id,
+                        "org_id": org_id if org else None,
+                        "requested_ids": receipt_ids,
+                        "found_ids": [r.id for r in receipts_to_delete]
+                    }
                 )
-            ).all()
-        else:
-            # Fallback to user's receipts if no organization
-            receipts_to_delete = Receipt.query.filter(
-                Receipt.id.in_(receipt_ids),
-                Receipt.user_id == current_user.id
-            ).all()
+        except Exception as db_error:
+            # Log database-specific error and re-raise
+            log_database_error(
+                error=db_error,
+                operation="query",
+                model="Receipt",
+                additional_info={
+                    "user_id": user_id,
+                    "organization_id": org_id if org else None,
+                    "receipt_ids": receipt_ids
+                }
+            )
+            raise
         
-        deleted_count = len(receipts_to_delete)
-        
-        # Delete each receipt (will cascade to items thanks to relationship setup)
-        for receipt in receipts_to_delete:
-            db.session.delete(receipt)
-        
-        # Commit the transaction
-        db.session.commit()
-        
-        return jsonify({
-            'success': True, 
-            'deleted_count': deleted_count,
-            'message': f'Successfully deleted {deleted_count} receipt(s)'
-        })
+        try:
+            # Delete each receipt (will cascade to items thanks to relationship setup)
+            for receipt in receipts_to_delete:
+                db.session.delete(receipt)
+            
+            # Commit the transaction
+            db.session.commit()
+            
+            # Log successful deletion
+            logging.info(f"User {user_id} deleted {deleted_count} receipts: {[r.id for r in receipts_to_delete]}")
+            
+            return jsonify({
+                'success': True, 
+                'deleted_count': deleted_count,
+                'message': f'Successfully deleted {deleted_count} receipt(s)'
+            })
+        except Exception as db_error:
+            # Roll back and log database error
+            db.session.rollback()
+            log_database_error(
+                error=db_error,
+                operation="delete",
+                model="Receipt",
+                additional_info={
+                    "user_id": user_id,
+                    "receipt_ids": [r.id for r in receipts_to_delete]
+                }
+            )
+            raise
     
     except Exception as e:
-        # Roll back in case of error
-        db.session.rollback()
-        logging.error(f"Error deleting receipts: {str(e)}")
-        return jsonify({'error': f'Error deleting receipts: {str(e)}'}), 500
+        # Handle and log the error with our new system
+        error_response = handle_and_log_exception(
+            e=e,
+            error_type=ErrorTypes.RECEIPT_HISTORY,
+            component="delete_receipts",
+            additional_info={
+                "user_id": current_user.id if current_user else None,
+                "receipt_ids": receipt_ids if 'receipt_ids' in locals() else None,
+                "has_organization": bool(org) if 'org' in locals() else None
+            }
+        )
+        
+        # Return a more informative error to the client
+        return jsonify({
+            'error': f"Error deleting receipts: {str(e)}",
+            'error_id': error_response.get('error_id', 'unknown'),
+            'error_type': error_response.get('error_type', ErrorTypes.UNKNOWN)
+        }), 500
 
 @app.route('/receipts/<int:receipt_id>', methods=['GET'])
 @login_required
