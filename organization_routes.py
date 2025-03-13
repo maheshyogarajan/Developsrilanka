@@ -467,6 +467,9 @@ def cancel_invitation(org_id, invitation_id):
 @login_required
 def edit_branding(org_id):
     """Edit the organization's branding settings."""
+    from PIL import Image
+    import io
+    
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
@@ -484,20 +487,72 @@ def edit_branding(org_id):
         if 'logo' in request.files and request.files['logo'].filename:
             logo_file = request.files['logo']
             if logo_file:
-                # Save the logo
-                filename = secure_filename(logo_file.filename)
-                # Create unique filename to avoid overwriting
-                unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
-                
-                # Create directory if it doesn't exist
-                logo_dir = os.path.join(current_app.static_folder, 'uploads', 'logos')
-                os.makedirs(logo_dir, exist_ok=True)
-                
-                logo_path = os.path.join(logo_dir, unique_filename)
-                logo_file.save(logo_path)
-                
-                # Update the logo path in database (store relative path for URL generation)
-                organization.logo_path = f"/static/uploads/logos/{unique_filename}"
+                try:
+                    # Check file extension
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'}
+                    filename = secure_filename(logo_file.filename)
+                    file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else None
+                    
+                    if file_ext not in allowed_extensions:
+                        flash(f'Logo must be one of the following formats: {", ".join(allowed_extensions)}', 'danger')
+                        return redirect(url_for('organizations.edit_branding', org_id=org_id))
+                    
+                    # Create unique filename to avoid overwriting
+                    unique_filename = f"org_{org_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.{file_ext}"
+                    
+                    # Create directory if it doesn't exist
+                    logo_dir = os.path.join(current_app.static_folder, 'uploads', 'logos')
+                    os.makedirs(logo_dir, exist_ok=True)
+                    
+                    logo_path = os.path.join(logo_dir, unique_filename)
+                    
+                    # Process the image (resize if not SVG)
+                    if file_ext != 'svg':
+                        # Open the image using Pillow
+                        img = Image.open(logo_file)
+                        
+                        # Calculate new dimensions while maintaining aspect ratio
+                        max_width = 300
+                        max_height = 150
+                        width, height = img.size
+                        
+                        # Only resize if the image is larger than our max dimensions
+                        if width > max_width or height > max_height:
+                            # Calculate new dimensions while maintaining aspect ratio
+                            if width / height > max_width / max_height:
+                                new_width = max_width
+                                new_height = int(height * (max_width / width))
+                            else:
+                                new_height = max_height
+                                new_width = int(width * (max_height / height))
+                                
+                            img = img.resize((new_width, new_height), Image.LANCZOS)
+                        
+                        # Save the processed image
+                        img.save(logo_path)
+                    else:
+                        # Save SVG as is
+                        logo_file.save(logo_path)
+                    
+                    # Delete previous logo file if it exists
+                    if organization.logo_path:
+                        try:
+                            old_logo_path = os.path.join(current_app.root_path, 'static', organization.logo_path.lstrip('/static/'))
+                            if os.path.exists(old_logo_path):
+                                os.remove(old_logo_path)
+                        except Exception as e:
+                            logger.warning(f"Could not delete old logo: {str(e)}")
+                    
+                    # Update the logo path in database (store relative path for URL generation)
+                    organization.logo_path = f"/static/uploads/logos/{unique_filename}"
+                    
+                    # Add cache-busting parameter to prevent browser caching
+                    organization.logo_path += f"?v={int(datetime.utcnow().timestamp())}"
+                    
+                except Exception as e:
+                    logger.error(f"Error processing logo: {str(e)}")
+                    flash(f'Error processing logo: {str(e)}', 'danger')
+                    return redirect(url_for('organizations.edit_branding', org_id=org_id))
         
         # Update branding settings
         organization.primary_color = request.form.get('primary_color')
