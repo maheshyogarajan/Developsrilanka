@@ -187,6 +187,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("Receipt History page initialized");
+    
     // DOM Elements
     const loadingContainer = document.getElementById('loading-container');
     const errorContainer = document.getElementById('error-container');
@@ -233,16 +235,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load receipts from server
     function loadReceipts() {
+        console.log("Loading receipts from server...");
         showLoading();
         
         fetch('/list_receipts')
             .then(response => {
+                console.log("Server response status:", response.status);
                 if (!response.ok) {
                     throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log("Data received:", data);
                 if (data.error) {
                     throw new Error(data.error);
                 }
@@ -658,12 +663,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Fetch receipt details
         fetch(`/receipts/${receiptId}`)
             .then(response => {
+                console.log("Receipt details response status:", response.status);
                 if (!response.ok) {
                     throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log("Receipt details data:", data);
                 if (data.error) {
                     throw new Error(data.error);
                 }
@@ -768,8 +775,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 receipt_ids: [receiptToDelete]
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log("Delete response status:", response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log("Delete response data:", data);
             if (data.error) {
                 throw new Error(data.error);
             }
