@@ -247,10 +247,10 @@
                             <i class="fas fa-building"></i>
                             <span>Organizations</span>
                         </a>
-                        </a>
                         <a href="{{ url_for('expense.expenses') }}" class="nav-link {% if '/expenses' in request.path %}active{% endif %}">
                             <i class="fas fa-clipboard-list"></i>
                             <span>Expenses</span>
+                        </a>
                         <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
                             <i class="fas fa-user"></i>
                             <span>Profile</span>
@@ -311,6 +311,10 @@
                         <a href="{{ url_for('organizations.organizations') }}" class="nav-link {% if '/organizations' in request.path %}active{% endif %}">
                             <i class="fas fa-building"></i>
                             <span>Organizations</span>
+                        </a>
+                        <a href="{{ url_for('expense.expenses') }}" class="nav-link {% if '/expenses' in request.path %}active{% endif %}">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Expenses</span>
                         </a>
                         <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
                             <i class="fas fa-user"></i>
