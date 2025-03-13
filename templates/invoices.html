@@ -1,0 +1,163 @@
+{% extends "layout.html" %}
+
+{% block title %}Invoices - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>Invoices</h2>
+            <p class="text-muted">Create and manage invoices for your clients.</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('create_invoice') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Create Invoice
+            </a>
+            <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-users me-1"></i> Clients
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if invoices %}
+                <div class="d-flex justify-content-between mb-3 flex-wrap">
+                    <div class="btn-group mb-2" role="group" aria-label="Invoice status filter">
+                        <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="draft">Draft</button>
+                        <button type="button" class="btn btn-outline-warning" data-filter="sent">Sent</button>
+                        <button type="button" class="btn btn-outline-success" data-filter="paid">Paid</button>
+                        <button type="button" class="btn btn-outline-danger" data-filter="overdue">Overdue</button>
+                    </div>
+                    <div class="input-group mb-2" style="max-width: 300px;">
+                        <input type="text" class="form-control" id="invoiceSearch" placeholder="Search invoices...">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Due Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in invoices %}
+                                <tr data-status="{{ invoice.status }}">
+                                    <td>
+                                        <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="text-decoration-none fw-medium">
+                                            {{ invoice.invoice_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ invoice.client.name }}</td>
+                                    <td>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ invoice.due_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ invoice.total|currency }}</td>
+                                    <td>
+                                        {% if invoice.status == 'paid' %}
+                                            <span class="badge bg-success">Paid</span>
+                                        {% elif invoice.status == 'partially_paid' %}
+                                            <span class="badge bg-warning text-dark">Partially Paid</span>
+                                        {% elif invoice.status == 'overdue' %}
+                                            <span class="badge bg-danger">Overdue</span>
+                                        {% elif invoice.status == 'sent' %}
+                                            <span class="badge bg-info text-dark">Sent</span>
+                                        {% elif invoice.status == 'draft' %}
+                                            <span class="badge bg-secondary">Draft</span>
+                                        {% elif invoice.status == 'cancelled' %}
+                                            <span class="badge bg-dark">Cancelled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="View Invoice">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if invoice.status == 'draft' %}
+                                            <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Invoice">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-file-invoice-dollar fa-3x mb-3 text-muted"></i>
+                    <h5>No invoices yet</h5>
+                    <p class="text-muted">Start by creating your first invoice</p>
+                    <a href="{{ url_for('create_invoice') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Create Invoice
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('page-title').textContent = 'Invoice Management';
+        
+        // Filter buttons
+        const filterButtons = document.querySelectorAll('[data-filter]');
+        const invoiceRows = document.querySelectorAll('tbody tr');
+        
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                const filter = this.getAttribute('data-filter');
+                
+                invoiceRows.forEach(row => {
+                    if (filter === 'all') {
+                        row.style.display = '';
+                    } else {
+                        const status = row.getAttribute('data-status');
+                        row.style.display = status === filter ? '' : 'none';
+                    }
+                });
+            });
+        });
+        
+        // Search functionality
+        const searchInput = document.getElementById('invoiceSearch');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                invoiceRows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

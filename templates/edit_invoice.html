@@ -1,0 +1,354 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Invoice #{{ invoice.invoice_number }} - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('invoices') }}">Invoices</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}">Invoice #{{ invoice.invoice_number }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                </ol>
+            </nav>
+            <h2 class="mb-3"><i class="fas fa-edit me-2"></i>Edit Invoice #{{ invoice.invoice_number }}</h2>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" id="invoiceForm">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">Invoice Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="client_id" class="form-label">Client <span class="text-danger">*</span></label>
+                        <select class="form-select" id="client_id" name="client_id" required>
+                            <option value="" disabled>Select a client</option>
+                            {% for client in clients %}
+                                <option value="{{ client.id }}" {% if client.id == invoice.client_id %}selected{% endif %}>
+                                    {{ client.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="currency" class="form-label">Currency <span class="text-danger">*</span></label>
+                        <select class="form-select" id="currency" name="currency" required>
+                            <option value="LKR" {% if invoice.currency == 'LKR' %}selected{% endif %}>LKR - Sri Lankan Rupee</option>
+                            <option value="USD" {% if invoice.currency == 'USD' %}selected{% endif %}>USD - US Dollar</option>
+                            <option value="EUR" {% if invoice.currency == 'EUR' %}selected{% endif %}>EUR - Euro</option>
+                            <option value="GBP" {% if invoice.currency == 'GBP' %}selected{% endif %}>GBP - British Pound</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="issue_date" class="form-label">Issue Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="issue_date" name="issue_date" 
+                               value="{{ invoice.issue_date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="due_date" class="form-label">Due Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="due_date" name="due_date" 
+                               value="{{ invoice.due_date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2" 
+                              placeholder="Payment instructions or additional information for the client">{{ invoice.notes or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Invoice Items</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addItemButton">
+                    <i class="fas fa-plus me-1"></i> Add Item
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="itemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40%;">Description</th>
+                                <th style="width: 15%;">Quantity</th>
+                                <th style="width: 15%;">Unit Price</th>
+                                <th style="width: 15%;">Tax %</th>
+                                <th style="width: 15%;">Total</th>
+                                <th style="width: 1%;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in invoice.items %}
+                                <tr class="item-row">
+                                    <td>
+                                        <input type="text" class="form-control" name="item_description[]" 
+                                               value="{{ item.description }}" placeholder="Item description" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-quantity" name="item_quantity[]" 
+                                               min="0.01" step="0.01" value="{{ item.quantity }}" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-price" name="item_unit_price[]" 
+                                               min="0.01" step="0.01" value="{{ item.unit_price }}" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-tax" name="item_tax_percent[]" 
+                                               min="0" step="0.1" value="{{ item.tax_percent }}">
+                                    </td>
+                                    <td>
+                                        <div class="item-total">{{ item.total }}</div>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove Item">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            {% if not invoice.items %}
+                                <tr class="item-row">
+                                    <td>
+                                        <input type="text" class="form-control" name="item_description[]" placeholder="Item description" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-quantity" name="item_quantity[]" min="0.01" step="0.01" value="1" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-price" name="item_unit_price[]" min="0.01" step="0.01" placeholder="0.00" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-tax" name="item_tax_percent[]" min="0" step="0.1" value="0">
+                                    </td>
+                                    <td>
+                                        <div class="item-total">0.00</div>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove Item">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">Invoice Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="discount_percent" class="form-label">Discount (%)</label>
+                        <input type="number" class="form-control" id="discount_percent" name="discount_percent" 
+                               min="0" max="100" step="0.1" value="{{ invoice.discount_percent }}">
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-light p-3 rounded">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Subtotal:</span>
+                                <span id="invoice-subtotal">{{ invoice.subtotal }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Tax:</span>
+                                <span id="invoice-tax">{{ invoice.tax_amount }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2" id="discount-row" style="{% if invoice.discount_percent <= 0 %}display: none;{% endif %}">
+                                <span>Discount:</span>
+                                <span id="invoice-discount">{{ invoice.discount_amount }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between fw-bold">
+                                <span>Total:</span>
+                                <span id="invoice-total">{{ invoice.total }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Invoice
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i> Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('page-title').textContent = 'Edit Invoice';
+        
+        // Get elements
+        const itemsTable = document.getElementById('itemsTable');
+        const addItemButton = document.getElementById('addItemButton');
+        const discountInput = document.getElementById('discount_percent');
+        const discountRow = document.getElementById('discount-row');
+        const invoiceSubtotal = document.getElementById('invoice-subtotal');
+        const invoiceTax = document.getElementById('invoice-tax');
+        const invoiceDiscount = document.getElementById('invoice-discount');
+        const invoiceTotal = document.getElementById('invoice-total');
+        
+        // Function to add a new item row
+        function addItemRow() {
+            const tbody = itemsTable.querySelector('tbody');
+            const newRow = document.createElement('tr');
+            newRow.className = 'item-row';
+            newRow.innerHTML = `
+                <td>
+                    <input type="text" class="form-control" name="item_description[]" placeholder="Item description" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control item-quantity" name="item_quantity[]" min="0.01" step="0.01" value="1" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control item-price" name="item_unit_price[]" min="0.01" step="0.01" placeholder="0.00" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control item-tax" name="item_tax_percent[]" min="0" step="0.1" value="0">
+                </td>
+                <td>
+                    <div class="item-total">0.00</div>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove Item">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+            
+            // Add event listeners for the new row
+            setupItemRowListeners(newRow);
+        }
+        
+        // Function to setup event listeners for an item row
+        function setupItemRowListeners(row) {
+            const quantityInput = row.querySelector('.item-quantity');
+            const priceInput = row.querySelector('.item-price');
+            const taxInput = row.querySelector('.item-tax');
+            const removeButton = row.querySelector('.remove-item');
+            
+            // Calculate item total when quantity, price, or tax changes
+            [quantityInput, priceInput, taxInput].forEach(input => {
+                input.addEventListener('input', function() {
+                    calculateItemTotal(row);
+                    updateInvoiceSummary();
+                });
+            });
+            
+            // Remove item row when remove button is clicked
+            removeButton.addEventListener('click', function() {
+                // Don't remove the row if it's the only one
+                const rows = itemsTable.querySelectorAll('tbody tr');
+                if (rows.length > 1) {
+                    row.remove();
+                    updateInvoiceSummary();
+                } else {
+                    // Clear inputs instead of removing the only row
+                    row.querySelector('input[name="item_description[]"]').value = '';
+                    quantityInput.value = 1;
+                    priceInput.value = '';
+                    taxInput.value = 0;
+                    calculateItemTotal(row);
+                    updateInvoiceSummary();
+                }
+            });
+        }
+        
+        // Function to calculate item total
+        function calculateItemTotal(row) {
+            const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const taxPercent = parseFloat(row.querySelector('.item-tax').value) || 0;
+            
+            const subtotal = quantity * price;
+            const tax = subtotal * (taxPercent / 100);
+            const total = subtotal + tax;
+            
+            row.querySelector('.item-total').textContent = total.toFixed(2);
+        }
+        
+        // Function to update invoice summary
+        function updateInvoiceSummary() {
+            let subtotal = 0;
+            let taxTotal = 0;
+            
+            // Calculate subtotal and tax from all items
+            itemsTable.querySelectorAll('tbody tr').forEach(row => {
+                const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                const taxPercent = parseFloat(row.querySelector('.item-tax').value) || 0;
+                
+                const itemSubtotal = quantity * price;
+                const itemTax = itemSubtotal * (taxPercent / 100);
+                
+                subtotal += itemSubtotal;
+                taxTotal += itemTax;
+            });
+            
+            // Calculate discount
+            const discountPercent = parseFloat(discountInput.value) || 0;
+            const discountAmount = subtotal * (discountPercent / 100);
+            
+            // Calculate total
+            const total = subtotal + taxTotal - discountAmount;
+            
+            // Update summary display
+            invoiceSubtotal.textContent = subtotal.toFixed(2);
+            invoiceTax.textContent = taxTotal.toFixed(2);
+            invoiceDiscount.textContent = discountAmount.toFixed(2);
+            invoiceTotal.textContent = total.toFixed(2);
+            
+            // Show/hide discount row
+            discountRow.style.display = discountPercent > 0 ? 'flex' : 'none';
+        }
+        
+        // Add event listener to the "Add Item" button
+        addItemButton.addEventListener('click', addItemRow);
+        
+        // Add event listener to discount input
+        discountInput.addEventListener('input', updateInvoiceSummary);
+        
+        // Setup listeners for all existing rows
+        const existingRows = itemsTable.querySelectorAll('tbody tr');
+        existingRows.forEach(row => {
+            setupItemRowListeners(row);
+            calculateItemTotal(row);
+        });
+        
+        // Initialize the invoice summary
+        updateInvoiceSummary();
+    });
+</script>
+{% endblock %}

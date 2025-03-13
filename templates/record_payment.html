@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+
+{% block title %}Record Payment - Invoice #{{ invoice.invoice_number }} - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('invoices') }}">Invoices</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}">Invoice #{{ invoice.invoice_number }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Record Payment</li>
+                </ol>
+            </nav>
+            <h2 class="mb-3"><i class="fas fa-money-bill-wave me-2"></i>Record Payment</h2>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Payment Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('record_payment', invoice_id=invoice.id) }}">
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label for="payment_date" class="form-label">Payment Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ today }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="amount" class="form-label">Amount <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">{{ invoice.currency }}</span>
+                                    <input type="number" class="form-control" id="amount" name="amount" 
+                                           min="0.01" step="0.01" value="{{ remaining_amount }}" max="{{ remaining_amount }}" required>
+                                </div>
+                                <div class="form-text">Remaining balance: {{ remaining_amount|currency }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label for="payment_method" class="form-label">Payment Method <span class="text-danger">*</span></label>
+                                <select class="form-select" id="payment_method" name="payment_method" required>
+                                    {% for method_name, method_value in payment_methods %}
+                                        <option value="{{ method_value }}">{{ method_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="reference" class="form-label">Reference Number</label>
+                                <input type="text" class="form-control" id="reference" name="reference" 
+                                       placeholder="Transaction ID, Check #, etc.">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2" 
+                                      placeholder="Additional payment information"></textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Invoice
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check-circle me-1"></i> Record Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Invoice Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Invoice #</span>
+                        <span>{{ invoice.invoice_number }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Client</span>
+                        <span>{{ invoice.client.name }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Issue Date</span>
+                        <span>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Due Date</span>
+                        <span>{{ invoice.due_date.strftime('%Y-%m-%d') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Status</span>
+                        <span>
+                            {% if invoice.status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                            {% elif invoice.status == 'partially_paid' %}
+                                <span class="badge bg-warning text-dark">Partially Paid</span>
+                            {% elif invoice.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
+                            {% elif invoice.status == 'sent' %}
+                                <span class="badge bg-info text-dark">Sent</span>
+                            {% elif invoice.status == 'draft' %}
+                                <span class="badge bg-secondary">Draft</span>
+                            {% elif invoice.status == 'cancelled' %}
+                                <span class="badge bg-dark">Cancelled</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">Invoice Total</span>
+                        <span>{{ invoice.total|currency }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">Amount Paid</span>
+                        <span>{{ invoice.get_amount_paid()|currency }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Balance Due</span>
+                        <span class="fw-bold text-danger">{{ remaining_amount|currency }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Payment History</h5>
+                </div>
+                <div class="card-body">
+                    {% if invoice.payments %}
+                        <ul class="list-group list-group-flush">
+                            {% for payment in invoice.payments %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <div>
+                                        <div class="fw-medium">{{ payment.amount|currency }}</div>
+                                        <div class="small text-muted">{{ payment.date.strftime('%Y-%m-%d') }}</div>
+                                    </div>
+                                    <span class="badge bg-secondary rounded-pill">
+                                        {% if payment.payment_method == 'cash' %}
+                                            <i class="fas fa-money-bill-wave me-1"></i> Cash
+                                        {% elif payment.payment_method == 'bank_transfer' %}
+                                            <i class="fas fa-university me-1"></i> Bank
+                                        {% elif payment.payment_method == 'check' %}
+                                            <i class="fas fa-money-check me-1"></i> Check
+                                        {% elif payment.payment_method == 'credit_card' %}
+                                            <i class="fas fa-credit-card me-1"></i> Card
+                                        {% elif payment.payment_method == 'paypal' %}
+                                            <i class="fab fa-paypal me-1"></i> PayPal
+                                        {% else %}
+                                            <i class="fas fa-exchange-alt me-1"></i> Other
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-center text-muted mb-0">No payments recorded yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('page-title').textContent = 'Record Payment';
+        
+        // Set maximum amount to remaining balance
+        const amountInput = document.getElementById('amount');
+        const remainingAmount = {{ remaining_amount }};
+        
+        amountInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value > remainingAmount) {
+                this.value = remainingAmount;
+            }
+        });
+    });
+</script>
+{% endblock %}
