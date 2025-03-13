@@ -121,9 +121,32 @@ def invoices():
         )
         clients.append(client)
     
-    # Update invoice statuses based on due dates and payments
+    # Load payments for each invoice
     for invoice in invoices:
+        # Query payments for this invoice
+        payment_results = db.session.execute(text("""
+            SELECT id, date, amount, payment_method, reference, notes, created_at
+            FROM payment
+            WHERE invoice_id = :invoice_id
+            ORDER BY date DESC
+        """), {'invoice_id': invoice.id})
+        
+        invoice.payments = []
+        for payment_row in payment_results:
+            payment = Payment(
+                id=payment_row[0],
+                date=payment_row[1],
+                amount=payment_row[2],
+                payment_method=payment_row[3],
+                reference=payment_row[4],
+                notes=payment_row[5],
+                created_at=payment_row[6]
+            )
+            invoice.payments.append(payment)
+            
+        # Now update the status with correct payment info
         invoice.update_status()
+    
     db.session.commit()
     
     return render_template('invoices.html', 

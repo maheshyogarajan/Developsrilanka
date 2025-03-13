@@ -352,6 +352,10 @@ class Invoice(db.Model):
         """Update the invoice status based on payments and due date."""
         amount_paid = self.get_amount_paid()
         
+        # Don't change status for cancelled invoices
+        if self.status == InvoiceStatus.CANCELLED.value:
+            return
+            
         if amount_paid >= self.total:
             self.status = InvoiceStatus.PAID.value
         elif amount_paid > 0:
