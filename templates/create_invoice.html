@@ -55,6 +55,21 @@
                 </div>
                 
                 <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="bank_account_id" class="form-label">Bank Account for Payment</label>
+                        <select class="form-select" id="bank_account_id" name="bank_account_id">
+                            <option value="">None (No payment details on invoice)</option>
+                            {% for account in bank_accounts %}
+                                <option value="{{ account.id }}" {% if account.is_default %}selected{% endif %}>
+                                    {{ account.account_name }} - {{ account.bank_name }} ({{ account.account_number }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">The selected bank account details will appear on the invoice for payment</div>
+                    </div>
+                </div>
+                
+                <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="issue_date" class="form-label">Issue Date <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="issue_date" name="issue_date" value="{{ today }}" required>
