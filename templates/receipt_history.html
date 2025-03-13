@@ -277,6 +277,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 allReceipts = data.receipts;
                 filteredReceipts = [...allReceipts];
                 
+                // Store organization data
+                organizations = data.organizations || [];
+                selectedOrgId = data.selected_org_id || null;
+                showAllOrganizations = data.show_all || false;
+                
                 // Extract unique categories
                 categories = new Set();
                 allReceipts.forEach(receipt => {
@@ -285,8 +290,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                // Populate category filter
+                // Populate filters
                 populateCategoryFilter();
+                populateOrganizationFilter();
                 
                 // Update UI
                 totalReceiptsSpan.textContent = allReceipts.length;
@@ -544,11 +550,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Populate organization filter
+    function populateOrganizationFilter() {
+        // Clear existing options (except the first one)
+        while (organizationSelect.options.length > 1) {
+            organizationSelect.remove(1);
+        }
+        
+        // Add organization options
+        organizations.forEach(org => {
+            const option = document.createElement('option');
+            option.value = org.id.toString();
+            option.textContent = org.name;
+            // Select current organization if applicable
+            if (selectedOrgId && org.id === selectedOrgId) {
+                option.selected = true;
+            }
+            organizationSelect.appendChild(option);
+        });
+        
+        // Set "All Organizations" as selected if show_all is true
+        if (showAllOrganizations) {
+            organizationSelect.value = 'all';
+        }
+    }
+    
     // Apply filters
     function applyFilters() {
         const dateFrom = dateFromInput.value ? new Date(dateFromInput.value) : null;
         const dateTo = dateToInput.value ? new Date(dateToInput.value) : null;
         const category = categorySelect.value;
+        const organizationId = organizationSelect.value;
         
         // Filter receipts
         filteredReceipts = allReceipts.filter(receipt => {
@@ -569,6 +601,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Filter by category
             if (category && receipt.expense_major_category !== category) {
                 return false;
+            }
+            
+            // Filter by organization
+            if (organizationId && organizationId !== 'all') {
+                if (!receipt.organization_id || receipt.organization_id.toString() !== organizationId) {
+                    return false;
+                }
             }
             
             return true;
@@ -594,6 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dateFromInput.value = '';
         dateToInput.value = '';
         categorySelect.value = '';
+        organizationSelect.value = 'all';
         
         // Reset to unfiltered data
         filteredReceipts = [...allReceipts];
