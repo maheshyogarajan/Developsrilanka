@@ -33,15 +33,19 @@
                 </div>
                 <div class="card-body">
                     <div class="d-flex flex-wrap gap-2" id="organizationFilterContainer">
+                        <a href="{{ url_for('invoices', status=request.args.get('status')) }}" 
+                           class="btn {% if not selected_org %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                            All
+                        </a>
                         {% for org in organizations %}
-                        <a href="{{ url_for('invoices', organization_id=org.id) }}" 
+                        <a href="{{ url_for('invoices', organization_id=org.id, status=request.args.get('status')) }}" 
                            class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
                             {{ org.name }}
                             {% if org.is_default %}<i class="fas fa-star ms-1 text-warning"></i>{% endif %}
                         </a>
                         {% endfor %}
                         {% if selected_org %}
-                        <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">
+                        <a href="{{ url_for('invoices', status=request.args.get('status')) }}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-1"></i> Clear Filter
                         </a>
                         {% endif %}

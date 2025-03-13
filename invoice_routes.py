@@ -63,8 +63,11 @@ def invoices():
                 selected_org = org
                 break
     
-    # If no org is selected or invalid org ID, use the default org
-    if not selected_org and organizations and not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    # Check if we're explicitly requesting "All" organizations
+    show_all_organizations = request.args.get('show_all') == 'true' or not selected_org_id
+    
+    # If no org is selected and we're not explicitly showing all organizations, use the default org
+    if not selected_org and not show_all_organizations and organizations and not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         for org in organizations:
             if org['is_default']:
                 selected_org = org
