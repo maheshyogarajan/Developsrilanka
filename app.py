@@ -1066,15 +1066,20 @@ def view_receipt(receipt_id):
     
     try:
         # Find the receipt by ID and user_id to ensure ownership
+        logging.debug(f"Fetching receipt {receipt_id} for user {current_user.id}")
         receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
         
         if not receipt:
+            logging.warning(f"Receipt {receipt_id} not found for user {current_user.id}")
             flash('Receipt not found or does not belong to you', 'danger')
             return redirect(url_for('receipt_history'))
         
         # Check if this receipt is already allocated
+        logging.debug(f"Checking allocations for receipt {receipt_id}")
         company_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
         client_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
+        
+        logging.debug(f"Receipt {receipt_id} allocations: company_expense={bool(company_expense)}, client_expense={bool(client_expense)}")
         
         return render_template(
             'view_receipt.html', 

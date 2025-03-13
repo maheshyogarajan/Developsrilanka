@@ -45,6 +45,8 @@ def allocate_to_client(receipt_id):
     
     if not clients:
         flash('You need to create at least one client before allocating expenses', 'warning')
+        # Log the redirect for debugging
+        logging.debug(f"No clients found for organization {organization_id}, redirecting to client creation")
         return redirect(url_for('create_client'))
         
     if request.method == 'POST':
