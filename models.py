@@ -238,6 +238,8 @@ class Receipt(db.Model):
         """Convert the receipt to a dictionary."""
         return {
             'id': self.id,
+            'user_id': self.user_id,
+            'organization_id': self.organization_id,
             'vendor_name': self.vendor_name,
             'vendor_address': self.vendor_address or '',
             'vendor_contact': self.vendor_contact or '',

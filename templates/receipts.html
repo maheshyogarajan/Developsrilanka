@@ -204,6 +204,17 @@
                 })
                 .then(data => {
                     console.log('Received data:', data);
+                    // Log detailed information about the receipts
+                    if (data.receipts) {
+                        console.log(`Received ${data.receipts.length} receipts`);
+                        if (data.receipts.length > 0) {
+                            console.log('First receipt:', data.receipts[0]);
+                            // Check if receipts have organization_id
+                            const receiptsWithOrg = data.receipts.filter(r => r.organization_id);
+                            console.log(`Receipts with organization_id: ${receiptsWithOrg.length}/${data.receipts.length}`);
+                        }
+                    }
+                    
                     if (data.error) {
                         throw new Error(data.error);
                     }
