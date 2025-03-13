@@ -2,6 +2,23 @@ from app import db
 from datetime import datetime
 import json
 from flask_login import UserMixin
+from enum import Enum
+
+class InvoiceStatus(Enum):
+    DRAFT = "draft"
+    SENT = "sent"
+    PARTIALLY_PAID = "partially_paid"
+    PAID = "paid"
+    OVERDUE = "overdue"
+    CANCELLED = "cancelled"
+
+class PaymentMethod(Enum):
+    CASH = "cash"
+    BANK_TRANSFER = "bank_transfer"
+    CHECK = "check"
+    CREDIT_CARD = "credit_card"
+    PAYPAL = "paypal"
+    OTHER = "other"
 
 class User(UserMixin, db.Model):
     """User model for authentication."""
@@ -19,6 +36,8 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     receipts = db.relationship('Receipt', backref='user', lazy=True)
     income_details = db.relationship('UserIncome', backref='user', lazy=True, uselist=False)
+    clients = db.relationship('Client', backref='user', lazy=True)
+    invoices = db.relationship('Invoice', backref='user', lazy=True)
     
     def is_admin(self):
         """Check if user has admin role."""
@@ -109,6 +128,158 @@ class ReceiptItem(db.Model):
             'quantity': self.quantity,
             'price': self.price,
             'tax_deductible': self.tax_deductible
+        }
+
+class Client(db.Model):
+    """Model for storing client information for invoicing."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(255), nullable=True)
+    phone = db.Column(db.String(50), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+    tax_registration_number = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    invoices = db.relationship('Invoice', backref='client', lazy=True)
+    
+    def to_dict(self):
+        """Convert the client to a dictionary."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'name': self.name,
+            'email': self.email or '',
+            'phone': self.phone or '',
+            'address': self.address or '',
+            'tax_registration_number': self.tax_registration_number or '',
+            'notes': self.notes or '',
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+class Invoice(db.Model):
+    """Model for storing invoice information."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    invoice_number = db.Column(db.String(50), nullable=False)
+    issue_date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    due_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default=InvoiceStatus.DRAFT.value)
+    notes = db.Column(db.Text, nullable=True)
+    currency = db.Column(db.String(3), nullable=False, default="LKR")
+    subtotal = db.Column(db.Float, nullable=False, default=0.0)
+    tax_percent = db.Column(db.Float, nullable=False, default=0.0)
+    tax_amount = db.Column(db.Float, nullable=False, default=0.0)
+    discount_percent = db.Column(db.Float, nullable=False, default=0.0)
+    discount_amount = db.Column(db.Float, nullable=False, default=0.0)
+    total = db.Column(db.Float, nullable=False, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    items = db.relationship('InvoiceItem', backref='invoice', lazy=True, cascade='all, delete-orphan')
+    payments = db.relationship('Payment', backref='invoice', lazy=True, cascade='all, delete-orphan')
+    
+    def get_amount_paid(self):
+        """Calculate the total amount paid on this invoice."""
+        return sum(payment.amount for payment in self.payments)
+    
+    def get_amount_due(self):
+        """Calculate the remaining amount due on this invoice."""
+        return self.total - self.get_amount_paid()
+    
+    def update_status(self):
+        """Update the invoice status based on payments and due date."""
+        amount_paid = self.get_amount_paid()
+        
+        if amount_paid >= self.total:
+            self.status = InvoiceStatus.PAID.value
+        elif amount_paid > 0:
+            self.status = InvoiceStatus.PARTIALLY_PAID.value
+        elif self.due_date < datetime.utcnow().date() and self.status not in [InvoiceStatus.PAID.value, InvoiceStatus.CANCELLED.value]:
+            self.status = InvoiceStatus.OVERDUE.value
+        elif self.status == InvoiceStatus.DRAFT.value:
+            # Keep draft status
+            pass
+        else:
+            self.status = InvoiceStatus.SENT.value
+    
+    def to_dict(self):
+        """Convert the invoice to a dictionary."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'client_id': self.client_id,
+            'client_name': self.client.name if self.client else '',
+            'invoice_number': self.invoice_number,
+            'issue_date': self.issue_date.strftime('%Y-%m-%d'),
+            'due_date': self.due_date.strftime('%Y-%m-%d'),
+            'status': self.status,
+            'notes': self.notes or '',
+            'currency': self.currency,
+            'subtotal': self.subtotal,
+            'tax_percent': self.tax_percent,
+            'tax_amount': self.tax_amount,
+            'discount_percent': self.discount_percent,
+            'discount_amount': self.discount_amount,
+            'total': self.total,
+            'amount_paid': self.get_amount_paid(),
+            'amount_due': self.get_amount_due(),
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'items': [item.to_dict() for item in self.items],
+            'payments': [payment.to_dict() for payment in self.payments]
+        }
+
+class InvoiceItem(db.Model):
+    """Model for storing items included in an invoice."""
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    quantity = db.Column(db.Float, nullable=False, default=1.0)
+    unit_price = db.Column(db.Float, nullable=False, default=0.0)
+    tax_percent = db.Column(db.Float, nullable=False, default=0.0)
+    tax_amount = db.Column(db.Float, nullable=False, default=0.0)
+    total = db.Column(db.Float, nullable=False, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        """Convert the invoice item to a dictionary."""
+        return {
+            'id': self.id,
+            'invoice_id': self.invoice_id,
+            'description': self.description,
+            'quantity': self.quantity,
+            'unit_price': self.unit_price,
+            'tax_percent': self.tax_percent,
+            'tax_amount': self.tax_amount,
+            'total': self.total,
+            'created_at': self.created_at.isoformat()
+        }
+
+class Payment(db.Model):
+    """Model for storing payment information for invoices."""
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    amount = db.Column(db.Float, nullable=False, default=0.0)
+    payment_method = db.Column(db.String(20), nullable=False, default=PaymentMethod.BANK_TRANSFER.value)
+    reference = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        """Convert the payment to a dictionary."""
+        return {
+            'id': self.id,
+            'invoice_id': self.invoice_id,
+            'date': self.date.strftime('%Y-%m-%d'),
+            'amount': self.amount,
+            'payment_method': self.payment_method,
+            'reference': self.reference or '',
+            'notes': self.notes or '',
+            'created_at': self.created_at.isoformat()
         }
 
 class UserIncome(db.Model):
