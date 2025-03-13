@@ -595,8 +595,33 @@ def email_invoice(invoice_id):
 @login_required
 def clients():
     """Render the clients page showing list of user's clients."""
-    # Get all clients for the current user
-    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
+    # Use raw SQL to get clients for the current user with organization context
+    result = db.session.execute(text("""
+        SELECT id, user_id, name, company_name, contact_person, email, 
+               phone, address, tax_registration_number, notes, created_at, updated_at
+        FROM client
+        WHERE user_id = :user_id
+        ORDER BY name
+    """), {'user_id': current_user.id})
+    
+    # Convert raw SQL results to Client objects
+    clients = []
+    for row in result:
+        client = Client(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            company_name=row[3],
+            contact_person=row[4],
+            email=row[5],
+            phone=row[6],
+            address=row[7],
+            tax_registration_number=row[8],
+            notes=row[9],
+            created_at=row[10],
+            updated_at=row[11]
+        )
+        clients.append(client)
     
     return render_template('clients.html', clients=clients)
 
@@ -616,20 +641,42 @@ def create_client():
             tax_registration_number = request.form.get('tax_registration_number', '')
             notes = request.form.get('notes', '')
             
-            # Create new client
-            client = Client(
-                user_id=current_user.id,
-                name=name,
-                company_name=company_name,
-                contact_person=contact_person,
-                email=email,
-                phone=phone,
-                address=address,
-                tax_registration_number=tax_registration_number,
-                notes=notes
-            )
-            db.session.add(client)
-            db.session.commit()
+            # Get the user's default organization
+            result = db.session.execute(text("""
+                SELECT organization_id FROM organization_user
+                WHERE user_id = :user_id AND is_default = true
+                LIMIT 1
+            """), {'user_id': current_user.id}).first()
+            
+            organization_id = result[0] if result else None
+            
+            # Create new client using raw SQL to include organization_id
+            result = db.session.execute(text("""
+                INSERT INTO client (
+                    user_id, organization_id, name, company_name, contact_person, 
+                    email, phone, address, tax_registration_number, notes, 
+                    created_at, updated_at
+                ) 
+                VALUES (
+                    :user_id, :organization_id, :name, :company_name, :contact_person, 
+                    :email, :phone, :address, :tax_registration_number, :notes, 
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                RETURNING id
+            """), {
+                'user_id': current_user.id,
+                'organization_id': organization_id,
+                'name': name,
+                'company_name': company_name,
+                'contact_person': contact_person,
+                'email': email,
+                'phone': phone,
+                'address': address,
+                'tax_registration_number': tax_registration_number,
+                'notes': notes
+            })
+            
+            client_id = result.first()[0]
             
             flash('Client created successfully!', 'success')
             return redirect(url_for('clients'))
@@ -647,14 +694,91 @@ def create_client():
 @login_required
 def view_client(client_id):
     """View a specific client."""
-    client = Client.query.filter_by(id=client_id, user_id=current_user.id).first_or_404()
+    # Use raw SQL to get a specific client by ID
+    result = db.session.execute(text("""
+        SELECT id, user_id, name, company_name, contact_person, email, 
+               phone, address, tax_registration_number, notes, created_at, updated_at
+        FROM client
+        WHERE id = :client_id AND user_id = :user_id
+        LIMIT 1
+    """), {'client_id': client_id, 'user_id': current_user.id}).first()
     
-    # Get invoices for this client
-    invoices = Invoice.query.filter_by(client_id=client.id).order_by(Invoice.created_at.desc()).all()
+    if not result:
+        abort(404)
     
-    # Calculate client stats
+    # Convert row to Client object
+    client = Client(
+        id=result[0],
+        user_id=result[1],
+        name=result[2],
+        company_name=result[3],
+        contact_person=result[4],
+        email=result[5],
+        phone=result[6],
+        address=result[7],
+        tax_registration_number=result[8],
+        notes=result[9],
+        created_at=result[10],
+        updated_at=result[11]
+    )
+    
+    # Get invoices for this client using raw SQL
+    invoice_results = db.session.execute(text("""
+        SELECT id, user_id, client_id, bank_account_id, invoice_number, 
+               issue_date, due_date, status, notes, currency, 
+               subtotal, tax_percent, tax_amount, discount_percent, 
+               discount_amount, total, sender_name, sender_company, 
+               sender_address, sender_phone, sender_email, 
+               sender_tax_registration, last_sent_at, created_at, updated_at
+        FROM invoice
+        WHERE client_id = :client_id AND user_id = :user_id
+        ORDER BY created_at DESC
+    """), {'client_id': client.id, 'user_id': current_user.id})
+    
+    # Convert raw SQL results to Invoice objects
+    invoices = []
+    for row in invoice_results:
+        invoice = Invoice(
+            id=row[0],
+            user_id=row[1],
+            client_id=row[2],
+            bank_account_id=row[3],
+            invoice_number=row[4],
+            issue_date=row[5],
+            due_date=row[6],
+            status=row[7],
+            notes=row[8],
+            currency=row[9],
+            subtotal=row[10],
+            tax_percent=row[11],
+            tax_amount=row[12],
+            discount_percent=row[13],
+            discount_amount=row[14],
+            total=row[15],
+            sender_name=row[16],
+            sender_company=row[17],
+            sender_address=row[18],
+            sender_phone=row[19],
+            sender_email=row[20],
+            sender_tax_registration=row[21],
+            last_sent_at=row[22],
+            created_at=row[23],
+            updated_at=row[24]
+        )
+        invoices.append(invoice)
+    
+    # Manually calculate client stats
     total_invoiced = sum(invoice.total for invoice in invoices)
-    total_paid = sum(invoice.get_amount_paid() for invoice in invoices)
+    
+    # Get total payments for this client's invoices
+    payment_results = db.session.execute(text("""
+        SELECT SUM(p.amount)
+        FROM payment p
+        JOIN invoice i ON p.invoice_id = i.id
+        WHERE i.client_id = :client_id AND i.user_id = :user_id
+    """), {'client_id': client.id, 'user_id': current_user.id}).first()
+    
+    total_paid = payment_results[0] or 0
     total_due = total_invoiced - total_paid
     
     return render_template('view_client.html', 
@@ -668,22 +792,87 @@ def view_client(client_id):
 @login_required
 def edit_client(client_id):
     """Edit an existing client."""
-    client = Client.query.filter_by(id=client_id, user_id=current_user.id).first_or_404()
+    # Get the client using raw SQL
+    result = db.session.execute(text("""
+        SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
+               phone, address, tax_registration_number, notes, created_at, updated_at
+        FROM client
+        WHERE id = :client_id AND user_id = :user_id
+        LIMIT 1
+    """), {'client_id': client_id, 'user_id': current_user.id}).first()
+    
+    if not result:
+        abort(404)
+    
+    # Convert row to Client object
+    client = Client(
+        id=result[0],
+        user_id=result[1],
+        name=result[3],
+        company_name=result[4],
+        contact_person=result[5],
+        email=result[6],
+        phone=result[7],
+        address=result[8],
+        tax_registration_number=result[9],
+        notes=result[10],
+        created_at=result[11],
+        updated_at=result[12]
+    )
+    
+    # Store the organization_id
+    organization_id = result[2]
     
     if request.method == 'POST':
         try:
-            # Update client details
-            client.name = request.form.get('name')
-            client.company_name = request.form.get('company_name', '')
-            client.contact_person = request.form.get('contact_person', '')
-            client.email = request.form.get('email', '')
-            client.phone = request.form.get('phone', '')
-            client.address = request.form.get('address', '')
-            client.tax_registration_number = request.form.get('tax_registration_number', '')
-            client.notes = request.form.get('notes', '')
-            client.updated_at = datetime.utcnow()
+            # Get updated values
+            name = request.form.get('name')
+            company_name = request.form.get('company_name', '')
+            contact_person = request.form.get('contact_person', '')
+            email = request.form.get('email', '')
+            phone = request.form.get('phone', '')
+            address = request.form.get('address', '')
+            tax_registration_number = request.form.get('tax_registration_number', '')
+            notes = request.form.get('notes', '')
+            
+            # Update client using raw SQL to maintain organization_id
+            db.session.execute(text("""
+                UPDATE client
+                SET name = :name,
+                    company_name = :company_name,
+                    contact_person = :contact_person,
+                    email = :email,
+                    phone = :phone,
+                    address = :address,
+                    tax_registration_number = :tax_registration_number,
+                    notes = :notes,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :client_id AND user_id = :user_id
+            """), {
+                'client_id': client_id,
+                'user_id': current_user.id,
+                'name': name,
+                'company_name': company_name,
+                'contact_person': contact_person,
+                'email': email,
+                'phone': phone,
+                'address': address,
+                'tax_registration_number': tax_registration_number,
+                'notes': notes
+            })
             
             db.session.commit()
+            
+            # Update client object with new values for template rendering
+            client.name = name
+            client.company_name = company_name
+            client.contact_person = contact_person
+            client.email = email
+            client.phone = phone
+            client.address = address
+            client.tax_registration_number = tax_registration_number
+            client.notes = notes
+            client.updated_at = datetime.utcnow()
             
             flash('Client updated successfully!', 'success')
             return redirect(url_for('view_client', client_id=client.id))
@@ -701,17 +890,34 @@ def edit_client(client_id):
 @login_required
 def delete_client(client_id):
     """Delete a client."""
-    client = Client.query.filter_by(id=client_id, user_id=current_user.id).first_or_404()
+    # Check if client exists using raw SQL
+    result = db.session.execute(text("""
+        SELECT id FROM client
+        WHERE id = :client_id AND user_id = :user_id
+        LIMIT 1
+    """), {'client_id': client_id, 'user_id': current_user.id}).first()
     
-    # Check if client has invoices
-    has_invoices = Invoice.query.filter_by(client_id=client.id).first()
+    if not result:
+        abort(404)
+    
+    # Check if client has invoices using raw SQL
+    has_invoices = db.session.execute(text("""
+        SELECT id FROM invoice
+        WHERE client_id = :client_id
+        LIMIT 1
+    """), {'client_id': client_id}).first()
     
     if has_invoices:
         flash('Cannot delete client with invoices. Delete the invoices first.', 'warning')
-        return redirect(url_for('view_client', client_id=client.id))
+        return redirect(url_for('view_client', client_id=client_id))
     
     try:
-        db.session.delete(client)
+        # Delete client using raw SQL
+        db.session.execute(text("""
+            DELETE FROM client
+            WHERE id = :client_id AND user_id = :user_id
+        """), {'client_id': client_id, 'user_id': current_user.id})
+        
         db.session.commit()
         
         flash('Client deleted successfully!', 'success')
