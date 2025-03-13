@@ -1,21 +1,13 @@
 {% extends "layout.html" %}
 
-{% block title %}Invoices - Develop Sri Lanka{% endblock %}
+{% block title %}Invoice Management - Develop Sri Lanka{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4">
-        <div class="col-md-8">
-            <h2 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>Invoices</h2>
-            <p class="text-muted">Create and manage invoices for your clients.</p>
-        </div>
-        <div class="col-md-4 text-md-end">
-            <a href="{{ url_for('create_invoice') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i> Create Invoice
-            </a>
-            <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary ms-2">
-                <i class="fas fa-users me-1"></i> Clients
-            </a>
+        <div class="col">
+            <h2 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>Invoice Management</h2>
+            <p class="text-muted">Create and manage invoices for your clients to track payments and financial activities.</p>
         </div>
     </div>
 
@@ -30,30 +22,90 @@
         {% endif %}
     {% endwith %}
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            {% if invoices %}
-                <div class="d-flex justify-content-between mb-3 flex-wrap">
-                    <div class="btn-group mb-2" role="group" aria-label="Invoice status filter">
-                        <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
-                        <button type="button" class="btn btn-outline-secondary" data-filter="draft">Draft</button>
-                        <button type="button" class="btn btn-outline-warning" data-filter="sent">Sent</button>
-                        <button type="button" class="btn btn-outline-success" data-filter="paid">Paid</button>
-                        <button type="button" class="btn btn-outline-danger" data-filter="overdue">Overdue</button>
-                    </div>
-                    <div class="input-group mb-2" style="max-width: 300px;">
-                        <input type="text" class="form-control" id="invoiceSearch" placeholder="Search invoices...">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
+            <div class="card shadow-sm bg-success text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-success me-3">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Paid</div>
+                            <div class="fs-3">{{ invoices|selectattr('status', 'equalto', 'paid')|list|length }}</div>
+                        </div>
                     </div>
                 </div>
-                
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
+            <div class="card shadow-sm bg-warning">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-warning me-3">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Pending</div>
+                            <div class="fs-3">{{ invoices|selectattr('status', 'equalto', 'sent')|list|length + invoices|selectattr('status', 'equalto', 'partially_paid')|list|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4 mb-md-0">
+            <div class="card shadow-sm bg-danger text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-danger me-3">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Overdue</div>
+                            <div class="fs-3">{{ invoices|selectattr('status', 'equalto', 'overdue')|list|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm bg-secondary text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-white text-secondary me-3">
+                            <i class="fas fa-pencil-alt"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">Drafts</div>
+                            <div class="fs-3">{{ invoices|selectattr('status', 'equalto', 'draft')|list|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Your Invoices</h5>
+            <div>
+                <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-users me-1"></i> Manage Clients
+                </a>
+                <a href="{{ url_for('create_invoice') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i> Create Invoice
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if invoices %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-0" id="invoicesTable">
                         <thead class="table-light">
                             <tr>
                                 <th>Invoice #</th>
                                 <th>Client</th>
-                                <th>Date</th>
+                                <th>Issue Date</th>
                                 <th>Due Date</th>
                                 <th>Amount</th>
                                 <th>Status</th>
@@ -62,13 +114,11 @@
                         </thead>
                         <tbody>
                             {% for invoice in invoices %}
-                                <tr data-status="{{ invoice.status }}">
+                                <tr>
+                                    <td>{{ invoice.invoice_number }}</td>
                                     <td>
-                                        <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="text-decoration-none fw-medium">
-                                            {{ invoice.invoice_number }}
-                                        </a>
+                                        <a href="{{ url_for('view_client', client_id=invoice.client.id) }}">{{ invoice.client.name }}</a>
                                     </td>
-                                    <td>{{ invoice.client.name }}</td>
                                     <td>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</td>
                                     <td>{{ invoice.due_date.strftime('%Y-%m-%d') }}</td>
                                     <td>{{ invoice.total|currency }}</td>
@@ -88,14 +138,21 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
-                                        <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="View Invoice">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        {% if invoice.status == 'draft' %}
-                                            <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Invoice">
-                                                <i class="fas fa-edit"></i>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="View Invoice">
+                                                <i class="fas fa-eye"></i>
                                             </a>
-                                        {% endif %}
+                                            {% if invoice.status == 'draft' %}
+                                                <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Invoice">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            {% endif %}
+                                            {% if invoice.status in ['sent', 'partially_paid', 'overdue'] %}
+                                                <a href="{{ url_for('record_payment', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-success" title="Record Payment">
+                                                    <i class="fas fa-money-bill"></i>
+                                                </a>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -103,18 +160,58 @@
                     </table>
                 </div>
             {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-file-invoice-dollar fa-3x mb-3 text-muted"></i>
-                    <h5>No invoices yet</h5>
-                    <p class="text-muted">Start by creating your first invoice</p>
-                    <a href="{{ url_for('create_invoice') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i> Create Invoice
-                    </a>
+                <div class="text-center p-5">
+                    <div class="mb-3">
+                        <i class="fas fa-file-invoice-dollar fa-3x text-muted"></i>
+                    </div>
+                    <h5>No Invoices Yet</h5>
+                    <p class="text-muted mb-3">Start creating invoices for your clients to track payments.</p>
+                    <div class="d-flex justify-content-center">
+                        <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary me-2">
+                            <i class="fas fa-users me-1"></i> Add New Client
+                        </a>
+                        {% if clients %}
+                            <a href="{{ url_for('create_invoice') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i> Create Invoice
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
             {% endif %}
         </div>
     </div>
+
+    {% if invoices %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">Invoice Status Filter</h5>
+            </div>
+            <div class="card-body">
+                <div class="btn-group d-flex flex-wrap" role="group" aria-label="Invoice Status Filter">
+                    <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
+                    <button type="button" class="btn btn-outline-success" data-filter="paid">Paid</button>
+                    <button type="button" class="btn btn-outline-warning" data-filter="partially_paid">Partially Paid</button>
+                    <button type="button" class="btn btn-outline-info" data-filter="sent">Sent</button>
+                    <button type="button" class="btn btn-outline-danger" data-filter="overdue">Overdue</button>
+                    <button type="button" class="btn btn-outline-secondary" data-filter="draft">Draft</button>
+                    <button type="button" class="btn btn-outline-dark" data-filter="cancelled">Cancelled</button>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 </div>
+
+<style>
+    .icon-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -122,39 +219,32 @@
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('page-title').textContent = 'Invoice Management';
         
-        // Filter buttons
+        // Invoice status filter functionality
         const filterButtons = document.querySelectorAll('[data-filter]');
-        const invoiceRows = document.querySelectorAll('tbody tr');
+        const invoicesTable = document.getElementById('invoicesTable');
         
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                // Remove active class from all buttons
-                filterButtons.forEach(btn => btn.classList.remove('active'));
-                // Add active class to clicked button
-                this.classList.add('active');
-                
-                const filter = this.getAttribute('data-filter');
-                
-                invoiceRows.forEach(row => {
-                    if (filter === 'all') {
-                        row.style.display = '';
-                    } else {
-                        const status = row.getAttribute('data-status');
-                        row.style.display = status === filter ? '' : 'none';
-                    }
-                });
-            });
-        });
-        
-        // Search functionality
-        const searchInput = document.getElementById('invoiceSearch');
-        if (searchInput) {
-            searchInput.addEventListener('keyup', function() {
-                const searchTerm = this.value.toLowerCase();
-                
-                invoiceRows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+        if (filterButtons.length && invoicesTable) {
+            const tableRows = invoicesTable.querySelectorAll('tbody tr');
+            
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Update active state of buttons
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const filterValue = this.getAttribute('data-filter');
+                    
+                    // Show/hide rows based on filter
+                    tableRows.forEach(row => {
+                        const statusCell = row.querySelector('td:nth-child(6)');
+                        const statusText = statusCell.textContent.trim().toLowerCase();
+                        
+                        if (filterValue === 'all' || statusText.includes(filterValue)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
                 });
             });
         }

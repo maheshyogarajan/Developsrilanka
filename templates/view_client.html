@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ client.name }} - Client Details - Develop Sri Lanka{% endblock %}
+{% block title %}Client: {{ client.name }} - Develop Sri Lanka{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -12,16 +12,17 @@
                     <li class="breadcrumb-item active" aria-current="page">{{ client.name }}</li>
                 </ol>
             </nav>
-            <h2 class="mb-0">{{ client.name }}</h2>
-            <p class="text-muted">Client Details</p>
-        </div>
-        <div class="col-md-auto text-md-end mt-3 mt-md-0">
-            <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn btn-outline-primary me-2">
-                <i class="fas fa-edit me-1"></i> Edit Client
-            </a>
-            <a href="{{ url_for('create_invoice') }}?client_id={{ client.id }}" class="btn btn-success">
-                <i class="fas fa-file-invoice me-1"></i> Create Invoice
-            </a>
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0"><i class="fas fa-user-tie me-2"></i>{{ client.name }}</h2>
+                <div>
+                    <a href="{{ url_for('edit_client', client_id=client.id) }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Edit
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteClientModal">
+                        <i class="fas fa-trash me-1"></i> Delete
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -37,88 +38,103 @@
     {% endwith %}
 
     <div class="row">
-        <!-- Client Information Card -->
         <div class="col-lg-4 mb-4">
-            <div class="card shadow-sm h-100">
+            <div class="card shadow-sm mb-4">
                 <div class="card-header bg-transparent">
-                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Client Information</h5>
+                    <h5 class="mb-0">Client Information</h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex mb-3">
-                        <div class="text-center bg-light rounded-circle p-3 me-3">
-                            <i class="fas fa-user fa-2x text-primary"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">{{ client.name }}</h5>
-                            <p class="text-muted mb-0">Client since {{ client.created_at.strftime('%b %Y') }}</p>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Contact Email</span>
+                        <span>
+                            {% if client.email %}
+                                <a href="mailto:{{ client.email }}">{{ client.email }}</a>
+                            {% else %}
+                                <span class="text-muted">Not provided</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Phone</span>
+                        <span>
+                            {% if client.phone %}
+                                {{ client.phone }}
+                            {% else %}
+                                <span class="text-muted">Not provided</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold">Tax Registration</span>
+                        <span>
+                            {% if client.tax_registration_number %}
+                                {{ client.tax_registration_number }}
+                            {% else %}
+                                <span class="text-muted">Not provided</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="fw-bold">Address</span>
+                        <div class="mt-1">
+                            {% if client.address %}
+                                {{ client.address|replace('\n', '<br>')|safe }}
+                            {% else %}
+                                <span class="text-muted">No address on file</span>
+                            {% endif %}
                         </div>
                     </div>
-                    
-                    <hr>
-                    
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4"><i class="fas fa-envelope me-2 text-muted"></i>Email:</dt>
-                        <dd class="col-sm-8">{{ client.email or 'Not provided' }}</dd>
-                        
-                        <dt class="col-sm-4"><i class="fas fa-phone me-2 text-muted"></i>Phone:</dt>
-                        <dd class="col-sm-8">{{ client.phone or 'Not provided' }}</dd>
-                        
-                        <dt class="col-sm-4"><i class="fas fa-map-marker-alt me-2 text-muted"></i>Address:</dt>
-                        <dd class="col-sm-8">{{ client.address or 'Not provided' }}</dd>
-                        
-                        <dt class="col-sm-4"><i class="fas fa-id-card me-2 text-muted"></i>Tax ID:</dt>
-                        <dd class="col-sm-8">{{ client.tax_registration_number or 'Not provided' }}</dd>
-                    </dl>
+                    <div class="mb-0">
+                        <span class="fw-bold">Notes</span>
+                        <div class="mt-1">
+                            {% if client.notes %}
+                                {{ client.notes|replace('\n', '<br>')|safe }}
+                            {% else %}
+                                <span class="text-muted">No notes</span>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
                 <div class="card-footer bg-transparent">
-                    <small class="text-muted">Last updated: {{ client.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <div class="small text-muted">Client since: {{ client.created_at.strftime('%Y-%m-%d') }}</div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Financial Summary</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Total Invoiced</span>
+                            <span class="fw-bold">{{ total_invoiced|currency }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Total Paid</span>
+                            <span class="fw-bold text-success">{{ total_paid|currency }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Outstanding Balance</span>
+                            <span class="fw-bold {% if total_due > 0 %}text-danger{% endif %}">{{ total_due|currency }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- Client Financial Summary Card -->
-        <div class="col-lg-8 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-transparent">
-                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Financial Summary</h5>
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Invoices</h5>
+                    <a href="{{ url_for('create_invoice') }}?client_id={{ client.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i> New Invoice
+                    </a>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="card border-0 bg-light">
-                                <div class="card-body text-center">
-                                    <h6 class="text-muted mb-2">Total Invoiced</h6>
-                                    <h3 class="mb-0">{{ total_invoiced|default(0)|currency }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="card border-0 bg-light">
-                                <div class="card-body text-center">
-                                    <h6 class="text-muted mb-2">Total Paid</h6>
-                                    <h3 class="mb-0">{{ total_paid|default(0)|currency }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border-0 bg-light">
-                                <div class="card-body text-center">
-                                    <h6 class="text-muted mb-2">Total Due</h6>
-                                    <h3 class="mb-0 {% if total_due > 0 %}text-danger{% endif %}">
-                                        {{ total_due|default(0)|currency }}
-                                    </h3>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <h5 class="mb-3">Invoice History</h5>
-                    
+                <div class="card-body p-0">
                     {% if invoices %}
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Invoice #</th>
@@ -131,12 +147,11 @@
                                 <tbody>
                                     {% for invoice in invoices %}
                                         <tr>
+                                            <td>{{ invoice.invoice_number }}</td>
                                             <td>
-                                                <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="text-decoration-none">
-                                                    {{ invoice.invoice_number }}
-                                                </a>
+                                                <div>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</div>
+                                                <div class="small text-muted">Due: {{ invoice.due_date.strftime('%Y-%m-%d') }}</div>
                                             </td>
-                                            <td>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</td>
                                             <td>{{ invoice.total|currency }}</td>
                                             <td>
                                                 {% if invoice.status == 'paid' %}
@@ -164,11 +179,13 @@
                             </table>
                         </div>
                     {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-file-invoice fa-3x mb-3 text-muted"></i>
-                            <h5>No invoices yet</h5>
-                            <p class="text-muted">Create your first invoice for this client</p>
-                            <a href="{{ url_for('create_invoice') }}?client_id={{ client.id }}" class="btn btn-outline-primary">
+                        <div class="text-center p-5">
+                            <div class="mb-3">
+                                <i class="fas fa-file-invoice-dollar fa-3x text-muted"></i>
+                            </div>
+                            <h5>No Invoices Yet</h5>
+                            <p class="text-muted mb-3">Create an invoice for this client to track payments.</p>
+                            <a href="{{ url_for('create_invoice') }}?client_id={{ client.id }}" class="btn btn-primary">
                                 <i class="fas fa-plus me-1"></i> Create Invoice
                             </a>
                         </div>
@@ -176,66 +193,26 @@
                 </div>
             </div>
         </div>
-
-        <!-- Notes Card -->
-        <div class="col-12 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-transparent">
-                    <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Notes</h5>
-                </div>
-                <div class="card-body">
-                    {% if client.notes %}
-                        <p>{{ client.notes|nl2br }}</p>
-                    {% else %}
-                        <p class="text-muted text-center py-3">No notes available for this client.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Client Section -->
-    <div class="row mt-3">
-        <div class="col-12">
-            <div class="card border-danger">
-                <div class="card-body">
-                    <h5 class="card-title text-danger">Delete Client</h5>
-                    <p class="card-text">Once you delete a client, there is no going back. Please be certain.</p>
-                    
-                    {% if invoices %}
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            This client has active invoices. You cannot delete a client with invoices. Please delete all invoices first.
-                        </div>
-                        <button type="button" class="btn btn-outline-danger" disabled>
-                            <i class="fas fa-trash me-1"></i> Delete Client
-                        </button>
-                    {% else %}
-                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteClientModal">
-                            <i class="fas fa-trash me-1"></i> Delete Client
-                        </button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
-<!-- Delete Client Modal -->
+<!-- Delete Client Confirmation Modal -->
 <div class="modal fade" id="deleteClientModal" tabindex="-1" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteClientModalLabel">Confirm Deletion</h5>
+                <h5 class="modal-title" id="deleteClientModalLabel">Confirm Delete</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete <strong>{{ client.name }}</strong>? This action cannot be undone.</p>
+                <p>Are you sure you want to delete client <strong>{{ client.name }}</strong>?</p>
+                <p class="text-danger">This action cannot be undone. All data associated with this client will be permanently removed.</p>
+                <p class="mb-0"><strong>Note:</strong> You cannot delete a client that has invoices. You must delete all invoices for this client first.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form action="{{ url_for('delete_client', client_id=client.id) }}" method="POST">
-                    <button type="submit" class="btn btn-danger">Delete Permanently</button>
+                    <button type="submit" class="btn btn-danger">Delete Client</button>
                 </form>
             </div>
         </div>
@@ -246,7 +223,7 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('page-title').textContent = 'Client Details';
+        document.getElementById('page-title').textContent = 'View Client';
     });
 </script>
 {% endblock %}

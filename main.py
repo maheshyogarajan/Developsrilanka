@@ -48,6 +48,13 @@ try:
 except Exception as e:
     logger.error(f"Error loading enhanced admin routes (v2): {str(e)}")
 
+# Import invoice management routes
+try:
+    import invoice_routes
+    logger.info("Invoice management routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading invoice management routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()

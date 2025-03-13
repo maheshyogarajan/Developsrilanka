@@ -12,7 +12,7 @@
                     <li class="breadcrumb-item active" aria-current="page">Create Invoice</li>
                 </ol>
             </nav>
-            <h2 class="mb-3"><i class="fas fa-file-invoice me-2"></i>Create Invoice</h2>
+            <h2 class="mb-3"><i class="fas fa-plus-circle me-2"></i>Create New Invoice</h2>
         </div>
     </div>
 
@@ -37,7 +37,7 @@
                     <div class="col-md-6 mb-3">
                         <label for="client_id" class="form-label">Client <span class="text-danger">*</span></label>
                         <select class="form-select" id="client_id" name="client_id" required>
-                            <option value="" selected disabled>Select a client</option>
+                            <option value="" disabled selected>Select a client</option>
                             {% for client in clients %}
                                 <option value="{{ client.id }}">{{ client.name }}</option>
                             {% endfor %}
@@ -67,7 +67,8 @@
                 
                 <div class="mb-3">
                     <label for="notes" class="form-label">Notes</label>
-                    <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Payment instructions or additional information for the client"></textarea>
+                    <textarea class="form-control" id="notes" name="notes" rows="2" 
+                              placeholder="Payment instructions or additional information for the client"></textarea>
                 </div>
             </div>
         </div>
@@ -129,7 +130,8 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="discount_percent" class="form-label">Discount (%)</label>
-                        <input type="number" class="form-control" id="discount_percent" name="discount_percent" min="0" max="100" step="0.1" value="0">
+                        <input type="number" class="form-control" id="discount_percent" name="discount_percent" 
+                               min="0" max="100" step="0.1" value="0">
                     </div>
                     <div class="col-md-6">
                         <div class="bg-light p-3 rounded">
@@ -157,10 +159,10 @@
         
         <div class="d-flex justify-content-between">
             <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-1"></i> Back to Invoices
+                <i class="fas fa-arrow-left me-1"></i> Cancel
             </a>
             <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save me-1"></i> Save as Draft
+                <i class="fas fa-save me-1"></i> Save Invoice
             </button>
         </div>
     </form>
@@ -181,6 +183,13 @@
         const invoiceTax = document.getElementById('invoice-tax');
         const invoiceDiscount = document.getElementById('invoice-discount');
         const invoiceTotal = document.getElementById('invoice-total');
+        
+        // Check if there's a client_id in the URL query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientId = urlParams.get('client_id');
+        if (clientId) {
+            document.getElementById('client_id').value = clientId;
+        }
         
         // Function to add a new item row
         function addItemRow() {
@@ -303,29 +312,15 @@
         // Add event listener to discount input
         discountInput.addEventListener('input', updateInvoiceSummary);
         
-        // Setup listeners for initial row
-        const initialRow = itemsTable.querySelector('tbody tr');
-        if (initialRow) {
-            setupItemRowListeners(initialRow);
-        }
-        
-        // Initialize the currency format based on selected currency
-        document.getElementById('currency').addEventListener('change', function() {
-            updateInvoiceSummary();
+        // Setup listeners for all existing rows
+        const existingRows = itemsTable.querySelectorAll('tbody tr');
+        existingRows.forEach(row => {
+            setupItemRowListeners(row);
+            calculateItemTotal(row);
         });
         
-        // Check if there's a client_id in the URL and select it
-        const urlParams = new URLSearchParams(window.location.search);
-        const clientId = urlParams.get('client_id');
-        if (clientId) {
-            const clientSelect = document.getElementById('client_id');
-            for (let i = 0; i < clientSelect.options.length; i++) {
-                if (clientSelect.options[i].value === clientId) {
-                    clientSelect.options[i].selected = true;
-                    break;
-                }
-            }
-        }
+        // Initialize the invoice summary
+        updateInvoiceSummary();
     });
 </script>
 {% endblock %}
