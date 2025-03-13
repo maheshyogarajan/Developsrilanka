@@ -267,15 +267,22 @@
         document.getElementById('page-title').textContent = 'Invoice Management';
         
         // Organization filter functionality with AJAX
+        console.log('Initializing organization filter...');
         const orgFilterContainer = document.getElementById('organizationFilterContainer');
         const clearOrgFilterBtn = document.getElementById('clearOrgFilter');
+        
+        console.log('Organization filter container:', orgFilterContainer);
         
         if (orgFilterContainer) {
             // Handle organization filter buttons click
             const orgButtons = orgFilterContainer.querySelectorAll('[data-org-id]');
+            console.log('Organization buttons found:', orgButtons.length);
+            
             orgButtons.forEach(button => {
                 button.addEventListener('click', function() {
+                    console.log('Organization button clicked:', this.textContent);
                     const orgId = this.getAttribute('data-org-id');
+                    console.log('Organization ID:', orgId);
                     fetchInvoicesByOrganization(orgId);
                     
                     // Update active state
@@ -311,6 +318,8 @@
         
         // Function to fetch invoices by organization
         function fetchInvoicesByOrganization(orgId) {
+            console.log('Fetching invoices for organization ID:', orgId);
+            
             // Show loading indicator
             const tableBody = document.querySelector('#invoicesTable tbody');
             if (tableBody) {
@@ -322,6 +331,8 @@
             if (orgId) {
                 url += '?organization_id=' + orgId;
             }
+            
+            console.log('Fetching from URL:', url);
             
             // Fetch data
             fetch(url, {
@@ -336,6 +347,8 @@
                 return response.text();
             })
             .then(html => {
+                console.log('Received HTML response');
+                
                 // Create a temporary element to parse the HTML
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = html;
@@ -343,13 +356,29 @@
                 // Extract the table body content
                 const newTableBody = tempDiv.querySelector('#invoicesTable tbody');
                 if (newTableBody && tableBody) {
+                    console.log('Updating table body');
+                    
+                    // Debug the action buttons
+                    const actionButtons = newTableBody.querySelectorAll('.btn-group');
+                    console.log('Action buttons in response:', actionButtons.length);
+                    actionButtons.forEach((group, index) => {
+                        console.log(`Action group ${index} buttons:`, group.querySelectorAll('a').length);
+                    });
+                    
                     tableBody.innerHTML = newTableBody.innerHTML;
+                    
+                    // Verify buttons after update
+                    const updatedActionButtons = tableBody.querySelectorAll('.btn-group');
+                    console.log('Action buttons after update:', updatedActionButtons.length);
+                } else {
+                    console.error('Could not find table body in response');
                 }
                 
                 // Update the status count cards
                 const statCards = document.querySelectorAll('.card-body .fs-3');
                 const newStatCards = tempDiv.querySelectorAll('.card-body .fs-3');
                 if (statCards.length === newStatCards.length) {
+                    console.log('Updating status cards');
                     for (let i = 0; i < statCards.length; i++) {
                         statCards[i].textContent = newStatCards[i].textContent;
                     }
@@ -367,6 +396,7 @@
                 
                 // Update organization filter buttons
                 if (orgId) {
+                    console.log('Updating organization filter buttons for selected org');
                     // Update active state
                     const orgButtons = orgFilterContainer.querySelectorAll('[data-org-id]');
                     orgButtons.forEach(btn => {
@@ -379,6 +409,7 @@
                         }
                     });
                 } else if (orgFilterContainer) {
+                    console.log('Resetting organization filter buttons');
                     // Reset all buttons
                     const orgButtons = orgFilterContainer.querySelectorAll('[data-org-id]');
                     orgButtons.forEach(btn => {
@@ -393,6 +424,7 @@
                 }
                 
                 // Reattach status filter event listeners
+                console.log('Reinitializing status filter');
                 initStatusFilter();
             })
             .catch(error => {
@@ -405,29 +437,56 @@
         
         // Initialize status filter functionality
         function initStatusFilter() {
+            console.log('Initializing status filter');
+            
             const filterButtons = document.querySelectorAll('[data-filter]');
             const invoicesTable = document.getElementById('invoicesTable');
             
+            console.log('Status filter buttons found:', filterButtons.length);
+            console.log('Invoices table found:', invoicesTable ? 'Yes' : 'No');
+            
             if (filterButtons.length && invoicesTable) {
                 const tableRows = invoicesTable.querySelectorAll('tbody tr');
+                console.log('Table rows found:', tableRows.length);
                 
+                // Remove any existing event listeners (to avoid duplicates)
                 filterButtons.forEach(button => {
+                    const oldButton = button.cloneNode(true);
+                    button.parentNode.replaceChild(oldButton, button);
+                });
+                
+                // Re-select after replacing
+                const newFilterButtons = document.querySelectorAll('[data-filter]');
+                
+                newFilterButtons.forEach(button => {
                     button.addEventListener('click', function() {
+                        console.log('Status filter clicked:', this.getAttribute('data-filter'));
+                        
                         // Update active state of buttons
-                        filterButtons.forEach(btn => btn.classList.remove('active'));
+                        newFilterButtons.forEach(btn => btn.classList.remove('active'));
                         this.classList.add('active');
                         
                         const filterValue = this.getAttribute('data-filter');
                         
+                        // Get fresh rows (might have changed due to AJAX)
+                        const currentRows = invoicesTable.querySelectorAll('tbody tr');
+                        console.log('Current rows for filtering:', currentRows.length);
+                        
                         // Show/hide rows based on filter
-                        tableRows.forEach(row => {
+                        currentRows.forEach(row => {
                             const statusCell = row.querySelector('td:nth-child(7)');  // Updated column index for status
-                            const statusText = statusCell.textContent.trim().toLowerCase();
                             
-                            if (filterValue === 'all' || statusText.includes(filterValue)) {
-                                row.style.display = '';
+                            if (statusCell) {
+                                const statusText = statusCell.textContent.trim().toLowerCase();
+                                console.log('Row status:', statusText, 'Filter:', filterValue);
+                                
+                                if (filterValue === 'all' || statusText.includes(filterValue)) {
+                                    row.style.display = '';
+                                } else {
+                                    row.style.display = 'none';
+                                }
                             } else {
-                                row.style.display = 'none';
+                                console.error('Status cell not found in row', row);
                             }
                         });
                     });
