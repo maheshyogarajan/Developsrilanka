@@ -831,6 +831,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 console.log("Received data:", data);
                 
+                // Debug the structure of the first receipt if available
+                if (data.receipts && data.receipts.length > 0) {
+                    console.log("First receipt details:", JSON.stringify(data.receipts[0], null, 2));
+                }
+                
                 if (data.error) {
                     throw new Error(data.error);
                 }
