@@ -2192,5 +2192,63 @@ def check_authentication():
         flash('Please log in to access this page.', 'info')
         return redirect(url_for('login'))
 
+@app.route('/api/log_client_error', methods=['POST'])
+def log_client_error():
+    """
+    API endpoint to receive and log client-side errors.
+    This creates a bridge between frontend and backend error logging systems.
+    """
+    from error_logger import log_error, ErrorTypes
+    
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No error data provided"}), 400
+            
+        # Extract required fields
+        error_message = data.get('error_message', 'Unknown client error')
+        component = data.get('component', 'client')
+        error_type = data.get('error_type', ErrorTypes.CLIENT)
+        additional_info = data.get('additional_info', {})
+        
+        # Add client metadata
+        client_meta = {
+            'user_agent': data.get('user_agent'),
+            'url': data.get('url'),
+            'client_error_id': data.get('error_id'),
+            'client_timestamp': data.get('timestamp')
+        }
+        
+        # Merge with any existing additional info
+        if isinstance(additional_info, dict):
+            additional_info.update(client_meta)
+        else:
+            additional_info = client_meta
+            
+        # Log the error using our backend system
+        error_id = log_error(
+            error=error_message,
+            error_type=error_type,
+            component=component,
+            additional_info=additional_info,
+            log_level="ERROR",
+            capture_request=True
+        )
+        
+        return jsonify({
+            "success": True, 
+            "error_id": error_id,
+            "message": "Error logged successfully"
+        })
+        
+    except Exception as e:
+        # Log the exception in logging the client error
+        logging.error(f"Error logging client error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": "Server error processing client error log"
+        }), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
