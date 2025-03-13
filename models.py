@@ -134,7 +134,9 @@ class Client(db.Model):
     """Model for storing client information for invoicing."""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    name = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=False)  # Required primary name for client (could be person or company)
+    company_name = db.Column(db.String(255), nullable=True)  # Optional company name if client is a company
+    contact_person = db.Column(db.String(255), nullable=True)  # Optional contact person if client is a company
     email = db.Column(db.String(255), nullable=True)
     phone = db.Column(db.String(50), nullable=True)
     address = db.Column(db.Text, nullable=True)
@@ -150,6 +152,8 @@ class Client(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'name': self.name,
+            'company_name': self.company_name or '',
+            'contact_person': self.contact_person or '',
             'email': self.email or '',
             'phone': self.phone or '',
             'address': self.address or '',
@@ -212,6 +216,8 @@ class Invoice(db.Model):
             'user_id': self.user_id,
             'client_id': self.client_id,
             'client_name': self.client.name if self.client else '',
+            'client_company_name': self.client.company_name if self.client and self.client.company_name else '',
+            'client_contact_person': self.client.contact_person if self.client and self.client.contact_person else '',
             'invoice_number': self.invoice_number,
             'issue_date': self.issue_date.strftime('%Y-%m-%d'),
             'due_date': self.due_date.strftime('%Y-%m-%d'),

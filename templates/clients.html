@@ -47,6 +47,12 @@
                                 <tr>
                                     <td>
                                         <div class="fw-medium">{{ client.name }}</div>
+                                        {% if client.company_name %}
+                                            <div class="small">Company: {{ client.company_name }}</div>
+                                        {% endif %}
+                                        {% if client.contact_person %}
+                                            <div class="small">Contact: {{ client.contact_person }}</div>
+                                        {% endif %}
                                         <div class="small text-muted">{{ client.address|truncate(30) if client.address else 'No address on file' }}</div>
                                     </td>
                                     <td>
@@ -139,6 +145,20 @@
                     <div class="mb-3">
                         <label for="name" class="form-label">Client Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Primary name for the client (could be person or company)</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="company_name" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="company_name" name="company_name">
+                            <div class="form-text">Optional, if client is a company</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_person" class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" id="contact_person" name="contact_person">
+                            <div class="form-text">Optional, main contact at the company</div>
+                        </div>
                     </div>
                     
                     <div class="row">
