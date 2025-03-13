@@ -1127,17 +1127,26 @@ def save_receipt():
 def list_receipts():
     """Get a list of all saved receipts for the current user's organization."""
     from models import Receipt
+    import traceback
     
     try:
+        # Add detailed logging to troubleshoot
+        user_id = current_user.id
+        logging.debug(f"list_receipts: Processing for user_id={user_id}")
+        
         # Get the user's default organization
         org = current_user.get_default_organization()
         
         if org:
+            logging.debug(f"list_receipts: Found default organization_id={org.id} for user_id={user_id}")
             # Query receipts for the current user's organization, ordered by date (newest first)
             receipts = Receipt.query.filter_by(organization_id=org.id).order_by(Receipt.date.desc()).all()
+            logging.debug(f"list_receipts: Found {len(receipts)} receipts for organization_id={org.id}")
         else:
+            logging.debug(f"list_receipts: No default organization found for user_id={user_id}, using user_id filter")
             # Fallback to just user's receipts if no organization is set
             receipts = Receipt.query.filter_by(user_id=current_user.id).order_by(Receipt.date.desc()).all()
+            logging.debug(f"list_receipts: Found {len(receipts)} receipts for user_id={user_id}")
         
         # Convert to list of dictionaries
         receipt_list = []
@@ -1147,10 +1156,12 @@ def list_receipts():
             receipt_dict.pop('items', None)  # Remove items to reduce payload size
             receipt_list.append(receipt_dict)
         
+        logging.debug(f"list_receipts: Returning {len(receipt_list)} receipts to client")
         return jsonify({'success': True, 'receipts': receipt_list})
     
     except Exception as e:
         logging.error(f"Error listing receipts: {str(e)}")
+        logging.error(traceback.format_exc())  # Log the full traceback
         return jsonify({'error': f'Error listing receipts: {str(e)}'}), 500
         
 @app.route('/receipts/delete', methods=['POST'])
