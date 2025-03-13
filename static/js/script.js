@@ -785,6 +785,10 @@ document.addEventListener('DOMContentLoaded', function() {
             vat_tax: document.getElementById('vat_tax').value,
             expense_major_category: document.getElementById('expense_major_category').value,
             expense_minor_category: document.getElementById('expense_minor_category').value,
+            // Company expense fields
+            is_company_expense: document.getElementById('is_company_expense') ? document.getElementById('is_company_expense').checked : false,
+            is_reimbursable: document.getElementById('is_reimbursable') ? document.getElementById('is_reimbursable').checked : true,
+            expense_description: document.getElementById('expense_description') ? document.getElementById('expense_description').value : '',
             items: []
         };
         
@@ -970,6 +974,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Error deleting receipt:', error);
                     showAlert(`Failed to delete receipt: ${error.message}`);
                 });
+            }
+        });
+    }
+    
+    // Company expense toggle functionality
+    const isCompanyExpenseCheckbox = document.getElementById('is_company_expense');
+    const companyExpenseDetails = document.getElementById('company-expense-details');
+    
+    if (isCompanyExpenseCheckbox && companyExpenseDetails) {
+        isCompanyExpenseCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                companyExpenseDetails.style.display = 'block';
+            } else {
+                companyExpenseDetails.style.display = 'none';
             }
         });
     }
