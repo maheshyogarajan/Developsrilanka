@@ -216,7 +216,7 @@
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                             {% endif %}
-                                            {% if invoice.status in ['sent', 'partially_paid', 'overdue'] %}
+                                            {% if invoice.status in ('sent', 'partially_paid', 'overdue') %}
                                                 <a href="{{ url_for('record_payment', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-success" title="Record Payment">
                                                     <i class="fas fa-money-bill"></i>
                                                 </a>

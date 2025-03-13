@@ -202,6 +202,7 @@ def invoices():
         for payment_row in payment_results:
             payment = Payment(
                 id=payment_row[0],
+                invoice_id=invoice.id,
                 date=payment_row[1],
                 amount=payment_row[2],
                 payment_method=payment_row[3],
