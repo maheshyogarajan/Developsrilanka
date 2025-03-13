@@ -105,6 +105,7 @@
                             <tr>
                                 <th>Invoice #</th>
                                 <th>Client</th>
+                                <th>Organization</th>
                                 <th>Issue Date</th>
                                 <th>Due Date</th>
                                 <th>Amount</th>
@@ -121,6 +122,13 @@
                                             <a href="{{ url_for('view_client', client_id=invoice.client_info.id) }}">{{ invoice.client_info.name }}</a>
                                         {% else %}
                                             <span class="text-muted">Unknown client</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if invoice.organization_info %}
+                                            <span class="badge rounded-pill bg-light text-dark border">{{ invoice.organization_info.name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</td>
@@ -186,19 +194,51 @@
     </div>
 
     {% if invoices %}
-        <div class="card shadow-sm">
-            <div class="card-header bg-transparent">
-                <h5 class="mb-0">Invoice Status Filter</h5>
+        <div class="row">
+            <!-- Organization Filter Card -->
+            {% if organizations and organizations|length > 1 %}
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">Organization Filter</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for org in organizations %}
+                            <a href="{{ url_for('invoices', organization_id=org.id) }}" 
+                               class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                {{ org.name }}
+                                {% if org.is_default %}<i class="fas fa-star ms-1 text-warning"></i>{% endif %}
+                            </a>
+                            {% endfor %}
+                            {% if selected_org %}
+                            <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Clear Filter
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="btn-group d-flex flex-wrap" role="group" aria-label="Invoice Status Filter">
-                    <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
-                    <button type="button" class="btn btn-outline-success" data-filter="paid">Paid</button>
-                    <button type="button" class="btn btn-outline-warning" data-filter="partially_paid">Partially Paid</button>
-                    <button type="button" class="btn btn-outline-info" data-filter="sent">Sent</button>
-                    <button type="button" class="btn btn-outline-danger" data-filter="overdue">Overdue</button>
-                    <button type="button" class="btn btn-outline-secondary" data-filter="draft">Draft</button>
-                    <button type="button" class="btn btn-outline-dark" data-filter="cancelled">Cancelled</button>
+            {% endif %}
+            
+            <!-- Invoice Status Filter Card -->
+            <div class="col-md-{% if organizations and organizations|length > 1 %}6{% else %}12{% endif %} mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">Invoice Status Filter</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="btn-group d-flex flex-wrap" role="group" aria-label="Invoice Status Filter">
+                            <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
+                            <button type="button" class="btn btn-outline-success" data-filter="paid">Paid</button>
+                            <button type="button" class="btn btn-outline-warning" data-filter="partially_paid">Partially Paid</button>
+                            <button type="button" class="btn btn-outline-info" data-filter="sent">Sent</button>
+                            <button type="button" class="btn btn-outline-danger" data-filter="overdue">Overdue</button>
+                            <button type="button" class="btn btn-outline-secondary" data-filter="draft">Draft</button>
+                            <button type="button" class="btn btn-outline-dark" data-filter="cancelled">Cancelled</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -240,7 +280,7 @@
                     
                     // Show/hide rows based on filter
                     tableRows.forEach(row => {
-                        const statusCell = row.querySelector('td:nth-child(6)');
+                        const statusCell = row.querySelector('td:nth-child(7)');  // Updated column index for status
                         const statusText = statusCell.textContent.trim().toLowerCase();
                         
                         if (filterValue === 'all' || statusText.includes(filterValue)) {

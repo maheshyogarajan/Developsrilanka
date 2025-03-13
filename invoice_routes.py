@@ -34,20 +34,72 @@ else:
 @login_required
 def invoices():
     """Render the invoices page showing list of user's invoices."""
+    # Get user's organizations
+    org_result = db.session.execute(text("""
+        SELECT ou.organization_id, o.name, ou.is_default
+        FROM organization_user ou
+        JOIN organization o ON ou.organization_id = o.id
+        WHERE ou.user_id = :user_id
+        ORDER BY ou.is_default DESC, o.name
+    """), {'user_id': current_user.id})
+    
+    organizations = []
+    for org_row in org_result:
+        org = {
+            'id': org_row[0],
+            'name': org_row[1],
+            'is_default': org_row[2]
+        }
+        organizations.append(org)
+    
+    # Get the selected organization from query params or use default
+    selected_org_id = request.args.get('organization_id')
+    selected_org = None
+    
+    if selected_org_id:
+        # Find the selected organization
+        for org in organizations:
+            if str(org['id']) == selected_org_id:
+                selected_org = org
+                break
+    
+    # If no org is selected or invalid org ID, use the default org
+    if not selected_org and organizations:
+        for org in organizations:
+            if org['is_default']:
+                selected_org = org
+                break
+        
+        # If no default, just use the first one
+        if not selected_org:
+            selected_org = organizations[0]
+    
     # Use raw SQL to query invoices to avoid organization_id column issues
-    result = db.session.execute(text("""
+    sql_query = """
         SELECT i.id, i.user_id, i.client_id, i.bank_account_id, i.invoice_number, 
                i.issue_date, i.due_date, i.status, i.notes, i.currency, 
                i.subtotal, i.tax_percent, i.tax_amount, i.discount_percent, 
                i.discount_amount, i.total, i.sender_name, i.sender_company, 
                i.sender_address, i.sender_phone, i.sender_email, 
                i.sender_tax_registration, i.last_sent_at, i.created_at, i.updated_at,
-               c.id as client_id, c.name as client_name, c.company_name as client_company_name
+               c.id as client_id, c.name as client_name, c.company_name as client_company_name,
+               i.organization_id, o.name as organization_name
         FROM invoice i
         LEFT JOIN client c ON i.client_id = c.id
+        LEFT JOIN organization o ON i.organization_id = o.id
         WHERE i.user_id = :user_id
-        ORDER BY i.created_at DESC
-    """), {'user_id': current_user.id})
+    """
+    
+    params = {'user_id': current_user.id}
+    
+    # Filter by organization if one is selected
+    if selected_org:
+        sql_query += " AND i.organization_id = :organization_id"
+        params['organization_id'] = selected_org['id']
+    
+    sql_query += " ORDER BY i.created_at DESC"
+    
+    result = db.session.execute(text(sql_query), params)
     
     # Convert raw SQL results to Invoice objects with client info
     invoices = []
@@ -89,6 +141,15 @@ def invoices():
             })
         else:
             invoice.client_info = None
+        
+        # Add organization info
+        if row[28]:  # If organization_id is not None
+            invoice.organization_info = type('OrganizationInfo', (), {
+                'id': row[28],
+                'name': row[29]
+            })
+        else:
+            invoice.organization_info = None
             
         invoices.append(invoice)
     
@@ -152,6 +213,8 @@ def invoices():
     return render_template('invoices.html', 
                            invoices=invoices, 
                            clients=clients, 
+                           organizations=organizations,
+                           selected_org=selected_org,
                            invoice_statuses=[(status.name, status.value) for status in InvoiceStatus])
 
 @app.route('/invoices/create', methods=['GET', 'POST'])
