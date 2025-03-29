@@ -42,7 +42,7 @@
                                 <select class="form-select" id="organization_id" name="organization_id" required>
                                     <option value="">-- Select Organization --</option>
                                     {% for org in organizations %}
-                                    <option value="{{ org.id }}" {% if current_receipt.is_processed and current_receipt.organization_id == org.id %}selected{% endif %}>
+                                    <option value="{{ org.id }}" {% if current_receipt.is_processed and current_receipt.organization_id == org.id %}selected{% elif not current_receipt.is_processed and org.is_default %}selected{% endif %}>
                                         {{ org.name }}{% if org.is_default %} (Default){% endif %}
                                     </option>
                                     {% endfor %}
@@ -72,7 +72,7 @@
                             <div class="mb-3">
                                 <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="description" name="description" 
-                                       value="{% if current_receipt.is_processed %}{{ current_receipt.description }}{% else %}{{ current_receipt.merchant_name }} - {{ current_receipt.date.strftime('%Y-%m-%d') }}{% endif %}"
+                                       value="{% if current_receipt.is_processed %}{{ current_receipt.description }}{% else %}{{ current_receipt.vendor_name }} - {{ current_receipt.date.strftime('%Y-%m-%d') }}{% endif %}"
                                        required>
                                 <div class="invalid-feedback">
                                     Please provide a description.
@@ -104,10 +104,10 @@
                                     <h6 class="mb-0">Receipt Details</h6>
                                 </div>
                                 <div class="card-body p-3">
-                                    <p class="mb-2"><strong>Merchant:</strong> {{ current_receipt.merchant_name or 'Unknown' }}</p>
+                                    <p class="mb-2"><strong>Vendor:</strong> {{ current_receipt.vendor_name or 'Unknown' }}</p>
                                     <p class="mb-2"><strong>Date:</strong> {{ current_receipt.date.strftime('%Y-%m-%d') if current_receipt.date else 'Unknown' }}</p>
-                                    <p class="mb-2"><strong>Total:</strong> {{ current_receipt.total|currency }}</p>
-                                    <p class="mb-0"><strong>Category:</strong> {{ current_receipt.category or 'Uncategorized' }}</p>
+                                    <p class="mb-2"><strong>Total:</strong> {{ current_receipt.total_amount|currency }}</p>
+                                    <p class="mb-0"><strong>Category:</strong> {{ current_receipt.expense_major_category or 'Uncategorized' }}</p>
                                 </div>
                             </div>
                             
@@ -130,10 +130,10 @@
                                             <tbody>
                                                 {% for item in receipt_items %}
                                                 <tr>
-                                                    <td>{{ item.description }}</td>
+                                                    <td>{{ item.name }}</td>
                                                     <td class="text-end">{{ item.price|currency }}</td>
                                                     <td class="text-end">{{ item.quantity }}</td>
-                                                    <td class="text-end">{{ item.total|currency }}</td>
+                                                    <td class="text-end">{{ (item.price * item.quantity)|currency }}</td>
                                                 </tr>
                                                 {% endfor %}
                                             </tbody>

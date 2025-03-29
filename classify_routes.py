@@ -110,6 +110,15 @@ def classify_receipts(page=None, receipt_id=None):
     existing_expense = CompanyExpense.query.filter_by(receipt_id=current_receipt_id).first()
     current_receipt.is_processed = existing_expense is not None
     
+    # Attach expense information to the receipt for the template
+    if existing_expense:
+        current_receipt.expense = existing_expense
+        current_receipt.description = existing_expense.description
+        current_receipt.organization_id = existing_expense.organization_id
+        current_receipt.client_id = existing_expense.client_id
+        current_receipt.is_reimbursable = existing_expense.is_reimbursable
+        current_receipt.notes = existing_expense.notes
+    
     # Get receipt items
     receipt_items = ReceiptItem.query.filter_by(receipt_id=current_receipt_id).all()
     
@@ -120,7 +129,8 @@ def classify_receipts(page=None, receipt_id=None):
                            current_index=current_index,
                            total_receipts=len(all_receipt_ids),
                            organizations=organizations,
-                           clients=clients)
+                           clients=clients,
+                           existing_expense=existing_expense)
 
 @classify_bp.route('/classify/receipts/submit/<int:receipt_id>', methods=['POST'])
 @login_required
