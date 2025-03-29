@@ -353,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Loading receipts from server...");
         showLoading();
         
-        fetch('/list_receipts')
+        fetch('{{ url_for('receipts.list_receipts') }}')
             .then(response => {
                 console.log("Server response status:", response.status);
                 if (!response.ok) {
@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.ReceiptHistoryErrorLogger) {
                     window.ReceiptHistoryErrorLogger.logApiError(
                         error,
-                        '/list_receipts',
+                        '{{ url_for('receipts.list_receipts') }}',
                         'GET',
                         {
                             error_id: errorId,
@@ -924,7 +924,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoading();
         
         // Construct URL with organization filter
-        let url = '/list_receipts';
+        let url = '{{ url_for('receipts.list_receipts') }}';
         if (organizationId === 'all') {
             url += '?show_all=true';
         } else if (organizationId) {
@@ -1173,7 +1173,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Get receipt details to populate the form
-        fetch(`/receipts/${receiptId}`)
+        fetch(`{{ url_for('receipts.get_receipt', receipt_id=0) }}`.replace('/0', `/${receiptId}`))
             .then(response => {
                 console.log("Reimbursable receipt details response status:", response.status);
                 if (!response.ok) {
@@ -1274,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', function() {
             reimbursableLoading.classList.remove('d-none');
             
             // Submit data
-            fetch(`/receipts/reimbursable/${receiptId}`, {
+            fetch(`{{ url_for('receipts.set_reimbursable', receipt_id=0) }}`.replace('/0', `/${receiptId}`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1345,7 +1345,7 @@ document.addEventListener('DOMContentLoaded', function() {
         reimbursableClient.innerHTML = '<option value="">Loading clients...</option>';
         reimbursableClient.disabled = true;
         
-        return fetch(`/receipts/clients/${organizationId}`)
+        return fetch(`{{ url_for('receipts.clients', organization_id=0) }}`.replace('/0', `/${organizationId}`))
             .then(response => {
                 console.log("Clients response status:", response.status);
                 if (!response.ok) {
@@ -1394,14 +1394,14 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         // Set full details link
-        fullDetailsLink.href = `/view_receipt/${receiptId}`;
+        fullDetailsLink.href = `{{ url_for('receipts.receipt_history') }}/${receiptId}`;
         
         // Show modal
         const modal = new bootstrap.Modal(receiptModal);
         modal.show();
         
         // Fetch receipt details
-        fetch(`/receipts/${receiptId}`)
+        fetch(`{{ url_for('receipts.get_receipt', receipt_id=0) }}`.replace('/0', `/${receiptId}`))
             .then(response => {
                 console.log("Receipt details response status:", response.status);
                 if (!response.ok) {
@@ -1515,7 +1515,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.ReceiptHistoryErrorLogger) {
                     window.ReceiptHistoryErrorLogger.logApiError(
                         error,
-                        `/receipts/${receiptId}`,
+                        `{{ url_for('receipts.get_receipt', receipt_id=0) }}`.replace('/0', `/${receiptId}`),
                         'GET',
                         {
                             error_id: errorId,
@@ -1551,7 +1551,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function deleteReceipt() {
         if (!receiptToDelete) return;
         
-        fetch('/receipts/delete', {
+        fetch('{{ url_for('receipts.delete_receipts') }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1624,7 +1624,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (window.ReceiptHistoryErrorLogger) {
                 window.ReceiptHistoryErrorLogger.logApiError(
                     error,
-                    '/receipts/delete',
+                    '{{ url_for('receipts.delete_receipts') }}',
                     'POST',
                     {
                         error_id: errorId,

@@ -289,6 +289,90 @@ def get_clients_by_organization(organization_id):
         logging.error(f"Error getting clients: {str(e)}")
         return jsonify({'error': f'Error getting clients: {str(e)}'}), 500
 
+@receipts_bp.route('/receipts/delete', methods=['POST'])
+@login_required
+def delete_receipts():
+    """Delete multiple receipts by ID, ensuring they belong to the current user's organization."""
+    try:
+        # Get receipt IDs from request
+        data = request.get_json()
+        receipt_ids = data.get('receipt_ids', [])
+        
+        if not receipt_ids:
+            return jsonify({'error': 'No receipt IDs provided'}), 400
+        
+        try:
+            # Convert string IDs to integers
+            receipt_ids = [int(id) for id in receipt_ids]
+        except ValueError:
+            return jsonify({'error': 'Invalid receipt ID format'}), 400
+        
+        # Get the user's default organization
+        org = current_user.get_default_organization()
+        user_id = current_user.id
+        
+        try:
+            if org:
+                org_id = org.id
+                # Find receipts to delete that belong to the user's organization
+                # or receipts that belong to the user and have null organization_id (legacy data)
+                receipts_to_delete = Receipt.query.filter(
+                    Receipt.id.in_(receipt_ids),
+                    or_(
+                        Receipt.organization_id == org_id,
+                        and_(
+                            Receipt.user_id == user_id,
+                            or_(
+                                Receipt.organization_id.is_(None),
+                                Receipt.organization_id == 0
+                            )
+                        )
+                    )
+                ).all()
+            else:
+                # Fallback to user's receipts if no organization
+                receipts_to_delete = Receipt.query.filter(
+                    Receipt.id.in_(receipt_ids),
+                    Receipt.user_id == current_user.id
+                ).all()
+            
+            deleted_count = len(receipts_to_delete)
+            
+            # Log if there's a mismatch between requested and actual deletion count
+            if deleted_count != len(receipt_ids):
+                logger.warning(f"Receipt ID mismatch: {len(receipt_ids)} requested, {deleted_count} found. User: {user_id}")
+        except Exception as db_error:
+            logger.error(f"Database error when querying receipts to delete: {str(db_error)}")
+            raise
+        
+        try:
+            # Delete each receipt (will cascade to items thanks to relationship setup)
+            for receipt in receipts_to_delete:
+                db.session.delete(receipt)
+            
+            # Commit the transaction
+            db.session.commit()
+            
+            # Log successful deletion
+            logger.info(f"User {user_id} deleted {deleted_count} receipts: {[r.id for r in receipts_to_delete]}")
+            
+            return jsonify({
+                'success': True, 
+                'deleted_count': deleted_count,
+                'message': f'Successfully deleted {deleted_count} receipt(s)'
+            })
+        except Exception as db_error:
+            # Roll back and log database error
+            db.session.rollback()
+            logger.error(f"Database error when deleting receipts: {str(db_error)}")
+            raise
+    
+    except Exception as e:
+        logger.error(f"Error deleting receipts: {str(e)}")
+        return jsonify({
+            'error': f"Error deleting receipts: {str(e)}"
+        }), 500
+
 @receipts_bp.route('/receipts/reimbursable/<int:receipt_id>', methods=['POST'])
 @login_required
 def update_reimbursable_status(receipt_id):
