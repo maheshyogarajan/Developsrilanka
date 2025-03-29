@@ -168,6 +168,14 @@ def classify_receipt_submit(receipt_id):
         is_reimbursable = request.form.get('is_reimbursable') == 'true'
         notes = request.form.get('notes', '').strip()
         
+        # Process tax deductible items
+        tax_deductible_items = {}
+        for key, value in request.form.items():
+            if key.startswith('tax_deductible_items[') and key.endswith(']'):
+                # Extract the ID from the key (format: tax_deductible_items[item_id])
+                item_id = int(key[len('tax_deductible_items['):-1])
+                tax_deductible_items[item_id] = (value == 'true')
+        
         # Convert client_id to int or None
         if client_id and client_id.isdigit():
             client_id = int(client_id)
@@ -191,6 +199,13 @@ def classify_receipt_submit(receipt_id):
             existing_expense.notes = notes
             existing_expense.submitted_date = datetime.utcnow()
             
+            # Update tax deductible status for receipt items
+            if tax_deductible_items:
+                receipt_items = ReceiptItem.query.filter_by(receipt_id=receipt_id).all()
+                for item in receipt_items:
+                    if item.id in tax_deductible_items:
+                        item.tax_deductible = tax_deductible_items[item.id]
+                
             db.session.commit()
             flash('Expense updated successfully', 'success')
         else:
@@ -208,6 +223,14 @@ def classify_receipt_submit(receipt_id):
             )
             
             db.session.add(company_expense)
+            
+            # Update tax deductible status for receipt items
+            if tax_deductible_items:
+                receipt_items = ReceiptItem.query.filter_by(receipt_id=receipt_id).all()
+                for item in receipt_items:
+                    if item.id in tax_deductible_items:
+                        item.tax_deductible = tax_deductible_items[item.id]
+            
             db.session.commit()
             flash('Receipt classified as an expense successfully', 'success')
         
