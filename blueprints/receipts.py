@@ -265,6 +265,30 @@ def get_receipt(receipt_id):
         logging.error(f"Error getting receipt: {str(e)}")
         return jsonify({'error': f'Error getting receipt: {str(e)}'}), 500
 
+@receipts_bp.route('/receipts/clients/<int:organization_id>', methods=['GET'])
+@login_required
+def get_clients_by_organization(organization_id):
+    """Get clients for a specific organization."""
+    try:
+        # Verify user belongs to the organization
+        user_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id, 
+            organization_id=organization_id
+        ).first()
+        
+        if not user_org:
+            return jsonify({'error': 'You do not have access to the selected organization'}), 403
+        
+        # Get clients for this organization
+        clients = Client.query.filter_by(organization_id=organization_id).all()
+        client_list = [{'id': client.id, 'name': client.name} for client in clients]
+        
+        return jsonify({'success': True, 'clients': client_list})
+    
+    except Exception as e:
+        logging.error(f"Error getting clients: {str(e)}")
+        return jsonify({'error': f'Error getting clients: {str(e)}'}), 500
+
 @receipts_bp.route('/receipts/reimbursable/<int:receipt_id>', methods=['POST'])
 @login_required
 def update_reimbursable_status(receipt_id):
@@ -376,29 +400,3 @@ def update_reimbursable_status(receipt_id):
         logger.error(f"Error updating reimbursable status: {str(e)}")
         return jsonify({'error': f'Error updating reimbursable status: {str(e)}'}), 500
 
-@receipts_bp.route('/receipts/clients/<int:organization_id>', methods=['GET'])
-@login_required
-def get_clients_by_organization(organization_id):
-    """Get clients for a specific organization."""
-    try:
-        # Verify user belongs to the organization
-        user_org = OrganizationUser.query.filter_by(
-            user_id=current_user.id, 
-            organization_id=organization_id
-        ).first()
-        
-        if not user_org:
-            return jsonify({'error': 'You do not have access to the selected organization'}), 403
-        
-        # Get clients for this organization
-        clients = Client.query.filter_by(organization_id=organization_id).order_by(Client.name).all()
-        client_list = [{'id': client.id, 'name': client.name} for client in clients]
-        
-        return jsonify({
-            'success': True, 
-            'clients': client_list
-        })
-    
-    except Exception as e:
-        logger.error(f"Error getting clients: {str(e)}")
-        return jsonify({'error': f'Error getting clients: {str(e)}'}), 500
