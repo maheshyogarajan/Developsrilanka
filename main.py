@@ -92,6 +92,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading client expense management routes: {str(e)}")
 
+# Import client management blueprint
+try:
+    from blueprints.clients import register_blueprint as register_clients_blueprint
+    # Register client blueprint
+    register_clients_blueprint(app)
+    logger.info("Client management blueprint registered successfully")
+except Exception as e:
+    logger.error(f"Error registering client management blueprint: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()

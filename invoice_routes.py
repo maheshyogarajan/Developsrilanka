@@ -1352,7 +1352,7 @@ def edit_client(client_id):
     # GET request - render the form
     # Get user's organizations for the dropdown
     organizations_result = db.session.execute(text("""
-        SELECT o.id, o.name, o.logo_url, o.primary_color, o.email, ou.is_default
+        SELECT o.id, o.name, o.logo_path, o.primary_color, o.email, ou.is_default
         FROM organization o
         JOIN organization_user ou ON o.id = ou.organization_id
         WHERE ou.user_id = :user_id
@@ -1363,7 +1363,7 @@ def edit_client(client_id):
         {
             'id': row[0],
             'name': row[1],
-            'logo_url': row[2],
+            'logo_path': row[2],
             'primary_color': row[3],
             'email': row[4],
             'is_default': row[5]
