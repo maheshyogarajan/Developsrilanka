@@ -1,22 +1,22 @@
 {% extends 'layout.html' %}
 
-{% block title %}Login - Develop Sri Lanka{% endblock %}
+{% block title %}Register - Develop Sri Lanka{% endblock %}
 
 {% block head %}
 {{ super() }}
 <style>
-    /* Clean, minimal styling for the login page */
-    .login-card {
+    /* Clean, minimal styling for the registration page */
+    .register-card {
         border-radius: 10px;
         box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
         transition: all 0.3s ease;
     }
     
-    .login-btn {
+    .register-btn {
         transition: all 0.3s ease;
     }
     
-    .login-btn:hover {
+    .register-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
@@ -134,6 +134,28 @@
         transition: opacity 0.3s ease;
     }
     
+    /* Password strength meter */
+    .password-strength-meter {
+        height: 5px;
+        background-color: #f3f3f3;
+        border-radius: 3px;
+        margin-top: 5px;
+        overflow: hidden;
+    }
+    
+    .password-strength-meter div {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease, background-color 0.3s ease;
+        width: 0;
+    }
+    
+    .password-strength-text {
+        font-size: 0.75rem;
+        margin-top: 5px;
+        transition: color 0.3s ease;
+    }
+    
     /* Enhanced alert styles */
     .alert {
         border-radius: 8px;
@@ -180,14 +202,14 @@
 <div class="container my-3 my-md-5">
     <div class="row justify-content-center">
         <div class="col-sm-12 col-md-8 col-lg-5">
-            <div class="card login-card">
+            <div class="card register-card">
                 <div class="card-body p-3 p-md-4 text-center">
                     <div class="mb-3 mb-md-4">
                         <a href="{{ url_for('home') }}">
                             <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Develop Sri Lanka Logo" class="img-fluid mb-2" style="max-width: 100px;">
                         </a>
-                        <h2 class="fs-3 mb-2">Welcome to Develop Sri Lanka</h2>
-                        <p class="text-muted small">Login to track your contribution to Sri Lanka's development</p>
+                        <h2 class="fs-3 mb-2">Create Your Account</h2>
+                        <p class="text-muted small">Join Develop Sri Lanka and start tracking your receipts</p>
                     </div>
 
                     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -210,43 +232,35 @@
                         {% endif %}
                     {% endwith %}
 
-                    <form method="POST" action="{{ url_for('email_login') }}" class="mb-3" id="loginForm">
+                    <form method="POST" action="{{ url_for('email_login') }}" class="mb-3" id="registerForm">
                         <div class="mb-3">
                             <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required>
                         </div>
                         <div class="mb-3">
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Choose a Password" required minlength="8">
+                            <div class="password-strength-meter mt-1">
+                                <div id="passwordStrength"></div>
+                            </div>
+                            <small id="passwordStrengthText" class="password-strength-text text-muted">Password strength</small>
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm Password" required>
+                            <small id="passwordMatchText" class="form-text text-muted"></small>
                         </div>
                         <!-- Hidden input for action -->
-                        <input type="hidden" name="action" id="action_input" value="login">
+                        <input type="hidden" name="action" id="action_input" value="register">
                         <div class="d-grid gap-2">
-                            <button type="submit" data-action="login" class="btn btn-primary login-btn" id="loginButton">Sign In</button>
-                            <a href="{{ url_for('register') }}" class="btn btn-outline-success login-btn">Register New Account</a>
+                            <button type="submit" class="btn btn-success register-btn" id="registerButton">Create Account</button>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Already have an account? Sign In</a>
                         </div>
                     </form>
                     
-                    <!-- Password Help Notice -->
-                    <div class="alert alert-info mb-3 py-2" role="alert">
-                        <small>
-                            <i class="bi bi-info-circle-fill me-1"></i>
-                            <strong>Login Tip:</strong> If you've forgotten your password, please contact an administrator to reset it for you.
-                        </small>
-                    </div>
-                    
                     <div class="text-center text-muted mt-3">
-                        <p class="small mb-0">By logging in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+                        <p class="small mb-0">By creating an account, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
                         <hr class="my-2">
                         <p class="small mb-0">Powered by Develop Sri Lanka Initiative</p>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Simple note about the new feature -->
-            <div class="text-center mt-2">
-                <p class="small text-muted">
-                    <i class="bi bi-info-circle"></i> 
-                    After login, you'll be taken directly to the Scan page.
-                </p>
             </div>
         </div>
     </div>
@@ -259,21 +273,26 @@
 <div class="redirect-message" id="redirectMessage">
     <div id="step1">
         <div class="spinner"></div>
-        <h5>Verifying your credentials...</h5>
+        <h5>Creating your account...</h5>
     </div>
     
     <div id="step2" style="display: none;">
         <i class="bi bi-check-circle-fill redirect-icon success-icon"></i>
-        <h5>Login Successful!</h5>
-        <p>Taking you to the Scan Receipt page <i class="bi bi-arrow-right-circle-fill"></i></p>
+        <h5>Account Created!</h5>
+        <p>Setting up your workspace <i class="bi bi-arrow-right-circle-fill"></i></p>
         <div class="progress-bar" id="progressBar"></div>
-        <p class="small text-muted mt-2">Ready to track your contribution to Sri Lanka's development</p>
+        <p class="small text-muted mt-2">Welcome to Develop Sri Lanka!</p>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const passwordInput = document.getElementById('password');
+    const confirmInput = document.getElementById('confirmPassword');
+    const passwordStrength = document.getElementById('passwordStrength');
+    const passwordStrengthText = document.getElementById('passwordStrengthText');
+    const passwordMatchText = document.getElementById('passwordMatchText');
     const overlay = document.getElementById('overlay');
     const redirectMessage = document.getElementById('redirectMessage');
     const step1 = document.getElementById('step1');
@@ -284,15 +303,75 @@ document.addEventListener('DOMContentLoaded', function() {
     overlay.style.display = 'none';
     redirectMessage.style.display = 'none';
     
-    // Add event listener to login form submission
-    loginForm.addEventListener('submit', function(e) {
+    // Password strength meter
+    passwordInput.addEventListener('input', function() {
+        const password = passwordInput.value;
+        let strength = 0;
+        
+        // Length check
+        if (password.length >= 8) strength += 25;
+        
+        // Contains lowercase
+        if (/[a-z]/.test(password)) strength += 25;
+        
+        // Contains uppercase
+        if (/[A-Z]/.test(password)) strength += 25;
+        
+        // Contains number or special character
+        if (/[0-9!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
+        
+        // Update visual indicator
+        passwordStrength.style.width = strength + '%';
+        
+        // Update color
+        if (strength <= 25) {
+            passwordStrength.style.backgroundColor = '#dc3545'; // Red - weak
+            passwordStrengthText.textContent = 'Weak password';
+            passwordStrengthText.style.color = '#dc3545';
+        } else if (strength <= 50) {
+            passwordStrength.style.backgroundColor = '#ffc107'; // Yellow - moderate
+            passwordStrengthText.textContent = 'Moderate password';
+            passwordStrengthText.style.color = '#ffc107';
+        } else if (strength <= 75) {
+            passwordStrength.style.backgroundColor = '#6c757d'; // Blue - good
+            passwordStrengthText.textContent = 'Good password';
+            passwordStrengthText.style.color = '#6c757d';
+        } else {
+            passwordStrength.style.backgroundColor = '#28a745'; // Green - strong
+            passwordStrengthText.textContent = 'Strong password';
+            passwordStrengthText.style.color = '#28a745';
+        }
+        
+        // Check password match if confirm field has value
+        if (confirmInput.value) {
+            checkPasswordMatch();
+        }
+    });
+    
+    // Password match verification
+    confirmInput.addEventListener('input', checkPasswordMatch);
+    
+    function checkPasswordMatch() {
+        if (passwordInput.value === confirmInput.value) {
+            passwordMatchText.textContent = 'Passwords match';
+            passwordMatchText.style.color = '#28a745'; // Green
+            confirmInput.setCustomValidity('');
+        } else {
+            passwordMatchText.textContent = 'Passwords do not match';
+            passwordMatchText.style.color = '#dc3545'; // Red
+            confirmInput.setCustomValidity('Passwords must match');
+        }
+    }
+    
+    // Add event listener to register form submission
+    registerForm.addEventListener('submit', function(e) {
         // Only show the animation if the form is actually filled in properly
-        if (loginForm.checkValidity()) {
+        if (registerForm.checkValidity()) {
             // Prevent the default form submission briefly to show the animation
             e.preventDefault();
             
             // Console log for debugging
-            console.log('Form submission for login');
+            console.log('Form submission for registration');
             
             // Show overlay with fade effect
             overlay.style.display = 'block';
@@ -311,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 redirectMessage.style.transform = 'translate(-50%, -50%)';
             }, 100);
             
-            // Show first step - verifying credentials
+            // Show first step - creating account
             step1.style.display = 'block';
             
             // After a delay, transition to success message
@@ -337,8 +416,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             // After progress bar completes, submit the form
                             setTimeout(() => {
-                                console.log('Submitting login form');
-                                loginForm.submit();
+                                console.log('Submitting registration form');
+                                registerForm.submit();
                             }, 1800);
                         }, 200);
                     }, 50);

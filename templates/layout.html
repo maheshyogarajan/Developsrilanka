@@ -387,6 +387,12 @@
                         <span class="menu-text">Login</span>
                     </a>
                 </li>
+                <li class="menu-item">
+                    <a href="{{ url_for('register') }}" class="menu-link {% if request.path == '/register' %}active{% endif %}">
+                        <i class="fas fa-user-plus menu-icon"></i>
+                        <span class="menu-text">Register</span>
+                    </a>
+                </li>
                 {% else %}
                 <!-- Authenticated Menu Items -->
                 <li class="menu-item">
@@ -527,6 +533,8 @@
                     Profile
                 {% elif request.path == '/login' %}
                     Login
+                {% elif request.path == '/register' %}
+                    Register Account
                 {% elif request.path == '/preview' %}
                     Preview Receipt Scanner
                 {% elif '/admin/' in request.path %}

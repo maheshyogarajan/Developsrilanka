@@ -1592,6 +1592,11 @@ def process_receipt_with_gemini(image):
 def login():
     """Render the login page with social login options."""
     return render_template('login.html')
+    
+@app.route('/register')
+def register():
+    """Render the registration page for new users."""
+    return render_template('register.html')
 
 @app.route('/email_login', methods=['POST'])
 def email_login():
