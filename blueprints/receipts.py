@@ -28,9 +28,200 @@ def receipt_history():
     """Render the receipt history page."""
     return render_template('receipt_history.html')
 
-@receipts_bp.route('/list_receipts')
+@receipts_bp.route('/list_receipts', methods=['GET'])
 @login_required
 def list_receipts():
+    """Get a list of all saved receipts for the current user, with organization-aware filtering."""
+    import traceback
+    from error_logger import log_receipt_history_error, log_database_error, handle_and_log_exception, ErrorTypes
+    
+    try:
+        # Add detailed logging to troubleshoot
+        user_id = current_user.id
+        logger.debug(f"list_receipts: Processing for user_id={user_id}")
+        
+        # Check if we should show all organizations or filter by a specific one
+        # Enhanced parameter handling with better type conversion
+        show_all_param = request.args.get('show_all')
+        org_id_param = request.args.get('organization_id')
+        
+        # Convert show_all parameter properly (handle strings and booleans)
+        show_all_organizations = False
+        if show_all_param:
+            if isinstance(show_all_param, str):
+                show_all_organizations = show_all_param.lower() == 'true'
+            else:
+                show_all_organizations = bool(show_all_param)
+        
+        # Handle organization_id parameter
+        selected_org_id = None
+        if org_id_param:
+            if org_id_param.lower() == 'all':
+                show_all_organizations = True
+            else:
+                try:
+                    selected_org_id = org_id_param
+                    # Validate that this organization belongs to the user
+                    user_org_ids = [str(org.organization_id) for org in OrganizationUser.query.filter_by(user_id=user_id).all()]
+                    if selected_org_id not in user_org_ids:
+                        logger.warning(f"Organization ID {selected_org_id} does not belong to user {user_id}")
+                        selected_org_id = None
+                except Exception as org_error:
+                    logger.error(f"Error validating organization ID: {str(org_error)}")
+                    selected_org_id = None
+        
+        # Get the user's default organization
+        default_org = current_user.get_default_organization()
+        
+        # Start building the query
+        # If show_all_organizations, show receipts from all organizations the user belongs to
+        # Otherwise, filter by the selected organization or default organization
+        
+        # First get all organization IDs the user belongs to
+        user_orgs = OrganizationUser.query.filter_by(user_id=user_id).all()
+        user_org_ids = [org.organization_id for org in user_orgs]
+        
+        if show_all_organizations:
+            # Show receipts from all user's organizations
+            query = Receipt.query.filter(
+                or_(
+                    Receipt.organization_id.in_(user_org_ids),
+                    and_(
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
+                        )
+                    )
+                )
+            )
+        elif selected_org_id:
+            # Show receipts for the selected organization
+            query = Receipt.query.filter(
+                or_(
+                    Receipt.organization_id == selected_org_id,
+                    and_(
+                        Receipt.user_id == user_id,
+                        Receipt.organization_id == selected_org_id
+                    )
+                )
+            )
+        elif default_org:
+            # Show receipts for the default organization
+            default_org_id = default_org.id
+            query = Receipt.query.filter(
+                or_(
+                    Receipt.organization_id == default_org_id,
+                    and_(
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
+                        )
+                    )
+                )
+            )
+        else:
+            # Fallback to just user's receipts if no organization context
+            query = Receipt.query.filter_by(user_id=user_id)
+        
+        # Order by date, newest first
+        query = query.order_by(Receipt.date.desc(), Receipt.id.desc())
+        
+        # Execute the query
+        receipts = query.all()
+        
+        # Prepare a list of receipt data
+        receipt_list = []
+        for receipt in receipts:
+            receipt_data = {
+                'id': receipt.id,
+                'date': receipt.date.strftime('%Y-%m-%d') if receipt.date else '',
+                'vendor': receipt.vendor or 'Unknown Vendor',
+                'total': float(receipt.total) if receipt.total else 0.0,
+                'currency': receipt.currency or 'LKR',
+                'description': receipt.description or '',
+                'image_url': receipt.image_url if receipt.image_url else None,
+                'items_count': len(receipt.items) if receipt.items else 0,
+                'has_items': len(receipt.items) > 0 if receipt.items else False,
+                'organization_id': receipt.organization_id,
+                'organization_name': None,
+                'customer_name': receipt.customer_name or '',
+                'customer_phone': receipt.customer_phone or ''
+            }
+            
+            # Get organization name if available
+            if receipt.organization_id:
+                organization = Organization.query.get(receipt.organization_id)
+                if organization:
+                    receipt_data['organization_name'] = organization.name
+            
+            # Check if receipt is marked as a company expense
+            receipt_data['is_company_expense'] = False
+            receipt_data['company_expense_id'] = None
+            receipt_data['expense_description'] = None
+            receipt_data['expense_client_id'] = None
+            receipt_data['expense_client_name'] = None
+            receipt_data['expense_organization_id'] = None
+            receipt_data['expense_organization_name'] = None
+            receipt_data['expense_reimbursable'] = None
+            receipt_data['expense_status'] = None
+            
+            # Check for an associated company expense
+            company_expense = CompanyExpense.query.filter_by(receipt_id=receipt.id).first()
+            if company_expense:
+                receipt_data['is_company_expense'] = True
+                receipt_data['company_expense_id'] = company_expense.id
+                receipt_data['expense_description'] = company_expense.description
+                receipt_data['expense_client_id'] = company_expense.client_id
+                receipt_data['expense_reimbursable'] = company_expense.is_reimbursable
+                receipt_data['expense_status'] = company_expense.status
+                
+                # Get client name if available
+                if company_expense.client_id:
+                    client = Client.query.get(company_expense.client_id)
+                    if client:
+                        receipt_data['expense_client_name'] = client.name
+                
+                # Get organization info
+                if company_expense.organization_id:
+                    expense_org = Organization.query.get(company_expense.organization_id)
+                    if expense_org:
+                        receipt_data['expense_organization_id'] = expense_org.id
+                        receipt_data['expense_organization_name'] = expense_org.name
+            
+            receipt_list.append(receipt_data)
+        
+        # Return the receipt list as JSON
+        return jsonify({
+            'receipts': receipt_list,
+            'count': len(receipt_list),
+            'organization_id': selected_org_id if selected_org_id else (default_org.id if default_org else None),
+            'show_all': show_all_organizations
+        })
+    
+    except Exception as e:
+        # Handle the error with our centralized error logging
+        error_response = handle_and_log_exception(
+            e=e,
+            error_type=ErrorTypes.RECEIPT_HISTORY,
+            component="list_receipts",
+            additional_info={
+                "user_id": current_user.id if current_user else None,
+                "traceback": traceback.format_exc(),
+                "show_all_param": show_all_param if 'show_all_param' in locals() else None,
+                "org_id_param": org_id_param if 'org_id_param' in locals() else None
+            }
+        )
+        
+        return jsonify({
+            'error': f"Error loading receipts: {str(e)}",
+            'error_id': error_response.get('error_id', 'unknown')
+        }), 500
+
+@receipts_bp.route('/receipts_list')
+@login_required
+def list_receipts_legacy():
     """Get a list of all saved receipts for the current user, with organization-aware filtering."""
     try:
         # Add detailed logging to troubleshoot
