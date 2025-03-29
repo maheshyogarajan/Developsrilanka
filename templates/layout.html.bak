@@ -247,10 +247,6 @@
                             <i class="fas fa-clipboard-list"></i>
                             <span>Expenses</span>
                         </a>
-                        <a href="{{ url_for('classify.classify_receipts') }}" class="nav-link {% if '/classify' in request.path %}active{% endif %}">
-                            <i class="fas fa-tags"></i>
-                            <span>Classify</span>
-                        </a>
                         <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
                             <i class="fas fa-user"></i>
                             <span>Profile</span>
@@ -311,10 +307,6 @@
                         <a href="{{ url_for('expense.expenses') }}" class="nav-link {% if '/expenses' in request.path %}active{% endif %}">
                             <i class="fas fa-clipboard-list"></i>
                             <span>Expenses</span>
-                        </a>
-                        <a href="{{ url_for('classify.classify_receipts') }}" class="nav-link {% if '/classify' in request.path %}active{% endif %}">
-                            <i class="fas fa-tags"></i>
-                            <span>Classify</span>
                         </a>
                         <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
                             <i class="fas fa-user"></i>
@@ -394,31 +386,25 @@
                     pageTitle = "Scan Receipt";
                 } else if (path === '/history') {
                     pageTitle = "Receipt History";
-                } else if (path === '/login') {
-                    pageTitle = "Login";
-                } else if (path === '/profile') {
-                    pageTitle = "Profile";
                 } else if (path.includes('/invoices')) {
-                    pageTitle = "Invoices";
+                    pageTitle = "Invoice Management";
                 } else if (path.includes('/clients')) {
-                    pageTitle = "Clients";
+                    pageTitle = "Client Management";
                 } else if (path.includes('/bank-accounts')) {
                     pageTitle = "Bank Accounts";
                 } else if (path.includes('/organizations')) {
-                    pageTitle = "Organizations";
+                    pageTitle = "Organization Management";
                 } else if (path.includes('/expenses')) {
-                    pageTitle = "Expenses";
-                } else if (path.includes('/classify')) {
-                    pageTitle = "Classify Receipts";
-                } else if (path.includes('/admin')) {
-                    pageTitle = "Admin Panel";
+                    pageTitle = "Expense Management";
+                } else if (path === '/profile') {
+                    pageTitle = "User Profile";
+                } else if (path.includes('/admin/')) {
+                    pageTitle = "Admin Dashboard";
                 }
                 
                 pageTitleElement.textContent = pageTitle;
             }
         });
     </script>
-    
-    {% block scripts %}{% endblock %}
 </body>
 </html>
