@@ -481,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Create status badge
             let statusBadge = '';
-            if (hasCompanyExpense && expenseStatus) {
+            if (expenseStatus) {
                 let statusClass = 'bg-secondary';
                 let statusLabel = expenseStatus.charAt(0).toUpperCase() + expenseStatus.slice(1);
                 
@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Create status badge
             let statusBadge = '';
-            if (hasCompanyExpense && expenseStatus) {
+            if (expenseStatus) {
                 let statusClass = 'bg-secondary';
                 let statusLabel = expenseStatus.charAt(0).toUpperCase() + expenseStatus.slice(1);
                 
