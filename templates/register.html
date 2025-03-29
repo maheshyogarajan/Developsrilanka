@@ -277,12 +277,22 @@
     </div>
     
     <div id="step2" style="display: none;">
-        <i class="bi bi-check-circle-fill redirect-icon success-icon"></i>
+        <i class="bi bi-hourglass-split redirect-icon" style="color: #ffc107; animation: hourglass-spin 2s infinite linear;"></i>
         <h5>Registration Submitted!</h5>
         <p>Verifying your information <i class="bi bi-arrow-right-circle-fill"></i></p>
         <div class="progress-bar" id="progressBar"></div>
         <p class="small text-muted mt-2">Setting up your account at Develop Sri Lanka</p>
     </div>
+    
+    <style>
+        @keyframes hourglass-spin {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(15deg); }
+            50% { transform: rotate(0deg); }
+            75% { transform: rotate(-15deg); }
+            100% { transform: rotate(0deg); }
+        }
+    </style>
 </div>
 
 <script>
