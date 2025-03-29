@@ -101,6 +101,15 @@ try:
 except Exception as e:
     logger.error(f"Error registering client management blueprint: {str(e)}")
 
+# Import receipt classification routes
+try:
+    import classify_routes
+    # Register receipt classification routes
+    classify_routes.register_routes(app)
+    logger.info("Receipt classification routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading receipt classification routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
