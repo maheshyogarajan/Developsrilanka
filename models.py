@@ -483,6 +483,7 @@ class BankAccount(db.Model):
         return {
             'id': self.id,
             'user_id': self.user_id,
+            'organization_id': self.organization_id,
             'account_name': self.account_name,
             'bank_name': self.bank_name,
             'account_number': self.account_number,

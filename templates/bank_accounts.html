@@ -17,6 +17,61 @@
                 {% endif %}
             {% endwith %}
             
+            <!-- Organization filter -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel me-2"></i>Filter Bank Accounts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label for="organization-filter" class="form-label">Organization</label>
+                            <select id="organization-filter" name="organization" class="form-select">
+                                <option value="">All Organizations</option>
+                                {% for org in organizations %}
+                                    <option value="{{ org.id }}" {% if selected_org == org.id %}selected{% endif %}>
+                                        {{ org.name }} {% if org.is_default %}(Default){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-filter me-1"></i> Apply Filters
+                            </button>
+                            <a href="{{ url_for('bank_accounts') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Clear Filters
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Active filters display -->
+            {% if selected_org %}
+                <div class="mb-4">
+                    <div class="d-flex align-items-center">
+                        <strong class="me-2">Active Filters:</strong>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if selected_org %}
+                                {% for org in organizations %}
+                                    {% if org.id == selected_org %}
+                                        <div class="badge bg-primary rounded-pill d-flex align-items-center">
+                                            <span class="me-1">Organization: {{ org.name }}</span>
+                                            <a href="{{ url_for('bank_accounts') }}" class="text-white text-decoration-none">
+                                                <i class="bi bi-x-circle"></i>
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h2 class="mb-0">Bank Accounts</h2>
@@ -33,6 +88,7 @@
                                         <th>Account Name</th>
                                         <th>Bank</th>
                                         <th>Account Number</th>
+                                        <th>Organization</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -43,6 +99,9 @@
                                             <td>{{ account.account_name }}</td>
                                             <td>{{ account.bank_name }}</td>
                                             <td>{{ account.account_number }}</td>
+                                            <td>
+                                                <span class="badge bg-info text-dark">{{ account.organization_name }}</span>
+                                            </td>
                                             <td>
                                                 {% if account.is_default %}
                                                     <span class="badge bg-primary rounded-pill">Default</span>
@@ -70,10 +129,16 @@
                             <div class="mb-3">
                                 <i class="bi bi-bank text-muted" style="font-size: 3rem;"></i>
                             </div>
-                            <h4 class="text-muted">No Bank Accounts Yet</h4>
-                            <p class="text-muted">Add your bank accounts to use them for invoicing.</p>
+                            <h4 class="text-muted">No Bank Accounts Found</h4>
+                            <p class="text-muted">
+                                {% if selected_org %}
+                                    No bank accounts found with the current filter. Try changing your filters or add a new account.
+                                {% else %}
+                                    Add your bank accounts to use them for invoicing.
+                                {% endif %}
+                            </p>
                             <a href="{{ url_for('create_bank_account') }}" class="btn btn-primary mt-2">
-                                <i class="bi bi-plus-circle me-1"></i> Add First Account
+                                <i class="bi bi-plus-circle me-1"></i> Add Bank Account
                             </a>
                         </div>
                     {% endif %}
@@ -90,6 +155,10 @@
                             <p class="card-text">
                                 Your bank accounts can be selected when creating invoices to provide payment details to your clients.
                                 Set one as default to have it pre-selected during invoice creation.
+                            </p>
+                            <p class="card-text mt-2">
+                                <i class="bi bi-buildings me-1"></i> Each bank account belongs to a specific organization.
+                                You can manage bank accounts per organization from the organization detail page.
                             </p>
                         </div>
                     </div>

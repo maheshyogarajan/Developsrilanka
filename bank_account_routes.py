@@ -18,31 +18,68 @@ bank_account_bp = Blueprint('bank_account', __name__)
 def bank_accounts():
     """Render the bank accounts page showing list of user's bank accounts."""
     
-    # Execute raw SQL that doesn't reference the new column
-    result = db.session.execute(text(
-        'SELECT id, user_id, account_name, bank_name, account_number, '
-        'branch_name, swift_code, iban, is_default, created_at, updated_at '
-        'FROM bank_account WHERE user_id = :user_id'
-    ), {'user_id': current_user.id})
+    # Get the user's organizations
+    user_orgs = db.session.query(
+        Organization.id, 
+        Organization.name,
+        OrganizationUser.is_default
+    ).join(
+        OrganizationUser, 
+        Organization.id == OrganizationUser.organization_id
+    ).filter(
+        OrganizationUser.user_id == current_user.id
+    ).all()
+    
+    # Get organization filter from query parameters
+    org_filter = request.args.get('organization')
+    if org_filter and org_filter.isdigit():
+        org_filter = int(org_filter)
+    else:
+        org_filter = None
+    
+    # Execute query to get bank accounts with organization information
+    query = """
+        SELECT ba.id, ba.user_id, ba.organization_id, ba.account_name, ba.bank_name, 
+               ba.account_number, ba.branch_name, ba.swift_code, ba.iban, ba.is_default, 
+               ba.created_at, ba.updated_at, org.name as organization_name
+        FROM bank_account ba
+        JOIN organization org ON ba.organization_id = org.id
+        WHERE ba.user_id = :user_id
+    """
+    
+    params = {'user_id': current_user.id}
+    
+    # Apply organization filter if provided
+    if org_filter:
+        query += " AND ba.organization_id = :org_id"
+        params['org_id'] = org_filter
+    
+    # Execute the query
+    result = db.session.execute(text(query), params)
     
     # Convert to list of dictionaries
     accounts = [
         {
             'id': row[0], 
             'user_id': row[1],
-            'account_name': row[2],
-            'bank_name': row[3], 
-            'account_number': row[4],
-            'branch_name': row[5],
-            'swift_code': row[6],
-            'iban': row[7],
-            'is_default': row[8],
-            'created_at': row[9],
-            'updated_at': row[10]
+            'organization_id': row[2],
+            'account_name': row[3],
+            'bank_name': row[4], 
+            'account_number': row[5],
+            'branch_name': row[6],
+            'swift_code': row[7],
+            'iban': row[8],
+            'is_default': row[9],
+            'created_at': row[10],
+            'updated_at': row[11],
+            'organization_name': row[12]
         } for row in result
     ]
     
-    return render_template('bank_accounts.html', accounts=accounts)
+    return render_template('bank_accounts.html', 
+                          accounts=accounts, 
+                          organizations=user_orgs,
+                          selected_org=org_filter)
 
 @bank_account_bp.route('/bank-accounts/create', methods=['GET', 'POST'])
 @login_required
@@ -103,14 +140,20 @@ def create_bank_account():
 @login_required
 def view_bank_account(account_id):
     """View a specific bank account."""
-    # Temporarily use raw SQL to avoid the organization_id column issue
+    # Query to get bank account with organization information
+    query = """
+        SELECT ba.id, ba.user_id, ba.organization_id, ba.account_name, ba.bank_name, 
+               ba.account_number, ba.branch_name, ba.swift_code, ba.iban, ba.is_default, 
+               ba.created_at, ba.updated_at, org.name as organization_name
+        FROM bank_account ba
+        JOIN organization org ON ba.organization_id = org.id
+        WHERE ba.id = :account_id AND ba.user_id = :user_id
+    """
     
-    # Execute raw SQL that doesn't reference the new column
-    result = db.session.execute(text(
-        'SELECT id, user_id, account_name, bank_name, account_number, '
-        'branch_name, swift_code, iban, is_default, created_at, updated_at '
-        'FROM bank_account WHERE id = :account_id AND user_id = :user_id'
-    ), {'account_id': account_id, 'user_id': current_user.id}).first()
+    result = db.session.execute(text(query), {
+        'account_id': account_id, 
+        'user_id': current_user.id
+    }).first()
     
     if not result:
         abort(404)
@@ -118,16 +161,19 @@ def view_bank_account(account_id):
     account = {
         'id': result[0], 
         'user_id': result[1],
-        'account_name': result[2],
-        'bank_name': result[3], 
-        'account_number': result[4],
-        'branch_name': result[5],
-        'swift_code': result[6],
-        'iban': result[7],
-        'is_default': result[8],
-        'created_at': result[9],
-        'updated_at': result[10]
+        'organization_id': result[2],
+        'account_name': result[3],
+        'bank_name': result[4], 
+        'account_number': result[5],
+        'branch_name': result[6],
+        'swift_code': result[7],
+        'iban': result[8],
+        'is_default': result[9],
+        'created_at': result[10],
+        'updated_at': result[11],
+        'organization_name': result[12]
     }
+    
     return render_template('view_bank_account.html', account=account)
 
 @bank_account_bp.route('/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])
@@ -271,29 +317,44 @@ def delete_bank_account(account_id):
 @login_required
 def api_bank_accounts():
     """API endpoint to get all bank accounts for current user."""
-    # Temporarily use raw SQL to avoid the organization_id column issue
+    # Get organization filter from query parameters
+    org_filter = request.args.get('organization')
+    if org_filter and org_filter.isdigit():
+        org_filter = int(org_filter)
+
+    # Prepare the SQL query with organization_id
+    query = """
+        SELECT id, user_id, organization_id, account_name, bank_name, account_number, 
+               branch_name, swift_code, iban, is_default, created_at, updated_at 
+        FROM bank_account 
+        WHERE user_id = :user_id
+    """
     
-    # Execute raw SQL that doesn't reference the new column
-    result = db.session.execute(text(
-        'SELECT id, user_id, account_name, bank_name, account_number, '
-        'branch_name, swift_code, iban, is_default, created_at, updated_at '
-        'FROM bank_account WHERE user_id = :user_id'
-    ), {'user_id': current_user.id})
+    params = {'user_id': current_user.id}
+    
+    # Apply organization filter if provided
+    if org_filter:
+        query += " AND organization_id = :org_id"
+        params['org_id'] = org_filter
+    
+    # Execute the query
+    result = db.session.execute(text(query), params)
     
     # Convert to list of dictionaries
     accounts = [
         {
             'id': row[0], 
             'user_id': row[1],
-            'account_name': row[2],
-            'bank_name': row[3], 
-            'account_number': row[4],
-            'branch_name': row[5],
-            'swift_code': row[6],
-            'iban': row[7],
-            'is_default': row[8],
-            'created_at': row[9],
-            'updated_at': row[10]
+            'organization_id': row[2],
+            'account_name': row[3],
+            'bank_name': row[4], 
+            'account_number': row[5],
+            'branch_name': row[6],
+            'swift_code': row[7],
+            'iban': row[8],
+            'is_default': row[9],
+            'created_at': row[10],
+            'updated_at': row[11]
         } for row in result
     ]
     
@@ -303,28 +364,45 @@ def api_bank_accounts():
 @login_required
 def api_default_bank_account():
     """API endpoint to get default bank account for current user."""
-    # Temporarily use raw SQL to avoid the organization_id column issue
+    # Get organization filter from query parameters
+    org_filter = request.args.get('organization')
+    if org_filter and org_filter.isdigit():
+        org_filter = int(org_filter)
     
-    # Execute raw SQL that doesn't reference the new column
-    result = db.session.execute(text(
-        'SELECT id, user_id, account_name, bank_name, account_number, '
-        'branch_name, swift_code, iban, is_default, created_at, updated_at '
-        'FROM bank_account WHERE user_id = :user_id AND is_default = true LIMIT 1'
-    ), {'user_id': current_user.id}).first()
+    # Prepare the SQL query with organization_id
+    query = """
+        SELECT id, user_id, organization_id, account_name, bank_name, account_number, 
+               branch_name, swift_code, iban, is_default, created_at, updated_at 
+        FROM bank_account 
+        WHERE user_id = :user_id AND is_default = true
+    """
+    
+    params = {'user_id': current_user.id}
+    
+    # Apply organization filter if provided
+    if org_filter:
+        query += " AND organization_id = :org_id"
+        params['org_id'] = org_filter
+    
+    query += " LIMIT 1"
+    
+    # Execute the query
+    result = db.session.execute(text(query), params).first()
     
     if result:
         account = {
             'id': result[0], 
             'user_id': result[1],
-            'account_name': result[2],
-            'bank_name': result[3], 
-            'account_number': result[4],
-            'branch_name': result[5],
-            'swift_code': result[6],
-            'iban': result[7],
-            'is_default': result[8],
-            'created_at': result[9],
-            'updated_at': result[10]
+            'organization_id': result[2],
+            'account_name': result[3],
+            'bank_name': result[4], 
+            'account_number': result[5],
+            'branch_name': result[6],
+            'swift_code': result[7],
+            'iban': result[8],
+            'is_default': result[9],
+            'created_at': result[10],
+            'updated_at': result[11]
         }
         return jsonify(account)
     return jsonify({})
