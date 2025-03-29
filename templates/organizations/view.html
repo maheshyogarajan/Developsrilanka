@@ -27,7 +27,7 @@
                         <i class="fas fa-paint-brush"></i> Branding
                     </a>
                     {% if org_user.role == 'owner' or current_user.is_admin() %}
-                        <a href="{{ url_for('organization_bank_accounts', org_id=organization.id) }}" class="btn btn-outline-primary">
+                        <a href="{{ url_for('bank_accounts') }}" class="btn btn-outline-primary">
                             <i class="fas fa-university"></i> Bank Accounts
                         </a>
                         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrgModal">
