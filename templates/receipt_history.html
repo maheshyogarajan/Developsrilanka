@@ -353,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Loading receipts from server...");
         showLoading();
         
-        fetch('{{ url_for('list_receipts') }}')
+        fetch('{{ url_for('receipts.list_receipts') }}')
             .then(response => {
                 console.log("Server response status:", response.status);
                 if (!response.ok) {
@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.ReceiptHistoryErrorLogger) {
                     window.ReceiptHistoryErrorLogger.logApiError(
                         error,
-                        '{{ url_for('list_receipts') }}',
+                        '{{ url_for('receipts.list_receipts') }}',
                         'GET',
                         {
                             error_id: errorId,
