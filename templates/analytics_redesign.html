@@ -1,0 +1,968 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- HEADER SECTION -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="page-title mb-2">Financial Intelligence Center</h1>
+            <p class="text-muted">Gain insights into your finances across all your organizations</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% else %}
+
+    <!-- ORGANIZATION SELECTOR & TIME PERIOD -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-building me-2"></i>Organization View</h5>
+                </div>
+                <div class="card-body">
+                    <select id="organizationSelector" class="form-select mb-3">
+                        <option value="all">All Organizations</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if org.is_default %}selected{% endif %}>
+                            {{ org.name }} {% if org.is_default %}(Default){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <div class="d-flex align-items-center">
+                        <label class="mb-0 me-3">Compare with:</label>
+                        <div class="btn-group" role="group">
+                            <input type="checkbox" class="btn-check" id="compareToggle" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="compareToggle">
+                                <i class="fas fa-chart-line me-1"></i> Enable Comparison
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="compareOptions" class="mt-3 d-none">
+                        <select id="compareOrganizationSelector" class="form-select">
+                            <option value="">Select organization to compare</option>
+                            {% for org in organizations %}
+                            <option value="{{ org.id }}">{{ org.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Time Period</h5>
+                </div>
+                <div class="card-body">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="timeRange" id="timeRange1" value="month" checked>
+                        <label class="btn btn-outline-primary" for="timeRange1">This Month</label>
+                        
+                        <input type="radio" class="btn-check" name="timeRange" id="timeRange2" value="quarter">
+                        <label class="btn btn-outline-primary" for="timeRange2">This Quarter</label>
+                        
+                        <input type="radio" class="btn-check" name="timeRange" id="timeRange3" value="year">
+                        <label class="btn btn-outline-primary" for="timeRange3">This Year</label>
+                        
+                        <input type="radio" class="btn-check" name="timeRange" id="timeRange4" value="custom">
+                        <label class="btn btn-outline-primary" for="timeRange4">Custom</label>
+                    </div>
+                    
+                    <div id="customDateRange" class="mt-3 d-none">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label>Start Date</label>
+                                <input type="date" id="startDate" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label>End Date</label>
+                                <input type="date" id="endDate" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FINANCIAL HEALTH SCORE & INSIGHTS -->
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-4 mb-lg-0">
+            <div class="card shadow-sm border-success h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Financial Health Score</h5>
+                </div>
+                <div class="card-body text-center">
+                    <!-- Circular progress bar -->
+                    <div class="position-relative d-inline-block mb-3">
+                        <svg width="200" height="200" viewBox="0 0 200 200">
+                            <circle cx="100" cy="100" r="80" fill="none" stroke="#e6e6e6" stroke-width="15"/>
+                            <circle cx="100" cy="100" r="80" fill="none" stroke="#28a745" stroke-width="15"
+                                    stroke-dasharray="502.4" stroke-dashoffset="{{ 502.4 - (502.4 * financial_health_score / 100) }}"
+                                    transform="rotate(-90 100 100)"/>
+                        </svg>
+                        <div class="position-absolute top-50 start-50 translate-middle">
+                            <h1 class="display-4 mb-0">{{ financial_health_score }}</h1>
+                            <p class="mb-0">out of 100</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tax Optimization</span>
+                            <span class="badge bg-success">{{ tax_optimization_score }}/100</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ tax_optimization_score }}%"></div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Revenue Stability</span>
+                            <span class="badge bg-primary">{{ revenue_stability_score }}/100</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ revenue_stability_score }}%"></div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Expense Management</span>
+                            <span class="badge bg-info">{{ expense_management_score }}/100</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ expense_management_score }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Personalized Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="icon-circle bg-success text-white me-3">
+                                            <i class="fas fa-arrow-up"></i>
+                                        </div>
+                                        <h6 class="mb-0">Growing Categories</h6>
+                                    </div>
+                                    <p class="card-text">Your spending on <strong>{{ top_growing_category }}</strong> has increased by <strong>{{ top_growing_percentage }}%</strong> compared to last period.</p>
+                                    {% if top_growing_category_deductible %}
+                                    <div class="alert alert-success py-1 px-2 mb-0">
+                                        <small><i class="fas fa-check me-1"></i> This category is tax deductible!</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="icon-circle bg-danger text-white me-3">
+                                            <i class="fas fa-arrow-down"></i>
+                                        </div>
+                                        <h6 class="mb-0">Decreasing Categories</h6>
+                                    </div>
+                                    <p class="card-text">Your spending on <strong>{{ top_decreasing_category }}</strong> has decreased by <strong>{{ top_decreasing_percentage }}%</strong> compared to last period.</p>
+                                    {% if not top_decreasing_category_essential %}
+                                    <div class="alert alert-secondary py-1 px-2 mb-0">
+                                        <small><i class="fas fa-info-circle me-1"></i> Good job reducing non-essential expenses.</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="icon-circle bg-warning text-white me-3">
+                                            <i class="fas fa-coins"></i>
+                                        </div>
+                                        <h6 class="mb-0">Tax Opportunity</h6>
+                                    </div>
+                                    <p class="card-text">You could save up to <strong>Rs {{ "{:,.0f}".format(potential_tax_savings) }}</strong> more in taxes by allocating expenses correctly.</p>
+                                    <a href="{{ url_for('tax_savings') }}" class="btn btn-sm btn-warning">Optimize Now</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="icon-circle bg-info text-white me-3">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <h6 class="mb-0">Revenue Insight</h6>
+                                    </div>
+                                    <p class="card-text">Your {{ primary_revenue_source }} revenue has {{ revenue_trend }} by <strong>{{ revenue_change_percentage }}%</strong> in the last period.</p>
+                                    {% if revenue_trend == 'increased' %}
+                                    <div class="alert alert-info py-1 px-2 mb-0">
+                                        <small><i class="fas fa-check me-1"></i> Great job growing your income!</small>
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-warning py-1 px-2 mb-0">
+                                        <small><i class="fas fa-exclamation-triangle me-1"></i> Consider diversifying income sources.</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESPONSIVE CHARTS SECTION -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-4 mb-lg-0">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Financial Trends</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-sm btn-light active" id="incomeVsExpenseBtn">Income vs Expense</button>
+                        <button class="btn btn-sm btn-light" id="taxDeductibleBtn">Tax Deductible</button>
+                        <button class="btn btn-sm btn-light" id="cashFlowBtn">Cash Flow</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container position-relative" style="height:300px;">
+                        <canvas id="financialTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Expense Categories</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container position-relative" style="height:300px;">
+                        <canvas id="expenseCategoriesChart"></canvas>
+                    </div>
+                    
+                    <!-- Hidden data for charts -->
+                    <div id="expenseCategoriesData" 
+                         data-labels="{{ major_categories|map(attribute='category')|list|tojson }}" 
+                         data-values="{{ major_categories|map(attribute='total')|list|tojson }}" 
+                         class="d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MULTI-ORGANIZATION AND INCOME BREAKDOWN -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-building me-2"></i>Multi-Organization Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Organization</th>
+                                    <th>Revenue</th>
+                                    <th>Expenses</th>
+                                    <th>Net</th>
+                                    <th>Tax Savings</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for org in org_financials %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="org-icon me-2" style="background-color: {{ org.color }}">
+                                                {{ org.name[:1] }}
+                                            </div>
+                                            {{ org.name }}
+                                        </div>
+                                    </td>
+                                    <td>Rs {{ "{:,.0f}".format(org.revenue) }}</td>
+                                    <td>Rs {{ "{:,.0f}".format(org.expenses) }}</td>
+                                    <td class="{{ 'text-success' if org.net > 0 else 'text-danger' }}">
+                                        Rs {{ "{:,.0f}".format(org.net) }}
+                                    </td>
+                                    <td>Rs {{ "{:,.0f}".format(org.tax_savings) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th>Total</th>
+                                    <th>Rs {{ "{:,.0f}".format(total_revenue) }}</th>
+                                    <th>Rs {{ "{:,.0f}".format(total_expenses) }}</th>
+                                    <th class="{{ 'text-success' if (total_revenue - total_expenses) > 0 else 'text-danger' }}">
+                                        Rs {{ "{:,.0f}".format(total_revenue - total_expenses) }}
+                                    </th>
+                                    <th>Rs {{ "{:,.0f}".format(total_tax_savings) }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Income Streams</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container position-relative" style="height:300px;">
+                        <canvas id="incomeStreamsChart"></canvas>
+                    </div>
+                    
+                    <!-- Hidden data for charts -->
+                    <div id="incomeData" 
+                         data-labels="{{ income_sources|map(attribute='source')|list|tojson }}" 
+                         data-values="{{ income_sources|map(attribute='amount')|list|tojson }}" 
+                         class="d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- INVOICE ANALYTICS & TAX OPTIMIZATION -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Invoice Analytics</h5>
+                    <a href="{{ url_for('invoices') }}" class="btn btn-sm btn-light">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-4">
+                        <div class="col-sm-4">
+                            <div class="p-3 border rounded">
+                                <h6 class="text-success mb-1">Paid</h6>
+                                <h3 class="mb-1">Rs {{ "{:,.0f}".format(paid_invoices_total) }}</h3>
+                                <span class="badge bg-secondary">{{ paid_invoice_count }} invoices</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="p-3 border rounded">
+                                <h6 class="text-warning mb-1">Pending</h6>
+                                <h3 class="mb-1">Rs {{ "{:,.0f}".format(pending_invoices_total) }}</h3>
+                                <span class="badge bg-secondary">{{ pending_invoice_count }} invoices</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="p-3 border rounded">
+                                <h6 class="text-danger mb-1">Overdue</h6>
+                                <h3 class="mb-1">Rs {{ "{:,.0f}".format(overdue_invoices_total) }}</h3>
+                                <span class="badge bg-secondary">{{ overdue_invoice_count }} invoices</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container position-relative" style="height:200px;">
+                        <canvas id="invoiceStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Tax Optimization</h5>
+                    <a href="{{ url_for('tax_savings') }}" class="btn btn-sm btn-light">Tax Calculator</a>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="position-relative me-4">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="54" fill="none" stroke="#e6e6e6" stroke-width="12"/>
+                                <circle cx="60" cy="60" r="54" fill="none" stroke="#28a745" stroke-width="12"
+                                        stroke-dasharray="339.292" stroke-dashoffset="{{ 339.292 - (339.292 * tax_optimization_percentage / 100) }}"
+                                        transform="rotate(-90 60 60)"/>
+                            </svg>
+                            <div class="position-absolute top-50 start-50 translate-middle text-center">
+                                <h3 class="mb-0">{{ tax_optimization_percentage }}%</h3>
+                                <small class="text-muted">Optimized</small>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h6>Tax Savings Potential</h6>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-success h4 mb-0">Rs {{ "{:,.0f}".format(realized_tax_savings) }}</span>
+                                <span class="text-muted mx-2">of</span>
+                                <span class="text-primary h4 mb-0">Rs {{ "{:,.0f}".format(potential_tax_savings) }}</span>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ tax_optimization_percentage }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title">Top Tax-Saving Category</h6>
+                                    <p class="mb-0"><strong>{{ top_tax_saving_category }}</strong>: Rs {{ "{:,.0f}".format(top_tax_saving_amount) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title">Missing Opportunities</h6>
+                                    <p class="mb-0">{{ missing_opportunity_count }} receipts need review</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ACTION ITEMS & RECOMMENDATIONS -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Recommended Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if missing_opportunity_count > 0 %}
+                        <div class="col-lg-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="icon-circle bg-warning text-white me-3">
+                                        <i class="fas fa-tags"></i>
+                                    </div>
+                                    <h6 class="mb-0">Tag Missing Expenses</h6>
+                                </div>
+                                <p class="card-text">{{ missing_opportunity_count }} expenses need tax deductibility review.</p>
+                                <a href="{{ url_for('receipt_history') }}" class="btn btn-sm btn-warning">Review Expenses</a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if overdue_invoice_count > 0 %}
+                        <div class="col-lg-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="icon-circle bg-danger text-white me-3">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                    </div>
+                                    <h6 class="mb-0">Follow Up on Invoices</h6>
+                                </div>
+                                <p class="card-text">You have {{ overdue_invoice_count }} overdue invoices totaling Rs {{ "{:,.0f}".format(overdue_invoices_total) }}.</p>
+                                <a href="{{ url_for('invoices', status='overdue') }}" class="btn btn-sm btn-danger">View Overdue</a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if income_data_missing %}
+                        <div class="col-lg-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="icon-circle bg-primary text-white me-3">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </div>
+                                    <h6 class="mb-0">Complete Income Details</h6>
+                                </div>
+                                <p class="card-text">Add your income details to enhance tax optimization calculations.</p>
+                                <a href="{{ url_for('profile') }}" class="btn btn-sm btn-primary">Update Profile</a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if not income_data_missing and not overdue_invoice_count > 0 and not missing_opportunity_count > 0 %}
+                        <div class="col-12 text-center py-3">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h5>Great job! Your finances are well-managed</h5>
+                            <p class="text-muted">You don't have any urgent actions needed at this time.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% endif %}
+</div>
+
+<style>
+    .icon-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .org-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .chart-container {
+        position: relative;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set page title
+        document.getElementById('page-title').textContent = 'Financial Intelligence Center';
+        
+        // Initialize charts
+        initFinancialTrendsChart();
+        initExpenseCategoriesChart();
+        initIncomeStreamsChart();
+        initInvoiceStatusChart();
+        
+        // Toggle comparison options
+        document.getElementById('compareToggle').addEventListener('change', function() {
+            const compareOptions = document.getElementById('compareOptions');
+            if (this.checked) {
+                compareOptions.classList.remove('d-none');
+            } else {
+                compareOptions.classList.add('d-none');
+            }
+        });
+        
+        // Toggle custom date range
+        document.querySelectorAll('input[name="timeRange"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                const customDateRange = document.getElementById('customDateRange');
+                if (this.value === 'custom') {
+                    customDateRange.classList.remove('d-none');
+                } else {
+                    customDateRange.classList.add('d-none');
+                }
+            });
+        });
+        
+        // Change chart type buttons
+        document.getElementById('incomeVsExpenseBtn').addEventListener('click', function() {
+            setActiveButton(this);
+            updateFinancialTrendsChart('incomeVsExpense');
+        });
+        
+        document.getElementById('taxDeductibleBtn').addEventListener('click', function() {
+            setActiveButton(this);
+            updateFinancialTrendsChart('taxDeductible');
+        });
+        
+        document.getElementById('cashFlowBtn').addEventListener('click', function() {
+            setActiveButton(this);
+            updateFinancialTrendsChart('cashFlow');
+        });
+        
+        // Organization selector change
+        document.getElementById('organizationSelector').addEventListener('change', function() {
+            // In a real implementation, this would reload the data for the selected organization
+            alert('This would refresh data for organization ID: ' + this.value);
+        });
+    });
+    
+    function setActiveButton(button) {
+        // Remove active class from all buttons in the group
+        button.parentNode.querySelectorAll('.btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        // Add active class to clicked button
+        button.classList.add('active');
+    }
+    
+    function initFinancialTrendsChart() {
+        const ctx = document.getElementById('financialTrendsChart').getContext('2d');
+        
+        // Sample data - in production this would come from the server
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        const incomeData = [{{ monthly_income|tojson|safe }}];
+        const expenseData = [{{ monthly_expenses|tojson|safe }}];
+        
+        window.financialTrendsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('en-IN', {
+                                        style: 'currency',
+                                        currency: 'LKR',
+                                        maximumFractionDigits: 0
+                                    }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rs ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateFinancialTrendsChart(type) {
+        // This would update the chart based on the selected type
+        // For now, we'll just simulate it
+        if (window.financialTrendsChart) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+            
+            if (type === 'incomeVsExpense') {
+                window.financialTrendsChart.data.datasets = [
+                    {
+                        label: 'Income',
+                        data: [{{ monthly_income|tojson|safe }}],
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Expenses',
+                        data: [{{ monthly_expenses|tojson|safe }}],
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ];
+            } else if (type === 'taxDeductible') {
+                window.financialTrendsChart.data.datasets = [
+                    {
+                        label: 'Tax Deductible',
+                        data: [{{ monthly_deductible|tojson|safe }}],
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Non-Deductible',
+                        data: [{{ monthly_non_deductible|tojson|safe }}],
+                        borderColor: '#6c757d',
+                        backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ];
+            } else if (type === 'cashFlow') {
+                window.financialTrendsChart.data.datasets = [
+                    {
+                        label: 'Net Cash Flow',
+                        data: [{{ monthly_cash_flow|tojson|safe }}],
+                        borderColor: '#17a2b8',
+                        backgroundColor: function(context) {
+                            const value = context.dataset.data[context.dataIndex];
+                            return value >= 0 ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)';
+                        },
+                        fill: true,
+                        tension: 0.3
+                    }
+                ];
+            }
+            
+            window.financialTrendsChart.update();
+        }
+    }
+    
+    function initExpenseCategoriesChart() {
+        const ctx = document.getElementById('expenseCategoriesChart').getContext('2d');
+        
+        // Get data from the hidden div
+        const dataElement = document.getElementById('expenseCategoriesData');
+        const labels = JSON.parse(dataElement.dataset.labels);
+        const values = JSON.parse(dataElement.dataset.values);
+        
+        // Generate colors
+        const colors = generateChartColors(labels.length);
+        
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.raw !== null) {
+                                    label += new Intl.NumberFormat('en-IN', {
+                                        style: 'currency',
+                                        currency: 'LKR',
+                                        maximumFractionDigits: 0
+                                    }).format(context.raw);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function initIncomeStreamsChart() {
+        const ctx = document.getElementById('incomeStreamsChart').getContext('2d');
+        
+        // Get data from the hidden div
+        const dataElement = document.getElementById('incomeData');
+        
+        // If the element doesn't exist yet (since we're redesigning), use placeholder data
+        const labels = dataElement ? JSON.parse(dataElement.dataset.labels) : ['Business', 'Consulting', 'Investments'];
+        const values = dataElement ? JSON.parse(dataElement.dataset.values) : [{{ income_data|tojson|safe }}];
+        
+        // Generate colors
+        const colors = generateChartColors(labels.length);
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Income Amount',
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: colors.map(color => color.replace('0.7', '1')),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.raw !== null) {
+                                    label += new Intl.NumberFormat('en-IN', {
+                                        style: 'currency',
+                                        currency: 'LKR',
+                                        maximumFractionDigits: 0
+                                    }).format(context.raw);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rs ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function initInvoiceStatusChart() {
+        const ctx = document.getElementById('invoiceStatusChart').getContext('2d');
+        
+        const data = {
+            labels: ['Paid', 'Pending', 'Overdue'],
+            datasets: [{
+                data: [
+                    {{ paid_invoices_total }}, 
+                    {{ pending_invoices_total }}, 
+                    {{ overdue_invoices_total }}
+                ],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.7)',
+                    'rgba(255, 193, 7, 0.7)',
+                    'rgba(220, 53, 69, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(255, 193, 7, 1)',
+                    'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 1
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'pie',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.raw !== null) {
+                                    label += new Intl.NumberFormat('en-IN', {
+                                        style: 'currency',
+                                        currency: 'LKR',
+                                        maximumFractionDigits: 0
+                                    }).format(context.raw);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function generateChartColors(count) {
+        const baseColors = [
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(255, 99, 132, 0.7)',
+            'rgba(255, 206, 86, 0.7)',
+            'rgba(75, 192, 192, 0.7)',
+            'rgba(153, 102, 255, 0.7)',
+            'rgba(255, 159, 64, 0.7)',
+            'rgba(199, 199, 199, 0.7)',
+            'rgba(83, 102, 255, 0.7)',
+            'rgba(40, 167, 69, 0.7)',
+            'rgba(220, 53, 69, 0.7)'
+        ];
+        
+        // If we have enough base colors, use them
+        if (count <= baseColors.length) {
+            return baseColors.slice(0, count);
+        }
+        
+        // Otherwise, generate more colors
+        const colors = [...baseColors];
+        for (let i = baseColors.length; i < count; i++) {
+            const r = Math.floor(Math.random() * 255);
+            const g = Math.floor(Math.random() * 255);
+            const b = Math.floor(Math.random() * 255);
+            colors.push(`rgba(${r}, ${g}, ${b}, 0.7)`);
+        }
+        
+        return colors;
+    }
+</script>
+{% endblock %}

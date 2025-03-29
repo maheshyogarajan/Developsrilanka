@@ -231,6 +231,10 @@
                             <i class="fas fa-chart-pie"></i>
                             <span>Analytics</span>
                         </a>
+                        <a href="{{ url_for('analytics_redesign') }}" class="nav-link {% if request.path == '/analytics/redesign' %}active{% endif %}">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Financial Intelligence</span>
+                        </a>
                         <a href="{{ url_for('tax_savings') }}" class="nav-link {% if request.path == '/tax-savings' %}active{% endif %}">
                             <i class="fas fa-calculator"></i>
                             <span>Tax Savings</span>
@@ -295,6 +299,10 @@
                         <a href="{{ url_for('receipt_history') }}" class="nav-link {% if request.path == '/history' %}active{% endif %}">
                             <i class="fas fa-history"></i>
                             <span>History</span>
+                        </a>
+                        <a href="{{ url_for('analytics_redesign') }}" class="nav-link {% if request.path == '/analytics/redesign' %}active{% endif %}">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Financial Intelligence</span>
                         </a>
                         <a href="{{ url_for('analytics') }}" class="nav-link {% if request.path == '/analytics' %}active{% endif %}">
                             <i class="fas fa-chart-pie"></i>
@@ -380,6 +388,8 @@
     <!-- Analytics Charts JavaScript -->
     {% if request.path == '/analytics' %}
     <script src="{{ url_for('static', filename='js/analytics-charts.js') }}"></script>
+    {% elif request.path == '/analytics/redesign' %}
+    <!-- Redesigned Analytics already includes Chart.js scripts -->
     {% endif %}
     
     <!-- Mobile Navigation Toggle Script -->
@@ -412,6 +422,8 @@
                     pageTitle = "Receipt History";
                 } else if (path === '/analytics') {
                     pageTitle = "Analytics";
+                } else if (path === '/analytics/redesign') {
+                    pageTitle = "Financial Intelligence Center";
                 } else if (path.includes('/tax-savings')) {
                     pageTitle = "Tax Savings Calculator";
                 } else if (path.includes('/invoices')) {
