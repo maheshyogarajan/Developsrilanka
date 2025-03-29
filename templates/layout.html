@@ -21,344 +21,574 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
     
     <style>
-        /* Header and Navigation */
-        .header {
-            background-color: #fff;
-            border-bottom: 1px solid #e9ecef;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            width: 100%;
+        :root {
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --primary-color: #6200EA;
+            --primary-light: #e9f0ff;
+            --secondary-color: #7E57C2;
+            --text-color: #495057;
+            --submenu-bg: #f8f9fa;
+            --transition-speed: 0.3s;
         }
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 0 auto;
-            padding: 0.5rem 0;
-        }
-        .nav-link {
+        
+        body {
+            overflow-x: hidden;
+            color: var(--text-color);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            color: #6c757d;
-            text-decoration: none;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease;
-            margin: 0.25rem;
         }
-        .nav-link i {
-            font-size: 1.25rem;
-            margin-bottom: 0.25rem;
+        
+        /* Sidebar Styling */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #fff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: all var(--transition-speed) ease;
+            overflow-y: auto;
+            padding-top: 1rem;
         }
-        .nav-link span {
-            font-size: 0.85rem;
+        
+        .sidebar-collapsed {
+            width: var(--sidebar-collapsed-width);
         }
-        .nav-link:hover {
-            background-color: #f8f9fa;
-            color: #0d6efd;
-        }
-        .nav-link.active {
-            background-color: #e9f0ff;
-            color: #0d6efd;
-            font-weight: bold;
-        }
-        .page-title {
-            text-align: center;
-            font-size: 1.25rem;
-            margin: 0.5rem 0;
-            color: #343a40;
-        }
-        .brand-link {
+        
+        .sidebar-header {
+            padding: 0.5rem 1rem 1.5rem;
             display: flex;
             align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            padding: 0.5rem;
-            transition: all 0.2s ease;
-            margin: 0 auto;
-        }
-        .brand-link:hover {
-            background-color: #f8f9fa;
-        }
-        .brand-logo {
-            height: 35px;
-            margin-right: 0.25rem;
+            justify-content: space-between;
         }
         
-        /* Mobile Navigation */
-        .mobile-menu-toggle {
-            display: none;
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: var(--text-color);
+        }
+        
+        .brand-logo {
+            height: 40px;
+            margin-right: 0.75rem;
+        }
+        
+        .sidebar-toggle {
             background: none;
             border: none;
-            color: #6c757d;
-            font-size: 1.5rem;
+            color: var(--text-color);
+            font-size: 1.25rem;
             cursor: pointer;
-            padding: 0.5rem;
-        }
-        
-        .mobile-nav-container {
-            display: none;
-            width: 100%;
-        }
-        
-        /* Animation and Visual Elements */
-        .icon-rounded {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             justify-content: center;
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            font-size: 14px;
+            transition: background-color 0.2s;
         }
         
-        /* Extra animation classes */
-        .animate-delay-100 {
-            animation-delay: 100ms;
-        }
-        .animate-delay-300 {
-            animation-delay: 300ms;
-        }
-        .animate-delay-500 {
-            animation-delay: 500ms;
+        .sidebar-toggle:hover {
+            background-color: var(--primary-light);
         }
         
-        /* Counter animation */
-        .counter-animation {
-            transition: all 1.5s ease-in-out;
+        /* Navigation Menu */
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .menu-item {
+            margin-bottom: 0.25rem;
+        }
+        
+        .menu-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .menu-link:hover {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+        }
+        
+        .menu-link.active {
+            color: var(--primary-color);
+            background-color: var(--primary-light);
+            border-left-color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .menu-icon {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
+            margin-right: 0.75rem;
+            transition: margin var(--transition-speed);
+        }
+        
+        .menu-text {
+            transition: opacity var(--transition-speed);
+            white-space: nowrap;
+        }
+        
+        /* Submenu Styling */
+        .submenu {
+            max-height: 0;
+            overflow: hidden;
+            list-style: none;
+            padding-left: 0;
+            transition: max-height 0.3s ease;
+        }
+        
+        .submenu-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem 0.5rem 3.25rem;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+        
+        .submenu-link:hover {
+            background-color: var(--submenu-bg);
+            color: var(--primary-color);
+        }
+        
+        .submenu-link.active {
+            color: var(--primary-color);
+            background-color: var(--submenu-bg);
+            font-weight: 500;
+        }
+        
+        .submenu-icon {
+            font-size: 0.9rem;
+            width: 18px;
+            text-align: center;
+            margin-right: 0.5rem;
+        }
+        
+        /* Toggle Submenu */
+        .menu-item.open .submenu {
+            max-height: 300px; /* Adjust based on max number of items */
+        }
+        
+        .has-submenu::after {
+            content: '\f107'; /* fa-angle-down */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            margin-left: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .menu-item.open .has-submenu::after {
+            transform: rotate(180deg);
+        }
+        
+        /* Collapsed Sidebar Styles */
+        .sidebar-collapsed .menu-text,
+        .sidebar-collapsed .brand-text,
+        .sidebar-collapsed .has-submenu::after {
+            display: none;
+        }
+        
+        .sidebar-collapsed .menu-icon {
+            margin-right: 0;
+        }
+        
+        .sidebar-collapsed .menu-link {
+            justify-content: center;
+            padding: 0.75rem;
+        }
+        
+        .sidebar-collapsed .submenu-link {
+            padding: 0.5rem;
+            justify-content: center;
+        }
+        
+        .sidebar-collapsed .menu-item:hover .submenu {
+            max-height: 0; /* Keep submenu closed in collapsed mode */
+        }
+        
+        /* Main Content Area */
+        .content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            transition: margin-left var(--transition-speed) ease;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .content-collapsed {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+        
+        .main-header {
+            background-color: #fff;
+            border-bottom: 1px solid #e9ecef;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .page-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin: 0;
+            color: var(--text-color);
+        }
+        
+        .main-content {
+            padding: 1.5rem;
+            flex: 1;
+        }
+        
+        /* Mobile Styles */
+        .mobile-header {
+            display: none;
+            background-color: #fff;
+            padding: 0.75rem 1rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+        }
+        
+        .mobile-toggle {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            cursor: pointer;
         }
         
         /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .header .container {
-                padding: 0;
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: var(--sidebar-width);
             }
             
-            .header-content {
-                flex-direction: column;
-                align-items: center;
-                padding: 0.5rem 0;
+            .sidebar.sidebar-mobile-open {
+                transform: translateX(0);
             }
             
-            .mobile-menu-toggle {
-                display: block;
-                position: absolute;
-                right: 1rem;
-                top: 1rem;
+            .content {
+                margin-left: 0;
+                padding-top: 60px; /* Height of mobile header */
             }
             
-            .nav-desktop {
-                display: none;
+            .content-collapsed {
+                margin-left: 0;
             }
             
-            .mobile-nav-container {
-                display: block;
+            .mobile-header {
+                display: flex;
             }
             
-            .nav-buttons {
-                justify-content: center;
-                max-width: 100%;
-                overflow-x: auto;
-                padding: 0.5rem;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s;
             }
             
-            .nav-buttons::-webkit-scrollbar {
-                display: none;
+            .sidebar-overlay.active {
+                opacity: 1;
+                visibility: visible;
             }
             
-            .page-title {
-                font-size: 1.1rem;
-                margin: 0.5rem 0;
+            .menu-link, .submenu-link {
+                padding-left: 1.5rem;
             }
             
-            .brand-logo {
-                height: 30px;
+            .submenu-link {
+                padding-left: 3.25rem;
             }
         }
         
-        @media (min-width: 769px) {
-            .mobile-nav-container {
-                display: none !important;
-            }
-            
-            .nav-desktop {
-                display: block !important;
-            }
+        /* Footer */
+        .footer {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            margin-top: auto;
         }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="container">
-            <div class="d-flex justify-content-between align-items-center py-2 header-content">
-                <a href="/" class="brand-link">
-                    <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Develop Sri Lanka Logo" class="brand-logo">
-                </a>
-                
-                <!-- Mobile menu toggle -->
-                <button class="mobile-menu-toggle" id="mobileMenuToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
-                
-                <!-- Desktop Navigation -->
-                <nav class="nav-desktop">
-                    <div class="nav-buttons">
-                        <a href="{{ url_for('home') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
-                            <i class="fas fa-home"></i>
-                            <span>Home</span>
-                        </a>
-                        {% if not current_user.is_authenticated %}
-                        <a href="{{ url_for('preview') }}" class="nav-link {% if request.path == '/preview' %}active{% endif %}">
-                            <i class="fas fa-eye"></i>
-                            <span>Preview</span>
-                        </a>
-                        <a href="{{ url_for('login') }}" class="nav-link {% if request.path == '/login' %}active{% endif %}">
-                            <i class="fas fa-sign-in-alt"></i>
-                            <span>Login</span>
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/scan' %}active{% endif %}">
-                            <i class="fas fa-camera"></i>
-                            <span>Scan</span>
-                        </a>
-                        <a href="{{ url_for('receipt_history') }}" class="nav-link {% if request.path == '/history' %}active{% endif %}">
-                            <i class="fas fa-history"></i>
-                            <span>History</span>
-                        </a>
-                        <a href="{{ url_for('invoices') }}" class="nav-link {% if '/invoices' in request.path %}active{% endif %}">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                            <span>Invoices</span>
-                        </a>
-                        <a href="{{ url_for('clients.clients') }}" class="nav-link {% if '/clients' in request.path %}active{% endif %}">
-                            <i class="fas fa-users"></i>
-                            <span>Clients</span>
-                        </a>
-                        <a href="{{ url_for('bank_accounts') }}" class="nav-link {% if '/bank-accounts' in request.path %}active{% endif %}">
-                            <i class="fas fa-university"></i>
-                            <span>Banks</span>
-                        </a>
-                        <a href="{{ url_for('organizations.organizations') }}" class="nav-link {% if '/organizations' in request.path %}active{% endif %}">
-                            <i class="fas fa-building"></i>
-                            <span>Organizations</span>
-                        </a>
-                        <a href="{{ url_for('expense.expenses') }}" class="nav-link {% if '/expenses' in request.path %}active{% endif %}">
-                            <i class="fas fa-clipboard-list"></i>
-                            <span>Expenses</span>
-                        </a>
-                        <a href="{{ url_for('classify.classify_receipts') }}" class="nav-link {% if '/classify' in request.path %}active{% endif %}">
-                            <i class="fas fa-tags"></i>
-                            <span>Classify</span>
-                        </a>
-                        <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
-                            <i class="fas fa-user"></i>
-                            <span>Profile</span>
-                        </a>
-                        {% if current_user.is_admin() %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if '/admin/' in request.path %}active{% endif %}">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>Admin</span>
-                        </a>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                </nav>
-            </div>
-            
-            <!-- Mobile Navigation (Hidden by default) -->
-            <div class="mobile-nav-container" id="mobileNavContainer">
-                <nav class="mobile-nav">
-                    <div class="nav-buttons">
-                        <a href="{{ url_for('home') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
-                            <i class="fas fa-home"></i>
-                            <span>Home</span>
-                        </a>
-                        {% if not current_user.is_authenticated %}
-                        <a href="{{ url_for('preview') }}" class="nav-link {% if request.path == '/preview' %}active{% endif %}">
-                            <i class="fas fa-eye"></i>
-                            <span>Preview</span>
-                        </a>
-                        <a href="{{ url_for('login') }}" class="nav-link {% if request.path == '/login' %}active{% endif %}">
-                            <i class="fas fa-sign-in-alt"></i>
-                            <span>Login</span>
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/scan' %}active{% endif %}">
-                            <i class="fas fa-camera"></i>
-                            <span>Scan</span>
-                        </a>
-                        <a href="{{ url_for('receipt_history') }}" class="nav-link {% if request.path == '/history' %}active{% endif %}">
-                            <i class="fas fa-history"></i>
-                            <span>History</span>
-                        </a>
-                        <a href="{{ url_for('invoices') }}" class="nav-link {% if '/invoices' in request.path %}active{% endif %}">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                            <span>Invoices</span>
-                        </a>
-                        <a href="{{ url_for('clients.clients') }}" class="nav-link {% if '/clients' in request.path %}active{% endif %}">
-                            <i class="fas fa-users"></i>
-                            <span>Clients</span>
-                        </a>
-                        <a href="{{ url_for('bank_accounts') }}" class="nav-link {% if '/bank-accounts' in request.path %}active{% endif %}">
-                            <i class="fas fa-university"></i>
-                            <span>Banks</span>
-                        </a>
-                        <a href="{{ url_for('organizations.organizations') }}" class="nav-link {% if '/organizations' in request.path %}active{% endif %}">
-                            <i class="fas fa-building"></i>
-                            <span>Organizations</span>
-                        </a>
-                        <a href="{{ url_for('expense.expenses') }}" class="nav-link {% if '/expenses' in request.path %}active{% endif %}">
-                            <i class="fas fa-clipboard-list"></i>
-                            <span>Expenses</span>
-                        </a>
-                        <a href="{{ url_for('classify.classify_receipts') }}" class="nav-link {% if '/classify' in request.path %}active{% endif %}">
-                            <i class="fas fa-tags"></i>
-                            <span>Classify</span>
-                        </a>
-                        <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
-                            <i class="fas fa-user"></i>
-                            <span>Profile</span>
-                        </a>
-                        {% if current_user.is_admin() %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if '/admin/' in request.path %}active{% endif %}">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>Admin</span>
-                        </a>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                </nav>
-            </div>
-            
-            <h1 class="page-title" id="page-title">Develop Sri Lanka</h1>
-        </div>
+    <!-- Mobile Header (visible on small screens) -->
+    <header class="mobile-header">
+        <button class="mobile-toggle" id="mobileSidebarToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+        <a href="/" class="sidebar-brand mx-auto">
+            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo" style="height: 30px;">
+        </a>
     </header>
-
-    <main class="container my-3">
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer class="footer mt-auto py-3 bg-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-6 text-center text-md-start">
-                    <p class="mb-0">&copy; 2025 Develop Sri Lanka. All rights reserved.</p>
-                </div>
-                <div class="col-md-6 text-center text-md-end">
-                    <a href="#" class="text-decoration-none text-muted me-2">
-                        <i class="fab fa-facebook"></i>
+    
+    <!-- Sidebar Overlay (for mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-brand">
+                <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo">
+                <span class="brand-text">Develop Sri Lanka</span>
+            </a>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+        
+        <nav>
+            <ul class="sidebar-menu">
+                {% if not current_user.is_authenticated %}
+                <!-- Unauthenticated Menu Items -->
+                <li class="menu-item">
+                    <a href="{{ url_for('home') }}" class="menu-link {% if request.path == '/' %}active{% endif %}">
+                        <i class="fas fa-home menu-icon"></i>
+                        <span class="menu-text">Home</span>
                     </a>
-                    <a href="#" class="text-decoration-none text-muted me-2">
-                        <i class="fab fa-twitter"></i>
+                </li>
+                <li class="menu-item">
+                    <a href="{{ url_for('preview') }}" class="menu-link {% if request.path == '/preview' %}active{% endif %}">
+                        <i class="fas fa-eye menu-icon"></i>
+                        <span class="menu-text">Preview</span>
                     </a>
-                    <a href="#" class="text-decoration-none text-muted">
-                        <i class="fab fa-instagram"></i>
+                </li>
+                <li class="menu-item">
+                    <a href="{{ url_for('login') }}" class="menu-link {% if request.path == '/login' %}active{% endif %}">
+                        <i class="fas fa-sign-in-alt menu-icon"></i>
+                        <span class="menu-text">Login</span>
                     </a>
+                </li>
+                {% else %}
+                <!-- Authenticated Menu Items -->
+                <li class="menu-item">
+                    <a href="{{ url_for('home') }}" class="menu-link {% if request.path == '/' %}active{% endif %}">
+                        <i class="fas fa-home menu-icon"></i>
+                        <span class="menu-text">Home</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="{{ url_for('index') }}" class="menu-link {% if request.path == '/scan' %}active{% endif %}">
+                        <i class="fas fa-camera menu-icon"></i>
+                        <span class="menu-text">Scan</span>
+                    </a>
+                </li>
+                
+                <!-- Cash Out group -->
+                <li class="menu-item {% if '/classify' in request.path or '/expenses' in request.path or '/history' in request.path %}open{% endif %}">
+                    <a href="#" class="menu-link has-submenu {% if '/classify' in request.path or '/expenses' in request.path or '/history' in request.path %}active{% endif %}">
+                        <i class="fas fa-money-bill-wave menu-icon"></i>
+                        <span class="menu-text">Cash Out</span>
+                    </a>
+                    <ul class="submenu">
+                        <li>
+                            <a href="{{ url_for('classify.classify_receipts') }}" class="submenu-link {% if '/classify' in request.path %}active{% endif %}">
+                                <i class="fas fa-tags submenu-icon"></i>
+                                <span>Classify</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('expense.expenses') }}" class="submenu-link {% if '/expenses' in request.path %}active{% endif %}">
+                                <i class="fas fa-clipboard-list submenu-icon"></i>
+                                <span>Expenses</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('receipt_history') }}" class="submenu-link {% if request.path == '/history' %}active{% endif %}">
+                                <i class="fas fa-history submenu-icon"></i>
+                                <span>History</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                
+                <!-- Cash In group -->
+                <li class="menu-item {% if '/clients' in request.path or '/invoices' in request.path %}open{% endif %}">
+                    <a href="#" class="menu-link has-submenu {% if '/clients' in request.path or '/invoices' in request.path %}active{% endif %}">
+                        <i class="fas fa-hand-holding-dollar menu-icon"></i>
+                        <span class="menu-text">Cash In</span>
+                    </a>
+                    <ul class="submenu">
+                        <li>
+                            <a href="{{ url_for('clients.clients') }}" class="submenu-link {% if '/clients' in request.path %}active{% endif %}">
+                                <i class="fas fa-users submenu-icon"></i>
+                                <span>Clients</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('invoices') }}" class="submenu-link {% if '/invoices' in request.path %}active{% endif %}">
+                                <i class="fas fa-file-invoice-dollar submenu-icon"></i>
+                                <span>Invoices</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                
+                <!-- Who (Organizations/Bank) group -->
+                <li class="menu-item {% if '/organizations' in request.path or '/bank-accounts' in request.path %}open{% endif %}">
+                    <a href="#" class="menu-link has-submenu {% if '/organizations' in request.path or '/bank-accounts' in request.path %}active{% endif %}">
+                        <i class="fas fa-user-tie menu-icon"></i>
+                        <span class="menu-text">Who</span>
+                    </a>
+                    <ul class="submenu">
+                        <li>
+                            <a href="{{ url_for('organizations.organizations') }}" class="submenu-link {% if '/organizations' in request.path %}active{% endif %}">
+                                <i class="fas fa-building submenu-icon"></i>
+                                <span>Organizations</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('bank_accounts') }}" class="submenu-link {% if '/bank-accounts' in request.path %}active{% endif %}">
+                                <i class="fas fa-university submenu-icon"></i>
+                                <span>Banks</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                
+                <li class="menu-item">
+                    <a href="{{ url_for('profile') }}" class="menu-link {% if request.path == '/profile' %}active{% endif %}">
+                        <i class="fas fa-user menu-icon"></i>
+                        <span class="menu-text">Profile</span>
+                    </a>
+                </li>
+                
+                {% if current_user.is_admin() %}
+                <li class="menu-item">
+                    <a href="{{ url_for('admin_dashboard') }}" class="menu-link {% if '/admin/' in request.path %}active{% endif %}">
+                        <i class="fas fa-shield-alt menu-icon"></i>
+                        <span class="menu-text">Admin</span>
+                    </a>
+                </li>
+                {% endif %}
+                
+                <li class="menu-item mt-4">
+                    <a href="{{ url_for('logout') }}" class="menu-link text-danger">
+                        <i class="fas fa-sign-out-alt menu-icon"></i>
+                        <span class="menu-text">Logout</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </aside>
+    
+    <!-- Main Content Area -->
+    <div class="content" id="content">
+        <header class="main-header">
+            <h1 class="page-title" id="pageTitle">
+                {% if request.path == '/' %}
+                    Home
+                {% elif request.path == '/scan' %}
+                    Scan Receipt
+                {% elif request.path == '/history' %}
+                    Receipt History
+                {% elif '/invoices' in request.path %}
+                    Invoices
+                {% elif '/clients' in request.path %}
+                    Clients
+                {% elif '/bank-accounts' in request.path %}
+                    Bank Accounts
+                {% elif '/organizations' in request.path %}
+                    Organizations
+                {% elif '/expenses' in request.path %}
+                    Expenses
+                {% elif '/classify' in request.path %}
+                    Classify Receipts
+                {% elif request.path == '/profile' %}
+                    Profile
+                {% elif request.path == '/login' %}
+                    Login
+                {% elif request.path == '/preview' %}
+                    Preview Receipt Scanner
+                {% elif '/admin/' in request.path %}
+                    Admin Dashboard
+                {% else %}
+                    Develop Sri Lanka
+                {% endif %}
+            </h1>
+            
+            {% if current_user.is_authenticated %}
+            <div class="d-none d-md-flex align-items-center">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-circle me-1"></i>
+                        {{ current_user.name or current_user.email }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fas fa-user-cog me-2"></i>Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    </ul>
                 </div>
             </div>
-        </div>
-    </footer>
+            {% endif %}
+        </header>
+        
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </main>
+        
+        <footer class="footer">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-6 text-center text-md-start">
+                        <p class="mb-0">&copy; 2025 Develop Sri Lanka. All rights reserved.</p>
+                    </div>
+                    <div class="col-md-6 text-center text-md-end">
+                        <a href="#" class="text-decoration-none text-muted me-2">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="#" class="text-decoration-none text-muted me-2">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="text-decoration-none text-muted">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -366,56 +596,121 @@
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     
-    <!-- Mobile Navigation Toggle Script -->
+    <!-- Sidebar and Navigation JavaScript -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-            const mobileNavContainer = document.getElementById('mobileNavContainer');
+            // Sidebar toggle
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
             
-            if (mobileMenuToggle && mobileNavContainer) {
-                mobileMenuToggle.addEventListener('click', function() {
-                    if (mobileNavContainer.style.display === 'block') {
-                        mobileNavContainer.style.display = 'none';
+            // Desktop sidebar toggle
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('sidebar-collapsed');
+                    content.classList.toggle('content-collapsed');
+                    
+                    // Change icon direction
+                    if (sidebar.classList.contains('sidebar-collapsed')) {
+                        sidebarToggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
                     } else {
-                        mobileNavContainer.style.display = 'block';
+                        sidebarToggle.innerHTML = '<i class="fas fa-chevron-left"></i>';
                     }
+                    
+                    // Save state to localStorage
+                    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('sidebar-collapsed'));
                 });
             }
             
-            // Update page title
-            const pageTitleElement = document.getElementById('page-title');
-            if (pageTitleElement) {
-                const path = window.location.pathname;
-                let pageTitle = "Develop Sri Lanka";
-                
-                if (path === '/') {
-                    pageTitle = "Home";
-                } else if (path === '/scan') {
-                    pageTitle = "Scan Receipt";
-                } else if (path === '/history') {
-                    pageTitle = "Receipt History";
-                } else if (path === '/login') {
-                    pageTitle = "Login";
-                } else if (path === '/profile') {
-                    pageTitle = "Profile";
-                } else if (path.includes('/invoices')) {
-                    pageTitle = "Invoices";
-                } else if (path.includes('/clients')) {
-                    pageTitle = "Clients";
-                } else if (path.includes('/bank-accounts')) {
-                    pageTitle = "Bank Accounts";
-                } else if (path.includes('/organizations')) {
-                    pageTitle = "Organizations";
-                } else if (path.includes('/expenses')) {
-                    pageTitle = "Expenses";
-                } else if (path.includes('/classify')) {
-                    pageTitle = "Classify Receipts";
-                } else if (path.includes('/admin')) {
-                    pageTitle = "Admin Panel";
-                }
-                
-                pageTitleElement.textContent = pageTitle;
+            // Mobile sidebar toggle
+            if (mobileSidebarToggle) {
+                mobileSidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.add('sidebar-mobile-open');
+                    sidebarOverlay.classList.add('active');
+                });
             }
+            
+            // Close sidebar when clicking on overlay
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    sidebar.classList.remove('sidebar-mobile-open');
+                    sidebarOverlay.classList.remove('active');
+                });
+            }
+            
+            // Load saved sidebar state
+            const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (sidebarCollapsed) {
+                sidebar.classList.add('sidebar-collapsed');
+                content.classList.add('content-collapsed');
+                if (sidebarToggle) {
+                    sidebarToggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                }
+            }
+            
+            // Submenu toggle functionality
+            const menuItemsWithSubmenu = document.querySelectorAll('.menu-item');
+            
+            menuItemsWithSubmenu.forEach(function(item) {
+                const hasSubmenu = item.querySelector('.has-submenu');
+                if (hasSubmenu) {
+                    hasSubmenu.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        
+                        // Don't toggle in collapsed mode on desktop
+                        if (window.innerWidth > 992 && sidebar.classList.contains('sidebar-collapsed')) {
+                            return;
+                        }
+                        
+                        // Toggle the open class
+                        item.classList.toggle('open');
+                    });
+                }
+            });
+            
+            // Handle error logging from client side
+            window.addEventListener('error', function(event) {
+                // Send error to server for logging
+                const errorData = {
+                    message: event.message || 'Unknown error',
+                    source: event.filename || 'Unknown source',
+                    line: event.lineno || 'Unknown line',
+                    column: event.colno || 'Unknown column',
+                    error: event.error ? event.error.stack : 'No stack trace',
+                    type: 'error'
+                };
+                
+                console.error(errorData);
+                
+                fetch('/api/log-client-error', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(errorData),
+                }).catch(function(error) {
+                    console.error('Error sending error report:', error);
+                });
+            });
+            
+            // Console log wrapper with timestamps
+            const originalLog = console.log;
+            console.log = function() {
+                const timestamp = Date.now();
+                const args = Array.from(arguments);
+                originalLog.apply(console, [timestamp + " - ", args]);
+            };
+            
+            const originalError = console.error;
+            console.error = function() {
+                const timestamp = Date.now();
+                const args = Array.from(arguments);
+                originalError.apply(console, [timestamp + " - ", args]);
+            };
+            
+            console.log("DOMContentLoaded event fired");
         });
     </script>
     
