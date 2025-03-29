@@ -22,9 +22,42 @@
         {% endif %}
     {% endwith %}
 
+    {% if organizations and organizations|length > 1 %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-transparent">
+            <h5 class="mb-0">Organization Filter</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2" id="organizationFilterContainer">
+                <a href="{{ url_for('clients') }}" 
+                   class="btn {% if not selected_org %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                    All
+                </a>
+                {% for org in organizations %}
+                <a href="{{ url_for('clients', organization_id=org.id) }}" 
+                   class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {{ org.name }}
+                    {% if org.is_default %}<i class="fas fa-star ms-1 text-warning"></i>{% endif %}
+                </a>
+                {% endfor %}
+                {% if selected_org %}
+                <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i> Clear Filter
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Your Clients</h5>
+            <h5 class="mb-0">
+                Your Clients
+                {% if selected_org %}
+                <span class="badge bg-primary ms-2">{{ selected_org.name }}</span>
+                {% endif %}
+            </h5>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createClientModal">
                 <i class="fas fa-plus me-1"></i> Add New Client
             </button>
@@ -38,6 +71,9 @@
                                 <th>Client Name</th>
                                 <th>Contact</th>
                                 <th>Tax Registration</th>
+                                {% if not selected_org %}
+                                <th>Organization</th>
+                                {% endif %}
                                 <th>Created</th>
                                 <th class="text-end">Actions</th>
                             </tr>
@@ -73,6 +109,15 @@
                                             <span class="text-muted">Not provided</span>
                                         {% endif %}
                                     </td>
+                                    {% if not selected_org %}
+                                    <td>
+                                        {% if client.organization_name %}
+                                            <span class="badge bg-primary">{{ client.organization_name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">No Organization</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
                                     <td>{{ client.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td class="text-end">
                                         <div class="btn-group">
@@ -147,6 +192,20 @@
                         <input type="text" class="form-control" id="name" name="name" required>
                         <div class="form-text">Primary name for the client (could be person or company)</div>
                     </div>
+                    
+                    {% if organizations and organizations|length > 1 %}
+                    <div class="mb-3">
+                        <label for="organization_id" class="form-label">Organization</label>
+                        <select class="form-select" id="organization_id" name="organization_id">
+                            {% for org in organizations %}
+                            <option value="{{ org.id }}" {% if org.is_default %}selected{% endif %}>
+                                {{ org.name }} {% if org.is_default %}(Default){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Select which organization this client belongs to</div>
+                    </div>
+                    {% endif %}
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">

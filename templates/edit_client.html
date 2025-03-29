@@ -40,6 +40,20 @@
                     <div class="form-text">Primary name for the client (could be person or company)</div>
                 </div>
                 
+                {% if organizations and organizations|length > 1 %}
+                <div class="mb-3">
+                    <label for="organization_id" class="form-label">Organization</label>
+                    <select class="form-select" id="organization_id" name="organization_id">
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if client.organization_id == org.id %}selected{% endif %}>
+                            {{ org.name }} {% if org.is_default %}(Default){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Select which organization this client belongs to</div>
+                </div>
+                {% endif %}
+                
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="company_name" class="form-label">Company Name</label>

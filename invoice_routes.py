@@ -884,16 +884,54 @@ def email_invoice(invoice_id):
 @login_required
 def clients():
     """Render the clients page showing list of user's clients."""
-    # Get the user's default organization
+    # Get user's organizations
     org_result = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
+        SELECT ou.organization_id, o.name, ou.is_default
+        FROM organization_user ou
+        JOIN organization o ON ou.organization_id = o.id
+        WHERE ou.user_id = :user_id
+        ORDER BY ou.is_default DESC, o.name
+    """), {'user_id': current_user.id})
     
-    organization_id = org_result[0] if org_result else None
+    organizations = []
+    for org_row in org_result:
+        org = {
+            'id': org_row[0],
+            'name': org_row[1],
+            'is_default': org_row[2]
+        }
+        organizations.append(org)
     
-    logging.debug(f"Listing clients for user_id: {current_user.id}, organization_id: {organization_id}")
+    # Get the selected organization from query params or use default
+    selected_org_id = request.args.get('organization_id')
+    selected_org = None
+    
+    if selected_org_id:
+        # Find the selected organization
+        for org in organizations:
+            if str(org['id']) == selected_org_id:
+                selected_org = org
+                break
+    
+    # Check if we're explicitly requesting "All" organizations
+    show_all_organizations = request.args.get('show_all') == 'true' or not selected_org_id
+    
+    # If no org is selected and we're not explicitly showing all organizations, use the default org
+    if not selected_org and not show_all_organizations and organizations and not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        for org in organizations:
+            if org['is_default']:
+                selected_org = org
+                break
+        
+        # If no default, just use the first one
+        if not selected_org and organizations:
+            selected_org = organizations[0]
+    
+    logging.debug(f"Listing clients for user_id: {current_user.id}")
+    if selected_org:
+        logging.debug(f"Filtered by organization_id: {selected_org['id']}")
+    else:
+        logging.debug("Showing clients for all organizations")
     
     # First check if there are any clients at all for debugging
     all_clients_count = db.session.execute(text("""
@@ -904,29 +942,29 @@ def clients():
         SELECT COUNT(*) FROM client WHERE user_id = :user_id
     """), {'user_id': current_user.id}).first()[0]
     
-    org_clients_count = 0
-    if organization_id:
-        org_clients_count = db.session.execute(text("""
-            SELECT COUNT(*) FROM client WHERE organization_id = :organization_id
-        """), {'organization_id': organization_id}).first()[0]
-    
     logging.debug(f"Database has {all_clients_count} total clients")
     logging.debug(f"User has {user_clients_count} clients")
-    logging.debug(f"Organization {organization_id} has {org_clients_count} clients")
     
-    # Expand WHERE clause to see exactly what might be matched
-    logging.debug(f"Running query for user_id={current_user.id} AND (organization_id={organization_id} OR organization_id IS NULL)")
+    # Use raw SQL to get clients for the current user with organization filtering
+    query = """
+        SELECT c.id, c.user_id, c.organization_id, c.name, c.company_name, c.contact_person, 
+               c.email, c.phone, c.address, c.tax_registration_number, c.notes, c.created_at, 
+               c.updated_at, o.name as organization_name
+        FROM client c
+        LEFT JOIN organization o ON c.organization_id = o.id
+        WHERE c.user_id = :user_id
+    """
     
-    # Use raw SQL to get clients for the current user with organization context
-    query = text("""
-        SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
-               phone, address, tax_registration_number, notes, created_at, updated_at
-        FROM client
-        WHERE user_id = :user_id AND (organization_id = :organization_id OR organization_id IS NULL)
-        ORDER BY name
-    """)
+    params = {'user_id': current_user.id}
     
-    result = db.session.execute(query, {'user_id': current_user.id, 'organization_id': organization_id})
+    # Filter by organization if one is selected
+    if selected_org:
+        query += " AND c.organization_id = :organization_id"
+        params['organization_id'] = selected_org['id']
+    
+    query += " ORDER BY c.name"
+    
+    result = db.session.execute(text(query), params)
     
     # Convert raw SQL results to Client objects
     clients = []
@@ -948,12 +986,30 @@ def clients():
             created_at=row[11],
             updated_at=row[12]
         )
+        
+        # Add organization name
+        if row[13]:  # If organization_name is not None
+            client.organization_name = row[13]
+        else:
+            client.organization_name = "No Organization"
+            
         clients.append(client)
         logging.debug(f"Added client: {client.id}, {client.name}, org: {client.organization_id}")
     
     logging.debug(f"Query returned {row_count} rows, processed {len(clients)} clients")
     
-    return render_template('clients.html', clients=clients)
+    # If this is an AJAX request, return the partial HTML
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render_template('clients.html', 
+                               clients=clients,
+                               organizations=organizations,
+                               selected_org=selected_org)
+    
+    # Regular full page render
+    return render_template('clients.html', 
+                          clients=clients,
+                          organizations=organizations,
+                          selected_org=selected_org)
 
 @app.route('/clients/create', methods=['GET', 'POST'])
 @login_required
@@ -975,14 +1031,29 @@ def create_client():
             
             logging.debug(f"Create client form data - Name: {name}, Company: {company_name}, Contact: {contact_person}")
             
-            # Get the user's default organization
-            result = db.session.execute(text("""
-                SELECT organization_id FROM organization_user
-                WHERE user_id = :user_id AND is_default = true
-                LIMIT 1
-            """), {'user_id': current_user.id}).first()
+            # Check if organization_id was provided in the form
+            form_org_id = request.form.get('organization_id')
             
-            organization_id = result[0] if result else None
+            if form_org_id:
+                # Verify this organization belongs to the user
+                result = db.session.execute(text("""
+                    SELECT organization_id FROM organization_user
+                    WHERE user_id = :user_id AND organization_id = :org_id
+                    LIMIT 1
+                """), {'user_id': current_user.id, 'org_id': form_org_id}).first()
+                
+                organization_id = result[0] if result else None
+                logging.debug(f"Using organization_id from form: {organization_id}")
+            else:
+                # Get the user's default organization
+                result = db.session.execute(text("""
+                    SELECT organization_id FROM organization_user
+                    WHERE user_id = :user_id AND is_default = true
+                    LIMIT 1
+                """), {'user_id': current_user.id}).first()
+                
+                organization_id = result[0] if result else None
+                logging.debug(f"Using default organization_id: {organization_id}")
             
             # Create new client using raw SQL to include organization_id
             logging.debug(f"Inserting client with organization_id: {organization_id}")
@@ -1196,8 +1267,23 @@ def edit_client(client_id):
             tax_registration_number = request.form.get('tax_registration_number', '')
             notes = request.form.get('notes', '')
             
-            # Update client using raw SQL to maintain organization_id
-            db.session.execute(text("""
+            # Check if organization_id was provided in the form
+            form_org_id = request.form.get('organization_id')
+            organization_id = None
+            
+            if form_org_id:
+                # Verify this organization belongs to the user
+                result = db.session.execute(text("""
+                    SELECT organization_id FROM organization_user
+                    WHERE user_id = :user_id AND organization_id = :org_id
+                    LIMIT 1
+                """), {'user_id': current_user.id, 'org_id': form_org_id}).first()
+                
+                organization_id = result[0] if result else None
+                logging.debug(f"Using organization_id from form: {organization_id}")
+            
+            # Update client using raw SQL, including organization_id if provided
+            update_sql = """
                 UPDATE client
                 SET name = :name,
                     company_name = :company_name,
@@ -1206,10 +1292,19 @@ def edit_client(client_id):
                     phone = :phone,
                     address = :address,
                     tax_registration_number = :tax_registration_number,
-                    notes = :notes,
-                    updated_at = CURRENT_TIMESTAMP
+                    notes = :notes
+            """
+            
+            # Add organization_id to the update if it was provided
+            if organization_id:
+                update_sql += ", organization_id = :organization_id"
+                
+            update_sql += """
+                    , updated_at = CURRENT_TIMESTAMP
                 WHERE id = :client_id AND user_id = :user_id
-            """), {
+            """
+            
+            update_params = {
                 'client_id': client_id,
                 'user_id': current_user.id,
                 'name': name,
@@ -1220,7 +1315,13 @@ def edit_client(client_id):
                 'address': address,
                 'tax_registration_number': tax_registration_number,
                 'notes': notes
-            })
+            }
+            
+            # Add organization_id to params if it was provided
+            if organization_id:
+                update_params['organization_id'] = organization_id
+                
+            db.session.execute(text(update_sql), update_params)
             
             db.session.commit()
             
@@ -1235,6 +1336,10 @@ def edit_client(client_id):
             client.notes = notes
             client.updated_at = datetime.utcnow()
             
+            # Update organization_id in the client object if it was changed
+            if organization_id:
+                client.organization_id = organization_id
+            
             flash('Client updated successfully!', 'success')
             return redirect(url_for('view_client', client_id=client.id))
             
@@ -1245,7 +1350,28 @@ def edit_client(client_id):
             return redirect(url_for('view_client', client_id=client.id))
     
     # GET request - render the form
-    return render_template('edit_client.html', client=client)
+    # Get user's organizations for the dropdown
+    organizations_result = db.session.execute(text("""
+        SELECT o.id, o.name, o.logo_url, o.primary_color, o.email, ou.is_default
+        FROM organization o
+        JOIN organization_user ou ON o.id = ou.organization_id
+        WHERE ou.user_id = :user_id
+        ORDER BY ou.is_default DESC, o.name ASC
+    """), {'user_id': current_user.id})
+    
+    organizations = [
+        {
+            'id': row[0],
+            'name': row[1],
+            'logo_url': row[2],
+            'primary_color': row[3],
+            'email': row[4],
+            'is_default': row[5]
+        }
+        for row in organizations_result
+    ]
+    
+    return render_template('edit_client.html', client=client, organizations=organizations)
 
 @app.route('/clients/<int:client_id>/delete', methods=['POST'])
 @login_required
