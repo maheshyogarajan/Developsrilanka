@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import text
 
 from app import db
-from models import CompanyExpense, ExpenseStatus, Receipt, User, Organization
+from models import CompanyExpense, ExpenseStatus, Receipt, User, Organization, Client
 from decorators import role_required
 
 expense_bp = Blueprint('expense', __name__)
@@ -44,10 +44,12 @@ def expenses():
             SELECT e.id, e.receipt_id, e.user_id, e.description, e.status,
                    e.submitted_date, e.approval_date, e.reimbursed_date, e.notes,
                    r.vendor_name, r.date, r.total_amount, r.image_path,
-                   u.name as submitter_name
+                   u.name as submitter_name, e.client_id, c.name as client_name,
+                   e.is_reimbursable
             FROM company_expense e
             JOIN receipt r ON e.receipt_id = r.id
             JOIN "user" u ON e.user_id = u.id
+            LEFT JOIN client c ON e.client_id = c.id
             WHERE e.organization_id = :org_id
             ORDER BY e.submitted_date DESC
         """), {'org_id': organization_id})
@@ -57,10 +59,12 @@ def expenses():
             SELECT e.id, e.receipt_id, e.user_id, e.description, e.status,
                    e.submitted_date, e.approval_date, e.reimbursed_date, e.notes,
                    r.vendor_name, r.date, r.total_amount, r.image_path,
-                   u.name as submitter_name
+                   u.name as submitter_name, e.client_id, c.name as client_name,
+                   e.is_reimbursable
             FROM company_expense e
             JOIN receipt r ON e.receipt_id = r.id
             JOIN "user" u ON e.user_id = u.id
+            LEFT JOIN client c ON e.client_id = c.id
             WHERE e.user_id = :user_id AND e.organization_id = :org_id
             ORDER BY e.submitted_date DESC
         """), {'user_id': current_user.id, 'org_id': organization_id})
@@ -82,6 +86,9 @@ def expenses():
             'total_amount': row[11],
             'image_path': row[12],
             'submitter_name': row[13],
+            'client_id': row[14],
+            'client_name': row[15],
+            'is_reimbursable': row[16]
         }
         expenses.append(expense)
     
@@ -147,6 +154,13 @@ def submit_expense():
             description = request.form.get('description', '')
             notes = request.form.get('notes', '')
             is_reimbursable = request.form.get('is_reimbursable') == 'true'
+            client_id = request.form.get('client_id')
+            
+            # Convert client_id to int or None
+            if client_id and client_id.isdigit():
+                client_id = int(client_id)
+            else:
+                client_id = None
             
             # Verify the receipt belongs to the user
             receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
@@ -154,11 +168,19 @@ def submit_expense():
                 flash('Receipt not found or access denied', 'danger')
                 return redirect(url_for('expense.expenses'))
             
+            # If client_id is provided, verify it belongs to the organization
+            if client_id:
+                client = Client.query.filter_by(id=client_id, organization_id=organization_id).first()
+                if not client:
+                    flash('Selected client not found or does not belong to your organization', 'danger')
+                    return redirect(url_for('expense.expenses'))
+            
             # Create the company expense
             company_expense = CompanyExpense(
                 receipt_id=receipt_id,
                 user_id=current_user.id,
                 organization_id=organization_id,
+                client_id=client_id,
                 description=description,
                 status=ExpenseStatus.SUBMITTED.value,
                 is_reimbursable=is_reimbursable,
@@ -206,7 +228,10 @@ def submit_expense():
         flash('No receipts available for expense submission. Please scan receipts first.', 'info')
         return redirect(url_for('index'))
     
-    return render_template('submit_expense.html', receipts=receipts)
+    # Get clients for the organization
+    clients = Client.query.filter_by(organization_id=organization_id).order_by(Client.name).all()
+    
+    return render_template('submit_expense.html', receipts=receipts, clients=clients)
 
 @expense_bp.route('/expenses/<int:expense_id>')
 @login_required
@@ -246,12 +271,16 @@ def view_expense(expense_id):
     approver = User.query.get(expense_obj.approved_by_user_id) if expense_obj.approved_by_user_id else None
     reimburser = User.query.get(expense_obj.reimbursed_by_user_id) if expense_obj.reimbursed_by_user_id else None
     
+    # Get client information if associated with this expense
+    client = Client.query.get(expense_obj.client_id) if expense_obj.client_id else None
+    
     # Build expense dictionary
     expense = {
         'id': expense_obj.id,
         'receipt_id': expense_obj.receipt_id,
         'user_id': expense_obj.user_id,
         'organization_id': expense_obj.organization_id,
+        'client_id': expense_obj.client_id,
         'description': expense_obj.description,
         'status': expense_obj.status,
         'submitted_date': expense_obj.submitted_date,
@@ -271,6 +300,8 @@ def view_expense(expense_id):
         'submitter_email': submitter.email if submitter else '',
         'approver_name': approver.name if approver else None,
         'reimburser_name': reimburser.name if reimburser else None,
+        'client_name': client.name if client else None,
+        'client_email': client.email if client else None,
         'is_reimbursable': getattr(expense_obj, 'is_reimbursable', True)  # Add support for is_reimbursable field
     }
     
@@ -497,11 +528,37 @@ def edit_expense(expense_id):
         flash('Only submitted expenses can be edited', 'warning')
         return redirect(url_for('expense.view_expense', expense_id=expense_id))
     
+    # Get the user's default organization
+    default_org = db.session.execute(text("""
+        SELECT organization_id FROM organization_user
+        WHERE user_id = :user_id AND is_default = true
+        LIMIT 1
+    """), {'user_id': current_user.id}).first()
+    
+    organization_id = default_org[0] if default_org else None
+    
     if request.method == 'POST':
         try:
             # Update expense description and notes
             expense.description = request.form.get('description', '')
             expense.notes = request.form.get('notes', '')
+            expense.is_reimbursable = request.form.get('is_reimbursable') == 'true'
+            client_id = request.form.get('client_id')
+            
+            # Convert client_id to int or None
+            if client_id and client_id.isdigit():
+                client_id = int(client_id)
+                
+                # If client_id is provided, verify it belongs to the organization
+                if client_id:
+                    client = Client.query.filter_by(id=client_id, organization_id=organization_id).first()
+                    if not client:
+                        flash('Selected client not found or does not belong to your organization', 'danger')
+                        return redirect(url_for('expense.edit_expense', expense_id=expense_id))
+            else:
+                client_id = None
+                
+            expense.client_id = client_id
             expense.updated_at = datetime.utcnow()
             
             db.session.commit()
@@ -519,7 +576,10 @@ def edit_expense(expense_id):
     # Get receipt details
     receipt = Receipt.query.get_or_404(expense.receipt_id)
     
-    return render_template('edit_expense.html', expense=expense, receipt=receipt)
+    # Get clients for the organization
+    clients = Client.query.filter_by(organization_id=organization_id).order_by(Client.name).all()
+    
+    return render_template('edit_expense.html', expense=expense, receipt=receipt, clients=clients)
 
 @expense_bp.route('/receipts/<int:receipt_id>/create-expense', methods=['GET', 'POST'])
 @login_required
@@ -553,12 +613,27 @@ def create_expense_from_receipt(receipt_id):
             description = request.form.get('description', '')
             notes = request.form.get('notes', '')
             is_reimbursable = request.form.get('is_reimbursable') == 'true'
+            client_id = request.form.get('client_id')
+            
+            # Convert client_id to int or None
+            if client_id and client_id.isdigit():
+                client_id = int(client_id)
+                
+                # If client_id is provided, verify it belongs to the organization
+                if client_id:
+                    client = Client.query.filter_by(id=client_id, organization_id=organization_id).first()
+                    if not client:
+                        flash('Selected client not found or does not belong to your organization', 'danger')
+                        return redirect(url_for('create_expense_from_receipt', receipt_id=receipt_id))
+            else:
+                client_id = None
             
             # Create the company expense
             company_expense = CompanyExpense(
                 receipt_id=receipt_id,
                 user_id=current_user.id,
                 organization_id=organization_id,
+                client_id=client_id,
                 description=description,
                 status=ExpenseStatus.SUBMITTED.value,
                 is_reimbursable=is_reimbursable,
@@ -579,7 +654,10 @@ def create_expense_from_receipt(receipt_id):
             return redirect(url_for('view_receipt', receipt_id=receipt_id))
     
     # GET request - render form
-    return render_template('create_expense_from_receipt.html', receipt=receipt)
+    # Get clients for the organization
+    clients = Client.query.filter_by(organization_id=organization_id).order_by(Client.name).all()
+    
+    return render_template('create_expense_from_receipt.html', receipt=receipt, clients=clients)
 
 def register_routes(app):
     """Register the expense routes with the app."""

@@ -789,6 +789,8 @@ document.addEventListener('DOMContentLoaded', function() {
             is_company_expense: document.getElementById('is_company_expense') ? document.getElementById('is_company_expense').checked : false,
             is_reimbursable: document.getElementById('is_reimbursable') ? document.getElementById('is_reimbursable').checked : true,
             expense_description: document.getElementById('expense_description') ? document.getElementById('expense_description').value : '',
+            expense_organization_id: document.getElementById('expense_organization_id') ? document.getElementById('expense_organization_id').value : null,
+            expense_client_id: document.getElementById('expense_client_id') ? document.getElementById('expense_client_id').value : null,
             items: []
         };
         
@@ -986,14 +988,83 @@ document.addEventListener('DOMContentLoaded', function() {
     // Company expense toggle functionality
     const isCompanyExpenseCheckbox = document.getElementById('is_company_expense');
     const companyExpenseDetails = document.getElementById('company-expense-details');
+    const expenseOrganizationSelect = document.getElementById('expense_organization_id');
+    const expenseClientSelect = document.getElementById('expense_client_id');
+    
+    // Load organizations when company expense is checked
+    function loadOrganizations() {
+        fetch('/organizations/list')
+            .then(response => response.json())
+            .then(data => {
+                if (data.organizations) {
+                    // Clear existing options except the default
+                    expenseOrganizationSelect.innerHTML = '<option value="" selected disabled>Select organization...</option>';
+                    
+                    // Add options for each organization
+                    data.organizations.forEach(org => {
+                        const option = document.createElement('option');
+                        option.value = org.id;
+                        option.textContent = org.name;
+                        // Set default organization as selected
+                        if (org.is_default) {
+                            option.selected = true;
+                        }
+                        expenseOrganizationSelect.appendChild(option);
+                    });
+                    
+                    // Load clients for the selected organization
+                    if (expenseOrganizationSelect.value) {
+                        loadClientsForOrganization(expenseOrganizationSelect.value);
+                    }
+                }
+            })
+            .catch(error => console.error('Error loading organizations:', error));
+    }
+    
+    // Load clients for a specific organization
+    function loadClientsForOrganization(organizationId) {
+        fetch(`/clients/list?organization_id=${organizationId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Clear existing options except the default
+                expenseClientSelect.innerHTML = '<option value="" selected>No client selected</option>';
+                
+                if (data.clients && data.clients.length > 0) {
+                    // Add options for each client
+                    data.clients.forEach(client => {
+                        const option = document.createElement('option');
+                        option.value = client.id;
+                        option.textContent = client.name;
+                        expenseClientSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading clients:', error));
+    }
     
     if (isCompanyExpenseCheckbox && companyExpenseDetails) {
         isCompanyExpenseCheckbox.addEventListener('change', function() {
             if (this.checked) {
                 companyExpenseDetails.style.display = 'block';
+                // Load organizations when company expense is checked
+                if (expenseOrganizationSelect) {
+                    loadOrganizations();
+                }
             } else {
                 companyExpenseDetails.style.display = 'none';
             }
         });
+        
+        // Handle organization change to load appropriate clients
+        if (expenseOrganizationSelect && expenseClientSelect) {
+            expenseOrganizationSelect.addEventListener('change', function() {
+                if (this.value) {
+                    loadClientsForOrganization(this.value);
+                } else {
+                    // Clear client dropdown if no organization selected
+                    expenseClientSelect.innerHTML = '<option value="" selected>No client selected</option>';
+                }
+            });
+        }
     }
 });

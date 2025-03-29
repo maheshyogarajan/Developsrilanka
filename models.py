@@ -508,6 +508,7 @@ class CompanyExpense(db.Model):
     receipt_id = db.Column(db.Integer, db.ForeignKey('receipt.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)
     
     description = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), nullable=False, default=ExpenseStatus.SUBMITTED.value)
@@ -529,6 +530,7 @@ class CompanyExpense(db.Model):
     submitter = db.relationship('User', foreign_keys=[user_id], backref='submitted_expenses', lazy=True)
     approver = db.relationship('User', foreign_keys=[approved_by_user_id], backref='approved_expenses', lazy=True)
     reimburser = db.relationship('User', foreign_keys=[reimbursed_by_user_id], backref='reimbursed_expenses', lazy=True)
+    client = db.relationship('Client', backref='company_expenses', lazy=True)
     
     def to_dict(self):
         """Convert the company expense to a dictionary."""
@@ -537,6 +539,7 @@ class CompanyExpense(db.Model):
             'receipt_id': self.receipt_id,
             'user_id': self.user_id,
             'organization_id': self.organization_id,
+            'client_id': self.client_id,
             'description': self.description or '',
             'status': self.status,
             'is_reimbursable': self.is_reimbursable,
@@ -551,7 +554,8 @@ class CompanyExpense(db.Model):
             'receipt': self.receipt.to_dict() if self.receipt else None,
             'submitter_name': self.submitter.name if self.submitter else '',
             'approver_name': self.approver.name if self.approver else '',
-            'reimburser_name': self.reimburser.name if self.reimburser else ''
+            'reimburser_name': self.reimburser.name if self.reimburser else '',
+            'client_name': self.client.name if self.client else ''
         }
 
 class ClientExpense(db.Model):

@@ -3,7 +3,7 @@ Blueprint for client management functionality.
 """
 import logging
 from datetime import datetime
-from flask import Blueprint, render_template, redirect, url_for, request, flash, abort
+from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import text
 from app import db
@@ -534,6 +534,43 @@ def delete_client(client_id):
         logger.error(f"Error deleting client: {str(e)}")
         flash(f'Error deleting client: {str(e)}', 'danger')
         return redirect(url_for('clients.view_client', client_id=client_id))
+        
+@clients_bp.route('/list')
+@login_required
+def list_clients():
+    """API endpoint to get clients for the current user, optionally filtered by organization."""
+    organization_id = request.args.get('organization_id')
+    
+    query = """
+        SELECT c.id, c.name, c.company_name, c.organization_id
+        FROM client c
+        WHERE c.user_id = :user_id
+    """
+    
+    params = {'user_id': current_user.id}
+    
+    # Filter by organization if one is provided
+    if organization_id:
+        query += " AND c.organization_id = :organization_id"
+        params['organization_id'] = organization_id
+    
+    query += " ORDER BY c.name"
+    
+    result = db.session.execute(text(query), params)
+    
+    clients = []
+    for row in result:
+        clients.append({
+            'id': row[0],
+            'name': row[1],
+            'company_name': row[2] if row[2] else '',
+            'organization_id': row[3]
+        })
+    
+    return jsonify({
+        'success': True,
+        'clients': clients
+    })
 
 def register_blueprint(app):
     """Register the clients blueprint with the app."""

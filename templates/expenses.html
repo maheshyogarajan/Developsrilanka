@@ -114,6 +114,7 @@
                                 <th>Date</th>
                                 <th>Vendor</th>
                                 <th>Amount</th>
+                                <th>Client</th>
                                 <th>Status</th>
                                 {% if user_org_role in ['owner', 'admin'] %}
                                 <th>Submitted By</th>
@@ -127,6 +128,15 @@
                                     <td>{{ expense.receipt_date|date }}</td>
                                     <td>{{ expense.vendor_name }}</td>
                                     <td>{{ expense.total_amount|currency }}</td>
+                                    <td>
+                                        {% if expense.client_name %}
+                                            <span class="badge bg-info text-dark">
+                                                <i class="fas fa-user-tie me-1"></i> {{ expense.client_name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted small">—</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% if expense.status == 'submitted' %}
                                             <span class="badge bg-warning">Submitted</span>

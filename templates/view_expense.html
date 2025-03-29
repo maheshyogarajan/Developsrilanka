@@ -69,13 +69,25 @@
                     </div>
                     
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <h6>Vendor</h6>
                             <p>{{ expense.vendor_name }}</p>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <h6>Amount</h6>
                             <p class="fs-5 fw-bold">{{ expense.total_amount|currency }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Client</h6>
+                            <p>
+                                {% if expense.client_name %}
+                                <span class="badge bg-info text-dark">
+                                    <i class="fas fa-user-tie me-1"></i> {{ expense.client_name }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Not Assigned</span>
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
                     
@@ -102,9 +114,23 @@
                     {% endif %}
                     
                     <div class="row mb-4">
-                        <div class="col-12">
+                        <div class="col-md-8">
                             <h6>Expense Description</h6>
                             <p>{{ expense.description or 'No description provided' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Reimbursable</h6>
+                            <p>
+                                {% if expense.is_reimbursable %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i> Reimbursable
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-times me-1"></i> Not Reimbursable
+                                </span>
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
                     

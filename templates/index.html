@@ -255,6 +255,22 @@
                             </div>
                         </div>
                         <div class="card-body company-expense-details" id="company-expense-details" style="display: none;">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="expense_organization_id" class="form-label">Organization</label>
+                                    <select class="form-select" id="expense_organization_id" name="expense_organization_id">
+                                        <option value="" selected disabled>Select organization...</option>
+                                        <!-- Organizations will be loaded dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="expense_client_id" class="form-label">Client (Optional)</label>
+                                    <select class="form-select" id="expense_client_id" name="expense_client_id">
+                                        <option value="" selected>No client selected</option>
+                                        <!-- Clients will be loaded dynamically based on selected organization -->
+                                    </select>
+                                </div>
+                            </div>
                             <div class="mb-3">
                                 <label for="expense_description" class="form-label">Expense Description</label>
                                 <textarea class="form-control" id="expense_description" name="expense_description" rows="2" placeholder="Provide details about this company expense"></textarea>

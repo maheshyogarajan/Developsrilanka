@@ -5,7 +5,7 @@ import os
 import uuid
 import logging
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from models import db, Organization, OrganizationUser, OrganizationInvitation, UserRole
@@ -615,6 +615,25 @@ def send_invitation_email(invitation):
     # Send the email
     mail.send(msg)
     logger.info(f"Sent organization invitation email to {invitation.email}")
+
+@organizations_bp.route('/list')
+@login_required
+def list_organizations():
+    """API endpoint to get all organizations for the current user."""
+    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+    
+    organizations = []
+    for org_user in user_orgs:
+        organizations.append({
+            'id': org_user.organization_id,
+            'name': org_user.organization.name,
+            'is_default': org_user.is_default
+        })
+    
+    return jsonify({
+        'success': True,
+        'organizations': organizations
+    })
 
 def register_routes(app):
     """Register the organization routes with the app."""

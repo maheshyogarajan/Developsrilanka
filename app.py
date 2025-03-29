@@ -850,6 +850,14 @@ def save_receipt():
         is_reimbursable = receipt_data.get('is_reimbursable', True)
         expense_description = receipt_data.get('expense_description', '')
         
+        # Get selected organization and client for company expense
+        expense_organization_id = receipt_data.get('expense_organization_id')
+        expense_client_id = receipt_data.get('expense_client_id')
+        
+        # If user selected a specific organization for the expense, use that
+        if is_company_expense and expense_organization_id:
+            organization_id = expense_organization_id
+        
         # If it's a company expense and the user has an organization, create a company expense record
         company_expense_id = None
         if is_company_expense and organization_id:
@@ -857,6 +865,7 @@ def save_receipt():
                 receipt_id=new_receipt.id,
                 user_id=current_user.id,
                 organization_id=organization_id,
+                client_id=expense_client_id if expense_client_id else None,
                 description=expense_description,
                 status=ExpenseStatus.SUBMITTED.value,
                 is_reimbursable=is_reimbursable,
