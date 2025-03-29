@@ -1654,7 +1654,7 @@ def email_login():
                 # We no longer allow password resets through this route
                 logging.warning(f"Attempted to register with existing email: {email}")
                 flash('An account with this email already exists. Please sign in with your password or contact an administrator for assistance.', 'warning')
-                return redirect(url_for('login'))
+                return redirect(url_for('register'))
             
             # This is a new registration
             logging.info(f"Creating new user: {email}")
@@ -1671,8 +1671,8 @@ def email_login():
             # Log in the new user
             login_user(new_user)
             
-            # Display welcome message on first login
-            flash('Welcome! Your account has been created successfully.', 'success')
+            # Display welcome message on first login - different from login success message
+            flash('Account verification complete! Your account has been created and you are now logged in.', 'success')
             
             # Animation will handle feedback
             return redirect(url_for('index'))
