@@ -1,20 +1,36 @@
+{% if not is_modal %}
 {% extends "layout.html" %}
 
 {% block title %}Create Organization{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
+{% endif %}
+
+<div class="container {% if is_modal %}p-0{% else %}mt-5{% endif %}">
+    <div class="row {% if not is_modal %}justify-content-center{% endif %}">
+        <div class="{% if not is_modal %}col-md-8 offset-md-2{% else %}col-md-12{% endif %}">
             <div class="card">
+                {% if not is_modal %}
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h2>Create Organization</h2>
                     <a href="{{ url_for('organizations.organizations') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> Back
                     </a>
                 </div>
+                {% endif %}
                 <div class="card-body">
-                    <form method="post">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="post" action="{{ url_for('organizations.create_organization', modal='true' if is_modal else '') }}">
                         <div class="mb-3">
                             <label for="name" class="form-label">Organization Name *</label>
                             <input type="text" class="form-control" id="name" name="name" required>
@@ -52,6 +68,7 @@
                             <div class="form-text">VAT, GST, or other tax ID for your business</div>
                         </div>
 
+                        {% if not is_modal %}
                         <h4 class="mt-4">Branding</h4>
                         <div class="row">
                             <div class="col-md-6">
@@ -73,9 +90,18 @@
                             <textarea class="form-control" id="email_footer_text" name="email_footer_text" rows="3" placeholder="© 2025 Your Organization. All rights reserved."></textarea>
                             <div class="form-text">Custom text to appear in the footer of emails. HTML is allowed.</div>
                         </div>
+                        {% else %}
+                        <!-- Default branding values for quick creation in modal -->
+                        <input type="hidden" name="primary_color" value="#4a6da7">
+                        <input type="hidden" name="secondary_color" value="#f5f8ff">
+                        {% endif %}
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            {% if not is_modal %}
                             <a href="{{ url_for('organizations.organizations') }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                            {% else %}
+                            <button type="button" class="btn btn-outline-secondary me-md-2" onclick="window.parent.modal.hide()">Cancel</button>
+                            {% endif %}
                             <button type="submit" class="btn btn-primary">Create Organization</button>
                         </div>
                     </form>
@@ -84,4 +110,7 @@
         </div>
     </div>
 </div>
+
+{% if not is_modal %}
 {% endblock %}
+{% endif %}

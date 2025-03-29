@@ -23,6 +23,24 @@
                     {% endwith %}
 
                     <form action="{{ url_for('create_bank_account') }}" method="post">
+                        <div class="mb-4">
+                            <label for="organization_id" class="form-label">Organization *</label>
+                            <div class="input-group">
+                                <select class="form-select" id="organization_id" name="organization_id" required>
+                                    <option value="" disabled {% if not default_org_id %}selected{% endif %}>Select an organization</option>
+                                    {% for org in organizations %}
+                                        <option value="{{ org.id }}" {% if org.id == default_org_id %}selected{% endif %}>
+                                            {{ org.name }} {% if org.is_default %}(Default){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <a href="{{ url_for('create_organization') }}" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addOrganizationModal">
+                                    <i class="bi bi-plus-circle"></i> New
+                                </a>
+                            </div>
+                            <div class="form-text">Select the organization this bank account belongs to.</div>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="account_name" class="form-label">Account Name *</label>
                             <input type="text" class="form-control" id="account_name" name="account_name" required
@@ -67,7 +85,7 @@
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="is_default" name="is_default">
                             <label class="form-check-label" for="is_default">Set as default account</label>
-                            <div class="form-text">This account will be selected by default when creating invoices.</div>
+                            <div class="form-text">This account will be selected by default when creating invoices for this organization.</div>
                         </div>
                         
                         <div class="d-flex justify-content-between">
@@ -80,4 +98,54 @@
         </div>
     </div>
 </div>
+
+<!-- Add Organization Modal -->
+<div class="modal fade" id="addOrganizationModal" tabindex="-1" aria-labelledby="addOrganizationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addOrganizationModalLabel">Create New Organization</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <iframe id="createOrgFrame" src="{{ url_for('create_organization') }}?modal=true" style="width: 100%; height: 500px; border: none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle new organization creation success
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'organization_created') {
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addOrganizationModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Add the new organization to the dropdown and select it
+        const organizationSelect = document.getElementById('organization_id');
+        const newOption = document.createElement('option');
+        newOption.value = event.data.id;
+        newOption.text = event.data.name + ' (New)';
+        newOption.selected = true;
+        organizationSelect.appendChild(newOption);
+        
+        // Show success message
+        const alertContainer = document.createElement('div');
+        alertContainer.className = 'alert alert-success alert-dismissible fade show';
+        alertContainer.innerHTML = `
+            Organization "${event.data.name}" created successfully and selected.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertBefore(alertContainer, cardBody.firstChild);
+    }
+});
+</script>
 {% endblock %}

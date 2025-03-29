@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Organization Created Successfully</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        .success-box {
+            padding: 20px;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            color: #155724;
+        }
+        h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-box">
+        <h3>Organization Created Successfully!</h3>
+        <p>Your new organization "{{ organization.name }}" has been created.</p>
+    </div>
+    
+    <script>
+        // Send message to parent window with organization details
+        window.onload = function() {
+            // Use window.parent.postMessage to communicate with the parent window
+            window.parent.postMessage({
+                type: 'organization_created',
+                id: {{ organization.id }},
+                name: '{{ organization.name }}',
+                success: true
+            }, '*');
+        };
+    </script>
+</body>
+</html>

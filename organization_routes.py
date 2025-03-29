@@ -39,11 +39,14 @@ def organizations():
 @login_required
 def create_organization():
     """Create a new organization."""
+    # Check if this is being loaded in a modal
+    is_modal = request.args.get('modal') == 'true'
+    
     if request.method == 'POST':
         name = request.form.get('name')
         if not name:
             flash('Organization name is required.', 'danger')
-            return redirect(url_for('organizations.create_organization'))
+            return render_template('organizations/create.html', is_modal=is_modal)
         
         # Create new organization
         new_org = Organization(
@@ -73,10 +76,15 @@ def create_organization():
         db.session.add(org_user)
         db.session.commit()
         
+        # If this was called from a modal, return a page with JavaScript to communicate with parent
+        if is_modal:
+            return render_template('organizations/create_success_modal.html', 
+                                  organization=new_org)
+        
         flash(f'Organization "{name}" created successfully!', 'success')
         return redirect(url_for('organizations.view_organization', org_id=new_org.id))
     
-    return render_template('organizations/create.html')
+    return render_template('organizations/create.html', is_modal=is_modal)
 
 @organizations_bp.route('/<int:org_id>')
 @login_required
