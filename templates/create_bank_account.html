@@ -34,7 +34,7 @@
                                         </option>
                                     {% endfor %}
                                 </select>
-                                <a href="{{ url_for('create_organization') }}" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addOrganizationModal">
+                                <a href="{{ url_for('organizations.create_organization') }}" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addOrganizationModal">
                                     <i class="bi bi-plus-circle"></i> New
                                 </a>
                             </div>
@@ -108,7 +108,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <iframe id="createOrgFrame" src="{{ url_for('create_organization') }}?modal=true" style="width: 100%; height: 500px; border: none;"></iframe>
+                <iframe id="createOrgFrame" src="{{ url_for('organizations.create_organization') }}?modal=true" style="width: 100%; height: 500px; border: none;"></iframe>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
