@@ -246,6 +246,18 @@ def edit_bank_account(account_id):
     
     account = AccountObject(result)
     
+    # Get user's organizations for the dropdown
+    organizations = db.session.query(
+        Organization.id, 
+        Organization.name,
+        OrganizationUser.is_default
+    ).join(
+        OrganizationUser, 
+        Organization.id == OrganizationUser.organization_id
+    ).filter(
+        OrganizationUser.user_id == current_user.id
+    ).all()
+    
     if request.method == 'POST':
         account_name = request.form.get('account_name')
         bank_name = request.form.get('bank_name')
@@ -254,21 +266,39 @@ def edit_bank_account(account_id):
         swift_code = request.form.get('swift_code')
         iban = request.form.get('iban')
         is_default = True if request.form.get('is_default') else False
+        organization_id = request.form.get('organization_id')
         
         # Validate required fields
-        if not account_name or not bank_name or not account_number:
-            flash('Please fill in all required fields.', 'danger')
-            return render_template('edit_bank_account.html', account=account)
+        if not account_name or not bank_name or not account_number or not organization_id:
+            flash('Please fill in all required fields including organization.', 'danger')
+            return render_template('edit_bank_account.html', account=account, organizations=organizations)
         
-        # If this account is set as default, unset any existing default accounts
-        if is_default and not account.is_default:
-            # Clear default flag from any other accounts for this user
-            db.session.execute(text(
-                'UPDATE bank_account SET is_default = false '
-                'WHERE user_id = :user_id AND id != :account_id AND is_default = true'
-            ), {'user_id': current_user.id, 'account_id': account.id})
+        # Convert organization_id to integer
+        try:
+            organization_id = int(organization_id)
+        except (ValueError, TypeError):
+            flash('Invalid organization selected.', 'danger')
+            return render_template('edit_bank_account.html', account=account, organizations=organizations)
         
-        # Use raw SQL to update account details while preserving organization_id
+        # Verify user has access to this organization
+        org_user = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=organization_id
+        ).first()
+        
+        if not org_user:
+            flash('You do not have access to the selected organization.', 'danger')
+            return render_template('edit_bank_account.html', account=account, organizations=organizations)
+        
+        # If this account is set as default, unset any existing default accounts for this organization
+        if is_default:
+            db.session.execute(text("""
+                UPDATE bank_account 
+                SET is_default = false 
+                WHERE organization_id = :org_id AND is_default = true AND id != :account_id
+            """), {'org_id': organization_id, 'account_id': account.id})
+        
+        # Use raw SQL to update account details including organization_id
         db.session.execute(text("""
             UPDATE bank_account 
             SET account_name = :account_name,
@@ -278,6 +308,7 @@ def edit_bank_account(account_id):
                 swift_code = :swift_code,
                 iban = :iban,
                 is_default = :is_default,
+                organization_id = :organization_id,
                 updated_at = :updated_at
             WHERE id = :id
         """), {
@@ -288,6 +319,7 @@ def edit_bank_account(account_id):
             'swift_code': swift_code,
             'iban': iban,
             'is_default': is_default,
+            'organization_id': organization_id,
             'updated_at': datetime.utcnow(),
             'id': account.id
         })
@@ -297,7 +329,7 @@ def edit_bank_account(account_id):
         flash('Bank account updated successfully.', 'success')
         return redirect(url_for('view_bank_account', account_id=account.id))
     
-    return render_template('edit_bank_account.html', account=account)
+    return render_template('edit_bank_account.html', account=account, organizations=organizations)
 
 @bank_account_bp.route('/bank-accounts/<int:account_id>/delete', methods=['POST'])
 @login_required
