@@ -89,7 +89,7 @@ def analytics_redesign():
         total_tax_deductible = db.session.query(
             func.sum(
                 case(
-                    (ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity),
+                    whens=[(ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity)],
                     else_=0
                 )
             )
@@ -199,7 +199,7 @@ def analytics_redesign():
             month_deductible = db.session.query(
                 func.sum(
                     case(
-                        (ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity),
+                        whens=[(ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity)],
                         else_=0
                     )
                 )
@@ -393,7 +393,7 @@ def analytics_redesign():
             Receipt.expense_major_category,
             func.sum(
                 case(
-                    (ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity),
+                    whens=[(ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity)],
                     else_=0
                 )
             ).label('tax_deductible_amount')
@@ -406,7 +406,7 @@ def analytics_redesign():
         ).order_by(
             func.sum(
                 case(
-                    (ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity),
+                    whens=[(ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity)],
                     else_=0
                 )
             ).desc()
@@ -439,7 +439,7 @@ def analytics_redesign():
             org_tax_deductible = db.session.query(
                 func.sum(
                     case(
-                        (ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity),
+                        whens=[(ReceiptItem.tax_deductible == True, ReceiptItem.price * ReceiptItem.quantity)],
                         else_=0
                     )
                 )
