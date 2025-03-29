@@ -110,15 +110,6 @@ try:
 except Exception as e:
     logger.error(f"Error loading receipt classification routes: {str(e)}")
 
-# Import receipts blueprint
-try:
-    from blueprints.receipts import register_routes as register_receipts_routes
-    # Register receipts routes
-    register_receipts_routes(app)
-    logger.info("Receipts blueprint registered successfully")
-except Exception as e:
-    logger.error(f"Error registering receipts blueprint: {str(e)}")
-
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
