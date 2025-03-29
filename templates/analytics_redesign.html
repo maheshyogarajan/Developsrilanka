@@ -814,7 +814,7 @@
         
         // If the element doesn't exist yet (since we're redesigning), use placeholder data
         const labels = dataElement ? JSON.parse(dataElement.dataset.labels) : ['Business', 'Consulting', 'Investments'];
-        const values = dataElement ? JSON.parse(dataElement.dataset.values) : {{ income_data|tojson|safe }};
+        const values = dataElement ? JSON.parse(dataElement.dataset.values) : [];
         
         // Generate colors
         const colors = generateChartColors(labels.length);
