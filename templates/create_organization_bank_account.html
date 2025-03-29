@@ -74,9 +74,20 @@
 
                         <div class="mb-4">
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="is_default" name="is_default" value="1">
+                                <input type="checkbox" class="form-check-input" id="is_default" name="is_default" value="1"
+                                       {% if not has_existing_accounts %}checked disabled{% endif %}>
+                                {% if not has_existing_accounts %}
+                                <!-- Hidden field to ensure value gets submitted when checkbox is disabled -->
+                                <input type="hidden" name="is_default" value="1">
+                                {% endif %}
                                 <label class="form-check-label" for="is_default">Set as default account for {{ organization.name }}</label>
-                                <div class="form-text">This account will be used by default in invoices</div>
+                                <div class="form-text">
+                                    {% if not has_existing_accounts %}
+                                        This is the first account for this organization. It will automatically be set as the default account.
+                                    {% else %}
+                                        This account will be used by default in invoices if selected.
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 

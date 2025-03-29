@@ -113,6 +113,14 @@ def create_bank_account():
     if default_org_id is None and organizations:
         default_org_id = organizations[0].id
     
+    # Check which organizations have no bank accounts yet (for auto-checking default)
+    orgs_without_accounts = []
+    for org in organizations:
+        # Check if this organization has any bank accounts
+        account_count = BankAccount.query.filter_by(organization_id=org.id).count()
+        if account_count == 0:
+            orgs_without_accounts.append(org.id)
+    
     if request.method == 'POST':
         account_name = request.form.get('account_name')
         bank_name = request.form.get('bank_name')
@@ -126,14 +134,14 @@ def create_bank_account():
         # Validate required fields
         if not account_name or not bank_name or not account_number or not organization_id:
             flash('Please fill in all required fields including organization.', 'danger')
-            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id)
+            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
         
         # Convert organization_id to integer
         try:
             organization_id = int(organization_id)
         except (ValueError, TypeError):
             flash('Invalid organization selected.', 'danger')
-            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id)
+            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
         
         # Verify user has access to this organization
         org_user = OrganizationUser.query.filter_by(
@@ -143,7 +151,7 @@ def create_bank_account():
         
         if not org_user:
             flash('You do not have access to the selected organization.', 'danger')
-            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id)
+            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
         
         # If this account is set as default, unset any existing default accounts for this organization
         if is_default:
@@ -172,7 +180,7 @@ def create_bank_account():
         flash('Bank account added successfully.', 'success')
         return redirect(url_for('bank_accounts'))
     
-    return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id)
+    return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
 
 @bank_account_bp.route('/bank-accounts/<int:account_id>')
 @login_required
@@ -542,6 +550,11 @@ def create_organization_bank_account(org_id):
     # Get organization details
     organization = Organization.query.get_or_404(org_id)
     
+    # Check if organization has any bank accounts
+    has_existing_accounts = db.session.execute(text(
+        "SELECT COUNT(*) FROM bank_account WHERE organization_id = :org_id"
+    ), {'org_id': org_id}).scalar() > 0
+    
     if request.method == 'POST':
         account_name = request.form.get('account_name')
         bank_name = request.form.get('bank_name')
@@ -551,10 +564,14 @@ def create_organization_bank_account(org_id):
         iban = request.form.get('iban')
         is_default = True if request.form.get('is_default') else False
         
+        # If this is the first account for the organization, make it default
+        if not has_existing_accounts:
+            is_default = True
+        
         # Validate required fields
         if not account_name or not bank_name or not account_number:
             flash('Please fill in all required fields.', 'danger')
-            return render_template('create_organization_bank_account.html', organization=organization)
+            return render_template('create_organization_bank_account.html', organization=organization, has_existing_accounts=has_existing_accounts)
         
         # If this account is set as default, unset any existing default accounts
         if is_default:
@@ -583,7 +600,7 @@ def create_organization_bank_account(org_id):
         flash('Organization bank account added successfully.', 'success')
         return redirect(url_for('organization_bank_accounts', org_id=org_id))
     
-    return render_template('create_organization_bank_account.html', organization=organization)
+    return render_template('create_organization_bank_account.html', organization=organization, has_existing_accounts=has_existing_accounts)
 
 @bank_account_bp.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])
 @login_required
