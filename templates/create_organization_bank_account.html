@@ -8,8 +8,8 @@
         <div class="col">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('organizations') }}">Organizations</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('view_organization', org_id=organization.id) }}">{{ organization.name }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('organizations.organizations') }}">Organizations</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}">{{ organization.name }}</a></li>
                     <li class="breadcrumb-item"><a href="{{ url_for('organization_bank_accounts', org_id=organization.id) }}">Bank Accounts</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Add Bank Account</li>
                 </ol>
