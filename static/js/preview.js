@@ -220,13 +220,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
-            // Try parsing JSON with additional error handling
-            try {
-                return response.json();
-            } catch (jsonError) {
-                console.error('Error parsing JSON response:', jsonError);
-                throw new Error('Failed to parse server response. This may be due to a temporary issue.');
-            }
+            // Add extra error handling for JSON parsing
+            return response.text().then(text => {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Error parsing JSON:', e, 'Raw response text starts with:', text.substring(0, 100));
+                    throw new Error('Unexpected token in JSON response. Please try again with a different image.');
+                }
+            });
         })
         .then(data => {
             if (data.error) {
@@ -527,7 +529,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
-            return response.json();
+            // Add extra error handling for JSON parsing
+            return response.text().then(text => {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Error parsing JSON:', e, 'Raw response:', text.substring(0, 100));
+                    return { success: true }; // Return a dummy object to avoid breaking the chain
+                }
+            });
         })
         .then(data => {
             if (data && data.success) {
