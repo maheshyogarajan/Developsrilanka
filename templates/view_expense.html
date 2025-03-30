@@ -58,13 +58,17 @@
                     </div>
                     
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <h6>Submitted Date</h6>
                             <p>{{ expense.submitted_date|datetime }}</p>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <h6>Receipt Date</h6>
                             <p>{{ expense.receipt_date.strftime('%Y-%m-%d') if expense.receipt_date else 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Date Scanned</h6>
+                            <p>{{ expense.date_scanned|datetime if expense.date_scanned else 'N/A' }}</p>
                         </div>
                     </div>
                     

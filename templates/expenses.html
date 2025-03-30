@@ -116,6 +116,7 @@
                                 <th>Amount</th>
                                 <th>Client</th>
                                 <th>Status</th>
+                                <th>Date Scanned</th>
                                 {% if user_org_role in ['owner', 'admin'] %}
                                 <th>Submitted By</th>
                                 {% endif %}
@@ -148,6 +149,7 @@
                                             <span class="badge bg-danger">Rejected</span>
                                         {% endif %}
                                     </td>
+                                    <td>{{ expense.date_scanned|datetime if expense.date_scanned else 'N/A' }}</td>
                                     {% if user_org_role in ['owner', 'admin'] %}
                                     <td>{{ expense.submitter_name }}</td>
                                     {% endif %}

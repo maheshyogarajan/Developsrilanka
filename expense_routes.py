@@ -45,7 +45,7 @@ def expenses():
                    e.submitted_date, e.approval_date, e.reimbursed_date, e.notes,
                    r.vendor_name, r.date, r.total_amount, r.image_path,
                    u.name as submitter_name, e.client_id, c.name as client_name,
-                   e.is_reimbursable
+                   e.is_reimbursable, r.created_at as date_scanned
             FROM company_expense e
             JOIN receipt r ON e.receipt_id = r.id
             JOIN "user" u ON e.user_id = u.id
@@ -60,7 +60,7 @@ def expenses():
                    e.submitted_date, e.approval_date, e.reimbursed_date, e.notes,
                    r.vendor_name, r.date, r.total_amount, r.image_path,
                    u.name as submitter_name, e.client_id, c.name as client_name,
-                   e.is_reimbursable
+                   e.is_reimbursable, r.created_at as date_scanned
             FROM company_expense e
             JOIN receipt r ON e.receipt_id = r.id
             JOIN "user" u ON e.user_id = u.id
@@ -88,7 +88,8 @@ def expenses():
             'submitter_name': row[13],
             'client_id': row[14],
             'client_name': row[15],
-            'is_reimbursable': row[16]
+            'is_reimbursable': row[16],
+            'date_scanned': row[17] if len(row) > 17 else None
         }
         expenses.append(expense)
     
@@ -319,7 +320,8 @@ def view_expense(expense_id):
         'reimburser_name': reimburser.name if reimburser else None,
         'client_name': client.name if client else None,
         'client_email': client.email if client else None,
-        'is_reimbursable': getattr(expense_obj, 'is_reimbursable', True)  # Add support for is_reimbursable field
+        'is_reimbursable': getattr(expense_obj, 'is_reimbursable', True),  # Add support for is_reimbursable field
+        'date_scanned': receipt.created_at  # Add date scanned field
     }
     
     # Get receipt items
