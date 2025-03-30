@@ -133,19 +133,35 @@ class S3Storage:
                 logger.warning(f"Empty S3 key provided, cannot generate presigned URL")
                 return None
                 
+            logger.info(f"Generating presigned URL for S3 key: {s3_key} in bucket: {self.bucket_name}")
+            
+            # Check if the object exists before generating URL
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                logger.info(f"Object exists in S3: {s3_key}")
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    logger.error(f"Object does not exist in S3: {s3_key}")
+                    return None
+                else:
+                    logger.error(f"Error checking object existence: {str(e)}")
+                    # Continue anyway to try generating the URL
+            
+            # Generate the presigned URL
             url = self.s3_client.generate_presigned_url(
                 'get_object',
                 Params={'Bucket': self.bucket_name, 'Key': s3_key},
                 ExpiresIn=expiration
             )
             
+            logger.info(f"Successfully generated presigned URL for {s3_key}")
             return url
             
         except ClientError as e:
-            logger.error(f"Error generating presigned URL: {str(e)}")
+            logger.error(f"Error generating presigned URL for {s3_key}: {str(e)}")
             return None
         except Exception as e:
-            logger.error(f"Unexpected error generating presigned URL: {str(e)}")
+            logger.error(f"Unexpected error generating presigned URL for {s3_key}: {str(e)}")
             return None
     
     def delete_image(self, s3_key):
@@ -283,19 +299,42 @@ def generate_presigned_url(s3_key, expiration=3600):
         str: Presigned URL
     """
     try:
+        if not s3_key or s3_key == "":
+            logger.warning(f"Empty S3 key provided, cannot generate presigned URL")
+            return None
+            
         s3_client = get_s3_client()
         bucket_name = os.environ.get('AWS_S3_BUCKET_NAME')
         
+        logger.info(f"Generating standalone presigned URL for S3 key: {s3_key} in bucket: {bucket_name}")
+        
+        # Check if the object exists before generating URL
+        try:
+            s3_client.head_object(Bucket=bucket_name, Key=s3_key)
+            logger.info(f"Object exists in S3: {s3_key}")
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                logger.error(f"Object does not exist in S3: {s3_key}")
+                return None
+            else:
+                logger.error(f"Error checking object existence: {str(e)}")
+                # Continue anyway to try generating the URL
+        
+        # Generate the presigned URL
         url = s3_client.generate_presigned_url(
             'get_object',
             Params={'Bucket': bucket_name, 'Key': s3_key},
             ExpiresIn=expiration
         )
         
+        logger.info(f"Successfully generated standalone presigned URL for {s3_key}")
         return url
         
     except ClientError as e:
-        logger.error(f"Error generating presigned URL: {str(e)}")
+        logger.error(f"Error generating standalone presigned URL for {s3_key}: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error generating standalone presigned URL for {s3_key}: {str(e)}")
         return None
 
 def delete_image_from_s3(s3_key):
