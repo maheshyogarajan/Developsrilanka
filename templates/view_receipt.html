@@ -194,13 +194,32 @@
             
             <div class="text-center mb-3">
                 <h5 class="card-title">Receipt Image</h5>
-                {% if receipt.image_path %}
+                {% if receipt.s3_key %}
+                    <!-- Use S3 URL if available -->
+                    <a href="{{ receipt.s3_url }}" target="_blank">
+                        <img src="{{ receipt.s3_url }}" 
+                             class="img-fluid border" 
+                             style="max-height: 400px;" 
+                             alt="Receipt Image"
+                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.parentElement.href='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                    </a>
+                {% elif receipt.image_path %}
+                    <!-- Fallback to local storage if S3 not available -->
                     <a href="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" target="_blank">
-                        <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" class="img-fluid border" style="max-height: 400px;" alt="Receipt Image">
+                        <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
+                             class="img-fluid border" 
+                             style="max-height: 400px;" 
+                             alt="Receipt Image"
+                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.parentElement.href='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
                     </a>
                 {% else %}
+                    <!-- No image available -->
                     <div class="text-muted">
-                        <p>No receipt image available</p>
+                        <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                             class="img-fluid border" 
+                             style="max-height: 400px;" 
+                             alt="No Receipt Image Available">
+                        <p class="mt-2">No receipt image available</p>
                     </div>
                 {% endif %}
             </div>

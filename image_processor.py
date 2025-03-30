@@ -13,6 +13,7 @@ from PIL import Image
 
 from celery_config import app as celery_app
 # Import models and db at the function level to avoid circular imports
+import s3_storage
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,21 +24,29 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Flag to control whether to use S3 or local storage
-# Default to False to use local storage only
-USE_S3_STORAGE = False
+# Check if S3 credentials are available
+USE_S3_STORAGE = all([
+    os.environ.get('AWS_S3_BUCKET_NAME'),
+    os.environ.get('AWS_ACCESS_KEY_ID'),
+    os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    os.environ.get('AWS_REGION')
+])
+
+# Initialize S3 storage handler if S3 is enabled
+s3_handler = s3_storage.S3Storage() if USE_S3_STORAGE else None
 
 
 def save_uploaded_image(image_data, filename, organization_id=None):
     """
-    Save the uploaded image to local storage.
+    Save the uploaded image to local storage or S3 depending on configuration.
     
     Args:
         image_data: PIL Image or bytes
         filename: Name to save the file as
-        organization_id: Optional organization ID (kept for interface compatibility)
+        organization_id: Optional organization ID for S3 storage path
     
     Returns:
-        Dictionary containing image path and empty S3 key
+        Dictionary containing image path and S3 key (if applicable)
     """
     try:
         # Ensure we're working with a PIL Image
@@ -52,13 +61,34 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         base_name, ext = os.path.splitext(filename)
         unique_filename = f"{base_name}_{timestamp}{ext}"
         
-        # Prepare result dictionary with empty s3_key
+        # Prepare result dictionary
         result = {
             'image_path': None,
-            's3_key': ''  # Always empty for local storage
+            's3_key': ''
         }
         
-        # Save to local storage
+        # If S3 storage is enabled and the handler is available, use it
+        if USE_S3_STORAGE and s3_handler:
+            logger.info(f"Using S3 storage for image: {filename}")
+            try:
+                # Upload to S3
+                s3_key = s3_handler.upload_image(image_data, organization_id)
+                result['s3_key'] = s3_key
+                logger.info(f"Image uploaded to S3 with key: {s3_key}")
+                
+                # Still save locally as a backup and for immediate display
+                file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+                image_data.save(file_path)
+                relative_path = os.path.join('uploads', unique_filename)
+                result['image_path'] = relative_path
+                logger.info(f"Backup image saved locally to {file_path}")
+                
+                return result
+            except Exception as s3_error:
+                logger.error(f"Error using S3 storage, falling back to local: {str(s3_error)}")
+                # Fall back to local storage on S3 error
+        
+        # Save to local storage (either as primary or fallback)
         file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
         image_data.save(file_path)
         relative_path = os.path.join('uploads', unique_filename)
@@ -108,12 +138,11 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         process_function = getattr(app_module, gemini_processor_fn)
         extracted_data = process_function(image)
         
-        # Add the image path to the extracted data
+        # Add the image path and S3 key to the extracted data
         if storage_result:
             extracted_data['image_path'] = storage_result.get('image_path')
-            # Always set s3_key to empty string for consistency
-            extracted_data['s3_key'] = ''
-            logger.info(f"Added storage information to extracted data: path={storage_result.get('image_path')}")
+            extracted_data['s3_key'] = storage_result.get('s3_key', '')
+            logger.info(f"Added storage information to extracted data: path={storage_result.get('image_path')}, s3_key={storage_result.get('s3_key', '')}")
         
         # Add organization ID to the extracted data
         if organization_id:

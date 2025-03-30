@@ -221,6 +221,26 @@ class Receipt(db.Model):
     expense_major_category = db.Column(db.String(100), nullable=True)
     expense_minor_category = db.Column(db.String(100), nullable=True)
     items = db.relationship('ReceiptItem', backref='receipt', lazy=True, cascade='all, delete-orphan')
+    
+    @property
+    def s3_url(self):
+        """Generate a presigned URL for the receipt image in S3 if available."""
+        if not self.s3_key:
+            return None
+            
+        # Import here to avoid circular imports
+        from s3_storage import generate_presigned_url
+        import logging
+        
+        try:
+            # Generate and return the presigned URL
+            url = generate_presigned_url(self.s3_key)
+            if not url:
+                logging.warning(f"Failed to generate S3 URL for key: {self.s3_key} (object may not exist)")
+            return url
+        except Exception as e:
+            logging.error(f"Error generating S3 URL for key {self.s3_key}: {str(e)}")
+            return None
 
     def get_tax_deductible_amount(self):
         """Calculate the total amount for tax deductible items.
@@ -247,7 +267,9 @@ class Receipt(db.Model):
             # Create the full static URL
             image_url = f"/static/{clean_path}"
             
-        # For compatibility with existing data, maintain s3_key but don't use it for URL generation
+        # Use S3 URL if s3_key is available
+        s3_url = self.s3_url if self.s3_key else None
+            
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -265,6 +287,7 @@ class Receipt(db.Model):
             'image_path': self.image_path or '',
             's3_key': self.s3_key or '',
             'image_url': image_url,
+            's3_url': s3_url,
             'expense_major_category': self.expense_major_category or '',
             'expense_minor_category': self.expense_minor_category or '',
             'tax_deductible_amount': self.get_tax_deductible_amount(),

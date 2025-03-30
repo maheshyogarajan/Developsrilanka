@@ -1,0 +1,14 @@
+=== S3 CONNECTION TESTING ===
+S3 credentials present: True
+S3 bucket name: developsrilanka250330
+Uploaded test image to S3 with key: receipts/1/644f1e6c-9d10-440d-841c-95c09fa8c91b.jpg
+Generated presigned URL: https://developsrilanka250330.s3.amazonaws.com/receipts/1/64...
+Generated standalone presigned URL: https://developsrilanka250330.s3.amazonaws.com/receipts/1/64...
+Deleted test image: True
+
+=== MODEL INTEGRATION TESTING ===
+Found receipt with S3 key: 
+S3 URL property result: None
+No receipts with local image paths found in database
+
+S3 integration tests completed successfully
