@@ -694,8 +694,11 @@ def scan_receipt():
                 if s3_key:
                     extracted_data['s3_key'] = s3_key
                     logging.info(f"Image uploaded to S3: {s3_key}")
+                else:
+                    logging.warning("S3 upload returned None for key, check S3 configuration")
             except Exception as s3_error:
                 logging.error(f"Error uploading to S3: {str(s3_error)}")
+                logging.error(traceback.format_exc())
                 # Continue without S3 key
             
             # For backup, save the image locally too
@@ -874,14 +877,23 @@ def save_receipt():
                 
                 # Construct the full path to the image
                 image_path = receipt_data.get('image_path')
-                full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', image_path)
+                if image_path.startswith('uploads/'):
+                    # Ensure correct path format
+                    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', image_path)
+                else:
+                    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', os.path.basename(image_path))
+                
+                logging.info(f"Attempting to upload file from: {full_path}")
                 
                 if os.path.exists(full_path):
                     # Upload to S3 and get the key
                     s3_key = upload_image_to_s3(full_path, organization_id)
                     logging.info(f"Uploaded receipt image to S3: {s3_key}")
+                else:
+                    logging.warning(f"Image file not found at {full_path}")
             except Exception as s3_error:
                 logging.error(f"Error uploading to S3 during receipt save: {str(s3_error)}")
+                logging.error(traceback.format_exc())
                 # Continue with local image path only
         
         # Create a new receipt and associate it with the current user
