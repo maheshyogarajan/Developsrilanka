@@ -284,7 +284,9 @@ def view_expense(expense_id):
     # Get receipt data including image_url from to_dict method
     receipt_dict = receipt.to_dict()
     
-    # Build expense dictionary
+    # Debug: Log the receipt_dict to see what image_url contains
+    logging.debug(f"Receipt dict for expense ID {expense_id}: image_url={receipt_dict.get('image_url')}, image_path={receipt_dict.get('image_path')}")
+    
     expense = {
         'id': expense_obj.id,
         'receipt_id': expense_obj.receipt_id,

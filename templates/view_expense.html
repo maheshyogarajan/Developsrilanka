@@ -262,11 +262,11 @@
                     <h5 class="card-title mb-0">Receipt Image</h5>
                 </div>
                 <div class="card-body text-center">
-                    {% if expense.image_path %}
-                    <img src="{{ url_for('static', filename=expense.image_path.replace('static/', '')) }}" 
+                    {% if expense.image_url %}
+                    <img src="{{ expense.image_url }}" 
                          class="img-fluid mb-3" alt="Receipt image">
                     <div class="d-grid">
-                        <a href="{{ url_for('static', filename=expense.image_path.replace('static/', '')) }}" 
+                        <a href="{{ expense.image_url }}" 
                            class="btn btn-outline-primary" target="_blank">
                             <i class="fas fa-search-plus me-2"></i>View Full Size
                         </a>
