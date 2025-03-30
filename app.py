@@ -544,6 +544,22 @@ def preview_scan_receipt():
             response = jsonify({'error': 'Failed to extract data from the receipt'})
             response.headers.set('Content-Type', 'application/json')
             return response, 500
+            
+        # For preview, save the image locally
+        # Generate a unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_filename = f"preview_{timestamp}.jpg"
+        upload_folder = os.path.join('static', 'uploads')
+        os.makedirs(upload_folder, exist_ok=True)
+        local_path = os.path.join(upload_folder, unique_filename)
+        
+        try:
+            img.save(local_path)
+            # Store the path relative to static folder
+            extracted_data['image_path'] = os.path.join('uploads', unique_filename)
+            logging.info(f"Preview image saved locally to {local_path}")
+        except Exception as save_error:
+            logging.error(f"Error saving preview image locally: {str(save_error)}")
         
         # Store the extracted data in session for potential correction
         session['receipt_data'] = extracted_data
@@ -602,6 +618,13 @@ def scan_receipt():
             response = jsonify({'error': f'Unable to process image format. Please try with a JPEG or PNG image. Details: {str(img_error)}'})
             response.headers.set('Content-Type', 'application/json')
             return response, 400
+            
+        # Get the user's organization ID for S3 storage path
+        organization_id = None
+        if current_user.is_authenticated and hasattr(current_user, 'get_default_organization'):
+            default_org = current_user.get_default_organization()
+            if default_org:
+                organization_id = default_org.id
         
         # Decide if we should use async processing or direct processing
         # We'll use async processing if the ENABLE_ASYNC_PROCESSING env var is set
@@ -635,7 +658,8 @@ def scan_receipt():
             result = process_receipt_image.delay(
                 img_base64, 
                 receipt_file.filename,
-                'process_receipt_with_gemini'
+                'process_receipt_with_gemini',
+                organization_id
             )
             
             # Store task ID in session for future reference
@@ -662,6 +686,33 @@ def scan_receipt():
             
             if not extracted_data:
                 return jsonify({'error': 'Failed to extract data from the receipt'}), 500
+                
+            # Upload to S3 if environment is configured for it
+            try:
+                from s3_storage import upload_image_to_s3
+                s3_key = upload_image_to_s3(img, organization_id)
+                if s3_key:
+                    extracted_data['s3_key'] = s3_key
+                    logging.info(f"Image uploaded to S3: {s3_key}")
+            except Exception as s3_error:
+                logging.error(f"Error uploading to S3: {str(s3_error)}")
+                # Continue without S3 key
+            
+            # For backup, save the image locally too
+            # Generate a unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_filename = f"receipt_{timestamp}.jpg"
+            upload_folder = os.path.join('static', 'uploads')
+            os.makedirs(upload_folder, exist_ok=True)
+            local_path = os.path.join(upload_folder, unique_filename)
+            
+            try:
+                img.save(local_path)
+                # Store the path relative to static folder
+                extracted_data['image_path'] = os.path.join('uploads', unique_filename)
+                logging.info(f"Image saved locally to {local_path}")
+            except Exception as save_error:
+                logging.error(f"Error saving image locally: {str(save_error)}")
             
             # Store the extracted data in session for potential correction
             session['receipt_data'] = extracted_data
@@ -812,6 +863,27 @@ def save_receipt():
             
         organization_id = default_org.id if default_org else None
         
+        # Get the S3 key if available in the receipt data
+        s3_key = receipt_data.get('s3_key')
+        
+        # If S3 key is not in the receipt data but we have an image path, 
+        # we might want to upload it to S3 now
+        if not s3_key and receipt_data.get('image_path'):
+            try:
+                from s3_storage import upload_image_to_s3
+                
+                # Construct the full path to the image
+                image_path = receipt_data.get('image_path')
+                full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', image_path)
+                
+                if os.path.exists(full_path):
+                    # Upload to S3 and get the key
+                    s3_key = upload_image_to_s3(full_path, organization_id)
+                    logging.info(f"Uploaded receipt image to S3: {s3_key}")
+            except Exception as s3_error:
+                logging.error(f"Error uploading to S3 during receipt save: {str(s3_error)}")
+                # Continue with local image path only
+        
         # Create a new receipt and associate it with the current user
         new_receipt = Receipt(
             user_id=current_user.id,  # Set the user_id from the logged in user
@@ -826,7 +898,8 @@ def save_receipt():
             sscl_tax=float(receipt_data.get('sscl_tax', 0) or 0),
             vat_tax=float(receipt_data.get('vat_tax', 0) or 0),
             expense_major_category=receipt_data.get('expense_major_category'),
-            expense_minor_category=receipt_data.get('expense_minor_category')
+            expense_minor_category=receipt_data.get('expense_minor_category'),
+            s3_key=s3_key
         )
         
         # Add the receipt to the database session

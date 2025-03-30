@@ -106,6 +106,11 @@ def classify_receipts(page=None, receipt_id=None):
     current_receipt_id = all_receipt_ids[current_index]
     current_receipt = Receipt.query.get_or_404(current_receipt_id)
     
+    # Get image URL from S3 if available
+    receipt_dict = current_receipt.to_dict()
+    if 'image_url' in receipt_dict:
+        current_receipt.image_url = receipt_dict['image_url']
+    
     # Check if this receipt is already processed
     existing_expense = CompanyExpense.query.filter_by(receipt_id=current_receipt_id).first()
     current_receipt.is_processed = existing_expense is not None

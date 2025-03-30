@@ -18,21 +18,25 @@ from celery_config import app as celery_app
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Ensure storage directory exists
+# Ensure storage directory exists for local storage fallback
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Flag to control whether to use S3 or local storage
+USE_S3_STORAGE = os.environ.get('USE_S3_STORAGE', 'true').lower() == 'true'
 
-def save_uploaded_image(image_data, filename):
+
+def save_uploaded_image(image_data, filename, organization_id=None):
     """
-    Save the uploaded image to the server.
+    Save the uploaded image to S3 or local storage.
     
     Args:
         image_data: PIL Image or bytes
         filename: Name to save the file as
+        organization_id: Optional organization ID for S3 key path
     
     Returns:
-        Path to the saved image
+        Dictionary containing image path and S3 key (if applicable)
     """
     try:
         # Ensure we're working with a PIL Image
@@ -46,13 +50,45 @@ def save_uploaded_image(image_data, filename):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name, ext = os.path.splitext(filename)
         unique_filename = f"{base_name}_{timestamp}{ext}"
-        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
         
-        # Save the image
+        result = {
+            'image_path': None,
+            's3_key': None
+        }
+        
+        # Try to save to S3 if enabled
+        if USE_S3_STORAGE:
+            try:
+                # Import S3 module here to avoid circular imports
+                from s3_storage import upload_image_to_s3
+                
+                # Upload to S3
+                s3_key = upload_image_to_s3(image_data, organization_id)
+                result['s3_key'] = s3_key
+                logger.info(f"Image uploaded to S3: {s3_key}")
+                
+                # We still save locally as a backup and for compatibility
+                file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+                image_data.save(file_path)
+                relative_path = os.path.join('uploads', unique_filename)
+                result['image_path'] = relative_path
+                logger.info(f"Backup image saved locally to {file_path}")
+                
+                return result
+            
+            except Exception as s3_error:
+                logger.error(f"Error saving to S3, falling back to local storage: {str(s3_error)}")
+                logger.error(traceback.format_exc())
+                # Fall back to local storage
+        
+        # Local storage (fallback or primary if S3 is disabled)
+        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
         image_data.save(file_path)
         relative_path = os.path.join('uploads', unique_filename)
-        logger.info(f"Image saved to {file_path}")
-        return relative_path
+        result['image_path'] = relative_path
+        logger.info(f"Image saved locally to {file_path}")
+        
+        return result
     
     except Exception as e:
         logger.error(f"Error saving image: {str(e)}")
@@ -61,7 +97,7 @@ def save_uploaded_image(image_data, filename):
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
-def process_receipt_image(self, image_data_b64, original_filename, gemini_processor_fn):
+def process_receipt_image(self, image_data_b64, original_filename, gemini_processor_fn, organization_id=None):
     """
     Process a receipt image with Gemini Vision API.
     
@@ -69,20 +105,24 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         image_data_b64: Base64 encoded image data
         original_filename: Original filename of the uploaded image
         gemini_processor_fn: Function name to process the image
+        organization_id: Optional organization ID for S3 key path
     
     Returns:
-        Dictionary containing extracted receipt data and image path
+        Dictionary containing extracted receipt data, image path, and S3 key
     """
     try:
         logger.info(f"Starting to process receipt image: {original_filename}")
+        if organization_id:
+            logger.info(f"Using organization_id: {organization_id} for S3 storage path")
+        
         start_time = time.time()
         
         # Decode base64 image
         image_data = base64.b64decode(image_data_b64)
         image = Image.open(BytesIO(image_data))
         
-        # Save the image to disk
-        image_path = save_uploaded_image(image, original_filename)
+        # Save the image to disk and/or S3
+        storage_result = save_uploaded_image(image, original_filename, organization_id)
         
         # Process with Gemini Vision API
         # Since we can't directly import the function (circular import issue),
@@ -91,8 +131,15 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         process_function = getattr(app_module, gemini_processor_fn)
         extracted_data = process_function(image)
         
-        # Add the image path to the extracted data
-        extracted_data['image_path'] = image_path
+        # Add the image path and S3 key to the extracted data
+        if storage_result:
+            extracted_data['image_path'] = storage_result.get('image_path')
+            extracted_data['s3_key'] = storage_result.get('s3_key')
+            logger.info(f"Added storage information to extracted data: path={storage_result.get('image_path')}, s3_key={storage_result.get('s3_key')}")
+        
+        # Add organization ID to the extracted data
+        if organization_id:
+            extracted_data['organization_id'] = organization_id
         
         # Log processing time
         processing_time = time.time() - start_time
@@ -133,12 +180,14 @@ def save_receipt_to_database(self, receipt_data):
         date_str = receipt_data.get('date', '')
         total_amount = float(receipt_data.get('total_amount', 0))
         image_path = receipt_data.get('image_path', '')
+        s3_key = receipt_data.get('s3_key', '')
         expense_major_category = receipt_data.get('expense_major_category', '')
         expense_minor_category = receipt_data.get('expense_minor_category', '')
         service_charge = float(receipt_data.get('service_charge', 0))
         vat_tax = float(receipt_data.get('vat_tax', 0))
         sscl_tax = float(receipt_data.get('sscl_tax', 0))
         vat_registration_number = receipt_data.get('vat_registration_number', '')
+        organization_id = receipt_data.get('organization_id')
         
         # Parse date
         date_obj = None
@@ -166,6 +215,8 @@ def save_receipt_to_database(self, receipt_data):
             sscl_tax=sscl_tax,
             vat_tax=vat_tax,
             image_path=image_path,
+            s3_key=s3_key,
+            organization_id=organization_id,
             expense_major_category=expense_major_category,
             expense_minor_category=expense_minor_category
         )

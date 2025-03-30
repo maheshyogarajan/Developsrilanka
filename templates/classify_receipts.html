@@ -154,7 +154,7 @@
                             </div>
                             {% endif %}
                             
-                            {% if current_receipt.image_path %}
+                            {% if current_receipt.image_url or current_receipt.image_path %}
                             <div class="text-center mt-3">
                                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
                                     <i class="fas fa-image me-1"></i> View Receipt Image
@@ -171,7 +171,7 @@
                     </div>
                 </form>
                 
-                {% if current_receipt.image_path %}
+                {% if current_receipt.image_url or current_receipt.image_path %}
                 <!-- Receipt Image Modal -->
                 <div class="modal fade" id="receiptImageModal" tabindex="-1" aria-labelledby="receiptImageModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg">
@@ -181,8 +181,13 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body text-center">
-                                <img src="{{ url_for('static', filename='uploads/' + current_receipt.image_path) }}" 
+                                {% if current_receipt.image_url %}
+                                <img src="{{ current_receipt.image_url }}" 
                                      alt="Receipt Image" class="img-fluid">
+                                {% elif current_receipt.image_path %}
+                                <img src="{{ url_for('static', filename=current_receipt.image_path) }}" 
+                                     alt="Receipt Image" class="img-fluid">
+                                {% endif %}
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

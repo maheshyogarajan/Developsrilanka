@@ -204,7 +204,7 @@ def submit_expense():
     # Get user's receipts that haven't been submitted as expenses yet
     receipts_results = db.session.execute(text("""
         SELECT r.id, r.vendor_name, r.date, r.total_amount, r.image_path, 
-               r.expense_major_category, r.expense_minor_category
+               r.expense_major_category, r.expense_minor_category, r.s3_key, r.organization_id
         FROM receipt r
         LEFT JOIN company_expense e ON r.id = e.receipt_id
         WHERE r.user_id = :user_id AND e.id IS NULL
@@ -220,8 +220,20 @@ def submit_expense():
             'total_amount': row[3],
             'image_path': row[4],
             'expense_major_category': row[5],
-            'expense_minor_category': row[6]
+            'expense_minor_category': row[6],
+            's3_key': row[7] if len(row) > 7 else None,
+            'organization_id': row[8] if len(row) > 8 else None
         }
+        
+        # Generate S3 image URL if needed
+        if receipt['s3_key']:
+            try:
+                from s3_storage import S3Storage
+                s3_storage = S3Storage()
+                receipt['image_url'] = s3_storage.generate_presigned_url(receipt['s3_key'])
+            except Exception as e:
+                logging.error(f"Error generating S3 presigned URL: {str(e)}")
+                receipt['image_url'] = None
         receipts.append(receipt)
     
     if not receipts:
@@ -274,6 +286,9 @@ def view_expense(expense_id):
     # Get client information if associated with this expense
     client = Client.query.get(expense_obj.client_id) if expense_obj.client_id else None
     
+    # Get receipt data including image_url from to_dict method
+    receipt_dict = receipt.to_dict()
+    
     # Build expense dictionary
     expense = {
         'id': expense_obj.id,
@@ -293,6 +308,8 @@ def view_expense(expense_id):
         'receipt_date': receipt.date,
         'total_amount': receipt.total_amount,
         'image_path': receipt.image_path,
+        's3_key': receipt.s3_key,
+        'image_url': receipt_dict.get('image_url'),
         'vendor_address': receipt.vendor_address,
         'vendor_contact': receipt.vendor_contact,
         'vat_registration_number': receipt.vat_registration_number,
@@ -587,6 +604,16 @@ def create_expense_from_receipt(receipt_id):
     """Create a company expense directly from a receipt."""
     # Verify the receipt belongs to the user
     receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first_or_404()
+    
+    # Generate S3 presigned URL if receipt has s3_key
+    if receipt.s3_key:
+        try:
+            from s3_storage import S3Storage
+            s3_storage = S3Storage()
+            receipt.image_url = s3_storage.generate_presigned_url(receipt.s3_key)
+        except Exception as e:
+            logging.error(f"Error generating S3 presigned URL: {str(e)}")
+            receipt.image_url = None
     
     # Check if there's already an expense for this receipt
     existing_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()

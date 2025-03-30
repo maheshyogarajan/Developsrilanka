@@ -27,12 +27,15 @@
                         </div>
                     </div>
 
-                    {% if receipt.image_path %}
                     <div class="text-center mb-4">
-                        <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
-                            alt="Receipt Image" class="img-fluid" style="max-height: 300px;">
+                        {% if receipt.s3_key and receipt.image_url %}
+                            <img src="{{ receipt.image_url }}" 
+                                alt="Receipt Image" class="img-fluid" style="max-height: 300px;">
+                        {% elif receipt.image_path %}
+                            <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
+                                alt="Receipt Image" class="img-fluid" style="max-height: 300px;">
+                        {% endif %}
                     </div>
-                    {% endif %}
 
                     <form method="POST" action="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}">
                         <div class="mb-3">

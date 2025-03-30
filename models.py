@@ -216,7 +216,8 @@ class Receipt(db.Model):
     sscl_tax = db.Column(db.Float, nullable=True, default=0.0)
     vat_tax = db.Column(db.Float, nullable=True, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    image_path = db.Column(db.String(255), nullable=True)
+    image_path = db.Column(db.String(255), nullable=True)  # Local file path (legacy)
+    s3_key = db.Column(db.String(255), nullable=True)  # S3 object key for receipt image
     expense_major_category = db.Column(db.String(100), nullable=True)
     expense_minor_category = db.Column(db.String(100), nullable=True)
     items = db.relationship('ReceiptItem', backref='receipt', lazy=True, cascade='all, delete-orphan')
@@ -236,6 +237,19 @@ class Receipt(db.Model):
 
     def to_dict(self):
         """Convert the receipt to a dictionary."""
+        # Get presigned URL for S3 image if available
+        image_url = None
+        if self.s3_key:
+            try:
+                from s3_storage import generate_presigned_url
+                image_url = generate_presigned_url(self.s3_key)
+            except Exception as e:
+                # Fall back to image_path if S3 presigned URL generation fails
+                image_url = f"/static/{self.image_path}" if self.image_path else None
+        elif self.image_path:
+            # Use local image path if S3 key not available
+            image_url = f"/static/{self.image_path}"
+            
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -250,6 +264,9 @@ class Receipt(db.Model):
             'sscl_tax': self.sscl_tax,
             'vat_tax': self.vat_tax,
             'created_at': self.created_at.isoformat(),
+            'image_path': self.image_path or '',
+            's3_key': self.s3_key or '',
+            'image_url': image_url,
             'expense_major_category': self.expense_major_category or '',
             'expense_minor_category': self.expense_minor_category or '',
             'tax_deductible_amount': self.get_tax_deductible_amount(),
