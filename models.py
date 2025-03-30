@@ -241,9 +241,12 @@ class Receipt(db.Model):
         image_url = None
         if self.s3_key:
             try:
-                from s3_storage import generate_presigned_url
-                image_url = generate_presigned_url(self.s3_key)
+                from s3_storage import S3Storage
+                s3_storage = S3Storage()
+                image_url = s3_storage.generate_presigned_url(self.s3_key)
             except Exception as e:
+                import logging
+                logging.error(f"Error generating S3 presigned URL in to_dict: {str(e)}")
                 # Fall back to image_path if S3 presigned URL generation fails
                 image_url = f"/static/{self.image_path}" if self.image_path else None
         elif self.image_path:
