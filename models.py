@@ -237,22 +237,12 @@ class Receipt(db.Model):
 
     def to_dict(self):
         """Convert the receipt to a dictionary."""
-        # Get presigned URL for S3 image if available
+        # Use only local image path for image URL
         image_url = None
-        if self.s3_key:
-            try:
-                from s3_storage import S3Storage
-                s3_storage = S3Storage()
-                image_url = s3_storage.generate_presigned_url(self.s3_key)
-            except Exception as e:
-                import logging
-                logging.error(f"Error generating S3 presigned URL in to_dict: {str(e)}")
-                # Fall back to image_path if S3 presigned URL generation fails
-                image_url = f"/static/{self.image_path}" if self.image_path else None
-        elif self.image_path:
-            # Use local image path if S3 key not available
-            image_url = f"/static/{self.image_path}"
+        if self.image_path:
+            image_url = f"/static/{self.image_path.replace('static/', '')}"
             
+        # For compatibility with existing data, maintain s3_key but don't use it for URL generation
         return {
             'id': self.id,
             'user_id': self.user_id,

@@ -227,14 +227,8 @@ def submit_expense():
         }
         
         # Generate S3 image URL if needed
-        if receipt['s3_key']:
-            try:
-                from s3_storage import S3Storage
-                s3_storage = S3Storage()
-                receipt['image_url'] = s3_storage.generate_presigned_url(receipt['s3_key'])
-            except Exception as e:
-                logging.error(f"Error generating S3 presigned URL: {str(e)}")
-                receipt['image_url'] = None
+        # We'll use image_path directly in templates instead of S3 URLs
+        receipt['image_url'] = None
         receipts.append(receipt)
     
     if not receipts:
@@ -607,15 +601,8 @@ def create_expense_from_receipt(receipt_id):
     # Verify the receipt belongs to the user
     receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first_or_404()
     
-    # Generate S3 presigned URL if receipt has s3_key
-    if receipt.s3_key:
-        try:
-            from s3_storage import S3Storage
-            s3_storage = S3Storage()
-            receipt.image_url = s3_storage.generate_presigned_url(receipt.s3_key)
-        except Exception as e:
-            logging.error(f"Error generating S3 presigned URL: {str(e)}")
-            receipt.image_url = None
+    # Use image_path directly in template instead of S3
+    receipt.image_url = None
     
     # Check if there's already an expense for this receipt
     existing_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()

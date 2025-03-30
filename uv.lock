@@ -1099,6 +1099,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "authlib" },
     { name = "boto3" },
+    { name = "botocore" },
     { name = "celery" },
     { name = "email-validator" },
     { name = "flask" },
@@ -1121,6 +1122,7 @@ dependencies = [
 requires-dist = [
     { name = "authlib", specifier = ">=1.5.1" },
     { name = "boto3", specifier = ">=1.37.23" },
+    { name = "botocore", specifier = ">=1.37.23" },
     { name = "celery", specifier = ">=5.4.0" },
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "flask", specifier = ">=3.1.0" },

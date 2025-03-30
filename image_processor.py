@@ -23,20 +23,21 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Flag to control whether to use S3 or local storage
-USE_S3_STORAGE = os.environ.get('USE_S3_STORAGE', 'true').lower() == 'true'
+# Default to False to use local storage only
+USE_S3_STORAGE = False
 
 
 def save_uploaded_image(image_data, filename, organization_id=None):
     """
-    Save the uploaded image to S3 or local storage.
+    Save the uploaded image to local storage.
     
     Args:
         image_data: PIL Image or bytes
         filename: Name to save the file as
-        organization_id: Optional organization ID for S3 key path
+        organization_id: Optional organization ID (kept for interface compatibility)
     
     Returns:
-        Dictionary containing image path and S3 key (if applicable)
+        Dictionary containing image path and empty S3 key
     """
     try:
         # Ensure we're working with a PIL Image
@@ -51,37 +52,13 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         base_name, ext = os.path.splitext(filename)
         unique_filename = f"{base_name}_{timestamp}{ext}"
         
+        # Prepare result dictionary with empty s3_key
         result = {
             'image_path': None,
-            's3_key': None
+            's3_key': ''  # Always empty for local storage
         }
         
-        # Try to save to S3 if enabled
-        if USE_S3_STORAGE:
-            try:
-                # Import S3 module here to avoid circular imports
-                from s3_storage import upload_image_to_s3
-                
-                # Upload to S3
-                s3_key = upload_image_to_s3(image_data, organization_id)
-                result['s3_key'] = s3_key
-                logger.info(f"Image uploaded to S3: {s3_key}")
-                
-                # We still save locally as a backup and for compatibility
-                file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-                image_data.save(file_path)
-                relative_path = os.path.join('uploads', unique_filename)
-                result['image_path'] = relative_path
-                logger.info(f"Backup image saved locally to {file_path}")
-                
-                return result
-            
-            except Exception as s3_error:
-                logger.error(f"Error saving to S3, falling back to local storage: {str(s3_error)}")
-                logger.error(traceback.format_exc())
-                # Fall back to local storage
-        
-        # Local storage (fallback or primary if S3 is disabled)
+        # Save to local storage
         file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
         image_data.save(file_path)
         relative_path = os.path.join('uploads', unique_filename)
@@ -131,11 +108,12 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         process_function = getattr(app_module, gemini_processor_fn)
         extracted_data = process_function(image)
         
-        # Add the image path and S3 key to the extracted data
+        # Add the image path to the extracted data
         if storage_result:
             extracted_data['image_path'] = storage_result.get('image_path')
-            extracted_data['s3_key'] = storage_result.get('s3_key')
-            logger.info(f"Added storage information to extracted data: path={storage_result.get('image_path')}, s3_key={storage_result.get('s3_key')}")
+            # Always set s3_key to empty string for consistency
+            extracted_data['s3_key'] = ''
+            logger.info(f"Added storage information to extracted data: path={storage_result.get('image_path')}")
         
         # Add organization ID to the extracted data
         if organization_id:

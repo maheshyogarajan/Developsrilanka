@@ -687,21 +687,7 @@ def scan_receipt():
             if not extracted_data:
                 return jsonify({'error': 'Failed to extract data from the receipt'}), 500
                 
-            # Upload to S3 if environment is configured for it
-            try:
-                from s3_storage import upload_image_to_s3
-                s3_key = upload_image_to_s3(img, organization_id)
-                if s3_key:
-                    extracted_data['s3_key'] = s3_key
-                    logging.info(f"Image uploaded to S3: {s3_key}")
-                else:
-                    logging.warning("S3 upload returned None for key, check S3 configuration")
-            except Exception as s3_error:
-                logging.error(f"Error uploading to S3: {str(s3_error)}")
-                logging.error(traceback.format_exc())
-                # Continue without S3 key
-            
-            # For backup, save the image locally too
+            # Save the image locally
             # Generate a unique filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             unique_filename = f"receipt_{timestamp}.jpg"
@@ -714,8 +700,12 @@ def scan_receipt():
                 # Store the path relative to static folder
                 extracted_data['image_path'] = os.path.join('uploads', unique_filename)
                 logging.info(f"Image saved locally to {local_path}")
+                
+                # Set s3_key to empty string for compatibility with existing code
+                extracted_data['s3_key'] = ''
             except Exception as save_error:
                 logging.error(f"Error saving image locally: {str(save_error)}")
+                # If we can't save the image, log the error but continue
             
             # Store the extracted data in session for potential correction
             session['receipt_data'] = extracted_data
@@ -869,13 +859,13 @@ def save_receipt():
         # Get the S3 key if available in the receipt data
         s3_key = receipt_data.get('s3_key')
         
-        # If S3 key is not in the receipt data but we have an image path, 
-        # we might want to upload it to S3 now
-        if not s3_key and receipt_data.get('image_path'):
+        # For local storage, we'll just use empty string for s3_key
+        # and make sure the image_path is properly set
+        s3_key = ''
+        
+        # Validate image path exists if provided
+        if receipt_data.get('image_path'):
             try:
-                from s3_storage import upload_image_to_s3
-                
-                # Construct the full path to the image
                 image_path = receipt_data.get('image_path')
                 if image_path.startswith('uploads/'):
                     # Ensure correct path format
@@ -883,18 +873,13 @@ def save_receipt():
                 else:
                     full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', os.path.basename(image_path))
                 
-                logging.info(f"Attempting to upload file from: {full_path}")
+                logging.info(f"Using local image path: {full_path}")
                 
-                if os.path.exists(full_path):
-                    # Upload to S3 and get the key
-                    s3_key = upload_image_to_s3(full_path, organization_id)
-                    logging.info(f"Uploaded receipt image to S3: {s3_key}")
-                else:
+                if not os.path.exists(full_path):
                     logging.warning(f"Image file not found at {full_path}")
-            except Exception as s3_error:
-                logging.error(f"Error uploading to S3 during receipt save: {str(s3_error)}")
-                logging.error(traceback.format_exc())
-                # Continue with local image path only
+            except Exception as error:
+                logging.error(f"Error validating image path: {str(error)}")
+                # Continue with the path we have
         
         # Create a new receipt and associate it with the current user
         new_receipt = Receipt(
