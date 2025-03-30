@@ -287,6 +287,27 @@ def view_expense(expense_id):
     # Debug: Log the receipt_dict to see what image_url contains
     logging.debug(f"Receipt dict for expense ID {expense_id}: image_url={receipt_dict.get('image_url')}, image_path={receipt_dict.get('image_path')}")
     
+    # Generate a placeholder image URL if no image exists
+    # This ensures the image section still renders in the template
+    receipt_image_url = None
+    
+    # First, try to use the image_url from the receipt_dict (generated via to_dict method)
+    if receipt_dict.get('image_url'):
+        receipt_image_url = receipt_dict.get('image_url')
+    # Otherwise, try to generate a URL from the image_path
+    elif receipt.image_path:
+        # Normalize the path to ensure proper URL format
+        clean_path = receipt.image_path.replace('static/', '')
+        # Ensure path doesn't start with slash to avoid double slashes
+        clean_path = clean_path.lstrip('/')
+        # Create the full static URL
+        receipt_image_url = f"/static/{clean_path}"
+    # Otherwise, try to generate from s3_key if available
+    elif receipt.s3_key:
+        receipt_image_url = f"/get_receipt_image/{receipt.id}"
+    
+    logging.debug(f"Generated receipt_image_url: {receipt_image_url}")
+    
     expense = {
         'id': expense_obj.id,
         'receipt_id': expense_obj.receipt_id,
@@ -306,7 +327,7 @@ def view_expense(expense_id):
         'total_amount': receipt.total_amount,
         'image_path': receipt.image_path,
         's3_key': receipt.s3_key,
-        'image_url': receipt_dict.get('image_url'),
+        'image_url': receipt_image_url,
         'vendor_address': receipt.vendor_address,
         'vendor_contact': receipt.vendor_contact,
         'vat_registration_number': receipt.vat_registration_number,
