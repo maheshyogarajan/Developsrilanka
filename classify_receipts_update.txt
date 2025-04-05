@@ -1,0 +1,21 @@
+                                {% if current_receipt.s3_key %}
+                                <!-- Use S3 URL if available -->
+                                <img src="{{ current_receipt.s3_url }}" 
+                                     alt="Receipt Image" class="img-fluid"
+                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                {% elif current_receipt.image_url %}
+                                <img src="{{ current_receipt.image_url }}" 
+                                     alt="Receipt Image" class="img-fluid"
+                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                {% elif current_receipt.image_path %}
+                                <img src="{{ url_for('static', filename=current_receipt.image_path.replace('static/', '')) }}" 
+                                     alt="Receipt Image" class="img-fluid"
+                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                {% else %}
+                                <div class="text-muted">
+                                    <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                                         class="img-fluid" style="max-height: 400px;" 
+                                         alt="No Receipt Image Available">
+                                    <p class="mt-2">No receipt image available</p>
+                                </div>
+                                {% endif %}

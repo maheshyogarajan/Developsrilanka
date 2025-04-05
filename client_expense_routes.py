@@ -84,6 +84,11 @@ def allocate_to_client(receipt_id):
             return redirect(url_for('view_receipt', receipt_id=receipt_id))
     
     # GET request - render form
+    # Get image URL from S3 if available
+    receipt_dict = receipt.to_dict()
+    if 'image_url' in receipt_dict:
+        receipt.image_url = receipt_dict['image_url']
+        
     return render_template('allocate_to_client.html', receipt=receipt, clients=clients)
 
 @client_expense_bp.route('/client-expenses')
@@ -181,6 +186,11 @@ def view_client_expense(expense_id):
     receipt = Receipt.query.get_or_404(expense.receipt_id)
     client = Client.query.get_or_404(expense.client_id)
     
+    # Get image URL from S3 if available
+    receipt_dict = receipt.to_dict()
+    if 'image_url' in receipt_dict:
+        receipt.image_url = receipt_dict['image_url']
+    
     return render_template('view_client_expense.html', 
                            expense=expense,
                            receipt=receipt,
@@ -244,6 +254,11 @@ def edit_client_expense(expense_id):
     
     # GET request - render form
     receipt = Receipt.query.get_or_404(expense.receipt_id)
+    
+    # Get image URL from S3 if available
+    receipt_dict = receipt.to_dict()
+    if 'image_url' in receipt_dict:
+        receipt.image_url = receipt_dict['image_url']
     
     return render_template('edit_client_expense.html', 
                            expense=expense, 
