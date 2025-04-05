@@ -373,6 +373,170 @@ def history():
         current_user=current_user
     )
 
+@unified_view_bp.route('/update/<int:receipt_id>', methods=['POST'])
+@login_required
+def update_receipt(receipt_id):
+    """
+    Update receipt details and expense classification in a single form.
+    This handles both receipt details and expense details simultaneously.
+    """
+    # Get receipt
+    receipt = Receipt.query.get_or_404(receipt_id)
+    
+    # Ensure user has access to this receipt
+    if receipt.user_id != current_user.id:
+        if not receipt.organization_id:
+            abort(403)  # User doesn't own this receipt and it's not associated with an organization
+        
+        # Check if user is part of this organization
+        user_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=receipt.organization_id
+        ).first()
+        
+        if not user_org or user_org.role not in ['owner', 'admin', 'member']:
+            abort(403)  # User doesn't have edit permission
+    
+    # Update receipt basic details
+    receipt.vendor_name = request.form.get('vendor_name', receipt.vendor_name)
+    receipt.receipt_number = request.form.get('receipt_number', receipt.receipt_number)
+    
+    try:
+        if request.form.get('date'):
+            receipt.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d')
+    except ValueError:
+        flash('Invalid date format', 'warning')
+    
+    try:
+        if request.form.get('total_amount'):
+            receipt.total_amount = float(request.form.get('total_amount'))
+    except ValueError:
+        flash('Invalid amount format', 'warning')
+    
+    receipt.expense_major_category = request.form.get('expense_major_category', receipt.expense_major_category)
+    receipt.expense_minor_category = request.form.get('expense_minor_category', receipt.expense_minor_category)
+    
+    # Handle receipt type change
+    receipt_type = request.form.get('receipt_type')
+    
+    # Get existing expense records
+    company_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
+    client_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
+    
+    if receipt_type == 'personal':
+        # Convert to personal expense by removing business/client expense records
+        if company_expense:
+            db.session.delete(company_expense)
+        if client_expense:
+            db.session.delete(client_expense)
+            
+    elif receipt_type == 'business':
+        # Handle business expense details
+        if company_expense:
+            # Update existing business expense
+            company_expense.description = request.form.get('business_description', '')
+            company_expense.is_reimbursable = 'is_reimbursable' in request.form
+            
+            if request.form.get('client_id'):
+                company_expense.client_id = int(request.form.get('client_id'))
+            else:
+                company_expense.client_id = None
+                
+            company_expense.notes = request.form.get('notes', '')
+            
+        else:
+            # Create new business expense
+            new_expense = CompanyExpense(
+                receipt_id=receipt_id,
+                user_id=current_user.id,
+                organization_id=receipt.organization_id,
+                description=request.form.get('business_description', ''),
+                is_reimbursable='is_reimbursable' in request.form,
+                notes=request.form.get('notes', ''),
+                status=ExpenseStatus.SUBMITTED.value
+            )
+            
+            if request.form.get('client_id'):
+                new_expense.client_id = int(request.form.get('client_id'))
+                
+            db.session.add(new_expense)
+            
+            # Remove client expense if it exists
+            if client_expense:
+                db.session.delete(client_expense)
+    
+    # Calculate tax deductible amount based on receipt items
+    # Will be updated when items are saved
+    
+    db.session.commit()
+    flash('Receipt updated successfully', 'success')
+    return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
+
+@unified_view_bp.route('/update-items/<int:receipt_id>', methods=['POST'])
+@login_required
+def update_receipt_items(receipt_id):
+    """
+    Update receipt items and their tax deductible status.
+    Also recalculates the receipt's total tax deductible amount.
+    """
+    # Get receipt
+    receipt = Receipt.query.get_or_404(receipt_id)
+    
+    # Ensure user has access to this receipt
+    if receipt.user_id != current_user.id:
+        if not receipt.organization_id:
+            abort(403)  # User doesn't own this receipt and it's not associated with an organization
+        
+        # Check if user is part of this organization
+        user_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=receipt.organization_id
+        ).first()
+        
+        if not user_org or user_org.role not in ['owner', 'admin', 'member']:
+            abort(403)  # User doesn't have edit permission
+    
+    # Get form data
+    item_ids = request.form.getlist('item_ids[]')
+    descriptions = request.form.getlist('descriptions[]')
+    quantities = request.form.getlist('quantities[]')
+    unit_prices = request.form.getlist('unit_prices[]')
+    amounts = request.form.getlist('amounts[]')
+    tax_deductible_ids = request.form.getlist('tax_deductible[]')
+    
+    # Update items
+    total_tax_deductible = 0
+    
+    for i in range(len(item_ids)):
+        if i < len(descriptions) and i < len(quantities) and i < len(unit_prices) and i < len(amounts):
+            item_id = int(item_ids[i])
+            item = ReceiptItem.query.get(item_id)
+            
+            if item and item.receipt_id == receipt_id:
+                item.description = descriptions[i]
+                
+                try:
+                    item.quantity = float(quantities[i]) if quantities[i] else None
+                    item.unit_price = float(unit_prices[i]) if unit_prices[i] else None
+                    item.amount = float(amounts[i]) if amounts[i] else None
+                except ValueError:
+                    flash(f'Invalid number format for item: {descriptions[i]}', 'warning')
+                    continue
+                
+                # Set tax deductible status
+                item.tax_deductible = str(item_id) in tax_deductible_ids
+                
+                # Calculate tax deductible amount
+                if item.tax_deductible and item.amount:
+                    total_tax_deductible += item.amount
+    
+    # Update receipt with total tax deductible amount
+    receipt.tax_deductible_amount = total_tax_deductible
+    
+    db.session.commit()
+    flash('Receipt items updated successfully', 'success')
+    return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
+
 @unified_view_bp.route('/bulk-action', methods=['POST'])
 @login_required
 def bulk_action():
@@ -444,6 +608,26 @@ def bulk_action():
         flash('Export functionality not yet implemented', 'info')
     
     return redirect(url_for('unified_view.history'))
+
+@unified_view_bp.route('/api/clients')
+@login_required
+def api_clients():
+    """
+    API endpoint to get a list of clients for the current user's organizations.
+    Used for client dropdown in forms.
+    """
+    # Get user's organizations
+    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+    user_org_ids = [org.organization_id for org in user_orgs]
+    
+    # Get clients for all user's organizations
+    clients = Client.query.filter(Client.organization_id.in_(user_org_ids)).all()
+    
+    # Convert to simple dict format
+    client_list = [{'id': client.id, 'name': client.name} for client in clients]
+    
+    return jsonify(client_list)
+
 
 def register_routes(app):
     """Register the unified receipt/expense view routes with the app."""

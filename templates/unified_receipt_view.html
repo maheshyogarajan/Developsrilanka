@@ -1,469 +1,698 @@
-{% extends "layout.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Receipt Details - Develop Sri Lanka{% endblock %}
+{% block title %}Receipt Details{% endblock %}
+
+{% block styles %}
+<style>
+    .receipt-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+    }
+    .receipt-image {
+        max-width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .tax-deductible {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .not-tax-deductible {
+        color: #6c757d;
+    }
+    .receipt-details-card {
+        margin-bottom: 1.5rem;
+    }
+    .actions-panel {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .status-badge {
+        padding: 0.35em 0.65em;
+        border-radius: 0.25rem;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+    .status-submitted {
+        background-color: #cff4fc;
+        color: #055160;
+    }
+    .status-approved {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+    .status-reimbursed {
+        background-color: #e2e3e5;
+        color: #41464b;
+    }
+    .status-rejected {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+    #editForm .form-group,
+    #itemsForm .form-group {
+        margin-bottom: 1rem;
+    }
+    .edit-actions {
+        margin-top: 1rem;
+    }
+    .receipt-type-toggle {
+        margin-bottom: 1rem;
+    }
+    .receipt-classification-form {
+        margin-top: 1.5rem;
+        display: none;
+    }
+    .client-selection {
+        margin-top: 1rem;
+        display: none;
+    }
+    #itemsTable td {
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
-        <div class="col">
-            <h2 class="mb-3"><i class="fas fa-receipt me-2"></i>Receipt Details</h2>
-            <p class="text-muted">View receipt details, expense classification, and reimbursement status.</p>
+<div class="container mt-4">
+    <div class="receipt-header">
+        <div>
+            <h1>Receipt Details</h1>
+            <p class="text-muted">
+                <i class="fas fa-building"></i> {{ organization.name }}
+                &bull; <i class="fas fa-calendar"></i> {{ receipt.date.strftime('%B %d, %Y') if receipt.date }}
+            </p>
         </div>
-        <div class="col-md-auto">
-            <a href="{{ url_for('receipt_history') }}" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i>Back to History
+        <div>
+            <a href="{{ url_for('unified_view.history') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to History
             </a>
         </div>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <div class="row">
-        <!-- Left Column - Receipt and Expense Information -->
-        <div class="col-lg-8 mb-4">
-            <!-- Receipt Information Card -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Receipt Information</h5>
-                    <div>
-                        <!-- Organization Badge -->
-                        {% if receipt.organization_id %}
-                            <span class="badge bg-primary">{{ organization.name }}</span>
+    <!-- Status and Actions Panel -->
+    <div class="actions-panel">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Receipt Status</h5>
+                <!-- Status indicators -->
+                <div>
+                    <span class="badge bg-primary">
+                        <i class="fas fa-file-invoice"></i> Receipt recorded
+                    </span>
+                    
+                    {% if is_company_expense %}
+                        <span class="badge bg-success">
+                            <i class="fas fa-briefcase"></i> Business expense
+                        </span>
+                        
+                        <span class="status-badge 
+                            {% if expense.status == 'submitted' %}status-submitted
+                            {% elif expense.status == 'approved' %}status-approved
+                            {% elif expense.status == 'reimbursed' %}status-reimbursed
+                            {% elif expense.status == 'rejected' %}status-rejected{% endif %}">
+                            <i class="fas 
+                                {% if expense.status == 'submitted' %}fa-clock
+                                {% elif expense.status == 'approved' %}fa-check
+                                {% elif expense.status == 'reimbursed' %}fa-money-bill-wave
+                                {% elif expense.status == 'rejected' %}fa-times{% endif %}"></i>
+                            {{ expense.status|title }}
+                        </span>
+                        
+                        {% if expense.is_reimbursable %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-hand-holding-usd"></i> Reimbursable
+                            </span>
                         {% endif %}
                         
-                        <!-- Expense Classification Badges -->
-                        {% if is_company_expense %}
-                            <span class="badge bg-success">Business Expense</span>
-                            {% if expense and expense.status %}
-                                {% if expense.status == 'submitted' %}
-                                    <span class="badge bg-warning">Submitted</span>
-                                {% elif expense.status == 'approved' %}
-                                    <span class="badge bg-info">Approved</span>
-                                {% elif expense.status == 'reimbursed' %}
-                                    <span class="badge bg-success">Reimbursed</span>
-                                {% elif expense.status == 'rejected' %}
-                                    <span class="badge bg-danger">Rejected</span>
-                                {% endif %}
+                        {% if expense.client_id %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-user-tie"></i> {{ expense.client_name }}
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if is_client_expense %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-user-tie"></i> Client expense ({{ client_expense.client.name }})
+                        </span>
+                    {% endif %}
+                    
+                    {% if not is_company_expense and not is_client_expense %}
+                        <span class="badge bg-secondary">
+                            <i class="fas fa-home"></i> Personal expense
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <h5>Actions</h5>
+                <div class="action-buttons">
+                    <button id="toggleEditMode" class="btn btn-primary btn-sm">
+                        <i class="fas fa-edit"></i> Edit Receipt
+                    </button>
+                    
+                    {% if not is_company_expense and not is_client_expense and (user_org_role == 'owner' or user_org_role == 'admin' or user_org_role == 'member') %}
+                        <button id="toggleClassification" class="btn btn-success btn-sm">
+                            <i class="fas fa-briefcase"></i> Classify as Business Expense
+                        </button>
+                    {% endif %}
+                    
+                    {% if is_company_expense %}
+                        {% if current_user.id == expense.user_id and expense.status == 'submitted' %}
+                            <form action="{{ url_for('expenses.cancel_expense', expense_id=expense.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to cancel this expense?')">
+                                    <i class="fas fa-times"></i> Cancel Expense
+                                </button>
+                            </form>
+                        {% endif %}
+                        
+                        {% if user_org_role == 'owner' or user_org_role == 'admin' %}
+                            {% if expense.status == 'submitted' %}
+                                <form action="{{ url_for('expenses.approve_expense', expense_id=expense.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-check"></i> Approve
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('expenses.reject_expense', expense_id=expense.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </form>
+                            {% endif %}
+                            
+                            {% if expense.status == 'approved' and expense.is_reimbursable %}
+                                <form action="{{ url_for('expenses.mark_reimbursed', expense_id=expense.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-info btn-sm">
+                                        <i class="fas fa-money-bill-wave"></i> Mark as Reimbursed
+                                    </button>
+                                </form>
                             {% endif %}
                         {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Classification Form (Initially Hidden) -->
+    <div id="classificationForm" class="receipt-classification-form">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-briefcase"></i> Classify Receipt</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('expenses.create_expense_from_receipt') }}" method="POST">
+                    <input type="hidden" name="receipt_id" value="{{ receipt.id }}">
+                    
+                    <div class="form-group">
+                        <label for="description">Description:</label>
+                        <textarea name="description" id="description" class="form-control" rows="2">{{ receipt.vendor_name }} - {{ receipt.receipt_number }}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_reimbursable" id="is_reimbursable" checked>
+                            <label class="form-check-label" for="is_reimbursable">
+                                Reimbursable expense
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="client_id">Allocate to Client:</label>
+                        <select name="client_id" id="client_id" class="form-control">
+                            <option value="">-- None --</option>
+                            <!-- Client options would be populated by JavaScript -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notes">Notes:</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save as Business Expense
+                        </button>
+                        <button type="button" id="cancelClassification" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Receipt Form (Initially Hidden) -->
+    <div id="editForm" style="display: none;">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-edit"></i> Edit Receipt</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('unified_view.update_receipt', receipt_id=receipt.id) }}" method="POST">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="vendor_name">Vendor:</label>
+                                <input type="text" name="vendor_name" id="vendor_name" class="form-control" value="{{ receipt.vendor_name }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="date">Date:</label>
+                                <input type="date" name="date" id="date" class="form-control" value="{{ receipt.date.strftime('%Y-%m-%d') if receipt.date }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="receipt_number">Receipt Number:</label>
+                                <input type="text" name="receipt_number" id="receipt_number" class="form-control" value="{{ receipt.receipt_number }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="total_amount">Total Amount:</label>
+                                <input type="number" name="total_amount" id="total_amount" class="form-control" step="0.01" value="{{ receipt.total_amount }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="expense_major_category">Major Category:</label>
+                                <select name="expense_major_category" id="expense_major_category" class="form-control">
+                                    <option value="">-- Select Category --</option>
+                                    <option value="Food & Dining" {% if receipt.expense_major_category == 'Food & Dining' %}selected{% endif %}>Food & Dining</option>
+                                    <option value="Transportation" {% if receipt.expense_major_category == 'Transportation' %}selected{% endif %}>Transportation</option>
+                                    <option value="Office Supplies" {% if receipt.expense_major_category == 'Office Supplies' %}selected{% endif %}>Office Supplies</option>
+                                    <option value="Technology" {% if receipt.expense_major_category == 'Technology' %}selected{% endif %}>Technology</option>
+                                    <option value="Utilities" {% if receipt.expense_major_category == 'Utilities' %}selected{% endif %}>Utilities</option>
+                                    <option value="Rent" {% if receipt.expense_major_category == 'Rent' %}selected{% endif %}>Rent</option>
+                                    <option value="Entertainment" {% if receipt.expense_major_category == 'Entertainment' %}selected{% endif %}>Entertainment</option>
+                                    <option value="Travel" {% if receipt.expense_major_category == 'Travel' %}selected{% endif %}>Travel</option>
+                                    <option value="Healthcare" {% if receipt.expense_major_category == 'Healthcare' %}selected{% endif %}>Healthcare</option>
+                                    <option value="Education" {% if receipt.expense_major_category == 'Education' %}selected{% endif %}>Education</option>
+                                    <option value="Services" {% if receipt.expense_major_category == 'Services' %}selected{% endif %}>Services</option>
+                                    <option value="Marketing" {% if receipt.expense_major_category == 'Marketing' %}selected{% endif %}>Marketing</option>
+                                    <option value="Other" {% if receipt.expense_major_category == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="expense_minor_category">Minor Category:</label>
+                                <input type="text" name="expense_minor_category" id="expense_minor_category" class="form-control" value="{{ receipt.expense_minor_category }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group receipt-type-toggle">
+                        <label>Receipt Type:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="receipt_type" id="personal_expense" value="personal" {% if not is_company_expense and not is_client_expense %}checked{% endif %}>
+                            <label class="form-check-label" for="personal_expense">
+                                Personal Expense
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="receipt_type" id="business_expense" value="business" {% if is_company_expense %}checked{% endif %}>
+                            <label class="form-check-label" for="business_expense">
+                                Business Expense
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Business Expense Details (shown/hidden based on selection) -->
+                    <div id="businessExpenseFields" class="business-expense-fields" {% if not is_company_expense %}style="display: none;"{% endif %}>
+                        <div class="form-group">
+                            <label for="business_description">Business Purpose:</label>
+                            <textarea name="business_description" id="business_description" class="form-control" rows="2">{{ expense.description if expense }}</textarea>
+                        </div>
                         
-                        {% if is_client_expense %}
-                            <span class="badge bg-info">Client Expense</span>
-                        {% endif %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="is_reimbursable" id="edit_is_reimbursable" {% if expense and expense.is_reimbursable %}checked{% endif %}>
+                            <label class="form-check-label" for="edit_is_reimbursable">
+                                Reimbursable expense
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="client_id">Allocate to Client:</label>
+                            <select name="client_id" id="edit_client_id" class="form-control">
+                                <option value="">-- None --</option>
+                                <!-- Client options would be populated by JavaScript -->
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit_notes">Notes:</label>
+                            <textarea name="notes" id="edit_notes" class="form-control" rows="2">{{ expense.notes if expense }}</textarea>
+                        </div>
                     </div>
+                    
+                    <div class="edit-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <button type="button" id="cancelEdit" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Receipt Details Card -->
+        <div class="col-md-6">
+            <div id="receiptDetailsCard" class="card receipt-details-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Receipt Information</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Vendor</p>
-                            <p class="fw-bold">{{ receipt.vendor_name }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Receipt Date</p>
-                            <p class="fw-bold">{{ receipt.date.strftime('%Y-%m-%d') if receipt.date else 'Not specified' }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Amount</p>
-                            <p class="fw-bold fs-4">Rs {{ "%.2f"|format(receipt.total_amount) }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Date Scanned</p>
-                            <p class="fw-bold">{{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Tax Deductible Amount</p>
-                            <p class="fw-bold">Rs {{ "%.2f"|format(receipt.get_tax_deductible_amount()) }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Category</p>
-                            <p class="fw-bold">
-                                {% if receipt.expense_major_category %}
-                                    {{ receipt.expense_major_category }}
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%">Vendor:</th>
+                                <td>{{ receipt.vendor_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Date:</th>
+                                <td>{{ receipt.date.strftime('%B %d, %Y') if receipt.date }}</td>
+                            </tr>
+                            <tr>
+                                <th>Receipt Number:</th>
+                                <td>{{ receipt.receipt_number or 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Amount:</th>
+                                <td>{{ "${:,.2f}".format(receipt.total_amount) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Category:</th>
+                                <td>
+                                    {{ receipt.expense_major_category or 'Uncategorized' }}
                                     {% if receipt.expense_minor_category %}
-                                        <span class="text-muted">/ {{ receipt.expense_minor_category }}</span>
+                                        <span class="text-muted">({{ receipt.expense_minor_category }})</span>
                                     {% endif %}
-                                {% else %}
-                                    Uncategorized
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Tax Deductible:</th>
+                                <td>{{ "${:,.2f}".format(receipt.tax_deductible_amount or 0) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                     
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">Vendor Address</p>
-                            <p>{{ receipt.vendor_address or 'Not available' }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">Vendor Contact</p>
-                            <p>{{ receipt.vendor_contact or 'Not available' }}</p>
-                        </div>
-                    </div>
-                    
-                    {% if receipt.vat_registration_number %}
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">VAT Registration Number</p>
-                            <p>{{ receipt.vat_registration_number }}</p>
-                        </div>
-                    </div>
+                    {% if is_company_expense %}
+                    <hr>
+                    <h6 class="mt-3">Business Expense Details</h6>
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%">Description:</th>
+                                <td>{{ expense.description or 'No description' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Submitted by:</th>
+                                <td>{{ expense.submitter_name }} ({{ expense.submitter_email }})</td>
+                            </tr>
+                            <tr>
+                                <th>Submitted on:</th>
+                                <td>{{ expense.submitted_date.strftime('%B %d, %Y') if expense.submitted_date }}</td>
+                            </tr>
+                            {% if expense.approved_by_user_id %}
+                            <tr>
+                                <th>Approved by:</th>
+                                <td>{{ expense.approver_name }} on {{ expense.approval_date.strftime('%B %d, %Y') if expense.approval_date }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if expense.reimbursed_by_user_id %}
+                            <tr>
+                                <th>Reimbursed by:</th>
+                                <td>{{ expense.reimburser_name }} on {{ expense.reimbursed_date.strftime('%B %d, %Y') if expense.reimbursed_date }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if expense.notes %}
+                            <tr>
+                                <th>Notes:</th>
+                                <td>{{ expense.notes }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
                     {% endif %}
                 </div>
             </div>
-            
-            <!-- Expense Information Card (if a business expense) -->
-            {% if is_company_expense and expense %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">Business Expense Details</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Submitted By</p>
-                            <p class="fw-bold">{{ expense.submitter_name }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Email</p>
-                            <p>{{ expense.submitter_email }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Submitted Date</p>
-                            <p>{{ expense.submitted_date.strftime('%Y-%m-%d %H:%M') if expense.submitted_date else 'N/A' }}</p>
-                        </div>
-                        {% if expense.client_id %}
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Client</p>
-                            <p class="fw-bold">{{ expense.client_name }}</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    {% if expense.status in ['approved', 'reimbursed'] %}
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Approved By</p>
-                            <p>{{ expense.approver_name }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Approval Date</p>
-                            <p>{{ expense.approval_date.strftime('%Y-%m-%d %H:%M') if expense.approval_date else 'N/A' }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if expense.status == 'reimbursed' %}
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Reimbursed By</p>
-                            <p>{{ expense.reimburser_name }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Reimbursement Date</p>
-                            <p>{{ expense.reimbursed_date.strftime('%Y-%m-%d %H:%M') if expense.reimbursed_date else 'N/A' }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">Description</p>
-                            <p>{{ expense.description or 'No description provided' }}</p>
-                        </div>
-                    </div>
-                    
-                    {% if expense.notes %}
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">Additional Notes</p>
-                            <p class="text-pre-wrap">{{ expense.notes }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">Reimbursable</p>
-                            <p>
-                                {% if expense.is_reimbursable %}
-                                    <span class="badge bg-success">Yes</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">No</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <!-- Action Buttons Based on Status -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="d-flex flex-wrap gap-2">
-                                {% if expense.user_id == current_user.id and expense.status == 'submitted' %}
-                                    <a href="{{ url_for('expense.edit_expense', expense_id=expense.id) }}" class="btn btn-secondary">
-                                        <i class="fas fa-edit me-2"></i>Edit Expense
-                                    </a>
-                                {% endif %}
-                                
-                                {% if user_org_role in ['owner', 'admin'] and expense.status == 'submitted' %}
-                                    <form method="POST" action="{{ url_for('expense.approve_expense', expense_id=expense.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-check me-2"></i>Approve
-                                        </button>
-                                    </form>
-                                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                                        <i class="fas fa-times me-2"></i>Reject
-                                    </button>
-                                {% endif %}
-                                
-                                {% if user_org_role in ['owner', 'admin'] and expense.status == 'approved' %}
-                                    <form method="POST" action="{{ url_for('expense.reimburse_expense', expense_id=expense.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="fas fa-check-circle me-2"></i>Mark as Reimbursed
-                                        </button>
-                                    </form>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- Client Expense Information Card (if a client expense) -->
-            {% if is_client_expense and client_expense %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">Client Expense Details</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Client</p>
-                            <p class="fw-bold">{{ client_expense.client.name }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted mb-1">Allocated By</p>
-                            <p>{{ client_expense.user.name }}</p>
-                        </div>
-                    </div>
-                    
-                    {% if client_expense.project_name %}
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">Project</p>
-                            <p>{{ client_expense.project_name }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if client_expense.description %}
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <p class="text-muted mb-1">Description</p>
-                            <p>{{ client_expense.description }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Client Expense Action Buttons -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="d-flex flex-wrap gap-2">
-                                {% if client_expense.user_id == current_user.id %}
-                                    <a href="{{ url_for('client_expense.edit_client_expense', expense_id=client_expense.id) }}" class="btn btn-secondary">
-                                        <i class="fas fa-edit me-2"></i>Edit Allocation
-                                    </a>
-                                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteClientExpenseModal">
-                                        <i class="fas fa-trash me-2"></i>Delete Allocation
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- Receipt Items Card -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">Receipt Items</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Item</th>
-                                    <th class="text-end">Quantity</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Total</th>
-                                    <th class="text-center">Tax Deductible</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in receipt.items %}
-                                <tr>
-                                    <td>{{ item.name }}</td>
-                                    <td class="text-end">{{ item.quantity }}</td>
-                                    <td class="text-end">Rs {{ "%.2f"|format(item.price) }}</td>
-                                    <td class="text-end">Rs {{ "%.2f"|format(item.price * item.quantity) }}</td>
-                                    <td class="text-center">
-                                        {% if item.tax_deductible %}
-                                            <i class="fas fa-check-circle text-success"></i>
-                                        {% else %}
-                                            <i class="fas fa-times-circle text-secondary"></i>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="5" class="text-center py-3">No items recorded for this receipt</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot class="table-light">
-                                <tr>
-                                    <th colspan="3" class="text-end">Total</th>
-                                    <th class="text-end">Rs {{ "%.2f"|format(receipt.total_amount) }}</th>
-                                    <th></th>
-                                </tr>
-                                <tr>
-                                    <th colspan="3" class="text-end">Tax Deductible Amount</th>
-                                    <th class="text-end">Rs {{ "%.2f"|format(receipt.get_tax_deductible_amount()) }}</th>
-                                    <th></th>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Classification Actions Card -->
-            {% if not is_company_expense and not is_client_expense %}
-            <div class="card shadow-sm mt-4">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">Receipt Classification</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-12">
-                            <p class="text-muted mb-3">This receipt hasn't been classified yet. How would you like to classify it?</p>
-                            <div class="d-flex flex-wrap gap-2">
-                                <a href="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}" class="btn btn-primary">
-                                    <i class="fas fa-briefcase me-2"></i>Submit as Business Expense
-                                </a>
-                                <a href="{{ url_for('client_expense.allocate_to_client', receipt_id=receipt.id) }}" class="btn btn-info">
-                                    <i class="fas fa-user-tie me-2"></i>Allocate to Client
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
         
-        <!-- Right Column - Receipt Image -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">Receipt Image</h5>
+        <!-- Receipt Image Card -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Receipt Image</h5>
                 </div>
                 <div class="card-body text-center">
-                    {% if receipt.s3_url or receipt.image_url %}
-                    <img src="{{ receipt.s3_url or receipt.image_url }}" 
-                         class="img-fluid mb-3" alt="Receipt image"
-                         onerror="this.onerror=null; this.src='/static/img/receipt-placeholder.svg'; document.getElementById('receipt-error-message').style.display='block';">
-                    <div class="d-grid">
-                        <a href="{{ receipt.s3_url or receipt.image_url }}" 
-                           class="btn btn-outline-primary" target="_blank">
-                            <i class="fas fa-search-plus me-2"></i>View Full Size
+                    {% if receipt.image_url %}
+                        <a href="{{ receipt.image_url }}" target="_blank">
+                            <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image">
                         </a>
-                    </div>
-                    <div id="receipt-error-message" style="display:none;" class="alert alert-warning mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i> The receipt image could not be loaded. It may be unavailable or in an unsupported format.
-                    </div>
                     {% else %}
-                    <div class="text-muted my-5">
-                        <i class="fas fa-receipt fa-4x mb-3"></i>
-                        <p>No receipt image available</p>
-                    </div>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Receipt image not available
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Reject Modal -->
-{% if is_company_expense and expense and user_org_role in ['owner', 'admin'] and expense.status == 'submitted' %}
-<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('expense.reject_expense', expense_id=expense.id) }}">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="rejectModalLabel">Reject Expense</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="rejection_reason" class="form-label">Reason for Rejection</label>
-                        <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="3" 
-                                placeholder="Please provide a reason for rejecting this expense" required></textarea>
+    
+    <!-- Receipt Items Card -->
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Receipt Items</h5>
+            <button id="toggleEditItems" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-edit"></i> Edit Items
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- View mode for items -->
+            <div id="viewItemsTable">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Amount</th>
+                            <th>Tax Deductible</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.description }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ "${:,.2f}".format(item.unit_price) if item.unit_price }}</td>
+                            <td>{{ "${:,.2f}".format(item.amount) if item.amount }}</td>
+                            <td>
+                                {% if item.tax_deductible %}
+                                <span class="tax-deductible"><i class="fas fa-check-circle"></i> Yes</span>
+                                {% else %}
+                                <span class="not-tax-deductible"><i class="fas fa-times-circle"></i> No</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No items available for this receipt</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Edit mode for items -->
+            <div id="itemsForm" style="display: none;">
+                <form action="{{ url_for('unified_view.update_receipt_items', receipt_id=receipt.id) }}" method="POST">
+                    <table id="itemsTable" class="table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Amount</th>
+                                <th>Tax Deductible</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <input type="hidden" name="item_ids[]" value="{{ item.id }}">
+                                <td>
+                                    <input type="text" name="descriptions[]" class="form-control" value="{{ item.description }}">
+                                </td>
+                                <td>
+                                    <input type="number" name="quantities[]" class="form-control" step="0.01" value="{{ item.quantity }}">
+                                </td>
+                                <td>
+                                    <input type="number" name="unit_prices[]" class="form-control" step="0.01" value="{{ item.unit_price }}">
+                                </td>
+                                <td>
+                                    <input type="number" name="amounts[]" class="form-control" step="0.01" value="{{ item.amount }}">
+                                </td>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="tax_deductible[]" value="{{ item.id }}" {% if item.tax_deductible %}checked{% endif %}>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No items available for this receipt</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Items
+                        </button>
+                        <button type="button" id="cancelEditItems" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger">Reject Expense</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 </div>
-{% endif %}
+{% endblock %}
 
-<!-- Delete Client Expense Modal -->
-{% if is_client_expense and client_expense and client_expense.user_id == current_user.id %}
-<div class="modal fade" id="deleteClientExpenseModal" tabindex="-1" aria-labelledby="deleteClientExpenseModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('client_expense.delete_client_expense', expense_id=client_expense.id) }}">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteClientExpenseModalLabel">Delete Client Allocation</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to delete this client allocation? This action cannot be undone.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger">Delete Allocation</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle edit mode for receipt details
+        const toggleEditButton = document.getElementById('toggleEditMode');
+        const editForm = document.getElementById('editForm');
+        const receiptDetailsCard = document.getElementById('receiptDetailsCard');
+        const cancelEditButton = document.getElementById('cancelEdit');
+        
+        toggleEditButton.addEventListener('click', function() {
+            editForm.style.display = 'block';
+            receiptDetailsCard.style.display = 'none';
+        });
+        
+        cancelEditButton.addEventListener('click', function() {
+            editForm.style.display = 'none';
+            receiptDetailsCard.style.display = 'block';
+        });
+        
+        // Toggle edit mode for receipt items
+        const toggleEditItemsButton = document.getElementById('toggleEditItems');
+        const itemsForm = document.getElementById('itemsForm');
+        const viewItemsTable = document.getElementById('viewItemsTable');
+        const cancelEditItemsButton = document.getElementById('cancelEditItems');
+        
+        toggleEditItemsButton.addEventListener('click', function() {
+            itemsForm.style.display = 'block';
+            viewItemsTable.style.display = 'none';
+        });
+        
+        cancelEditItemsButton.addEventListener('click', function() {
+            itemsForm.style.display = 'none';
+            viewItemsTable.style.display = 'block';
+        });
+        
+        // Toggle classification form
+        const toggleClassificationButton = document.getElementById('toggleClassification');
+        if (toggleClassificationButton) {
+            const classificationForm = document.getElementById('classificationForm');
+            const cancelClassificationButton = document.getElementById('cancelClassification');
+            
+            toggleClassificationButton.addEventListener('click', function() {
+                classificationForm.style.display = 'block';
+            });
+            
+            cancelClassificationButton.addEventListener('click', function() {
+                classificationForm.style.display = 'none';
+            });
+        }
+        
+        // Receipt type toggle in edit form
+        const personalExpenseRadio = document.getElementById('personal_expense');
+        const businessExpenseRadio = document.getElementById('business_expense');
+        const businessExpenseFields = document.getElementById('businessExpenseFields');
+        
+        if (personalExpenseRadio && businessExpenseRadio) {
+            personalExpenseRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    businessExpenseFields.style.display = 'none';
+                }
+            });
+            
+            businessExpenseRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    businessExpenseFields.style.display = 'block';
+                }
+            });
+        }
+        
+        // Load client list for dropdowns
+        loadClientList();
+    });
+    
+    // Function to load client list from API
+    function loadClientList() {
+        fetch('/api/clients')
+            .then(response => response.json())
+            .then(data => {
+                const clientDropdowns = [
+                    document.getElementById('client_id'),
+                    document.getElementById('edit_client_id')
+                ];
+                
+                clientDropdowns.forEach(dropdown => {
+                    if (!dropdown) return;
+                    
+                    // Clear any existing options except the first one
+                    while (dropdown.options.length > 1) {
+                        dropdown.remove(1);
+                    }
+                    
+                    // Add client options
+                    data.forEach(client => {
+                        const option = document.createElement('option');
+                        option.value = client.id;
+                        option.text = client.name;
+                        
+                        // Set as selected if it matches current client_id
+                        {% if expense and expense.client_id %}
+                        if (client.id == {{ expense.client_id }}) {
+                            option.selected = true;
+                        }
+                        {% endif %}
+                        
+                        dropdown.appendChild(option);
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Error loading clients:', error);
+            });
+    }
+</script>
 {% endblock %}
