@@ -631,6 +631,6 @@ def api_clients():
 
 def register_routes(app):
     """Register the unified receipt/expense view routes with the app."""
-    app.register_blueprint(unified_view_bp)
+    app.register_blueprint(unified_view_bp, url_prefix='/receipts')
     app.add_template_filter(format_currency)
     logging.info('Unified receipt and expense view routes loaded successfully')
