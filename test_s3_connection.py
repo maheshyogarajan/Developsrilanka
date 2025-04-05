@@ -1,150 +1,157 @@
 """
-Test script to verify S3 connectivity and permissions.
+Simple test script to verify S3 connection and basic functionality.
 """
 
 import os
-import io
-import boto3
-from botocore.exceptions import ClientError
-from PIL import Image
-import uuid
+import sys
 import logging
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_s3_client():
-    """
-    Create and return an S3 client using environment variables for credentials.
+# Add current directory to path
+sys.path.append('.')
+
+def check_s3_credentials():
+    """Check if S3 credentials are properly configured."""
+    s3_creds = {
+        'AWS_S3_BUCKET_NAME': os.environ.get('AWS_S3_BUCKET_NAME'),
+        'AWS_ACCESS_KEY_ID': os.environ.get('AWS_ACCESS_KEY_ID'),
+        'AWS_SECRET_ACCESS_KEY': os.environ.get('AWS_SECRET_ACCESS_KEY', 'REDACTED'),
+        'AWS_REGION': os.environ.get('AWS_REGION')
+    }
     
-    Returns:
-        boto3.client: The S3 client object
-    """
-    try:
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.environ.get('AWS_REGION')
-        )
-        return s3_client
-    except Exception as e:
-        logger.error(f"Failed to create S3 client: {str(e)}")
-        raise
-
-def test_s3_connectivity():
-    """Test if we can connect to S3 and list buckets."""
-    try:
-        s3_client = get_s3_client()
-        response = s3_client.list_buckets()
-        
-        print(f"Connection successful. Found {len(response['Buckets'])} buckets:")
-        for bucket in response['Buckets']:
-            print(f"- {bucket['Name']}")
-            
-        # Check if our configured bucket exists
-        bucket_name = os.environ.get('AWS_S3_BUCKET_NAME')
-        bucket_exists = False
-        for bucket in response['Buckets']:
-            if bucket['Name'] == bucket_name:
-                bucket_exists = True
-                break
-                
-        if bucket_exists:
-            print(f"✅ Bucket '{bucket_name}' exists and is accessible.")
+    # Hide secret key value
+    if s3_creds['AWS_SECRET_ACCESS_KEY']:
+        s3_creds['AWS_SECRET_ACCESS_KEY'] = s3_creds['AWS_SECRET_ACCESS_KEY'][:4] + '****'
+    
+    for key, value in s3_creds.items():
+        if key != 'AWS_SECRET_ACCESS_KEY':
+            logger.info(f"{key}: {'PRESENT' if value else 'MISSING'}")
         else:
-            print(f"❌ Bucket '{bucket_name}' does not exist or is not accessible.")
-            
-        return bucket_exists
-    except Exception as e:
-        print(f"❌ Error connecting to S3: {str(e)}")
-        return False
+            logger.info(f"{key}: {'PRESENT' if value else 'MISSING'} ({value if value else ''})")
+    
+    return all([
+        s3_creds['AWS_S3_BUCKET_NAME'],
+        s3_creds['AWS_ACCESS_KEY_ID'],
+        s3_creds['AWS_SECRET_ACCESS_KEY'] != 'REDACTED',
+        s3_creds['AWS_REGION']
+    ])
 
-def test_s3_permissions():
-    """Test if we have proper permissions to perform operations on the S3 bucket."""
+def test_s3_presigned_url_generation():
+    """Test generating a presigned URL for an S3 object."""
     try:
-        s3_client = get_s3_client()
-        bucket_name = os.environ.get('AWS_S3_BUCKET_NAME')
+        from s3_storage import upload_image_to_s3, generate_presigned_url
+        from PIL import Image
         
         # Create a test image
-        image = Image.new('RGB', (100, 100), color = 'red')
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='JPEG')
-        img_byte_arr.seek(0)
+        test_img = Image.new('RGB', (100, 100), color='red')
         
-        # Generate a unique key for the test image
-        test_image_key = f"test/test_image_{uuid.uuid4()}.jpg"
+        # Upload the test image to S3
+        logger.info("Uploading test image to S3...")
+        s3_key = upload_image_to_s3(test_img)
+        logger.info(f"Uploaded test image with S3 key: {s3_key}")
         
-        # Test upload
-        print(f"Attempting to upload test image to '{bucket_name}/{test_image_key}'...")
-        s3_client.upload_fileobj(img_byte_arr, bucket_name, test_image_key)
-        print(f"✅ Upload successful.")
+        # Generate presigned URL for the uploaded image
+        logger.info(f"Testing presigned URL generation with actual S3 key: {s3_key}")
+        url = generate_presigned_url(s3_key)
         
-        # Test download
-        print(f"Attempting to download test image from '{bucket_name}/{test_image_key}'...")
-        download_buffer = io.BytesIO()
-        s3_client.download_fileobj(bucket_name, test_image_key, download_buffer)
-        print(f"✅ Download successful.")
-        
-        # Test generate presigned URL
-        print(f"Attempting to generate presigned URL for '{bucket_name}/{test_image_key}'...")
-        url = s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': bucket_name, 'Key': test_image_key},
-            ExpiresIn=3600
-        )
-        print(f"✅ Generated presigned URL: {url}")
-        
-        # Test delete
-        print(f"Attempting to delete test image from '{bucket_name}/{test_image_key}'...")
-        s3_client.delete_object(Bucket=bucket_name, Key=test_image_key)
-        print(f"✅ Deletion successful.")
-        
-        print("\n✅ All S3 operations completed successfully. Your S3 configuration is working correctly.")
-        return True
+        if url:
+            logger.info(f"Successfully generated presigned URL: {url[:50]}...")
+            return True
+        else:
+            logger.error(f"Failed to generate presigned URL for uploaded object key: {s3_key}")
+            return False
+    
     except Exception as e:
-        print(f"❌ Error during S3 operations: {str(e)}")
+        logger.error(f"Error testing presigned URL generation: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
-def print_environment_vars():
-    """Print environment variables related to AWS (without exposing secrets)."""
-    aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
-    aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    aws_region = os.environ.get('AWS_REGION')
-    aws_s3_bucket_name = os.environ.get('AWS_S3_BUCKET_NAME')
+def find_receipt_with_s3_key():
+    """Find a receipt with an S3 key to test with."""
+    try:
+        from main import app
+        from models import db, Receipt
+        
+        with app.app_context():
+            receipt = db.session.query(Receipt).filter(
+                Receipt.s3_key.isnot(None)
+            ).order_by(Receipt.id.desc()).first()
+            
+            if receipt:
+                logger.info(f"Found receipt with ID {receipt.id} and S3 key: {receipt.s3_key}")
+                return receipt
+            else:
+                logger.warning("No receipts with S3 keys found in database")
+                return None
     
-    # Safely display values (without exposing full secrets)
-    print("AWS Environment Variables:")
+    except Exception as e:
+        logger.error(f"Error finding receipt with S3 key: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+def test_receipt_s3_url_property():
+    """Test the Receipt's s3_url property with a real receipt."""
+    try:
+        receipt = find_receipt_with_s3_key()
+        
+        if not receipt:
+            logger.warning("Skipping s3_url property test as no receipt with S3 key was found")
+            return False
+        
+        # Test s3_url property
+        s3_url = receipt.s3_url
+        
+        if s3_url:
+            logger.info(f"Successfully generated S3 URL from receipt: {s3_url[:50]}...")
+            
+            # Test to_dict() method
+            receipt_dict = receipt.to_dict()
+            dict_s3_url = receipt_dict.get('s3_url')
+            
+            if dict_s3_url:
+                logger.info("Successfully included S3 URL in receipt.to_dict()")
+                return True
+            else:
+                logger.error("Receipt.to_dict() did not include S3 URL")
+                return False
+        else:
+            logger.error(f"Failed to generate S3 URL for receipt with key: {receipt.s3_key}")
+            return False
     
-    # For key, show first and last 4 chars if it's at least 8 chars
-    if aws_access_key_id and len(aws_access_key_id) >= 8:
-        masked_key = aws_access_key_id[:4] + '*' * (len(aws_access_key_id) - 8) + aws_access_key_id[-4:]
-        print(f"- AWS_ACCESS_KEY_ID: {masked_key}")
-    elif aws_access_key_id:
-        print(f"- AWS_ACCESS_KEY_ID: {'*' * len(aws_access_key_id)}")
-    else:
-        print(f"- AWS_ACCESS_KEY_ID: Not set")
-    
-    # For secret, only show length and masking
-    if aws_secret_access_key:
-        print(f"- AWS_SECRET_ACCESS_KEY: {'*' * len(aws_secret_access_key)} (length: {len(aws_secret_access_key)})")
-    else:
-        print(f"- AWS_SECRET_ACCESS_KEY: Not set")
-    
-    # Show region directly
-    print(f"- AWS_REGION: {aws_region if aws_region else 'Not set'}")
-    
-    # Show bucket name directly
-    print(f"- AWS_S3_BUCKET_NAME: {aws_s3_bucket_name if aws_s3_bucket_name else 'Not set'}")
+    except Exception as e:
+        logger.error(f"Error testing receipt s3_url property: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 if __name__ == "__main__":
-    print("\n---- Testing S3 Connection ----\n")
-    print_environment_vars()
+    print("=== S3 CONNECTION TEST ===")
     
-    print("\n---- Testing S3 Connectivity ----\n")
-    if test_s3_connectivity():
-        print("\n---- Testing S3 Permissions ----\n")
-        test_s3_permissions()
-    else:
-        print("\n❌ S3 connectivity test failed. Skipping permissions test.")
+    # Check S3 credentials
+    print("\n1. Checking S3 credentials...")
+    creds_available = check_s3_credentials()
+    print(f"S3 credentials check: {'PASSED' if creds_available else 'FAILED'}")
+    
+    if not creds_available:
+        print("Cannot proceed with tests - S3 credentials are not available")
+        sys.exit(1)
+    
+    # Test presigned URL generation
+    print("\n2. Testing presigned URL generation...")
+    url_generation_ok = test_s3_presigned_url_generation()
+    print(f"Presigned URL generation test: {'PASSED' if url_generation_ok else 'FAILED'}")
+    
+    # Test Receipt's s3_url property
+    print("\n3. Testing Receipt's s3_url property...")
+    s3_url_property_ok = test_receipt_s3_url_property()
+    print(f"Receipt s3_url property test: {'PASSED' if s3_url_property_ok else 'FAILED'}")
+    
+    # Overall result
+    all_passed = creds_available and url_generation_ok and s3_url_property_ok
+    print(f"\nOverall S3 connection test: {'PASSED' if all_passed else 'FAILED'}")
