@@ -1,0 +1,144 @@
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle edit mode for receipt details
+        const toggleEditButton = document.getElementById('toggleEditMode');
+        const editForm = document.getElementById('editForm');
+        const receiptDetailsCard = document.getElementById('receiptDetailsCard');
+        const cancelEditButton = document.getElementById('cancelEdit');
+        
+        if (toggleEditButton && editForm && receiptDetailsCard) {
+            toggleEditButton.addEventListener('click', function() {
+                editForm.style.display = 'block';
+                receiptDetailsCard.style.display = 'none';
+            });
+        }
+        
+        if (cancelEditButton) {
+            cancelEditButton.addEventListener('click', function() {
+                editForm.style.display = 'none';
+                receiptDetailsCard.style.display = 'block';
+            });
+        }
+        
+        // Toggle edit mode for receipt items
+        const toggleEditItemsButton = document.getElementById('toggleEditItems');
+        const itemsForm = document.getElementById('itemsForm');
+        const viewItemsTable = document.getElementById('viewItemsTable');
+        const cancelEditItemsButton = document.getElementById('cancelEditItems');
+        
+        if (toggleEditItemsButton && itemsForm && viewItemsTable) {
+            toggleEditItemsButton.addEventListener('click', function() {
+                itemsForm.style.display = 'block';
+                viewItemsTable.style.display = 'none';
+            });
+        }
+        
+        if (cancelEditItemsButton) {
+            cancelEditItemsButton.addEventListener('click', function() {
+                itemsForm.style.display = 'none';
+                viewItemsTable.style.display = 'block';
+            });
+        }
+        
+        // Toggle classification form
+        const toggleClassificationButton = document.getElementById('toggleClassification');
+        if (toggleClassificationButton) {
+            const classificationForm = document.getElementById('classificationForm');
+            const cancelClassificationButton = document.getElementById('cancelClassification');
+            
+            toggleClassificationButton.addEventListener('click', function() {
+                classificationForm.style.display = 'block';
+            });
+            
+            if (cancelClassificationButton) {
+                cancelClassificationButton.addEventListener('click', function() {
+                    classificationForm.style.display = 'none';
+                });
+            }
+        }
+        
+        // Receipt type toggle in edit form
+        const personalExpenseRadio = document.getElementById('personal_expense');
+        const businessExpenseRadio = document.getElementById('business_expense');
+        const businessExpenseFields = document.getElementById('businessExpenseFields');
+        
+        if (personalExpenseRadio && businessExpenseRadio && businessExpenseFields) {
+            personalExpenseRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    businessExpenseFields.style.display = 'none';
+                }
+            });
+            
+            businessExpenseRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    businessExpenseFields.style.display = 'block';
+                }
+            });
+        }
+        
+        // Setup client loading for organization dropdowns
+        setupOrgClientRelationship('organization_id', 'client_id');
+        
+        // Handle edit form organization dropdown if it exists
+        if (document.getElementById('edit_organization_id')) {
+            setupOrgClientRelationship('edit_organization_id', 'edit_client_id');
+        }
+    });
+    
+    // Function to setup organization-client relationship for dropdowns
+    function setupOrgClientRelationship(orgSelectId, clientSelectId) {
+        const orgSelect = document.getElementById(orgSelectId);
+        const clientSelect = document.getElementById(clientSelectId);
+        
+        if (!orgSelect || !clientSelect) return;
+        
+        // Add event listener for organization change
+        orgSelect.addEventListener('change', function() {
+            loadClientListForOrganization(this.value, clientSelectId);
+        });
+        
+        // Load clients for initially selected organization
+        if (orgSelect.value) {
+            loadClientListForOrganization(orgSelect.value, clientSelectId);
+        }
+    }
+    
+    // Function to load clients for a specific organization
+    function loadClientListForOrganization(organizationId, clientSelectId) {
+        if (!organizationId) {
+            // Clear client dropdown if no organization selected
+            const clientSelect = document.getElementById(clientSelectId);
+            if (clientSelect) {
+                clientSelect.innerHTML = '<option value="">-- None --</option>';
+            }
+            return;
+        }
+        
+        fetch(`/api/organizations/${organizationId}/clients`)
+            .then(response => response.json())
+            .then(data => {
+                const clientSelect = document.getElementById(clientSelectId);
+                if (!clientSelect) return;
+                
+                // Clear existing options
+                clientSelect.innerHTML = '<option value="">-- None --</option>';
+                
+                // Add client options
+                data.forEach(client => {
+                    const option = document.createElement('option');
+                    option.value = client.id;
+                    option.text = client.name;
+                    
+                    // Set as selected if it matches current client_id
+                    {% if expense and expense.client_id %}
+                    if (client.id == {{ expense.client_id }}) {
+                        option.selected = true;
+                    }
+                    {% endif %}
+                    
+                    clientSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading clients:', error);
+            });
+    }

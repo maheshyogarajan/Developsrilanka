@@ -83,7 +83,7 @@
         <div>
             <h1>Receipt Details</h1>
             <p class="text-muted">
-                <i class="fas fa-building"></i> {{ organization.name }}
+                <i class="fas fa-building"></i> {{ organization.name if organization else 'Personal' }}
                 &bull; <i class="fas fa-calendar"></i> {{ receipt.date.strftime('%B %d, %Y') if receipt.date }}
             </p>
         </div>
@@ -234,7 +234,9 @@
                     <div class="form-group">
                         <label for="organization_id">Organization:</label>
                         <select name="organization_id" id="organization_id" class="form-control">
-                            <!-- Organization options will be populated by JavaScript -->
+                            {% for org in organizations %}
+                            <option value="{{ org.id }}" {% if organization and organization.id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     
@@ -242,7 +244,7 @@
                         <label for="client_id">Allocate to Client:</label>
                         <select name="client_id" id="client_id" class="form-control">
                             <option value="">-- None --</option>
-                            <!-- Client options would be populated by JavaScript -->
+                            <!-- Client options will be populated by JavaScript -->
                         </select>
                     </div>
                     
@@ -263,337 +265,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Edit Receipt Form (Initially Hidden) -->
-    <div id="editForm" style="display: none;">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="fas fa-edit"></i> Edit Receipt</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('unified_view.update_receipt', receipt_id=receipt.id) }}" method="POST">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="vendor_name">Vendor:</label>
-                                <input type="text" name="vendor_name" id="vendor_name" class="form-control" value="{{ receipt.vendor_name }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="date">Date:</label>
-                                <input type="date" name="date" id="date" class="form-control" value="{{ receipt.date.strftime('%Y-%m-%d') if receipt.date }}">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="receipt_number">Receipt Number:</label>
-                                <input type="text" name="receipt_number" id="receipt_number" class="form-control" value="{{ receipt.receipt_number }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="total_amount">Total Amount:</label>
-                                <input type="number" name="total_amount" id="total_amount" class="form-control" step="0.01" value="{{ receipt.total_amount }}">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="expense_major_category">Major Category:</label>
-                                <select name="expense_major_category" id="expense_major_category" class="form-control">
-                                    <option value="">-- Select Category --</option>
-                                    <option value="Food & Dining" {% if receipt.expense_major_category == 'Food & Dining' %}selected{% endif %}>Food & Dining</option>
-                                    <option value="Transportation" {% if receipt.expense_major_category == 'Transportation' %}selected{% endif %}>Transportation</option>
-                                    <option value="Office Supplies" {% if receipt.expense_major_category == 'Office Supplies' %}selected{% endif %}>Office Supplies</option>
-                                    <option value="Technology" {% if receipt.expense_major_category == 'Technology' %}selected{% endif %}>Technology</option>
-                                    <option value="Utilities" {% if receipt.expense_major_category == 'Utilities' %}selected{% endif %}>Utilities</option>
-                                    <option value="Rent" {% if receipt.expense_major_category == 'Rent' %}selected{% endif %}>Rent</option>
-                                    <option value="Entertainment" {% if receipt.expense_major_category == 'Entertainment' %}selected{% endif %}>Entertainment</option>
-                                    <option value="Travel" {% if receipt.expense_major_category == 'Travel' %}selected{% endif %}>Travel</option>
-                                    <option value="Healthcare" {% if receipt.expense_major_category == 'Healthcare' %}selected{% endif %}>Healthcare</option>
-                                    <option value="Education" {% if receipt.expense_major_category == 'Education' %}selected{% endif %}>Education</option>
-                                    <option value="Services" {% if receipt.expense_major_category == 'Services' %}selected{% endif %}>Services</option>
-                                    <option value="Marketing" {% if receipt.expense_major_category == 'Marketing' %}selected{% endif %}>Marketing</option>
-                                    <option value="Other" {% if receipt.expense_major_category == 'Other' %}selected{% endif %}>Other</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="expense_minor_category">Minor Category:</label>
-                                <input type="text" name="expense_minor_category" id="expense_minor_category" class="form-control" value="{{ receipt.expense_minor_category }}">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group receipt-type-toggle">
-                        <label>Receipt Type:</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="receipt_type" id="personal_expense" value="personal" {% if not is_company_expense and not is_client_expense %}checked{% endif %}>
-                            <label class="form-check-label" for="personal_expense">
-                                Personal Expense
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="receipt_type" id="business_expense" value="business" {% if is_company_expense %}checked{% endif %}>
-                            <label class="form-check-label" for="business_expense">
-                                Business Expense
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Business Expense Details (shown/hidden based on selection) -->
-                    <div id="businessExpenseFields" class="business-expense-fields" {% if not is_company_expense %}style="display: none;"{% endif %}>
-                        <div class="form-group">
-                            <label for="business_description">Business Purpose:</label>
-                            <textarea name="business_description" id="business_description" class="form-control" rows="2">{{ expense.description if expense }}</textarea>
-                        </div>
-                        
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" name="is_reimbursable" id="edit_is_reimbursable" {% if expense and expense.is_reimbursable %}checked{% endif %}>
-                            <label class="form-check-label" for="edit_is_reimbursable">
-                                Reimbursable expense
-                            </label>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="client_id">Allocate to Client:</label>
-                            <select name="client_id" id="edit_client_id" class="form-control">
-                                <option value="">-- None --</option>
-                                <!-- Client options would be populated by JavaScript -->
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="edit_notes">Notes:</label>
-                            <textarea name="notes" id="edit_notes" class="form-control" rows="2">{{ expense.notes if expense }}</textarea>
-                        </div>
-                    </div>
-                    
-                    <div class="edit-actions">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Changes
-                        </button>
-                        <button type="button" id="cancelEdit" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Receipt Details Card -->
-        <div class="col-md-6">
-            <div id="receiptDetailsCard" class="card receipt-details-card">
-                <div class="card-header">
-                    <h5 class="mb-0">Receipt Information</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-borderless">
-                        <tbody>
-                            <tr>
-                                <th style="width: 30%">Vendor:</th>
-                                <td>{{ receipt.vendor_name }}</td>
-                            </tr>
-                            <tr>
-                                <th>Date:</th>
-                                <td>{{ receipt.date.strftime('%B %d, %Y') if receipt.date }}</td>
-                            </tr>
-                            <tr>
-                                <th>Receipt Number:</th>
-                                <td>{{ receipt.receipt_number or 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Amount:</th>
-                                <td>{{ "${:,.2f}".format(receipt.total_amount) }}</td>
-                            </tr>
-                            <tr>
-                                <th>Category:</th>
-                                <td>
-                                    {{ receipt.expense_major_category or 'Uncategorized' }}
-                                    {% if receipt.expense_minor_category %}
-                                        <span class="text-muted">({{ receipt.expense_minor_category }})</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>Tax Deductible:</th>
-                                <td>{{ "${:,.2f}".format(receipt.tax_deductible_amount or 0) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    
-                    {% if is_company_expense %}
-                    <hr>
-                    <h6 class="mt-3">Business Expense Details</h6>
-                    <table class="table table-borderless">
-                        <tbody>
-                            <tr>
-                                <th style="width: 30%">Description:</th>
-                                <td>{{ expense.description or 'No description' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Submitted by:</th>
-                                <td>{{ expense.submitter_name }} ({{ expense.submitter_email }})</td>
-                            </tr>
-                            <tr>
-                                <th>Submitted on:</th>
-                                <td>{{ expense.submitted_date.strftime('%B %d, %Y') if expense.submitted_date }}</td>
-                            </tr>
-                            {% if expense.approved_by_user_id %}
-                            <tr>
-                                <th>Approved by:</th>
-                                <td>{{ expense.approver_name }} on {{ expense.approval_date.strftime('%B %d, %Y') if expense.approval_date }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if expense.reimbursed_by_user_id %}
-                            <tr>
-                                <th>Reimbursed by:</th>
-                                <td>{{ expense.reimburser_name }} on {{ expense.reimbursed_date.strftime('%B %d, %Y') if expense.reimbursed_date }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if expense.notes %}
-                            <tr>
-                                <th>Notes:</th>
-                                <td>{{ expense.notes }}</td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <!-- Receipt Image Card -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Receipt Image</h5>
-                </div>
-                <div class="card-body text-center">
-                    {% if receipt.image_url %}
-                        <a href="{{ receipt.image_url }}" target="_blank">
-                            <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image">
-                        </a>
-                    {% else %}
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i> Receipt image not available
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Receipt Items Card -->
-    <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Receipt Items</h5>
-            <button id="toggleEditItems" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-edit"></i> Edit Items
-            </button>
-        </div>
-        <div class="card-body">
-            <!-- View mode for items -->
-            <div id="viewItemsTable">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Amount</th>
-                            <th>Tax Deductible</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in items %}
-                        <tr>
-                            <td>{{ item.description }}</td>
-                            <td>{{ item.quantity }}</td>
-                            <td>{{ "${:,.2f}".format(item.unit_price) if item.unit_price }}</td>
-                            <td>{{ "${:,.2f}".format(item.amount) if item.amount }}</td>
-                            <td>
-                                {% if item.tax_deductible %}
-                                <span class="tax-deductible"><i class="fas fa-check-circle"></i> Yes</span>
-                                {% else %}
-                                <span class="not-tax-deductible"><i class="fas fa-times-circle"></i> No</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted">No items available for this receipt</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Edit mode for items -->
-            <div id="itemsForm" style="display: none;">
-                <form action="{{ url_for('unified_view.update_receipt_items', receipt_id=receipt.id) }}" method="POST">
-                    <table id="itemsTable" class="table">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Quantity</th>
-                                <th>Unit Price</th>
-                                <th>Amount</th>
-                                <th>Tax Deductible</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                            <tr>
-                                <input type="hidden" name="item_ids[]" value="{{ item.id }}">
-                                <td>
-                                    <input type="text" name="descriptions[]" class="form-control" value="{{ item.description }}">
-                                </td>
-                                <td>
-                                    <input type="number" name="quantities[]" class="form-control" step="0.01" value="{{ item.quantity }}">
-                                </td>
-                                <td>
-                                    <input type="number" name="unit_prices[]" class="form-control" step="0.01" value="{{ item.unit_price }}">
-                                </td>
-                                <td>
-                                    <input type="number" name="amounts[]" class="form-control" step="0.01" value="{{ item.amount }}">
-                                </td>
-                                <td>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="tax_deductible[]" value="{{ item.id }}" {% if item.tax_deductible %}checked{% endif %}>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">No items available for this receipt</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    
-                    <div class="form-group">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Items
-                        </button>
-                        <button type="button" id="cancelEditItems" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
@@ -606,15 +277,19 @@
         const receiptDetailsCard = document.getElementById('receiptDetailsCard');
         const cancelEditButton = document.getElementById('cancelEdit');
         
-        toggleEditButton.addEventListener('click', function() {
-            editForm.style.display = 'block';
-            receiptDetailsCard.style.display = 'none';
-        });
+        if (toggleEditButton && editForm && receiptDetailsCard) {
+            toggleEditButton.addEventListener('click', function() {
+                editForm.style.display = 'block';
+                receiptDetailsCard.style.display = 'none';
+            });
+        }
         
-        cancelEditButton.addEventListener('click', function() {
-            editForm.style.display = 'none';
-            receiptDetailsCard.style.display = 'block';
-        });
+        if (cancelEditButton) {
+            cancelEditButton.addEventListener('click', function() {
+                editForm.style.display = 'none';
+                receiptDetailsCard.style.display = 'block';
+            });
+        }
         
         // Toggle edit mode for receipt items
         const toggleEditItemsButton = document.getElementById('toggleEditItems');
@@ -622,15 +297,19 @@
         const viewItemsTable = document.getElementById('viewItemsTable');
         const cancelEditItemsButton = document.getElementById('cancelEditItems');
         
-        toggleEditItemsButton.addEventListener('click', function() {
-            itemsForm.style.display = 'block';
-            viewItemsTable.style.display = 'none';
-        });
+        if (toggleEditItemsButton && itemsForm && viewItemsTable) {
+            toggleEditItemsButton.addEventListener('click', function() {
+                itemsForm.style.display = 'block';
+                viewItemsTable.style.display = 'none';
+            });
+        }
         
-        cancelEditItemsButton.addEventListener('click', function() {
-            itemsForm.style.display = 'none';
-            viewItemsTable.style.display = 'block';
-        });
+        if (cancelEditItemsButton) {
+            cancelEditItemsButton.addEventListener('click', function() {
+                itemsForm.style.display = 'none';
+                viewItemsTable.style.display = 'block';
+            });
+        }
         
         // Toggle classification form
         const toggleClassificationButton = document.getElementById('toggleClassification');
@@ -642,9 +321,11 @@
                 classificationForm.style.display = 'block';
             });
             
-            cancelClassificationButton.addEventListener('click', function() {
-                classificationForm.style.display = 'none';
-            });
+            if (cancelClassificationButton) {
+                cancelClassificationButton.addEventListener('click', function() {
+                    classificationForm.style.display = 'none';
+                });
+            }
         }
         
         // Receipt type toggle in edit form
@@ -652,7 +333,7 @@
         const businessExpenseRadio = document.getElementById('business_expense');
         const businessExpenseFields = document.getElementById('businessExpenseFields');
         
-        if (personalExpenseRadio && businessExpenseRadio) {
+        if (personalExpenseRadio && businessExpenseRadio && businessExpenseFields) {
             personalExpenseRadio.addEventListener('change', function() {
                 if (this.checked) {
                     businessExpenseFields.style.display = 'none';
@@ -666,166 +347,67 @@
             });
         }
         
-        // Load client list for dropdowns
-        loadClientList();
+        // Setup client loading for organization dropdowns
+        setupOrgClientRelationship('organization_id', 'client_id');
+        
+        // Handle edit form organization dropdown if it exists
+        if (document.getElementById('edit_organization_id')) {
+            setupOrgClientRelationship('edit_organization_id', 'edit_client_id');
+        }
     });
     
-    // Function to load organizations
-            });
-    // Function to load organizations
-    function loadOrganizationList() {
-        fetch('/api/organizations')
+    // Function to setup organization-client relationship for dropdowns
+    function setupOrgClientRelationship(orgSelectId, clientSelectId) {
+        const orgSelect = document.getElementById(orgSelectId);
+        const clientSelect = document.getElementById(clientSelectId);
+        
+        if (!orgSelect || !clientSelect) return;
+        
+        // Add event listener for organization change
+        orgSelect.addEventListener('change', function() {
+            loadClientListForOrganization(this.value, clientSelectId);
+        });
+        
+        // Load clients for initially selected organization
+        if (orgSelect.value) {
+            loadClientListForOrganization(orgSelect.value, clientSelectId);
+        }
+    }
+    
+    // Function to load clients for a specific organization
+    function loadClientListForOrganization(organizationId, clientSelectId) {
+        if (!organizationId) {
+            // Clear client dropdown if no organization selected
+            const clientSelect = document.getElementById(clientSelectId);
+            if (clientSelect) {
+                clientSelect.innerHTML = '<option value="">-- None --</option>';
+            }
+            return;
+        }
+        
+        fetch(`/api/organizations/${organizationId}/clients`)
             .then(response => response.json())
             .then(data => {
-                const organizationSelect = document.getElementById('organization_id');
-                if (!organizationSelect) return;
+                const clientSelect = document.getElementById(clientSelectId);
+                if (!clientSelect) return;
                 
                 // Clear existing options
-                organizationSelect.innerHTML = '';
+                clientSelect.innerHTML = '<option value="">-- None --</option>';
                 
-                // Add organization options
-                data.organizations.forEach(org => {
+                // Add client options
+                data.forEach(client => {
                     const option = document.createElement('option');
-                    option.value = org.id;
-                    option.text = org.name;
-                    organizationSelect.appendChild(option);
-                });
-                
-                // Set default organization if available
-                if (data.default_organization_id) {
-                    organizationSelect.value = data.default_organization_id;
-                }
-                
-                // After loading organizations, load clients for the selected organization
-                const selectedOrgId = organizationSelect.value;
-                if (selectedOrgId) {
-                    loadClientListForOrganization(selectedOrgId);
-                }
-            })
-            .catch(error => {
-                console.error('Error loading organizations:', error);
-            });
-            
-        // Add event listener for organization change
-        const organizationSelect = document.getElementById('organization_id');
-        if (organizationSelect) {
-            organizationSelect.addEventListener('change', function() {
-                loadClientListForOrganization(this.value);
-            });
-        }
-    }
-    
-    // Function to load client list from API
-    function loadClientList() {
-        // Load organizations first, which will then load clients
-        loadOrganizationList();
-    }
-    
-    // Function to load clients for a specific organization
-    function loadClientListForOrganization(organizationId) {
-        if (!organizationId) {
-            // Clear client dropdowns if no organization selected
-            const clientDropdowns = [
-                document.getElementById('client_id'),
-                document.getElementById('edit_client_id')
-            ];
-            
-            clientDropdowns.forEach(dropdown => {
-                if (!dropdown) return;
-                dropdown.innerHTML = '<option value="">-- None --</option>';
-            });
-            return;
-        }
-        
-        fetch(`/api/organizations/${organizationId}/clients`)
-            .then(response => response.json())
-            .then(data => {
-                const clientDropdowns = [
-                    document.getElementById('client_id'),
-                    document.getElementById('edit_client_id')
-                ];
-                
-                clientDropdowns.forEach(dropdown => {
-                    if (!dropdown) return;
+                    option.value = client.id;
+                    option.text = client.name;
                     
-                    // Clear any existing options except the first one
-                    dropdown.innerHTML = '<option value="">-- None --</option>';
+                    // Set as selected if it matches current client_id
+                    {% if expense and expense.client_id %}
+                    if (client.id == {{ expense.client_id }}) {
+                        option.selected = true;
+                    }
+                    {% endif %}
                     
-                    // Add client options
-                    data.clients.forEach(client => {
-                        const option = document.createElement('option');
-                        option.value = client.id;
-                        option.text = client.name;
-                        
-                        // Set as selected if it matches current client_id
-                        // Set as selected if it matches current client_id
-                        {% if expense and expense.client_id %}
-                        if (client.id == {{ expense.client_id }}) {
-                            option.selected = true;
-                        }
-                        {% endif %}
-                        
-                        dropdown.appendChild(option);
-                    });
-                });
-            })
-            .catch(error => {
-                console.error('Error loading clients:', error);
-            });
-        }
-    }
-    
-    // Function to load client list from API
-    function loadClientList() {
-        // Load organizations first, which will then load clients
-        loadOrganizationList();
-    }
-    
-    // Function to load clients for a specific organization
-    function loadClientListForOrganization(organizationId) {
-        if (!organizationId) {
-            // Clear client dropdowns if no organization selected
-            const clientDropdowns = [
-                document.getElementById('client_id'),
-                document.getElementById('edit_client_id')
-            ];
-            
-            clientDropdowns.forEach(dropdown => {
-                if (!dropdown) return;
-                dropdown.innerHTML = '<option value="">-- None --</option>';
-            });
-            return;
-        }
-        
-        fetch(`/api/organizations/${organizationId}/clients`)
-            .then(response => response.json())
-            .then(data => {
-                const clientDropdowns = [
-                    document.getElementById('client_id'),
-                    document.getElementById('edit_client_id')
-                ];
-                
-                clientDropdowns.forEach(dropdown => {
-                    if (!dropdown) return;
-                    
-                    // Clear any existing options except the first one
-                    dropdown.innerHTML = '<option value="">-- None --</option>';
-                    
-                    // Add client options
-                    data.clients.forEach(client => {
-                        const option = document.createElement('option');
-                        option.value = client.id;
-                        option.text = client.name;
-                        
-                        // Set as selected if it matches current client_id
-                        {% if expense and expense.client_id %}
-                        if (client.id == {{ expense.client_id }}) {
-                            option.selected = true;
-                        }
-                        {% endif %}
-                        
-                        dropdown.appendChild(option);
-                    });
+                    clientSelect.appendChild(option);
                 });
             })
             .catch(error => {

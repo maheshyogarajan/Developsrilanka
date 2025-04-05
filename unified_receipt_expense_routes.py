@@ -49,6 +49,11 @@ def view_unified_receipt(receipt_id):
         else:
             abort(403)  # Forbidden access
     
+    # Get user's organizations for the form dropdowns
+    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+    user_org_ids = [org.organization_id for org in user_orgs]
+    organizations = Organization.query.filter(Organization.id.in_(user_org_ids)).all()
+    
     # Load organization if applicable
     organization = None
     if receipt.organization_id:
@@ -107,6 +112,7 @@ def view_unified_receipt(receipt_id):
         'unified_receipt_view.html',
         receipt=receipt,
         organization=organization,
+        organizations=organizations,  # Added for the dropdown
         expense=company_expense,
         is_company_expense=is_company_expense,
         client_expense=client_expense,
@@ -608,6 +614,49 @@ def bulk_action():
         flash('Export functionality not yet implemented', 'info')
     
     return redirect(url_for('unified_view.history'))
+
+@unified_view_bp.route('/api/organizations')
+@login_required
+def api_organizations():
+    """
+    API endpoint to get a list of organizations the current user belongs to.
+    Used for organization dropdown in forms.
+    """
+    # Get user's organizations
+    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+    user_org_ids = [org.organization_id for org in user_orgs]
+    
+    # Get organization details
+    organizations = Organization.query.filter(Organization.id.in_(user_org_ids)).all()
+    
+    # Convert to simple dict format
+    org_list = [{'id': org.id, 'name': org.name} for org in organizations]
+    
+    return jsonify(org_list)
+
+@unified_view_bp.route('/api/organizations/<int:org_id>/clients')
+@login_required
+def api_organization_clients(org_id):
+    """
+    API endpoint to get a list of clients for a specific organization.
+    Used for client dropdown in forms when an organization is selected.
+    """
+    # Ensure user has access to this organization
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first()
+    
+    if not org_user:
+        abort(403)  # User doesn't have access to this organization
+    
+    # Get clients for the organization
+    clients = Client.query.filter_by(organization_id=org_id).all()
+    
+    # Convert to simple dict format
+    client_list = [{'id': client.id, 'name': client.name} for client in clients]
+    
+    return jsonify(client_list)
 
 @unified_view_bp.route('/api/clients')
 @login_required
