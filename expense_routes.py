@@ -304,7 +304,7 @@ def view_expense(expense_id):
         receipt_image_url = f"/static/{clean_path}"
     # Otherwise, try to generate from s3_key if available
     elif receipt.s3_key:
-        receipt_image_url = f"/get_receipt_image/{receipt.id}"
+        receipt_image_url = receipt.s3_url
     
     logging.debug(f"Generated receipt_image_url: {receipt_image_url}")
     

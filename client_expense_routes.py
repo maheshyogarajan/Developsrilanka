@@ -186,9 +186,13 @@ def view_client_expense(expense_id):
     receipt = Receipt.query.get_or_404(expense.receipt_id)
     client = Client.query.get_or_404(expense.client_id)
     
-    # Get image URL from S3 if available
+    # Get image URL from S3 if available, this leverages Receipt model's s3_url property
     receipt_dict = receipt.to_dict()
-    if 'image_url' in receipt_dict:
+    
+    # Use s3_url if available, otherwise fall back to image_url or image_path
+    if receipt.s3_key and receipt.s3_url:
+        receipt.image_url = receipt.s3_url
+    elif 'image_url' in receipt_dict:
         receipt.image_url = receipt_dict['image_url']
     
     return render_template('view_client_expense.html', 
@@ -255,9 +259,13 @@ def edit_client_expense(expense_id):
     # GET request - render form
     receipt = Receipt.query.get_or_404(expense.receipt_id)
     
-    # Get image URL from S3 if available
+    # Get image URL from S3 if available, this leverages Receipt model's s3_url property
     receipt_dict = receipt.to_dict()
-    if 'image_url' in receipt_dict:
+    
+    # Use s3_url if available, otherwise fall back to image_url or image_path
+    if receipt.s3_key and receipt.s3_url:
+        receipt.image_url = receipt.s3_url
+    elif 'image_url' in receipt_dict:
         receipt.image_url = receipt_dict['image_url']
     
     return render_template('edit_client_expense.html', 
