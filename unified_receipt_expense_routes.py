@@ -4,7 +4,7 @@ This module combines the functionality of receipt_views and expense_views.
 """
 import logging
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import text, or_, and_, func
 from sqlalchemy.orm import joinedload
@@ -665,24 +665,202 @@ def api_organization_clients(org_id):
     
     return jsonify(client_list)
 
-@unified_view_bp.route('/api/clients')
+
+
+@unified_view_bp.route('/export_excel')
 @login_required
-def api_clients():
+def export_excel():
     """
-    API endpoint to get a list of clients for the current user's organizations.
-    Used for client dropdown in forms.
+    Export receipts and expenses as Excel file.
+    This combines the functionality of the original export routes.
     """
     # Get user's organizations
     user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
     user_org_ids = [org.organization_id for org in user_orgs]
     
-    # Get clients for all user's organizations
-    clients = Client.query.filter(Client.organization_id.in_(user_org_ids)).all()
+    # Get receipts and expenses for the user
+    organization_filter = request.args.get('organization')
+    if organization_filter:
+        try:
+            org_id = int(organization_filter)
+            # Verify user has access to this organization
+            if org_id not in user_org_ids:
+                flash('Access denied to this organization', 'danger')
+                return redirect(url_for('unified_view.history'))
+                
+            receipts = Receipt.query.filter_by(organization_id=org_id).all()
+        except ValueError:
+            flash('Invalid organization ID', 'danger')
+            return redirect(url_for('unified_view.history'))
+    else:
+        # If no organization filter, get receipts for all user's organizations plus personal receipts
+        receipts = Receipt.query.filter(
+            (Receipt.user_id == current_user.id) | 
+            (Receipt.organization_id.in_(user_org_ids))
+        ).all()
     
-    # Convert to simple dict format
-    client_list = [{'id': client.id, 'name': client.name} for client in clients]
+    # Generate Excel file
+    from io import BytesIO
+    import xlsxwriter
     
-    return jsonify(client_list)
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet('Receipts')
+    
+    # Define formats
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#f8f9fa',
+        'border': 1
+    })
+    
+    date_format = workbook.add_format({
+        'num_format': 'yyyy-mm-dd',
+        'border': 1
+    })
+    
+    number_format = workbook.add_format({
+        'num_format': '#,##0.00',
+        'border': 1
+    })
+    
+    text_format = workbook.add_format({
+        'border': 1
+    })
+    
+    # Write headers
+    headers = [
+        'ID', 'Type', 'Date', 'Vendor', 'Receipt #', 'Category', 
+        'Total Amount', 'Currency', 'Tax Amount', 'Tax Deductible', 
+        'Organization', 'Client', 'Status', 'Notes'
+    ]
+    
+    for col, header in enumerate(headers):
+        worksheet.write(0, col, header, header_format)
+    
+    # Set column widths
+    worksheet.set_column(0, 0, 5)  # ID
+    worksheet.set_column(1, 1, 10)  # Type
+    worksheet.set_column(2, 2, 12)  # Date
+    worksheet.set_column(3, 3, 25)  # Vendor
+    worksheet.set_column(4, 4, 15)  # Receipt #
+    worksheet.set_column(5, 5, 20)  # Category
+    worksheet.set_column(6, 6, 15)  # Total Amount
+    worksheet.set_column(7, 7, 10)  # Currency
+    worksheet.set_column(8, 8, 12)  # Tax Amount
+    worksheet.set_column(9, 9, 12)  # Tax Deductible
+    worksheet.set_column(10, 10, 20)  # Organization
+    worksheet.set_column(11, 11, 20)  # Client
+    worksheet.set_column(12, 12, 12)  # Status
+    worksheet.set_column(13, 13, 30)  # Notes
+    
+    # Write data
+    row = 1
+    for receipt in receipts:
+        # Get organization name
+        organization_name = ''
+        if receipt.organization_id:
+            org = Organization.query.get(receipt.organization_id)
+            if org:
+                organization_name = org.name
+        
+        # Get expense details
+        expense_type = 'Personal'
+        client_name = ''
+        status = ''
+        notes = ''
+        
+        company_expense = CompanyExpense.query.filter_by(receipt_id=receipt.id).first()
+        if company_expense:
+            expense_type = 'Business'
+            status = company_expense.status
+            notes = company_expense.notes
+            
+            if company_expense.client_id:
+                client = Client.query.get(company_expense.client_id)
+                if client:
+                    client_name = client.name
+        
+        client_expense = ClientExpense.query.filter_by(receipt_id=receipt.id).first()
+        if client_expense:
+            expense_type = 'Client'
+            if client_expense.client_id:
+                client = Client.query.get(client_expense.client_id)
+                if client:
+                    client_name = client.name
+        
+        # Write row data
+        worksheet.write(row, 0, receipt.id, text_format)
+        worksheet.write(row, 1, expense_type, text_format)
+        worksheet.write(row, 2, receipt.date, date_format if receipt.date else text_format)
+        worksheet.write(row, 3, receipt.vendor_name, text_format)
+        worksheet.write(row, 4, receipt.receipt_number, text_format)
+        worksheet.write(row, 5, f"{receipt.expense_major_category} - {receipt.expense_minor_category}" 
+                       if receipt.expense_minor_category else receipt.expense_major_category, text_format)
+        worksheet.write(row, 6, receipt.total_amount, number_format)
+        worksheet.write(row, 7, receipt.currency, text_format)
+        worksheet.write(row, 8, receipt.tax_amount, number_format if receipt.tax_amount else text_format)
+        worksheet.write(row, 9, receipt.tax_deductible_amount, number_format if receipt.tax_deductible_amount else text_format)
+        worksheet.write(row, 10, organization_name, text_format)
+        worksheet.write(row, 11, client_name, text_format)
+        worksheet.write(row, 12, status, text_format)
+        worksheet.write(row, 13, notes, text_format)
+        
+        row += 1
+    
+    # Add receipt items worksheet
+    items_worksheet = workbook.add_worksheet('Receipt Items')
+    
+    # Write headers for items
+    item_headers = [
+        'Receipt ID', 'Description', 'Quantity', 'Unit Price', 
+        'Amount', 'Tax Deductible', 'Vendor', 'Date'
+    ]
+    
+    for col, header in enumerate(item_headers):
+        items_worksheet.write(0, col, header, header_format)
+    
+    # Set column widths
+    items_worksheet.set_column(0, 0, 10)  # Receipt ID
+    items_worksheet.set_column(1, 1, 40)  # Description
+    items_worksheet.set_column(2, 2, 10)  # Quantity
+    items_worksheet.set_column(3, 3, 15)  # Unit Price
+    items_worksheet.set_column(4, 4, 15)  # Amount
+    items_worksheet.set_column(5, 5, 12)  # Tax Deductible
+    items_worksheet.set_column(6, 6, 25)  # Vendor
+    items_worksheet.set_column(7, 7, 12)  # Date
+    
+    # Write items data
+    row = 1
+    for receipt in receipts:
+        items = ReceiptItem.query.filter_by(receipt_id=receipt.id).all()
+        
+        for item in items:
+            items_worksheet.write(row, 0, receipt.id, text_format)
+            items_worksheet.write(row, 1, item.description, text_format)
+            items_worksheet.write(row, 2, item.quantity, number_format if item.quantity else text_format)
+            items_worksheet.write(row, 3, item.unit_price, number_format if item.unit_price else text_format)
+            items_worksheet.write(row, 4, item.amount, number_format if item.amount else text_format)
+            items_worksheet.write(row, 5, 'Yes' if item.tax_deductible else 'No', text_format)
+            items_worksheet.write(row, 6, receipt.vendor_name, text_format)
+            items_worksheet.write(row, 7, receipt.date, date_format if receipt.date else text_format)
+            
+            row += 1
+    
+    workbook.close()
+    
+    # Prepare response
+    output.seek(0)
+    
+    date_str = datetime.now().strftime('%Y%m%d')
+    filename = f"receipts_export_{date_str}.xlsx"
+    
+    return send_file(
+        output,
+        download_name=filename,
+        as_attachment=True,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 
 def register_routes(app):
