@@ -206,7 +206,7 @@
                 <h5 class="mb-0"><i class="fas fa-briefcase"></i> Classify Receipt</h5>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('expense.create_expense_from_receipt') }}" method="POST">
+                <form action="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}" method="POST">
                     <input type="hidden" name="receipt_id" value="{{ receipt.id }}">
                     
                     <div class="form-group">

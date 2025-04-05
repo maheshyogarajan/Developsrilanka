@@ -539,6 +539,7 @@ class ExpenseStatus(Enum):
     APPROVED = "approved"
     REIMBURSED = "reimbursed"
     REJECTED = "rejected"
+    CANCELLED = "cancelled"
 
 class CompanyExpense(db.Model):
     """Model for storing company expense information for reimbursement."""
