@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from models import db, Organization, OrganizationUser, OrganizationInvitation, UserRole
+from models import db, Organization, OrganizationUser, OrganizationInvitation, UserRole, Client
 from decorators import role_required
 from flask_mail import Message
 
@@ -633,6 +633,61 @@ def list_organizations():
     return jsonify({
         'success': True,
         'organizations': organizations
+    })
+
+@organizations_bp.route('/api/organizations')
+@login_required
+def api_organizations():
+    """
+    API endpoint to get all organizations for the current user.
+    Used for organization dropdown in forms.
+    """
+    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+    
+    # Get default organization ID
+    default_organization_id = None
+    for org_user in user_orgs:
+        if org_user.is_default:
+            default_organization_id = org_user.organization_id
+            break
+    
+    # Convert to simple dict format
+    organizations = []
+    for org_user in user_orgs:
+        org = org_user.organization
+        organizations.append({
+            'id': org.id,
+            'name': org.name
+        })
+    
+    return jsonify({
+        'organizations': organizations,
+        'default_organization_id': default_organization_id
+    })
+
+@organizations_bp.route('/api/organizations/<int:org_id>/clients')
+@login_required
+def api_organization_clients(org_id):
+    """
+    API endpoint to get clients for a specific organization.
+    Used for client dropdown in forms.
+    """
+    # Check if user has access to this organization
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first_or_404()
+    
+    # Get clients for this organization
+    clients = Client.query.filter_by(organization_id=org_id).all()
+    
+    # Convert to simple dict format
+    client_list = [{'id': client.id, 'name': client.name} for client in clients]
+    
+    return jsonify({
+        'organization_id': org_id,
+        'organization_name': org_user.organization.name,
+        'clients': client_list
     })
 
 def register_routes(app):

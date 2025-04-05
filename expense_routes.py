@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import text
 
 from app import db
-from models import CompanyExpense, ExpenseStatus, Receipt, User, Organization, Client
+from models import CompanyExpense, ExpenseStatus, Receipt, User, Organization, Client, OrganizationUser
 from decorators import role_required
 
 expense_bp = Blueprint('expense', __name__)
@@ -655,7 +655,7 @@ def edit_expense(expense_id):
 @expense_bp.route('/receipts/<int:receipt_id>/create-expense', methods=['GET', 'POST'])
 @login_required
 def create_expense_from_receipt(receipt_id):
-    """Create a company expense directly from a receipt."""
+    """Create a company expense directly from a receipt with organization selection."""
     # Verify the receipt belongs to the user
     receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first_or_404()
     
@@ -676,24 +676,56 @@ def create_expense_from_receipt(receipt_id):
         flash('This receipt has already been submitted as a company expense. You can edit the existing expense.', 'info')
         return redirect(url_for('expense.view_expense', expense_id=existing_expense.id))
     
-    # Get the user's default organization
-    default_org = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
+    # Get all user's organizations
+    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
     
-    organization_id = default_org[0] if default_org else None
-    
-    if not organization_id:
+    # Check if user belongs to any organizations
+    if not user_orgs:
         flash('You need to be part of an organization to submit expenses', 'warning')
         return redirect(url_for('organizations'))
+    
+    # Get organization IDs and objects
+    user_org_ids = [org.organization_id for org in user_orgs]
+    organizations = Organization.query.filter(Organization.id.in_(user_org_ids)).all()
+    
+    # Get default organization ID
+    default_org_id = None
+    for org_user in user_orgs:
+        if org_user.is_default:
+            default_org_id = org_user.organization_id
+            break
+    
+    # If no default organization, use the first one
+    if not default_org_id and organizations:
+        default_org_id = organizations[0].id
     
     if request.method == 'POST':
         try:
             description = request.form.get('description', '')
             notes = request.form.get('notes', '')
             is_reimbursable = request.form.get('is_reimbursable') == 'true'
+            
+            # Get organization ID from form 
+            organization_id = request.form.get('organization_id')
+            
+            # Validate organization ID
+            if not organization_id or not organization_id.isdigit():
+                flash('Please select a valid organization', 'danger')
+                return redirect(url_for('create_expense_from_receipt', receipt_id=receipt_id))
+                
+            organization_id = int(organization_id)
+            
+            # Verify user has access to this organization
+            org_user = OrganizationUser.query.filter_by(
+                user_id=current_user.id,
+                organization_id=organization_id
+            ).first()
+            
+            if not org_user:
+                flash('You do not have access to the selected organization', 'danger')
+                return redirect(url_for('create_expense_from_receipt', receipt_id=receipt_id))
+                
+            # Get client ID from form
             client_id = request.form.get('client_id')
             
             # Convert client_id to int or None
@@ -704,7 +736,7 @@ def create_expense_from_receipt(receipt_id):
                 if client_id:
                     client = Client.query.filter_by(id=client_id, organization_id=organization_id).first()
                     if not client:
-                        flash('Selected client not found or does not belong to your organization', 'danger')
+                        flash('Selected client not found or does not belong to the selected organization', 'danger')
                         return redirect(url_for('create_expense_from_receipt', receipt_id=receipt_id))
             else:
                 client_id = None
@@ -734,11 +766,16 @@ def create_expense_from_receipt(receipt_id):
             flash(f'Error submitting expense: {str(e)}', 'danger')
             return redirect(url_for('view_receipt', receipt_id=receipt_id))
     
-    # GET request - render form
-    # Get clients for the organization
-    clients = Client.query.filter_by(organization_id=organization_id).order_by(Client.name).all()
+    # For initial page load, get clients for the default organization
+    clients = Client.query.filter_by(organization_id=default_org_id).order_by(Client.name).all() if default_org_id else []
     
-    return render_template('create_expense_from_receipt.html', receipt=receipt, clients=clients)
+    return render_template(
+        'create_expense_from_receipt.html',
+        receipt=receipt,
+        clients=clients,
+        organizations=organizations,
+        default_org_id=default_org_id
+    )
 
 def register_routes(app):
     """Register the expense routes with the app."""

@@ -2,6 +2,11 @@
 
 {% block title %}Create Expense from Receipt{% endblock %}
 
+{% block head %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/organization_client_script.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row">
@@ -38,6 +43,30 @@
                     </div>
 
                     <form method="POST" action="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}">
+                        <div class="mb-3">
+                            <label for="organization_id" class="form-label">Organization</label>
+                            <select class="form-select" id="organization_id" name="organization_id" required>
+                                <option value="">-- Select Organization --</option>
+                                {% for org in organizations %}
+                                <option value="{{ org.id }}" {% if org.id == default_org_id %}selected{% endif %}>
+                                    {{ org.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Select the organization this expense belongs to</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="client_id" class="form-label">Client (Optional)</label>
+                            <select class="form-select" id="client_id" name="client_id">
+                                <option value="">-- Select Client --</option>
+                                {% for client in clients %}
+                                <option value="{{ client.id }}">{{ client.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">If this expense is for a specific client, select them here</small>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="description" class="form-label">Expense Description</label>
                             <input type="text" class="form-control" id="description" name="description" 
