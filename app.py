@@ -212,8 +212,9 @@ def index():
 @app.route('/history')
 @login_required
 def receipt_history():
-    """Render the receipt history page."""
-    return render_template('receipt_history.html')
+    """Redirect to the unified receipt history page."""
+    from flask import redirect, url_for
+    return redirect(url_for('unified_view.history'))
 
 @app.route('/analytics')
 @login_required
@@ -1336,64 +1337,10 @@ def get_receipt(receipt_id):
 @app.route('/view_receipt/<int:receipt_id>')
 @login_required
 def view_receipt(receipt_id):
-    """Display a specific receipt detail page for the current user's organization."""
-    from models import Receipt, CompanyExpense, ClientExpense
-    from utils import format_currency
-    from sqlalchemy import or_, and_
-    
-    try:
-        # Get the user's default organization
-        org = current_user.get_default_organization()
-        user_id = current_user.id
-        
-        if org:
-            org_id = org.id
-            # Find the receipt by ID and either:
-            # 1. matching organization_id, or
-            # 2. null organization_id and user ownership (legacy data)
-            logging.debug(f"Fetching receipt {receipt_id} for organization {org_id} or user {user_id} with legacy data support")
-            receipt = Receipt.query.filter(
-                Receipt.id == receipt_id,
-                or_(
-                    Receipt.organization_id == org_id,
-                    and_(
-                        Receipt.user_id == user_id,
-                        or_(
-                            Receipt.organization_id.is_(None),
-                            Receipt.organization_id == 0
-                        )
-                    )
-                )
-            ).first()
-        else:
-            # Fallback to user ownership if no organization
-            logging.debug(f"Fetching receipt {receipt_id} for user {user_id} (no organization)")
-            receipt = Receipt.query.filter_by(id=receipt_id, user_id=user_id).first()
-        
-        if not receipt:
-            logging.warning(f"Receipt {receipt_id} not found for user/organization")
-            flash('Receipt not found or does not belong to your organization', 'danger')
-            return redirect(url_for('receipt_history'))
-        
-        # Check if this receipt is already allocated
-        logging.debug(f"Checking allocations for receipt {receipt_id}")
-        company_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
-        client_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
-        
-        logging.debug(f"Receipt {receipt_id} allocations: company_expense={bool(company_expense)}, client_expense={bool(client_expense)}")
-        
-        return render_template(
-            'view_receipt.html', 
-            receipt=receipt, 
-            company_expense=company_expense,
-            client_expense=client_expense,
-            format_currency=format_currency
-        )
-        
-    except Exception as e:
-        logging.error(f"Error viewing receipt: {str(e)}")
-        flash(f'Error viewing receipt: {str(e)}', 'danger')
-        return redirect(url_for('receipt_history'))
+    """Redirect to the unified receipt view for consistent URL structure."""
+    from flask import redirect, url_for
+    # Redirect to the unified receipt view
+    return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
 
 @app.route('/export', methods=['GET'])
 @login_required
