@@ -291,9 +291,14 @@ def view_expense(expense_id):
     # This ensures the image section still renders in the template
     receipt_image_url = None
     
-    # First, try to use the image_url from the receipt_dict (generated via to_dict method)
-    if receipt_dict.get('image_url'):
+    # First, try to use s3_url if available (prioritize S3 storage)
+    if receipt.s3_key and receipt.s3_url:
+        receipt_image_url = receipt.s3_url
+        logging.debug(f"Using S3 URL for expense ID {expense_id}: {receipt_image_url}")
+    # Next, try to use the image_url from the receipt_dict (generated via to_dict method)
+    elif receipt_dict.get('image_url'):
         receipt_image_url = receipt_dict.get('image_url')
+        logging.debug(f"Using image_url from receipt_dict for expense ID {expense_id}: {receipt_image_url}")
     # Otherwise, try to generate a URL from the image_path
     elif receipt.image_path:
         # Normalize the path to ensure proper URL format
@@ -302,9 +307,7 @@ def view_expense(expense_id):
         clean_path = clean_path.lstrip('/')
         # Create the full static URL
         receipt_image_url = f"/static/{clean_path}"
-    # Otherwise, try to generate from s3_key if available
-    elif receipt.s3_key:
-        receipt_image_url = receipt.s3_url
+        logging.debug(f"Using generated path for expense ID {expense_id}: {receipt_image_url}")
     
     logging.debug(f"Generated receipt_image_url: {receipt_image_url}")
     
@@ -624,8 +627,15 @@ def create_expense_from_receipt(receipt_id):
     # Verify the receipt belongs to the user
     receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first_or_404()
     
-    # Use image_path directly in template instead of S3
-    receipt.image_url = None
+    # Use S3 URL if available, otherwise fall back to local image
+    if receipt.s3_key and receipt.s3_url:
+        receipt.image_url = receipt.s3_url
+        logging.debug(f"Using S3 URL for receipt creation from receipt ID {receipt_id}: {receipt.s3_url}")
+    else:
+        # For local images, use the to_dict method to get the image_url
+        receipt_dict = receipt.to_dict()
+        receipt.image_url = receipt_dict.get('image_url')
+        logging.debug(f"Using local image for receipt creation from receipt ID {receipt_id}: {receipt.image_url}")
     
     # Check if there's already an expense for this receipt
     existing_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
