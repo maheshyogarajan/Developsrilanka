@@ -110,6 +110,24 @@ try:
 except Exception as e:
     logger.error(f"Error loading receipt classification routes: {str(e)}")
 
+# Import enhanced receipt classification routes
+try:
+    import enhanced_classify_routes
+    # Register enhanced receipt classification routes
+    enhanced_classify_routes.register_routes(app)
+    logger.info("Enhanced receipt classification routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading enhanced receipt classification routes: {str(e)}")
+
+# Import unified receipt and expense views
+try:
+    import unified_receipt_expense_routes
+    # Register unified receipt and expense view routes
+    unified_receipt_expense_routes.register_routes(app)
+    logger.info("Unified receipt and expense view routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading unified receipt and expense view routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
