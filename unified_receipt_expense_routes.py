@@ -355,25 +355,32 @@ def history():
         
         enhanced_receipts.append(receipt)
     
+    # Create filtered parameter dictionaries for template
+    filter_params_without_org = {k: v for k, v in filter_params.items() if k != 'organization'}
+    filter_params_without_type = {k: v for k, v in filter_params.items() if k != 'type'}
+    filter_params_without_search = {k: v for k, v in filter_params.items() if k != 'search'}
+    filter_params_without_page = {k: v for k, v in filter_params.items() if k != 'page'}
+    
+    items = []
+    for receipt in enhanced_receipts:
+        if hasattr(receipt, 'is_company_expense') and receipt.is_company_expense:
+            items.append({'type': 'expense', 'expense': receipt})
+        else:
+            items.append({'type': 'receipt', 'receipt': receipt})
+    
     return render_template(
         'unified_history.html',
-        receipts=enhanced_receipts,
+        items=items,
         organizations=organizations,
         selected_org_id=selected_org_id,
         selected_type=selected_type,
-        selected_status=selected_status,
-        selected_date_range=selected_date_range,
-        start_date=start_date,
-        end_date=end_date,
-        amount_min=amount_min,
-        amount_max=amount_max,
-        vendor=vendor,
-        selected_category=selected_category,
-        tax_deductible=tax_deductible,
-        sort_by=sort_by,
-        categories=categories,
-        filtered=filtered,
+        search_query=vendor,
+        has_filters=filtered,
         filter_params=filter_params,
+        filter_params_without_org=filter_params_without_org,
+        filter_params_without_type=filter_params_without_type,
+        filter_params_without_search=filter_params_without_search,
+        filter_params_without_page=filter_params_without_page,
         current_page=page,
         total_pages=total_pages,
         current_user=current_user

@@ -1,67 +1,25 @@
 {% extends 'layout.html' %}
 
-{% block title %}Receipt History{% endblock %}
+{% block title %}Receipt & Expense History{% endblock %}
 
 {% block styles %}
 <style>
-    .filters-panel {
+    .filter-panel {
         background-color: #f8f9fa;
         border-radius: 8px;
         padding: 1rem;
         margin-bottom: 1.5rem;
     }
-    .filter-toggle {
-        cursor: pointer;
-    }
-    .receipt-card {
-        transition: transform 0.2s;
-        margin-bottom: 1.5rem;
-    }
-    .receipt-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-    .receipt-card .card-body {
-        padding: 1rem;
-    }
-    .receipt-card .card-footer {
-        padding: 0.5rem 1rem;
-        background-color: #f8f9fa;
-    }
-    .receipt-img-container {
-        height: 150px;
-        overflow: hidden;
-        display: flex;
+    .filter-badge {
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        background-color: #f8f9fa;
-        border-radius: 4px;
-    }
-    .receipt-img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-    }
-    .receipt-date {
-        font-size: 0.85rem;
-        color: #6c757d;
-    }
-    .receipt-vendor {
-        font-weight: 600;
-        margin-bottom: 0.25rem;
-    }
-    .receipt-amount {
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: #28a745;
-    }
-    .receipt-status {
-        font-size: 0.85rem;
     }
     .status-badge {
         padding: 0.35em 0.65em;
         border-radius: 0.25rem;
-        font-size: 0.75em;
+        font-size: 0.85em;
         font-weight: 600;
     }
     .status-submitted {
@@ -80,28 +38,91 @@
         background-color: #f8d7da;
         color: #842029;
     }
-    .pagination-container {
+    .status-cancelled {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+    .item-card {
+        margin-bottom: 1rem;
+        transition: transform 0.2s;
+    }
+    .item-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
+    .card-tag {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 30px;
+        margin-right: 0.3rem;
+        display: inline-block;
+        margin-bottom: 0.3rem;
+    }
+    .tag-personal {
+        background-color: #e9ecef;
+        color: #495057;
+    }
+    .tag-business {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+    .tag-reimbursable {
+        background-color: #cff4fc;
+        color: #055160;
+    }
+    .tag-client {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+    .tag-organization {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+    .icon-container {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
         display: flex;
+        align-items: center;
         justify-content: center;
-        margin-top: 2rem;
+        margin-right: 1rem;
     }
-    .receipt-checkbox {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 10;
+    .icon-receipt {
+        background-color: #e9ecef;
     }
-    .bulk-actions {
-        margin-bottom: 1rem;
+    .icon-expense {
+        background-color: #d1e7dd;
     }
-    .select-all-container {
-        margin-bottom: 1rem;
+    .item-image {
+        max-height: 100px;
+        object-fit: cover;
+        border-radius: 4px;
     }
-    .filter-badge {
-        margin-right: 0.5rem;
-        margin-bottom: 0.5rem;
+    .card-footer {
+        background-color: transparent;
+        border-top: none;
     }
-    .applied-filters {
+    .date-badge {
+        background-color: #f8f9fa;
+        border-radius: 30px;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .preview-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        max-width: 100%;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #dee2e6;
         margin-bottom: 1rem;
     }
 </style>
@@ -109,66 +130,91 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-start mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Receipt & Expense History</h1>
         <div>
-            <h1>Receipt & Expense History</h1>
-            <p class="text-muted">View and manage all your receipts and expenses</p>
-        </div>
-        <div>
-            <a href="{{ url_for('index') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Scan New Receipt
+            <a href="{{ url_for('unified_view.export_excel') }}" class="btn btn-outline-success">
+                <i class="fas fa-file-excel"></i> Export to Excel
             </a>
         </div>
     </div>
     
-    <!-- Bulk Actions Section -->
-    <div class="bulk-actions">
-        <form action="{{ url_for('unified_view.bulk_action') }}" method="POST" id="bulkActionsForm">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="select-all-container">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="selectAll">
-                            <label class="form-check-label" for="selectAll">
-                                Select All Receipts
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="d-flex">
-                        <select name="action" class="form-select me-2" id="bulkAction">
-                            <option value="">-- Select Action --</option>
-                            <option value="delete">Delete Selected</option>
-                            <option value="export">Export Selected</option>
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <form action="{{ url_for('unified_view.history') }}" method="GET" id="organizationFilterForm">
+                    <input type="hidden" name="page" value="1">
+                    {% for key, value in filter_params.items() %}
+                        {% if key != 'organization' and key != 'page' %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endif %}
+                    {% endfor %}
+                    <div class="form-group">
+                        <label for="organization"><i class="fas fa-building"></i> Organization:</label>
+                        <select name="organization" id="organization" class="form-control" onchange="this.form.submit()">
+                            <option value="">All Organizations</option>
+                            {% for org in organizations %}
+                                <option value="{{ org.id }}" {% if selected_org_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                            {% endfor %}
                         </select>
-                        <button type="submit" class="btn btn-primary" id="applyBulkAction" disabled>
-                            Apply
-                        </button>
                     </div>
-                </div>
+                </form>
             </div>
-        </form>
-    </div>
-
-    <!-- Filters Panel -->
-    <div class="filters-panel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0">Filters</h5>
-            <a class="filter-toggle" data-bs-toggle="collapse" href="#filtersCollapse" role="button" aria-expanded="true" aria-controls="filtersCollapse">
-                <i class="fas fa-chevron-down"></i>
-            </a>
+            <div class="col-md-3">
+                <form action="{{ url_for('unified_view.history') }}" method="GET" id="typeFilterForm">
+                    <input type="hidden" name="page" value="1">
+                    {% for key, value in filter_params.items() %}
+                        {% if key != 'type' and key != 'page' %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endif %}
+                    {% endfor %}
+                    <div class="form-group">
+                        <label for="type"><i class="fas fa-filter"></i> Type:</label>
+                        <select name="type" id="type" class="form-control" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            <option value="receipt" {% if selected_type == 'receipt' %}selected{% endif %}>Receipts</option>
+                            <option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Business Expenses</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-3">
+                <form action="{{ url_for('unified_view.history') }}" method="GET" id="searchForm">
+                    <input type="hidden" name="page" value="1">
+                    {% for key, value in filter_params.items() %}
+                        {% if key != 'search' and key != 'page' %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endif %}
+                    {% endfor %}
+                    <div class="form-group">
+                        <label for="search"><i class="fas fa-search"></i> Search:</label>
+                        <input type="text" name="search" id="search" class="form-control" value="{{ search_query }}" placeholder="Search vendors, descriptions...">
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" form="searchForm" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                {% if has_filters %}
+                    <a href="{{ url_for('unified_view.history') }}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </a>
+                {% endif %}
+            </div>
         </div>
         
-        {% if filtered %}
-        <div class="applied-filters">
+        <!-- Active Filters Display -->
+        <div class="mt-3">
+            <h6>Active Filters:</h6>
             <div class="d-flex flex-wrap">
                 {% if selected_org_id %}
                     {% for org in organizations %}
                         {% if org.id == selected_org_id %}
                             <span class="badge bg-info filter-badge">
                                 Organization: {{ org.name }}
-                                <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'organization'}) }}" class="text-white ms-1" style="text-decoration: none;">
+                                <a href="{{ url_for('unified_view.history', **filter_params_without_org) }}" class="text-white ms-1" style="text-decoration: none;">
                                     <i class="fas fa-times"></i>
                                 </a>
                             </span>
@@ -179,358 +225,223 @@
                 {% if selected_type %}
                     <span class="badge bg-info filter-badge">
                         Type: {{ selected_type|title }}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'type'}) }}" class="text-white ms-1" style="text-decoration: none;">
+                        <a href="{{ url_for('unified_view.history', **filter_params_without_type) }}" class="text-white ms-1" style="text-decoration: none;">
                             <i class="fas fa-times"></i>
                         </a>
                     </span>
                 {% endif %}
                 
-                {% if selected_status %}
+                {% if search_query %}
                     <span class="badge bg-info filter-badge">
-                        Status: {{ selected_status|title }}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'status'}) }}" class="text-white ms-1" style="text-decoration: none;">
+                        Search: "{{ search_query }}"
+                        <a href="{{ url_for('unified_view.history', **filter_params_without_search) }}" class="text-white ms-1" style="text-decoration: none;">
                             <i class="fas fa-times"></i>
                         </a>
                     </span>
                 {% endif %}
                 
-                {% if selected_date_range %}
-                    <span class="badge bg-info filter-badge">
-                        Date: 
-                        {% if selected_date_range == 'custom' %}
-                            {{ start_date }} to {{ end_date }}
-                        {% elif selected_date_range == '7' %}
-                            Last 7 Days
-                        {% elif selected_date_range == '30' %}
-                            Last 30 Days
-                        {% elif selected_date_range == '90' %}
-                            Last 90 Days
-                        {% endif %}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'date_range' and k != 'start_date' and k != 'end_date'}) }}" class="text-white ms-1" style="text-decoration: none;">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    </span>
-                {% endif %}
-                
-                {% if amount_min or amount_max %}
-                    <span class="badge bg-info filter-badge">
-                        Amount: 
-                        {% if amount_min and amount_max %}
-                            ${{ amount_min }} - ${{ amount_max }}
-                        {% elif amount_min %}
-                            >${{ amount_min }}
-                        {% elif amount_max %}
-                            <${{ amount_max }}
-                        {% endif %}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'amount_min' and k != 'amount_max'}) }}" class="text-white ms-1" style="text-decoration: none;">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    </span>
-                {% endif %}
-                
-                {% if vendor %}
-                    <span class="badge bg-info filter-badge">
-                        Vendor: {{ vendor }}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'vendor'}) }}" class="text-white ms-1" style="text-decoration: none;">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    </span>
-                {% endif %}
-                
-                {% if selected_category %}
-                    <span class="badge bg-info filter-badge">
-                        Category: {{ selected_category }}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'category'}) }}" class="text-white ms-1" style="text-decoration: none;">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    </span>
-                {% endif %}
-                
-                {% if tax_deductible %}
-                    <span class="badge bg-info filter-badge">
-                        Tax Deductible: {{ 'Yes' if tax_deductible == 'yes' else 'No' }}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'tax_deductible'}) }}" class="text-white ms-1" style="text-decoration: none;">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    </span>
-                {% endif %}
-                
-                {% if sort_by != 'date_desc' %}
-                    <span class="badge bg-info filter-badge">
-                        Sorted By: 
-                        {% if sort_by == 'date_asc' %}
-                            Date (Oldest First)
-                        {% elif sort_by == 'amount_desc' %}
-                            Amount (Highest First)
-                        {% elif sort_by == 'amount_asc' %}
-                            Amount (Lowest First)
-                        {% elif sort_by == 'vendor_asc' %}
-                            Vendor (A-Z)
-                        {% elif sort_by == 'vendor_desc' %}
-                            Vendor (Z-A)
-                        {% endif %}
-                        <a href="{{ url_for('unified_view.history', **{k: v for k, v in filter_params.items() if k != 'sort_by'}) }}" class="text-white ms-1" style="text-decoration: none;">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    </span>
-                {% endif %}
-                
-                {% if filtered %}
-                    <a href="{{ url_for('unified_view.history') }}" class="badge bg-secondary filter-badge">
-                        Clear All Filters
-                    </a>
+                {% if not has_filters %}
+                    <span class="text-muted">No filters applied</span>
                 {% endif %}
             </div>
         </div>
-        {% endif %}
-        
-        <div class="collapse show" id="filtersCollapse">
-            <form action="{{ url_for('unified_view.history') }}" method="GET">
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="organization" class="form-label">Organization</label>
-                        <select name="organization" id="organization" class="form-select">
-                            <option value="">All Organizations</option>
-                            {% for org in organizations %}
-                                <option value="{{ org.id }}" {{ 'selected' if selected_org_id == org.id else '' }}>{{ org.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="type" class="form-label">Receipt Type</label>
-                        <select name="type" id="type" class="form-select">
-                            <option value="">All Types</option>
-                            <option value="business" {{ 'selected' if selected_type == 'business' else '' }}>Business Expenses</option>
-                            <option value="client" {{ 'selected' if selected_type == 'client' else '' }}>Client Expenses</option>
-                            <option value="unclassified" {{ 'selected' if selected_type == 'unclassified' else '' }}>Personal Expenses</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="status" class="form-label">Status</label>
-                        <select name="status" id="status" class="form-select">
-                            <option value="">All Statuses</option>
-                            <option value="submitted" {{ 'selected' if selected_status == 'submitted' else '' }}>Submitted</option>
-                            <option value="approved" {{ 'selected' if selected_status == 'approved' else '' }}>Approved</option>
-                            <option value="reimbursed" {{ 'selected' if selected_status == 'reimbursed' else '' }}>Reimbursed</option>
-                            <option value="rejected" {{ 'selected' if selected_status == 'rejected' else '' }}>Rejected</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="date_range" class="form-label">Date Range</label>
-                        <select name="date_range" id="date_range" class="form-select">
-                            <option value="">All Dates</option>
-                            <option value="7" {{ 'selected' if selected_date_range == '7' else '' }}>Last 7 Days</option>
-                            <option value="30" {{ 'selected' if selected_date_range == '30' else '' }}>Last 30 Days</option>
-                            <option value="90" {{ 'selected' if selected_date_range == '90' else '' }}>Last 90 Days</option>
-                            <option value="custom" {{ 'selected' if selected_date_range == 'custom' else '' }}>Custom Range</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3" id="customDateContainer" style="{{ 'display: block' if selected_date_range == 'custom' else 'display: none' }}">
-                        <div class="row">
-                            <div class="col-6">
-                                <label for="start_date" class="form-label">Start Date</label>
-                                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date }}">
-                            </div>
-                            <div class="col-6">
-                                <label for="end_date" class="form-label">End Date</label>
-                                <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date }}">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="amount_range" class="form-label">Amount Range</label>
-                        <div class="row">
-                            <div class="col-6">
-                                <input type="text" name="amount_min" id="amount_min" class="form-control" placeholder="Min" value="{{ amount_min }}">
-                            </div>
-                            <div class="col-6">
-                                <input type="text" name="amount_max" id="amount_max" class="form-control" placeholder="Max" value="{{ amount_max }}">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="vendor" class="form-label">Vendor</label>
-                        <input type="text" name="vendor" id="vendor" class="form-control" placeholder="Vendor name" value="{{ vendor }}">
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="category" class="form-label">Category</label>
-                        <select name="category" id="category" class="form-select">
-                            <option value="">All Categories</option>
-                            {% for category in categories %}
-                                <option value="{{ category }}" {{ 'selected' if selected_category == category else '' }}>{{ category }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="tax_deductible" class="form-label">Tax Deductible</label>
-                        <select name="tax_deductible" id="tax_deductible" class="form-select">
-                            <option value="">All</option>
-                            <option value="yes" {{ 'selected' if tax_deductible == 'yes' else '' }}>Yes</option>
-                            <option value="no" {{ 'selected' if tax_deductible == 'no' else '' }}>No</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="sort_by" class="form-label">Sort By</label>
-                        <select name="sort_by" id="sort_by" class="form-select">
-                            <option value="date_desc" {{ 'selected' if sort_by == 'date_desc' else '' }}>Date (Newest First)</option>
-                            <option value="date_asc" {{ 'selected' if sort_by == 'date_asc' else '' }}>Date (Oldest First)</option>
-                            <option value="amount_desc" {{ 'selected' if sort_by == 'amount_desc' else '' }}>Amount (Highest First)</option>
-                            <option value="amount_asc" {{ 'selected' if sort_by == 'amount_asc' else '' }}>Amount (Lowest First)</option>
-                            <option value="vendor_asc" {{ 'selected' if sort_by == 'vendor_asc' else '' }}>Vendor (A-Z)</option>
-                            <option value="vendor_desc" {{ 'selected' if sort_by == 'vendor_desc' else '' }}>Vendor (Z-A)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-8 d-flex align-items-end mb-3">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-filter"></i> Apply Filters
-                        </button>
-                        <a href="{{ url_for('unified_view.history') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Clear Filters
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
     </div>
     
-    <!-- Results Count -->
-    <div class="mb-3">
-        <p class="text-muted">
-            {% if filtered %}Showing filtered results: {% endif %}{{ receipts|length }} receipt{{ 's' if receipts|length != 1 else '' }}
-            {% if total_pages > 1 %}(Page {{ current_page }} of {{ total_pages }}){% endif %}
-        </p>
-    </div>
-    
-    <!-- Receipts Grid -->
-    <div class="row">
-        {% for receipt in receipts %}
-        <div class="col-md-3">
-            <div class="card receipt-card position-relative">
-                <div class="form-check receipt-checkbox">
-                    <input class="form-check-input" type="checkbox" name="selected_receipts" form="bulkActionsForm" value="{{ receipt.id }}">
-                </div>
-                
-                <div class="receipt-img-container">
-                    {% if receipt.image_url %}
-                        <a href="{{ url_for('unified_view.view_unified_receipt', receipt_id=receipt.id) }}">
-                            <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-img">
-                        </a>
-                    {% else %}
-                        <div class="text-center text-muted">
-                            <i class="fas fa-receipt fa-3x"></i>
-                            <p class="small mt-2">No image</p>
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <div class="card-body">
-                    <p class="receipt-date">{{ receipt.date.strftime('%b %d, %Y') if receipt.date }}</p>
-                    <h6 class="receipt-vendor">{{ receipt.vendor_name }}</h6>
-                    <p class="receipt-amount">{{ "${:,.2f}".format(receipt.total_amount) }}</p>
-                    
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="receipt-status">
-                            {% if receipt.is_business_expense %}
-                                <span class="status-badge 
-                                    {% if receipt.business_expense.status == 'submitted' %}status-submitted
-                                    {% elif receipt.business_expense.status == 'approved' %}status-approved
-                                    {% elif receipt.business_expense.status == 'reimbursed' %}status-reimbursed
-                                    {% elif receipt.business_expense.status == 'rejected' %}status-rejected{% endif %}">
-                                    <i class="fas 
-                                        {% if receipt.business_expense.status == 'submitted' %}fa-clock
-                                        {% elif receipt.business_expense.status == 'approved' %}fa-check
-                                        {% elif receipt.business_expense.status == 'reimbursed' %}fa-money-bill-wave
-                                        {% elif receipt.business_expense.status == 'rejected' %}fa-times{% endif %}"></i>
-                                    {{ receipt.business_expense.status|title }}
-                                </span>
-                            {% elif receipt.is_client_expense %}
-                                <span class="badge bg-warning text-dark">
-                                    <i class="fas fa-user-tie"></i> Client
-                                </span>
+    <!-- Results Display -->
+    {% if items %}
+        <div class="row">
+            {% for item in items %}
+                <div class="col-md-4">
+                    <div class="card item-card">
+                        <div class="card-header bg-white d-flex align-items-center">
+                            {% if item.type == 'receipt' %}
+                                <div class="icon-container icon-receipt">
+                                    <i class="fas fa-receipt"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">Receipt</h5>
+                                    <small class="text-muted">#{{ item.receipt.id }}</small>
+                                </div>
                             {% else %}
-                                <span class="badge bg-secondary">
-                                    <i class="fas fa-home"></i> Personal
-                                </span>
+                                <div class="icon-container icon-expense">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">Business Expense</h5>
+                                    <small class="text-muted">#{{ item.expense.id }}</small>
+                                </div>
                             {% endif %}
                         </div>
                         
-                        {% if receipt.tax_deductible_amount and receipt.tax_deductible_amount > 0 %}
-                            <span class="badge bg-success">
-                                <i class="fas fa-receipt"></i> Tax Deductible
-                            </span>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="card-footer">
-                    <div class="d-flex justify-content-between align-items-center">
-                        {% if receipt.organization %}
-                            <small class="text-muted">{{ receipt.organization.name }}</small>
-                        {% else %}
-                            <small class="text-muted">Personal</small>
-                        {% endif %}
+                        <div class="card-body">
+                            {% if item.type == 'receipt' %}
+                                <h5 class="card-title">{{ item.receipt.vendor_name }}</h5>
+                                <p class="card-text">
+                                    {% if item.receipt.receipt_number %}
+                                        <small class="text-muted">Receipt #: {{ item.receipt.receipt_number }}</small><br>
+                                    {% endif %}
+                                </p>
+                                <div class="d-flex mb-3">
+                                    {% if item.receipt.s3_url %}
+                                        <img src="{{ item.receipt.s3_url }}" alt="Receipt Image" class="item-image">
+                                    {% elif item.receipt.image_path %}
+                                        <img src="{{ url_for('static', filename=item.receipt.image_path) }}" alt="Receipt Image" class="item-image">
+                                    {% else %}
+                                        <div class="text-muted fst-italic">No image available</div>
+                                    {% endif %}
+                                </div>
+                                <p class="card-text">
+                                    <strong>Total:</strong> {{ item.receipt.total_amount|currencyformat(item.receipt.currency) }}<br>
+                                    {% if item.receipt.tax_amount %}
+                                        <strong>Tax:</strong> {{ item.receipt.tax_amount|currencyformat(item.receipt.currency) }}<br>
+                                    {% endif %}
+                                </p>
+                                <div class="mb-2">
+                                    <span class="card-tag tag-personal">
+                                        <i class="fas fa-home"></i> Personal
+                                    </span>
+                                    {% if item.receipt.organization %}
+                                        <span class="card-tag tag-organization">
+                                            <i class="fas fa-building"></i> {{ item.receipt.organization.name }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <h5 class="card-title">{{ item.expense.description }}</h5>
+                                <p class="card-text preview-text">
+                                    {% if item.expense.notes %}
+                                        <small class="text-muted">{{ item.expense.notes }}</small><br>
+                                    {% endif %}
+                                </p>
+                                <div class="d-flex mb-3">
+                                    {% if item.expense.receipt and item.expense.receipt.s3_url %}
+                                        <img src="{{ item.expense.receipt.s3_url }}" alt="Receipt Image" class="item-image">
+                                    {% elif item.expense.receipt and item.expense.receipt.image_path %}
+                                        <img src="{{ url_for('static', filename=item.expense.receipt.image_path) }}" alt="Receipt Image" class="item-image">
+                                    {% else %}
+                                        <div class="text-muted fst-italic">No image available</div>
+                                    {% endif %}
+                                </div>
+                                <p class="card-text">
+                                    <strong>Amount:</strong> {{ item.expense.amount|currencyformat(item.expense.currency) }}<br>
+                                    {% if item.expense.status %}
+                                        <strong>Status:</strong> 
+                                        <span class="status-badge 
+                                            {% if item.expense.status == 'submitted' %}status-submitted
+                                            {% elif item.expense.status == 'approved' %}status-approved
+                                            {% elif item.expense.status == 'reimbursed' %}status-reimbursed
+                                            {% elif item.expense.status == 'rejected' %}status-rejected
+                                            {% elif item.expense.status == 'cancelled' %}status-cancelled{% endif %}">
+                                            {{ item.expense.status|title }}
+                                        </span><br>
+                                    {% endif %}
+                                </p>
+                                <div class="mb-2">
+                                    <span class="card-tag tag-business">
+                                        <i class="fas fa-briefcase"></i> Business
+                                    </span>
+                                    {% if item.expense.is_reimbursable %}
+                                        <span class="card-tag tag-reimbursable">
+                                            <i class="fas fa-hand-holding-usd"></i> Reimbursable
+                                        </span>
+                                    {% endif %}
+                                    {% if item.expense.client %}
+                                        <span class="card-tag tag-client">
+                                            <i class="fas fa-user-tie"></i> {{ item.expense.client.name }}
+                                        </span>
+                                    {% endif %}
+                                    {% if item.expense.organization %}
+                                        <span class="card-tag tag-organization">
+                                            <i class="fas fa-building"></i> {{ item.expense.organization.name }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
                         
-                        <a href="{{ url_for('unified_view.view_unified_receipt', receipt_id=receipt.id) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-eye"></i> View
-                        </a>
+                        <div class="card-footer d-flex justify-content-between align-items-center">
+                            <span class="date-badge">
+                                <i class="far fa-calendar-alt"></i>
+                                {% if item.type == 'receipt' %}
+                                    {{ item.receipt.date.strftime('%b %d, %Y') if item.receipt.date }}
+                                {% else %}
+                                    {{ item.expense.date.strftime('%b %d, %Y') if item.expense.date }}
+                                {% endif %}
+                            </span>
+                            {% if item.type == 'receipt' %}
+                                <a href="{{ url_for('unified_view.view_receipt', receipt_id=item.receipt.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('expense.view_expense', expense_id=item.expense.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-            </div>
+            {% endfor %}
         </div>
-        {% else %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> No receipts found. {% if filtered %}Try adjusting your filters or {% endif %}<a href="{{ url_for('index') }}">scan a new receipt</a>.
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    
-    <!-- Pagination -->
-    {% if total_pages > 1 %}
-    <div class="pagination-container">
-        <nav aria-label="Page navigation">
-            <ul class="pagination">
-                <li class="page-item {{ 'disabled' if current_page == 1 else '' }}">
-                    <a class="page-link" href="{{ url_for('unified_view.history', page=current_page-1, **filter_params) if current_page > 1 else '#' }}" aria-label="Previous">
-                        <span aria-hidden="true">&laquo;</span>
-                    </a>
-                </li>
-                
-                {% for page in range(1, total_pages + 1) %}
-                    {% if page == current_page %}
-                        <li class="page-item active"><span class="page-link">{{ page }}</span></li>
-                    {% elif page == 1 or page == total_pages or (page >= current_page - 2 and page <= current_page + 2) %}
-                        <li class="page-item"><a class="page-link" href="{{ url_for('unified_view.history', page=page, **filter_params) }}">{{ page }}</a></li>
-                    {% elif page == current_page - 3 or page == current_page + 3 %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
+        
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if current_page > 1 %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('unified_view.history', page=current_page-1, **filter_params_without_page) }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
                     {% endif %}
-                {% endfor %}
-                
-                <li class="page-item {{ 'disabled' if current_page == total_pages else '' }}">
-                    <a class="page-link" href="{{ url_for('unified_view.history', page=current_page+1, **filter_params) if current_page < total_pages else '#' }}" aria-label="Next">
-                        <span aria-hidden="true">&raquo;</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-    </div>
+                    
+                    {% for page in range(1, total_pages + 1) %}
+                        {% if page == current_page %}
+                            <li class="page-item active"><a class="page-link" href="#">{{ page }}</a></li>
+                        {% elif page >= current_page - 2 and page <= current_page + 2 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('unified_view.history', page=page, **filter_params_without_page) }}">{{ page }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if current_page < total_pages %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('unified_view.history', page=current_page+1, **filter_params_without_page) }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-search"></i>
+            </div>
+            <h3>No receipts or expenses found</h3>
+            <p class="text-muted">
+                {% if has_filters %}
+                    Try adjusting your filters or <a href="{{ url_for('unified_view.history') }}">clear all filters</a>.
+                {% else %}
+                    Start by <a href="{{ url_for('index') }}">scanning a receipt</a> or adding a business expense.
+                {% endif %}
+            </p>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
@@ -538,69 +449,15 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Date range toggle
-        const dateRangeSelect = document.getElementById('date_range');
-        const customDateContainer = document.getElementById('customDateContainer');
-        
-        dateRangeSelect.addEventListener('change', function() {
-            if (this.value === 'custom') {
-                customDateContainer.style.display = 'block';
-            } else {
-                customDateContainer.style.display = 'none';
-            }
-        });
-        
-        // Select all functionality
-        const selectAllCheckbox = document.getElementById('selectAll');
-        const receiptCheckboxes = document.querySelectorAll('input[name="selected_receipts"]');
-        const bulkActionSelect = document.getElementById('bulkAction');
-        const applyBulkActionButton = document.getElementById('applyBulkAction');
-        
-        selectAllCheckbox.addEventListener('change', function() {
-            receiptCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            updateBulkActionState();
-        });
-        
-        receiptCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                updateBulkActionState();
-                updateSelectAllState();
-            });
-        });
-        
-        bulkActionSelect.addEventListener('change', function() {
-            updateBulkActionState();
-        });
-        
-        function updateBulkActionState() {
-            const anyChecked = Array.from(receiptCheckboxes).some(checkbox => checkbox.checked);
-            const actionSelected = bulkActionSelect.value !== '';
-            
-            applyBulkActionButton.disabled = !anyChecked || !actionSelected;
-        }
-        
-        function updateSelectAllState() {
-            const allChecked = Array.from(receiptCheckboxes).every(checkbox => checkbox.checked);
-            const anyChecked = Array.from(receiptCheckboxes).some(checkbox => checkbox.checked);
-            
-            selectAllCheckbox.checked = allChecked;
-            selectAllCheckbox.indeterminate = anyChecked && !allChecked;
-        }
-        
-        // Confirm delete action
-        const bulkActionsForm = document.getElementById('bulkActionsForm');
-        
-        bulkActionsForm.addEventListener('submit', function(event) {
-            if (bulkActionSelect.value === 'delete') {
-                const selectedCount = Array.from(receiptCheckboxes).filter(checkbox => checkbox.checked).length;
-                
-                if (!confirm(`Are you sure you want to delete ${selectedCount} receipt(s)? This action cannot be undone.`)) {
-                    event.preventDefault();
+        const searchForm = document.getElementById('searchForm');
+        if (searchForm) {
+            const searchInput = searchForm.querySelector('input[name="search"]');
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchForm.submit();
                 }
-            }
-        });
+            });
+        }
     });
 </script>
 {% endblock %}
