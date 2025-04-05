@@ -496,9 +496,41 @@ def reject_expense(expense_id):
         flash(f'Error rejecting expense: {str(e)}', 'danger')
         return redirect(url_for('expense.view_expense', expense_id=expense_id))
 
+@expense_bp.route('/expenses/<int:expense_id>/cancel', methods=['POST'])
+@login_required
+def cancel_expense(expense_id):
+    """Cancel a submitted expense (submitter only)."""
+    # Get the expense
+    expense = CompanyExpense.query.get_or_404(expense_id)
+    
+    # Verify the expense belongs to the current user
+    if expense.user_id != current_user.id:
+        abort(403)
+    
+    # Can only cancel submitted expenses
+    if expense.status != ExpenseStatus.SUBMITTED.value:
+        flash('Only submitted expenses can be cancelled', 'warning')
+        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+    
+    try:
+        # Update the expense status
+        expense.status = ExpenseStatus.CANCELLED.value
+        expense.notes = expense.notes + '\n[CANCELLED BY USER]' if expense.notes else '[CANCELLED BY USER]'
+        
+        db.session.commit()
+        
+        flash('Expense cancelled successfully', 'success')
+        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error cancelling expense: {str(e)}")
+        flash(f'Error cancelling expense: {str(e)}', 'danger')
+        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+
 @expense_bp.route('/expenses/<int:expense_id>/reimburse', methods=['POST'])
 @login_required
-def reimburse_expense(expense_id):
+def mark_reimbursed(expense_id):
     """Mark an expense as reimbursed (admin/owner only)."""
     # Get user's default organization
     default_org = db.session.execute(text("""
