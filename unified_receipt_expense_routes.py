@@ -80,13 +80,13 @@ def view_unified_receipt(receipt_id):
         company_expense.submitter_email = submitter.email if submitter else "Unknown"
         
         # Add approver name if approved
-        if company_expense.approved_by:
-            approver = User.query.get(company_expense.approved_by)
+        if company_expense.approved_by_user_id:
+            approver = User.query.get(company_expense.approved_by_user_id)
             company_expense.approver_name = approver.name if approver else "Unknown"
         
         # Add reimburser name if reimbursed
-        if company_expense.reimbursed_by:
-            reimburser = User.query.get(company_expense.reimbursed_by)
+        if company_expense.reimbursed_by_user_id:
+            reimburser = User.query.get(company_expense.reimbursed_by_user_id)
             company_expense.reimburser_name = reimburser.name if reimburser else "Unknown"
         
         # Add client name if associated with a client
