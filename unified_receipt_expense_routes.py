@@ -18,7 +18,7 @@ from utils import format_currency
 # Create blueprint
 unified_view_bp = Blueprint('unified_view', __name__, template_folder='templates')
 
-@unified_view_bp.route('/receipts/view/<int:receipt_id>')
+@unified_view_bp.route('/view/<int:receipt_id>')
 @login_required
 def view_unified_receipt(receipt_id):
     """
