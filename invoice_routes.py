@@ -387,7 +387,7 @@ def create_invoice():
     
     # Get the user's organizations
     org_result = db.session.execute(text("""
-        SELECT ou.organization_id, o.name, o.logo, o.website, o.email, o.phone, o.address, 
+        SELECT ou.organization_id, o.name, o.logo_path, o.website, o.email, o.phone, o.address, 
                o.tax_registration_number, ou.is_default
         FROM organization_user ou
         JOIN organization o ON ou.organization_id = o.id
@@ -567,7 +567,7 @@ def view_invoice(invoice_id):
     # Get organization information
     organization = None
     org_result = db.session.execute(text("""
-        SELECT o.id, o.name, o.logo, o.website, o.email, o.phone, o.address, 
+        SELECT o.id, o.name, o.logo_path, o.website, o.email, o.phone, o.address, 
                o.tax_registration_number, o.created_at
         FROM invoice i
         JOIN organization o ON i.organization_id = o.id
