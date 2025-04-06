@@ -279,7 +279,7 @@ def create_invoice():
                 VALUES (
                     :user_id, :client_id, :organization_id, :bank_account_id, :invoice_number, 
                     :issue_date, :due_date, :status, :currency, :notes, 
-                    0, 0, 0, 0, 0, 0,
+                    :subtotal, :tax_percent, :tax_amount, :discount_percent, :discount_amount, :total,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
                 RETURNING id
@@ -293,7 +293,13 @@ def create_invoice():
                 'due_date': due_date,
                 'status': InvoiceStatus.DRAFT.value,
                 'currency': currency,
-                'notes': notes
+                'notes': notes,
+                'subtotal': 0, 
+                'tax_percent': 0, 
+                'tax_amount': 0, 
+                'discount_percent': 0, 
+                'discount_amount': 0, 
+                'total': 0
             })
             
             invoice_id = result.first()[0]
@@ -434,7 +440,6 @@ def create_invoice():
     # Get clients for the selected organization only
     if organization_id:
         clients = Client.query.filter_by(
-            user_id=current_user.id, 
             organization_id=organization_id
         ).order_by(Client.name).all()
     else:
@@ -720,7 +725,6 @@ def edit_invoice(invoice_id):
     
     # Get clients for the selected organization only
     clients = Client.query.filter_by(
-        user_id=current_user.id,
         organization_id=organization_id
     ).order_by(Client.name).all()
     
