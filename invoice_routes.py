@@ -367,6 +367,25 @@ def create_invoice():
                 invoice.discount_amount = subtotal * (discount_percent / 100)
                 invoice.total -= invoice.discount_amount
             
+            # Update the invoice in the database with the calculated values
+            db.session.execute(text("""
+                UPDATE invoice SET 
+                    subtotal = :subtotal,
+                    tax_amount = :tax_amount,
+                    discount_percent = :discount_percent,
+                    discount_amount = :discount_amount,
+                    total = :total,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :invoice_id
+            """), {
+                'subtotal': invoice.subtotal,
+                'tax_amount': invoice.tax_amount,
+                'discount_percent': invoice.discount_percent,
+                'discount_amount': invoice.discount_amount,
+                'total': invoice.total,
+                'invoice_id': invoice.id
+            })
+            
             db.session.commit()
             
             flash('Invoice created successfully!', 'success')
@@ -379,13 +398,7 @@ def create_invoice():
             return redirect(url_for('invoices'))
     
     # GET request - render the form
-    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
-    
-    if not clients:
-        flash('Please add a client first before creating an invoice', 'warning')
-        return redirect(url_for('clients'))
-    
-    # Get the user's organizations
+    # First get the user's organizations for the dropdown
     org_result = db.session.execute(text("""
         SELECT ou.organization_id, o.name, o.logo_path, o.website, o.email, o.phone, o.address, 
                o.tax_registration_number, ou.is_default
@@ -415,9 +428,24 @@ def create_invoice():
         if row[8]:  # is_default is True
             default_organization_id = row[0]
     
-    # Get bank accounts for the default organization
+    # Get the organization_id from request args or use the default
+    organization_id = request.args.get('organization_id', default_organization_id, type=int)
+    
+    # Get clients for the selected organization only
+    if organization_id:
+        clients = Client.query.filter_by(
+            user_id=current_user.id, 
+            organization_id=organization_id
+        ).order_by(Client.name).all()
+    else:
+        clients = []
+    
+    if not clients and organization_id:
+        flash('Please add a client for this organization first before creating an invoice', 'warning')
+        return redirect(url_for('clients'))
+    
+    # Get bank accounts for the selected organization
     bank_accounts = []
-    organization_id = request.args.get('organization_id', default_organization_id)
     
     if organization_id:
         result = db.session.execute(text("""
@@ -680,7 +708,6 @@ def edit_invoice(invoice_id):
             return redirect(url_for('view_invoice', invoice_id=invoice.id))
     
     # GET request - render the form
-    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
     
     # Get organization for this invoice
     result = db.session.execute(text("""
@@ -690,6 +717,12 @@ def edit_invoice(invoice_id):
     """), {'invoice_id': invoice.id}).first()
     
     organization_id = result[0] if result else None
+    
+    # Get clients for the selected organization only
+    clients = Client.query.filter_by(
+        user_id=current_user.id,
+        organization_id=organization_id
+    ).order_by(Client.name).all()
     
     # Get bank accounts for this organization
     bank_accounts = []
