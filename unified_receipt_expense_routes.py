@@ -866,5 +866,8 @@ def export_excel():
 def register_routes(app):
     """Register the unified receipt/expense view routes with the app."""
     app.register_blueprint(unified_view_bp, url_prefix='/receipts')
+    # Register the format_currency function as a template filter with the name currencyformat
+    app.add_template_filter(format_currency, 'currencyformat')
+    # Also register it with its default name for backward compatibility
     app.add_template_filter(format_currency)
     logging.info('Unified receipt and expense view routes loaded successfully')

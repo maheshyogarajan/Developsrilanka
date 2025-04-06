@@ -291,9 +291,9 @@
                                     {% endif %}
                                 </div>
                                 <p class="card-text">
-                                    <strong>Total:</strong> {{ item.receipt.total_amount|currencyformat(item.receipt.currency) }}<br>
+                                    <strong>Total:</strong> {{ item.receipt.currency }} {{ item.receipt.total_amount|round(2) }}<br>
                                     {% if item.receipt.tax_amount %}
-                                        <strong>Tax:</strong> {{ item.receipt.tax_amount|currencyformat(item.receipt.currency) }}<br>
+                                        <strong>Tax:</strong> {{ item.receipt.currency }} {{ item.receipt.tax_amount|round(2) }}<br>
                                     {% endif %}
                                 </p>
                                 <div class="mb-2">
