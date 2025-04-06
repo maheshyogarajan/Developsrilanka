@@ -758,7 +758,7 @@ def delete_organization_bank_account(org_id, account_id):
     flash('Organization bank account deleted successfully.', 'success')
     return redirect(url_for('organization_bank_accounts', org_id=org_id))
 
-@bank_account_bp.route('/api/organization/<int:org_id>/bank-accounts')
+@bank_account_bp.route('/api/organizations/<int:org_id>/bank-accounts')
 @login_required
 def api_organization_bank_accounts(org_id):
     """API endpoint to get all bank accounts for an organization."""
@@ -796,7 +796,7 @@ def api_organization_bank_accounts(org_id):
     
     return jsonify(accounts)
 
-@bank_account_bp.route('/api/organization/<int:org_id>/bank-accounts/default')
+@bank_account_bp.route('/api/organizations/<int:org_id>/bank-accounts/default')
 @login_required
 def api_organization_default_bank_account(org_id):
     """API endpoint to get default bank account for an organization."""
@@ -834,46 +834,7 @@ def api_organization_default_bank_account(org_id):
     
     return jsonify({})
 
-# These are the routes to be registered in app.py
-@bank_account_bp.route("/api/organizations/<int:org_id>/bank-accounts")
-@login_required
-def api_organization_bank_accounts(org_id):
-    """API endpoint to get bank accounts for a specific organization."""
-    # Check if user has access to this organization
-    org_user = OrganizationUser.query.filter_by(
-        user_id=current_user.id,
-        organization_id=org_id
-    ).first()
-    
-    if not org_user:
-        return jsonify({"error": "Access denied"}), 403
-    
-    # Get all bank accounts for this organization
-    result = db.session.execute(text("""
-        SELECT id, user_id, organization_id, account_name, bank_name, account_number, 
-               branch_name, swift_code, iban, is_default
-        FROM bank_account 
-        WHERE organization_id = :org_id
-        ORDER BY is_default DESC, account_name ASC
-    """), {"org_id": org_id})
-    
-    # Convert to list of dictionaries
-    bank_accounts = []
-    for row in result:
-        bank_accounts.append({
-            "id": row[0],
-            "user_id": row[1],
-            "organization_id": row[2],
-            "account_name": row[3],
-            "bank_name": row[4],
-            "account_number": row[5],
-            "branch_name": row[6],
-            "swift_code": row[7],
-            "iban": row[8],
-            "is_default": row[9]
-        })
-    
-    return jsonify({"bank_accounts": bank_accounts})
+# Old function removed to avoid duplication
 
 def register_routes(app):
     """Register the bank account routes with the app."""
@@ -891,5 +852,5 @@ def register_routes(app):
     app.route('/organization/<int:org_id>/bank-accounts/create', methods=['GET', 'POST'])(create_organization_bank_account)
     app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])(edit_organization_bank_account)
     app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/delete', methods=['POST'])(delete_organization_bank_account)
-    app.route('/api/organization/<int:org_id>/bank-accounts')(api_organization_bank_accounts)
-    app.route('/api/organization/<int:org_id>/bank-accounts/default')(api_organization_default_bank_account)
+    app.route('/api/organizations/<int:org_id>/bank-accounts')(api_organization_bank_accounts)
+    app.route('/api/organizations/<int:org_id>/bank-accounts/default')(api_organization_default_bank_account)

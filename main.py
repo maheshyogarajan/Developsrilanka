@@ -128,6 +128,13 @@ try:
 except Exception as e:
     logger.error(f"Error loading unified receipt and expense view routes: {str(e)}")
 
+# Import API routes
+try:
+    import api_routes
+    logger.info("API routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading API routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
