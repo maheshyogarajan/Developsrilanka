@@ -203,6 +203,20 @@ document.addEventListener('DOMContentLoaded', function() {
         pageTitle.textContent = 'Create Invoice';
     }
     
+    // Initially load clients and bank accounts for the selected organization
+    const selectedOrganizationId = document.getElementById('organization_id').value;
+    if (selectedOrganizationId) {
+        updateClientsDropdown(selectedOrganizationId);
+        updateBankAccountsDropdown(selectedOrganizationId);
+    }
+    
+    // Initially load clients and bank accounts for the selected organization
+    const selectedOrganizationId = document.getElementById('organization_id').value;
+    if (selectedOrganizationId) {
+        updateClientsDropdown(selectedOrganizationId);
+        updateBankAccountsDropdown(selectedOrganizationId);
+    }
+    
     // Get elements
     const itemsTable = document.getElementById('itemsTable');
     const addItemButton = document.getElementById('addItemButton');

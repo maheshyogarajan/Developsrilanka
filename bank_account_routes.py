@@ -794,7 +794,7 @@ def api_organization_bank_accounts(org_id):
             'is_default': row[7]
         })
     
-    return jsonify(accounts)
+    return jsonify({'bank_accounts': accounts})
 
 @bank_account_bp.route('/api/organizations/<int:org_id>/bank-accounts/default')
 @login_required
@@ -830,9 +830,9 @@ def api_organization_default_bank_account(org_id):
             'iban': row[6],
             'is_default': row[7]
         }
-        return jsonify(account)
+        return jsonify({'bank_account': account})
     
-    return jsonify({})
+    return jsonify({'bank_account': {}})
 
 # Old function removed to avoid duplication
 
