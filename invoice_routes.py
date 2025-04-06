@@ -279,7 +279,7 @@ def create_invoice():
                 VALUES (
                     :user_id, :client_id, :organization_id, :bank_account_id, :invoice_number, 
                     :issue_date, :due_date, :status, :currency, :notes, 
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    0, 0, 0, 0, 0, 0,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
                 RETURNING id

@@ -27,9 +27,9 @@ def api_organization_clients(org_id):
     result = db.session.execute(text("""
         SELECT id, name, company_name, contact_person, email, phone, address
         FROM client 
-        WHERE organization_id = :org_id AND user_id = :user_id
+        WHERE organization_id = :org_id
         ORDER BY name ASC
-    """), {'org_id': org_id, 'user_id': current_user.id})
+    """), {'org_id': org_id})
     
     # Convert to list of dictionaries
     clients = []
