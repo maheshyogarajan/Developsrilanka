@@ -1,0 +1,8 @@
+        <!-- Footer with Develop Sri Lanka reference -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body text-center text-muted">
+                <p class="small mb-0">
+                    Powered by <a href="https://developsrilanka.com" target="_blank">Develop Sri Lanka</a> - Financial Management Platform
+                </p>
+            </div>
+        </div>

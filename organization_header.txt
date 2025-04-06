@@ -1,0 +1,47 @@
+            <!-- Brand and Invoice Header -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    {% if organization %}
+                        <h3 class="fw-bold">{{ organization.name }}</h3>
+                        {% if organization.address %}
+                            <p class="mb-0">{{ organization.address|replace('\n', '<br>')|safe }}</p>
+                        {% endif %}
+                        {% if organization.phone %}
+                            <p class="mb-0">Phone: {{ organization.phone }}</p>
+                        {% endif %}
+                        {% if organization.email %}
+                            <p class="mb-0">Email: {{ organization.email }}</p>
+                        {% endif %}
+                        {% if organization.website %}
+                            <p class="mb-0">Website: {{ organization.website }}</p>
+                        {% endif %}
+                        {% if organization.tax_registration_number %}
+                            <p class="mb-0">Tax Reg: {{ organization.tax_registration_number }}</p>
+                        {% endif %}
+                    {% else %}
+                        <h3 class="fw-bold">{{ invoice.sender_company or "Develop Sri Lanka" }}</h3>
+                        <p>{{ invoice.sender_name or "Financial Management Platform" }}</p>
+                        {% if invoice.sender_address %}
+                            <p class="mb-0">{{ invoice.sender_address|replace('\n', '<br>')|safe }}</p>
+                        {% endif %}
+                        {% if invoice.sender_phone %}
+                            <p class="mb-0">Phone: {{ invoice.sender_phone }}</p>
+                        {% endif %}
+                        {% if invoice.sender_email %}
+                            <p class="mb-0">Email: {{ invoice.sender_email }}</p>
+                        {% endif %}
+                        {% if invoice.sender_tax_registration %}
+                            <p class="mb-0">Tax Reg: {{ invoice.sender_tax_registration }}</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h4 class="text-primary">Invoice</h4>
+                    <p class="mb-0">Invoice #: {{ invoice.invoice_number }}</p>
+                    <p class="mb-0">Issue Date: {{ invoice.issue_date.strftime('%Y-%m-%d') }}</p>
+                    <p>Due Date: {{ invoice.due_date.strftime('%Y-%m-%d') }}</p>
+                    {% if invoice.last_sent_at %}
+                        <p class="text-muted small">Last Emailed: {{ invoice.last_sent_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    {% endif %}
+                </div>
+            </div>

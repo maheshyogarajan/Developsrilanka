@@ -247,6 +247,7 @@ def create_invoice():
         try:
             # Get form data
             client_id = request.form.get('client_id')
+            organization_id = request.form.get('organization_id')
             bank_account_id = request.form.get('bank_account_id') or None
             issue_date = datetime.strptime(request.form.get('issue_date'), '%Y-%m-%d')
             due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
@@ -256,14 +257,15 @@ def create_invoice():
             # Generate unique invoice number
             invoice_number = f"INV-{uuid.uuid4().hex[:8].upper()}"
             
-            # Get the user's default organization
-            result = db.session.execute(text("""
-                SELECT organization_id FROM organization_user
-                WHERE user_id = :user_id AND is_default = true
-                LIMIT 1
-            """), {'user_id': current_user.id}).first()
-            
-            organization_id = result[0] if result else None
+            # If organization_id is not provided, get the user's default organization
+            if not organization_id:
+                result = db.session.execute(text("""
+                    SELECT organization_id FROM organization_user
+                    WHERE user_id = :user_id AND is_default = true
+                    LIMIT 1
+                """), {'user_id': current_user.id}).first()
+                
+                organization_id = result[0] if result else None
             
             # Create new invoice using raw SQL to include organization_id and bank_account_id
             # Adding required fields with default values to prevent NOT NULL constraint violations
@@ -383,17 +385,40 @@ def create_invoice():
         flash('Please add a client first before creating an invoice', 'warning')
         return redirect(url_for('clients'))
     
-    # Get the user's default organization
-    default_org = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
+    # Get the user's organizations
+    org_result = db.session.execute(text("""
+        SELECT ou.organization_id, o.name, o.logo, o.website, o.email, o.phone, o.address, 
+               o.tax_registration_number, ou.is_default
+        FROM organization_user ou
+        JOIN organization o ON ou.organization_id = o.id
+        WHERE ou.user_id = :user_id
+        ORDER BY ou.is_default DESC, o.name ASC
+    """), {'user_id': current_user.id})
     
-    organization_id = default_org[0] if default_org else None
+    organizations = []
+    default_organization_id = None
     
-    # Get bank accounts for this organization
+    for row in org_result:
+        organization = {
+            'id': row[0],
+            'name': row[1],
+            'logo': row[2],
+            'website': row[3],
+            'email': row[4],
+            'phone': row[5],
+            'address': row[6],
+            'tax_registration_number': row[7],
+            'is_default': row[8]
+        }
+        organizations.append(organization)
+        
+        if row[8]:  # is_default is True
+            default_organization_id = row[0]
+    
+    # Get bank accounts for the default organization
     bank_accounts = []
+    organization_id = request.args.get('organization_id', default_organization_id)
+    
     if organization_id:
         result = db.session.execute(text("""
             SELECT id, account_name, bank_name, account_number, 
@@ -417,6 +442,8 @@ def create_invoice():
     
     return render_template('create_invoice.html', 
                            clients=clients,
+                           organizations=organizations,
+                           selected_organization_id=organization_id,
                            bank_accounts=bank_accounts,
                            today=datetime.now().strftime('%Y-%m-%d'),
                            next_month=datetime.now().replace(month=datetime.now().month + 1 if datetime.now().month < 12 else 1).strftime('%Y-%m-%d'))
@@ -537,7 +564,31 @@ def view_invoice(invoice_id):
                 'is_default': bank_result[7]
             }
     
-    return render_template('view_invoice.html', invoice=invoice, bank_account=bank_account)
+    # Get organization information
+    organization = None
+    org_result = db.session.execute(text("""
+        SELECT o.id, o.name, o.logo, o.website, o.email, o.phone, o.address, 
+               o.tax_registration_number, o.created_at
+        FROM invoice i
+        JOIN organization o ON i.organization_id = o.id
+        WHERE i.id = :invoice_id
+        LIMIT 1
+    """), {'invoice_id': invoice.id}).first()
+    
+    if org_result:
+        organization = {
+            'id': org_result[0],
+            'name': org_result[1],
+            'logo': org_result[2],
+            'website': org_result[3],
+            'email': org_result[4],
+            'phone': org_result[5],
+            'address': org_result[6],
+            'tax_registration_number': org_result[7],
+            'created_at': org_result[8]
+        }
+    
+    return render_template('view_invoice.html', invoice=invoice, bank_account=bank_account, organization=organization)
 
 @app.route('/invoices/<int:invoice_id>/edit', methods=['GET', 'POST'])
 @login_required
