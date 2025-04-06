@@ -266,14 +266,18 @@ def create_invoice():
             organization_id = result[0] if result else None
             
             # Create new invoice using raw SQL to include organization_id and bank_account_id
+            # Adding required fields with default values to prevent NOT NULL constraint violations
             result = db.session.execute(text("""
                 INSERT INTO invoice (
                     user_id, client_id, organization_id, bank_account_id, invoice_number, 
-                    issue_date, due_date, status, currency, notes, created_at, updated_at
+                    issue_date, due_date, status, currency, notes, 
+                    subtotal, tax_percent, tax_amount, discount_percent, discount_amount, total,
+                    created_at, updated_at
                 ) 
                 VALUES (
                     :user_id, :client_id, :organization_id, :bank_account_id, :invoice_number, 
                     :issue_date, :due_date, :status, :currency, :notes, 
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
                 RETURNING id
@@ -303,7 +307,13 @@ def create_invoice():
                 due_date=due_date,
                 status=InvoiceStatus.DRAFT.value,
                 currency=currency,
-                notes=notes
+                notes=notes,
+                subtotal=0.0,
+                tax_percent=0.0,
+                tax_amount=0.0,
+                discount_percent=0.0,
+                discount_amount=0.0,
+                total=0.0
             )
             
             # Extract and create invoice items
