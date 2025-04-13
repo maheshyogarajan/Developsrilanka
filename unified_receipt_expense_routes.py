@@ -140,252 +140,258 @@ def history():
         # Get user's organizations
         user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
         user_org_ids = [org.organization_id for org in user_orgs]
-    
-    # Get all organizations the user is a member of
-    organizations = Organization.query.filter(Organization.id.in_(user_org_ids)).all()
-    
-    # Get default organization
-    default_org = None
-    for org in user_orgs:
-        if org.is_default:
-            default_org = Organization.query.get(org.organization_id)
-            break
-    
-    # Set organization for filtered view
-    selected_org_id = None
-    if request.args.get('organization'):
-        try:
-            selected_org_id = int(request.args.get('organization'))
-        except (ValueError, TypeError):
-            selected_org_id = None
-    elif default_org:
-        selected_org_id = default_org.id
-    
-    # Get other filter parameters
-    page = request.args.get('page', 1, type=int)
-    selected_type = request.args.get('type', '')
-    selected_status = request.args.get('status', '')
-    selected_date_range = request.args.get('date_range', '')
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
-    amount_min = request.args.get('amount_min', '', type=str)
-    amount_max = request.args.get('amount_max', '', type=str)
-    vendor = request.args.get('vendor', '')
-    selected_category = request.args.get('category', '')
-    tax_deductible = request.args.get('tax_deductible', '')
-    sort_by = request.args.get('sort_by', 'date_desc')
-    
-    # Initialize query
-    query = Receipt.query.filter(
-        or_(
-            Receipt.user_id == current_user.id,
-            and_(
-                Receipt.organization_id.in_(user_org_ids)
-            )
-        )
-    )
-    
-    # Add organization filter if selected
-    if selected_org_id:
-        query = query.filter(Receipt.organization_id == selected_org_id)
-    
-    # Add type filter
-    if selected_type == 'business':
-        # Only show receipts that are business expenses
-        query = query.join(CompanyExpense, CompanyExpense.receipt_id == Receipt.id)
-    elif selected_type == 'client':
-        # Only show receipts that are client expenses
-        query = query.join(ClientExpense, ClientExpense.receipt_id == Receipt.id)
-    elif selected_type == 'unclassified':
-        # Only show receipts that are not business or client expenses
-        business_receipt_ids = db.session.query(CompanyExpense.receipt_id).all()
-        client_receipt_ids = db.session.query(ClientExpense.receipt_id).all()
-        classified_ids = [r[0] for r in business_receipt_ids] + [r[0] for r in client_receipt_ids]
-        query = query.filter(~Receipt.id.in_(classified_ids) if classified_ids else True)
-    
-    # Add status filter (only applies to business expenses)
-    if selected_status and selected_type == 'business':
-        query = query.join(CompanyExpense, CompanyExpense.receipt_id == Receipt.id)
-        query = query.filter(CompanyExpense.status == selected_status)
-    
-    # Add date filter
-    if selected_date_range:
-        if selected_date_range == 'custom' and start_date and end_date:
+        
+        # Get all organizations the user is a member of
+        organizations = Organization.query.filter(Organization.id.in_(user_org_ids)).all()
+        
+        # Get default organization
+        default_org = None
+        for org in user_orgs:
+            if org.is_default:
+                default_org = Organization.query.get(org.organization_id)
+                break
+        
+        # Set organization for filtered view
+        selected_org_id = None
+        if request.args.get('organization'):
             try:
-                start = datetime.strptime(start_date, '%Y-%m-%d')
-                end = datetime.strptime(end_date, '%Y-%m-%d')
-                end = end + timedelta(days=1) - timedelta(seconds=1)  # End of day
-                query = query.filter(Receipt.date.between(start, end))
-            except ValueError:
-                flash('Invalid date format', 'warning')
-        elif selected_date_range.isdigit():
-            days = int(selected_date_range)
-            start_date = datetime.now() - timedelta(days=days)
-            query = query.filter(Receipt.date >= start_date)
-    
-    # Add amount filter
-    if amount_min:
-        try:
-            min_amount = float(amount_min)
-            query = query.filter(Receipt.total_amount >= min_amount)
-        except ValueError:
-            flash('Invalid minimum amount', 'warning')
-    
-    if amount_max:
-        try:
-            max_amount = float(amount_max)
-            query = query.filter(Receipt.total_amount <= max_amount)
-        except ValueError:
-            flash('Invalid maximum amount', 'warning')
-    
-    # Add vendor filter
-    if vendor:
-        query = query.filter(Receipt.vendor_name.ilike(f'%{vendor}%'))
-    
-    # Add category filter
-    if selected_category:
-        query = query.filter(
+                selected_org_id = int(request.args.get('organization'))
+            except (ValueError, TypeError):
+                selected_org_id = None
+        elif default_org:
+            selected_org_id = default_org.id
+        
+        # Get other filter parameters
+        page = request.args.get('page', 1, type=int)
+        selected_type = request.args.get('type', '')
+        selected_status = request.args.get('status', '')
+        selected_date_range = request.args.get('date_range', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        amount_min = request.args.get('amount_min', '', type=str)
+        amount_max = request.args.get('amount_max', '', type=str)
+        vendor = request.args.get('vendor', '')
+        selected_category = request.args.get('category', '')
+        tax_deductible = request.args.get('tax_deductible', '')
+        sort_by = request.args.get('sort_by', 'date_desc')
+        
+        # Initialize query
+        query = Receipt.query.filter(
             or_(
-                Receipt.expense_major_category == selected_category,
-                Receipt.expense_minor_category == selected_category
+                Receipt.user_id == current_user.id,
+                and_(
+                    Receipt.organization_id.in_(user_org_ids)
+                )
             )
         )
-    
-    # Add tax deductible filter
-    if tax_deductible == 'yes':
-        query = query.filter(Receipt.tax_deductible_amount > 0)
-    elif tax_deductible == 'no':
-        query = query.filter(Receipt.tax_deductible_amount <= 0)
-    
-    # Add sorting
-    if sort_by == 'date_desc':
-        query = query.order_by(Receipt.date.desc())
-    elif sort_by == 'date_asc':
-        query = query.order_by(Receipt.date.asc())
-    elif sort_by == 'amount_desc':
-        query = query.order_by(Receipt.total_amount.desc())
-    elif sort_by == 'amount_asc':
-        query = query.order_by(Receipt.total_amount.asc())
-    elif sort_by == 'vendor_asc':
-        query = query.order_by(Receipt.vendor_name.asc())
-    elif sort_by == 'vendor_desc':
-        query = query.order_by(Receipt.vendor_name.desc())
-    else:
-        # Default sort
-        query = query.order_by(Receipt.date.desc())
-    
-    # Get pagination parameters
-    per_page = 24  # Number of receipts per page
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    receipts = pagination.items
-    total_pages = pagination.pages
-    
-    # Get list of all unique categories for filter dropdown
-    categories = db.session.query(Receipt.expense_major_category).filter(
-        Receipt.expense_major_category != '',
-        Receipt.expense_major_category.isnot(None)
-    ).distinct().all()
-    categories = [c[0] for c in categories]
-    
-    # Determine if filtering is active
-    filtered = (
-        selected_org_id is not None or
-        selected_type or
-        selected_status or
-        selected_date_range or
-        amount_min or
-        amount_max or
-        vendor or
-        selected_category or
-        tax_deductible
-    )
-    
-    # Store filter parameters for pagination links
-    filter_params = {
-        'organization': selected_org_id,
-        'type': selected_type,
-        'status': selected_status,
-        'date_range': selected_date_range,
-        'start_date': start_date,
-        'end_date': end_date,
-        'amount_min': amount_min,
-        'amount_max': amount_max,
-        'vendor': vendor,
-        'category': selected_category,
-        'tax_deductible': tax_deductible,
-        'sort_by': sort_by
-    }
-    
-    # Remove None values for URL generation
-    filter_params = {k: v for k, v in filter_params.items() if v}
-    
-    # Enhance receipt objects with associated business and client expenses
-    enhanced_receipts = []
-    for receipt in receipts:
-        # Check for business expense
-        business_expense = CompanyExpense.query.filter_by(receipt_id=receipt.id).first()
-        if business_expense:
-            receipt.is_business_expense = True
-            receipt.business_expense = business_expense
+        
+        # Add organization filter if selected
+        if selected_org_id:
+            query = query.filter(Receipt.organization_id == selected_org_id)
+        
+        # Add type filter
+        if selected_type == 'business':
+            # Only show receipts that are business expenses
+            query = query.join(CompanyExpense, CompanyExpense.receipt_id == Receipt.id)
+        elif selected_type == 'client':
+            # Only show receipts that are client expenses
+            query = query.join(ClientExpense, ClientExpense.receipt_id == Receipt.id)
+        elif selected_type == 'unclassified':
+            # Only show receipts that are not business or client expenses
+            business_receipt_ids = db.session.query(CompanyExpense.receipt_id).all()
+            client_receipt_ids = db.session.query(ClientExpense.receipt_id).all()
+            classified_ids = [r[0] for r in business_receipt_ids] + [r[0] for r in client_receipt_ids]
+            query = query.filter(~Receipt.id.in_(classified_ids) if classified_ids else True)
+        
+        # Add status filter (only applies to business expenses)
+        if selected_status and selected_type == 'business':
+            query = query.join(CompanyExpense, CompanyExpense.receipt_id == Receipt.id)
+            query = query.filter(CompanyExpense.status == selected_status)
+        
+        # Add date filter
+        if selected_date_range:
+            if selected_date_range == 'custom' and start_date and end_date:
+                try:
+                    start = datetime.strptime(start_date, '%Y-%m-%d')
+                    end = datetime.strptime(end_date, '%Y-%m-%d')
+                    end = end + timedelta(days=1) - timedelta(seconds=1)  # End of day
+                    query = query.filter(Receipt.date.between(start, end))
+                except ValueError:
+                    flash('Invalid date format', 'warning')
+            elif selected_date_range.isdigit():
+                days = int(selected_date_range)
+                start_date = datetime.now() - timedelta(days=days)
+                query = query.filter(Receipt.date >= start_date)
+        
+        # Add amount filter
+        if amount_min:
+            try:
+                min_amount = float(amount_min)
+                query = query.filter(Receipt.total_amount >= min_amount)
+            except ValueError:
+                flash('Invalid minimum amount', 'warning')
+        
+        if amount_max:
+            try:
+                max_amount = float(amount_max)
+                query = query.filter(Receipt.total_amount <= max_amount)
+            except ValueError:
+                flash('Invalid maximum amount', 'warning')
+        
+        # Add vendor filter
+        if vendor:
+            query = query.filter(Receipt.vendor_name.ilike(f'%{vendor}%'))
+        
+        # Add category filter
+        if selected_category:
+            query = query.filter(
+                or_(
+                    Receipt.expense_major_category == selected_category,
+                    Receipt.expense_minor_category == selected_category
+                )
+            )
+        
+        # Add tax deductible filter
+        if tax_deductible == 'yes':
+            query = query.filter(Receipt.tax_deductible_amount > 0)
+        elif tax_deductible == 'no':
+            query = query.filter(Receipt.tax_deductible_amount <= 0)
+        
+        # Add sorting
+        if sort_by == 'date_desc':
+            query = query.order_by(Receipt.date.desc())
+        elif sort_by == 'date_asc':
+            query = query.order_by(Receipt.date.asc())
+        elif sort_by == 'amount_desc':
+            query = query.order_by(Receipt.total_amount.desc())
+        elif sort_by == 'amount_asc':
+            query = query.order_by(Receipt.total_amount.asc())
+        elif sort_by == 'vendor_asc':
+            query = query.order_by(Receipt.vendor_name.asc())
+        elif sort_by == 'vendor_desc':
+            query = query.order_by(Receipt.vendor_name.desc())
+        else:
+            # Default sort
+            query = query.order_by(Receipt.date.desc())
+        
+        # Get pagination parameters
+        per_page = 24  # Number of receipts per page
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        receipts = pagination.items
+        total_pages = pagination.pages
+        
+        # Get list of all unique categories for filter dropdown
+        categories = db.session.query(Receipt.expense_major_category).filter(
+            Receipt.expense_major_category != '',
+            Receipt.expense_major_category.isnot(None)
+        ).distinct().all()
+        categories = [c[0] for c in categories]
+        
+        # Determine if filtering is active
+        filtered = (
+            selected_org_id is not None or
+            selected_type or
+            selected_status or
+            selected_date_range or
+            amount_min or
+            amount_max or
+            vendor or
+            selected_category or
+            tax_deductible
+        )
+        
+        # Store filter parameters for pagination links
+        filter_params = {
+            'organization': selected_org_id,
+            'type': selected_type,
+            'status': selected_status,
+            'date_range': selected_date_range,
+            'start_date': start_date,
+            'end_date': end_date,
+            'amount_min': amount_min,
+            'amount_max': amount_max,
+            'vendor': vendor,
+            'category': selected_category,
+            'tax_deductible': tax_deductible,
+            'sort_by': sort_by
+        }
+        
+        # Remove None values for URL generation
+        filter_params = {k: v for k, v in filter_params.items() if v}
+        
+        # Enhance receipt objects with associated business and client expenses
+        enhanced_receipts = []
+        for receipt in receipts:
+            # Check for business expense
+            business_expense = CompanyExpense.query.filter_by(receipt_id=receipt.id).first()
+            if business_expense:
+                receipt.is_business_expense = True
+                receipt.business_expense = business_expense
+                
+                # Add client if one exists
+                if business_expense.client_id:
+                    business_expense.client = Client.query.get(business_expense.client_id)
+            else:
+                receipt.is_business_expense = False
             
-            # Add client if one exists
-            if business_expense.client_id:
-                business_expense.client = Client.query.get(business_expense.client_id)
-        else:
-            receipt.is_business_expense = False
-        
-        # Check for client expense
-        client_expense = ClientExpense.query.filter_by(receipt_id=receipt.id).first()
-        if client_expense:
-            receipt.is_client_expense = True
-            receipt.client_expense = client_expense
+            # Check for client expense
+            client_expense = ClientExpense.query.filter_by(receipt_id=receipt.id).first()
+            if client_expense:
+                receipt.is_client_expense = True
+                receipt.client_expense = client_expense
+                
+                # Add client
+                if client_expense.client_id:
+                    client_expense.client = Client.query.get(client_expense.client_id)
+            else:
+                receipt.is_client_expense = False
             
-            # Add client
-            if client_expense.client_id:
-                client_expense.client = Client.query.get(client_expense.client_id)
-        else:
-            receipt.is_client_expense = False
+            # Add organization info
+            if receipt.organization_id:
+                receipt.organization = Organization.query.get(receipt.organization_id)
+            
+            # Use standardized helper to get the image URL
+            from utils import get_receipt_image_url
+            receipt.image_url = get_receipt_image_url(receipt)
+            
+            enhanced_receipts.append(receipt)
         
-        # Add organization info
-        if receipt.organization_id:
-            receipt.organization = Organization.query.get(receipt.organization_id)
+        # Create filtered parameter dictionaries for template
+        filter_params_without_org = {k: v for k, v in filter_params.items() if k != 'organization'}
+        filter_params_without_type = {k: v for k, v in filter_params.items() if k != 'type'}
+        filter_params_without_search = {k: v for k, v in filter_params.items() if k != 'search'}
+        filter_params_without_page = {k: v for k, v in filter_params.items() if k != 'page'}
         
-        # Use standardized helper to get the image URL
-        from utils import get_receipt_image_url
-        receipt.image_url = get_receipt_image_url(receipt)
+        items = []
+        for receipt in enhanced_receipts:
+            if hasattr(receipt, 'is_company_expense') and receipt.is_company_expense:
+                items.append({'type': 'expense', 'expense': receipt})
+            else:
+                items.append({'type': 'receipt', 'receipt': receipt})
         
-        enhanced_receipts.append(receipt)
-    
-    # Create filtered parameter dictionaries for template
-    filter_params_without_org = {k: v for k, v in filter_params.items() if k != 'organization'}
-    filter_params_without_type = {k: v for k, v in filter_params.items() if k != 'type'}
-    filter_params_without_search = {k: v for k, v in filter_params.items() if k != 'search'}
-    filter_params_without_page = {k: v for k, v in filter_params.items() if k != 'page'}
-    
-    items = []
-    for receipt in enhanced_receipts:
-        if hasattr(receipt, 'is_company_expense') and receipt.is_company_expense:
-            items.append({'type': 'expense', 'expense': receipt})
-        else:
-            items.append({'type': 'receipt', 'receipt': receipt})
-    
-    return render_template(
-        'unified_history.html',
-        items=items,
-        organizations=organizations,
-        selected_org_id=selected_org_id,
-        selected_type=selected_type,
-        search_query=vendor,
-        has_filters=filtered,
-        filter_params=filter_params,
-        filter_params_without_org=filter_params_without_org,
-        filter_params_without_type=filter_params_without_type,
-        filter_params_without_search=filter_params_without_search,
-        filter_params_without_page=filter_params_without_page,
-        current_page=page,
-        total_pages=total_pages,
-        current_user=current_user
-    )
+        return render_template(
+            'unified_history.html',
+            items=items,
+            organizations=organizations,
+            selected_org_id=selected_org_id,
+            selected_type=selected_type,
+            search_query=vendor,
+            has_filters=filtered,
+            filter_params=filter_params,
+            filter_params_without_org=filter_params_without_org,
+            filter_params_without_type=filter_params_without_type,
+            filter_params_without_search=filter_params_without_search,
+            filter_params_without_page=filter_params_without_page,
+            current_page=page,
+            total_pages=total_pages,
+            current_user=current_user
+        )
+    except Exception as e:
+        # Log the error
+        logging.error(f"Database error in history view: {str(e)}")
+        flash("We encountered a temporary database issue. Please try again in a moment.", "error")
+        # Render a simplified view with error message
+        return render_template('unified_history.html', error=True, error_message="Database connection error", current_user=current_user)
 
 @unified_view_bp.route('/update/<int:receipt_id>', methods=['POST'])
 @login_required
