@@ -266,8 +266,10 @@
                         {% if expense.image_url %}
                         <a href="{{ expense.image_url }}" target="_blank" title="View full-size image">
                             <img src="{{ expense.image_url }}" 
-                                class="receipt-image img-fluid" 
-                                alt="Receipt image">
+                                class="receipt-image" 
+                                alt="Receipt image"
+                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
+                            >
                         </a>
                         {% else %}
                         <div class="text-center">
