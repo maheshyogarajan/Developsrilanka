@@ -262,14 +262,33 @@
                     <h5 class="card-title mb-0">Receipt Image</h5>
                 </div>
                 <div class="card-body text-center">
-                    <img src="{{ expense.image_url }}" 
-                         class="img-fluid mb-3" alt="Receipt image">
+                    <div class="receipt-frame">
+                        {% if expense.image_url %}
+                        <a href="{{ expense.image_url }}" target="_blank" title="View full-size image">
+                            <img src="{{ expense.image_url }}" 
+                                class="receipt-image img-fluid" 
+                                alt="Receipt image">
+                        </a>
+                        {% else %}
+                        <div class="text-center">
+                            <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                                class="no-image-placeholder" 
+                                alt="No Receipt Image Available">
+                            <span class="placeholder-text">No receipt image available</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if expense.image_url %}
+                    <div class="mt-2 mb-2">
+                        <small class="text-muted">Click image to view full size</small>
+                    </div>
                     <div class="d-grid">
                         <a href="{{ expense.image_url }}" 
                            class="btn btn-outline-primary" target="_blank">
                             <i class="fas fa-search-plus me-2"></i>View Full Size
                         </a>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
