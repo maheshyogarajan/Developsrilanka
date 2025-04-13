@@ -27,40 +27,58 @@
                         </div>
                     </div>
 
-                    <div class="receipt-frame mb-4">
-                        {% if receipt.s3_key %}
-                        <!-- Use S3 URL if available -->
-                        <a href="{{ receipt.s3_url }}" target="_blank" title="View full-size image">
-                            <img src="{{ receipt.s3_url }}" 
-                                alt="Receipt Image" class="receipt-image"
-                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
-                        </a>
-                        {% elif receipt.image_url %}
-                        <a href="{{ receipt.image_url }}" target="_blank" title="View full-size image">
-                            <img src="{{ receipt.image_url }}" 
-                                alt="Receipt Image" class="receipt-image"
-                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
-                        </a>
-                        {% elif receipt.image_path %}
-                        <a href="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" target="_blank" title="View full-size image">
-                            <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
-                                alt="Receipt Image" class="receipt-image"
-                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
-                        </a>
+                    <!-- Receipt Items List -->
+                    <div class="mb-4">
+                        <h6>Receipt Items</h6>
+                        {% if receipt.items and receipt.items|length > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Quantity</th>
+                                        <th>Unit Price</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in receipt.items %}
+                                    <tr>
+                                        <td>{{ item.description }}</td>
+                                        <td>{{ item.quantity|default(1, true) }}</td>
+                                        <td>{{ '%.2f'|format(item.unit_price|default(0, true)) }}</td>
+                                        <td>{{ '%.2f'|format(item.price|default(0, true)) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                         {% else %}
-                        <div class="text-center">
-                            <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
-                                class="no-image-placeholder" 
-                                alt="No Receipt Image Available">
-                            <span class="placeholder-text">No receipt image available</span>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>No itemized details available for this receipt
                         </div>
                         {% endif %}
                     </div>
-                    {% if receipt.s3_key or receipt.image_url or receipt.image_path %}
-                    <div class="text-center mb-4">
-                        <small class="text-muted">Click image to view full size</small>
+
+                    <!-- View Receipt Link -->
+                    <div class="mb-4">
+                        <a href="{{ url_for('view_receipt', receipt_id=receipt.id) }}" class="btn btn-outline-secondary btn-sm" target="_blank">
+                            <i class="fas fa-external-link-alt me-1"></i>View Full Receipt Details
+                        </a>
+                        {% if receipt.s3_key %}
+                        <a href="{{ receipt.s3_url }}" class="btn btn-outline-primary btn-sm ms-2" target="_blank">
+                            <i class="fas fa-image me-1"></i>View Receipt Image
+                        </a>
+                        {% elif receipt.image_url %}
+                        <a href="{{ receipt.image_url }}" class="btn btn-outline-primary btn-sm ms-2" target="_blank">
+                            <i class="fas fa-image me-1"></i>View Receipt Image
+                        </a>
+                        {% elif receipt.image_path %}
+                        <a href="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" class="btn btn-outline-primary btn-sm ms-2" target="_blank">
+                            <i class="fas fa-image me-1"></i>View Receipt Image
+                        </a>
+                        {% endif %}
                     </div>
-                    {% endif %}
 
                     <form method="POST" action="{{ url_for('client_expense.allocate_to_client', receipt_id=receipt.id) }}">
                         <div class="mb-3">

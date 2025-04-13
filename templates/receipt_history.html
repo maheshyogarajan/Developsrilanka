@@ -67,10 +67,10 @@
                 <small id="filter-description" class="text-muted d-block"></small>
             </div>
             <div class="btn-group">
-                <button type="button" id="grid-view-btn" class="btn btn-outline-primary active">
+                <button type="button" id="grid-view-btn" class="btn btn-outline-primary">
                     <i class="fas fa-th-large"></i>
                 </button>
-                <button type="button" id="list-view-btn" class="btn btn-outline-primary">
+                <button type="button" id="list-view-btn" class="btn btn-outline-primary active">
                     <i class="fas fa-list"></i>
                 </button>
             </div>
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let organizations = [];
     let currentPage = 1;
     let itemsPerPage = 12;
-    let viewMode = 'grid';
+    let viewMode = 'list';
     let receiptToDelete = null;
     let selectedOrgId = null;
     let showAllOrganizations = true;
