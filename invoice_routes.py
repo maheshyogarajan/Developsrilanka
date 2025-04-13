@@ -269,6 +269,7 @@ def create_invoice():
             
             # Create new invoice using raw SQL to include organization_id and bank_account_id
             # Adding required fields with default values to prevent NOT NULL constraint violations
+            # Make sure all numeric fields have explicit default values
             result = db.session.execute(text("""
                 INSERT INTO invoice (
                     user_id, client_id, organization_id, bank_account_id, invoice_number, 
@@ -294,12 +295,12 @@ def create_invoice():
                 'status': InvoiceStatus.DRAFT.value,
                 'currency': currency,
                 'notes': notes,
-                'subtotal': 0, 
-                'tax_percent': 0, 
-                'tax_amount': 0, 
-                'discount_percent': 0, 
-                'discount_amount': 0, 
-                'total': 0
+                'subtotal': 0.0,  # Using float value for consistency with model default
+                'tax_percent': 0.0, 
+                'tax_amount': 0.0, 
+                'discount_percent': 0.0, 
+                'discount_amount': 0.0, 
+                'total': 0.0
             })
             
             invoice_id = result.first()[0]
