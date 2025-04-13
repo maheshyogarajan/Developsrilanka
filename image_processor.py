@@ -32,8 +32,19 @@ USE_S3_STORAGE = all([
     os.environ.get('AWS_REGION')
 ])
 
+logger.info(f"S3 Storage enabled? {USE_S3_STORAGE}")
+logger.info(f"AWS_S3_BUCKET_NAME available: {bool(os.environ.get('AWS_S3_BUCKET_NAME'))}")
+logger.info(f"AWS_ACCESS_KEY_ID available: {bool(os.environ.get('AWS_ACCESS_KEY_ID'))}")
+logger.info(f"AWS_SECRET_ACCESS_KEY available: {bool(os.environ.get('AWS_SECRET_ACCESS_KEY'))}")
+logger.info(f"AWS_REGION available: {bool(os.environ.get('AWS_REGION'))}")
+
 # Initialize S3 storage handler if S3 is enabled
-s3_handler = s3_storage.S3Storage() if USE_S3_STORAGE else None
+try:
+    s3_handler = s3_storage.S3Storage() if USE_S3_STORAGE else None
+    logger.info(f"S3 handler initialized: {s3_handler is not None}")
+except Exception as e:
+    logger.error(f"Error initializing S3 storage handler: {str(e)}")
+    s3_handler = None
 
 
 def save_uploaded_image(image_data, filename, organization_id=None):
@@ -71,6 +82,10 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         if USE_S3_STORAGE and s3_handler:
             logger.info(f"Using S3 storage for image: {filename}")
             try:
+                # Add detailed debugging to diagnose S3 upload
+                logger.info(f"S3 handler type: {type(s3_handler)}")
+                logger.info(f"Bucket name: {s3_handler.bucket_name if hasattr(s3_handler, 'bucket_name') else 'None'}")
+                
                 # Upload to S3
                 s3_key = s3_handler.upload_image(image_data, organization_id)
                 result['s3_key'] = s3_key
@@ -86,6 +101,7 @@ def save_uploaded_image(image_data, filename, organization_id=None):
                 return result
             except Exception as s3_error:
                 logger.error(f"Error using S3 storage, falling back to local: {str(s3_error)}")
+                logger.error(traceback.format_exc())
                 # Fall back to local storage on S3 error
         
         # Save to local storage (either as primary or fallback)

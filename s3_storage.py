@@ -55,6 +55,10 @@ class S3Storage:
             str: S3 key of the uploaded image
         """
         try:
+            # Log S3 client details for debugging
+            logger.info(f"S3 client initialized: {self.s3_client is not None}")
+            logger.info(f"Using bucket name: {self.bucket_name}")
+            
             # Generate a unique key for the image
             image_id = str(uuid.uuid4())
             
@@ -66,24 +70,41 @@ class S3Storage:
             else:
                 s3_key = f"receipts/{image_id}.jpg"
             
+            logger.info(f"Generated S3 key: {s3_key}")
+            
             # Handle different image input types
             if isinstance(image, str):  # If image is a file path
+                logger.info(f"Uploading file from path: {image}")
                 self.s3_client.upload_file(image, self.bucket_name, s3_key)
             else:  # If image is a PIL Image object
+                logger.info(f"Uploading PIL Image object with format: {image.format}")
                 img_byte_arr = io.BytesIO()
                 image.save(img_byte_arr, format='JPEG')
                 img_byte_arr.seek(0)
+                logger.info(f"Image byte array size: {img_byte_arr.getbuffer().nbytes} bytes")
                 
                 self.s3_client.upload_fileobj(img_byte_arr, self.bucket_name, s3_key)
             
             logger.info(f"Successfully uploaded image to S3: {s3_key}")
+            
+            # Verify the upload was successful by checking if the object exists
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                logger.info(f"Verified image exists in S3 at key: {s3_key}")
+            except Exception as verify_error:
+                logger.warning(f"Could not verify image upload: {str(verify_error)}")
+                
             return s3_key
             
         except ClientError as e:
             logger.error(f"Error uploading image to S3: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
         except Exception as e:
             logger.error(f"Unexpected error uploading image to S3: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
     
     def get_image(self, s3_key):
