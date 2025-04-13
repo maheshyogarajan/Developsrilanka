@@ -6,6 +6,22 @@
 <script src="{{ url_for('static', filename='js/receipt_history_error_logger.js') }}"></script>
 {% endblock %}
 
+{% block head_css %}
+<style>
+    /* Receipt history view controls styling */
+    .view-controls {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 3px;
+        background-color: #f8f9fa;
+    }
+    .view-controls .btn {
+        min-width: 80px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -66,12 +82,12 @@
                 </h5>
                 <small id="filter-description" class="text-muted d-block"></small>
             </div>
-            <div class="btn-group">
-                <button type="button" id="grid-view-btn" class="btn btn-outline-primary">
-                    <i class="fas fa-th-large"></i>
+            <div class="view-controls btn-group">
+                <button type="button" id="grid-view-btn" class="btn btn-outline-primary" title="Grid View">
+                    <i class="fas fa-th-large"></i> Grid
                 </button>
-                <button type="button" id="list-view-btn" class="btn btn-outline-primary active">
-                    <i class="fas fa-list"></i>
+                <button type="button" id="list-view-btn" class="btn btn-outline-primary active" title="List View">
+                    <i class="fas fa-list"></i> List
                 </button>
             </div>
         </div>
@@ -248,6 +264,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize
     loadReceipts();
+    // Set default view to list
+    setViewMode('list');
     
     // Event Listeners
     retryBtn.addEventListener('click', loadReceipts);
