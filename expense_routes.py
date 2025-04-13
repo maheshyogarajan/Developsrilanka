@@ -281,33 +281,18 @@ def view_expense(expense_id):
     # Get client information if associated with this expense
     client = Client.query.get(expense_obj.client_id) if expense_obj.client_id else None
     
-    # Get receipt data including image_url from to_dict method
+    # Use the standardized helper to get the image URL
+    from utils import get_receipt_image_url
+    
+    # Get receipt data for debugging
     receipt_dict = receipt.to_dict()
     
-    # Debug: Log the receipt_dict to see what image_url contains
-    logging.debug(f"Receipt dict for expense ID {expense_id}: image_url={receipt_dict.get('image_url')}, image_path={receipt_dict.get('image_path')}")
+    # Debug: Log the receipt info to see what we're working with
+    logging.debug(f"Receipt data for expense ID {expense_id}: s3_key={receipt.s3_key}, image_path={receipt.image_path}")
     
-    # Generate a placeholder image URL if no image exists
-    # This ensures the image section still renders in the template
-    receipt_image_url = None
-    
-    # First, try to use s3_url if available (prioritize S3 storage)
-    if receipt.s3_key and receipt.s3_url:
-        receipt_image_url = receipt.s3_url
-        logging.debug(f"Using S3 URL for expense ID {expense_id}: {receipt_image_url}")
-    # Next, try to use the image_url from the receipt_dict (generated via to_dict method)
-    elif receipt_dict.get('image_url'):
-        receipt_image_url = receipt_dict.get('image_url')
-        logging.debug(f"Using image_url from receipt_dict for expense ID {expense_id}: {receipt_image_url}")
-    # Otherwise, try to generate a URL from the image_path
-    elif receipt.image_path:
-        # Normalize the path to ensure proper URL format
-        clean_path = receipt.image_path.replace('static/', '')
-        # Ensure path doesn't start with slash to avoid double slashes
-        clean_path = clean_path.lstrip('/')
-        # Create the full static URL
-        receipt_image_url = f"/static/{clean_path}"
-        logging.debug(f"Using generated path for expense ID {expense_id}: {receipt_image_url}")
+    # Use standardized helper to generate image URL
+    receipt_image_url = get_receipt_image_url(receipt)
+    logging.debug(f"Using standardized image URL for expense ID {expense_id}: {receipt_image_url}")
     
     logging.debug(f"Generated receipt_image_url: {receipt_image_url}")
     
@@ -659,15 +644,12 @@ def create_expense_from_receipt(receipt_id):
     # Verify the receipt belongs to the user
     receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first_or_404()
     
-    # Use S3 URL if available, otherwise fall back to local image
-    if receipt.s3_key and receipt.s3_url:
-        receipt.image_url = receipt.s3_url
-        logging.debug(f"Using S3 URL for receipt creation from receipt ID {receipt_id}: {receipt.s3_url}")
-    else:
-        # For local images, use the to_dict method to get the image_url
-        receipt_dict = receipt.to_dict()
-        receipt.image_url = receipt_dict.get('image_url')
-        logging.debug(f"Using local image for receipt creation from receipt ID {receipt_id}: {receipt.image_url}")
+    # Use standardized helper to get the image URL
+    from utils import get_receipt_image_url
+    
+    # Generate standardized image URL
+    receipt.image_url = get_receipt_image_url(receipt)
+    logging.debug(f"Using standardized image URL for receipt ID {receipt_id}: {receipt.image_url}")
     
     # Check if there's already an expense for this receipt
     existing_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
