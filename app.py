@@ -858,11 +858,11 @@ def save_receipt():
         organization_id = default_org.id if default_org else None
         
         # Get the S3 key if available in the receipt data
-        s3_key = receipt_data.get('s3_key')
+        s3_key = receipt_data.get('s3_key', '')
+        image_path = receipt_data.get('image_path')
         
-        # For local storage, we'll just use empty string for s3_key
-        # and make sure the image_path is properly set
-        s3_key = ''
+        # Log what we're working with
+        logging.info(f"Receipt data has s3_key: '{s3_key}' and image_path: '{image_path}'")
         
         # Validate image path exists if provided
         if receipt_data.get('image_path'):
@@ -897,8 +897,10 @@ def save_receipt():
             vat_tax=float(receipt_data.get('vat_tax', 0) or 0),
             expense_major_category=receipt_data.get('expense_major_category'),
             expense_minor_category=receipt_data.get('expense_minor_category'),
-            s3_key=s3_key
+            s3_key=s3_key,
+            image_path=image_path
         )
+        logging.info(f"Creating new receipt with s3_key='{s3_key}' and image_path='{image_path}'")
         
         # Add the receipt to the database session
         db.session.add(new_receipt)
