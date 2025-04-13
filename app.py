@@ -684,26 +684,19 @@ def scan_receipt():
             # Synchronous (direct) processing for development or fallback
             logging.info("Using synchronous receipt processing")
             
-            # Save the image locally FIRST, before processing
-            # Generate a unique filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            unique_filename = f"receipt_{timestamp}.jpg"
-            upload_folder = os.path.join('static', 'uploads')
-            os.makedirs(upload_folder, exist_ok=True)
-            local_path = os.path.join(upload_folder, unique_filename)
-            image_path_value = None
-            s3_key_value = None
+            # Save the image locally AND to S3 (if enabled) FIRST, before processing
+            from image_processor import save_uploaded_image
             
+            # Save the image and get storage results (local path and s3 key)
+            storage_result = None
             try:
-                img.save(local_path)
-                # Store the path relative to static folder as a string
-                image_path_value = os.path.join('uploads', unique_filename)
-                logging.info(f"Image saved locally to {local_path} with relative path {image_path_value}")
+                storage_result = save_uploaded_image(img, receipt_file.filename, organization_id)
+                image_path_value = storage_result.get('image_path', '') if storage_result else ''
+                s3_key_value = storage_result.get('s3_key', '') if storage_result else ''
                 
-                # Default s3_key to empty string for compatibility with existing code
-                s3_key_value = ''
+                logging.info(f"Image saved with relative path {image_path_value} and S3 key {s3_key_value}")
             except Exception as save_error:
-                logging.error(f"Error saving image locally: {str(save_error)}")
+                logging.error(f"Error saving image: {str(save_error)}")
                 image_path_value = None
                 s3_key_value = None
             

@@ -128,10 +128,15 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         image_data = base64.b64decode(image_data_b64)
         image = Image.open(BytesIO(image_data))
         
-        # Save the image to disk and/or S3
+        # Save the image to disk and/or S3 FIRST, before processing with Gemini
         storage_result = save_uploaded_image(image, original_filename, organization_id)
         
-        # Process with Gemini Vision API
+        # Log successful image storage
+        image_path = storage_result.get('image_path', '') if storage_result else ''
+        s3_key = storage_result.get('s3_key', '') if storage_result else ''
+        logger.info(f"Before Gemini processing - Image saved with path: {image_path} and S3 key: {s3_key}")
+        
+        # Process with Gemini Vision API AFTER saving the image
         # Since we can't directly import the function (circular import issue),
         # we'll use a string identifier and reference the app module
         import app as app_module
