@@ -136,9 +136,10 @@ def history():
     - Sorting capabilities
     - Bulk actions
     """
-    # Get user's organizations
-    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
-    user_org_ids = [org.organization_id for org in user_orgs]
+    try:
+        # Get user's organizations
+        user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+        user_org_ids = [org.organization_id for org in user_orgs]
     
     # Get all organizations the user is a member of
     organizations = Organization.query.filter(Organization.id.in_(user_org_ids)).all()

@@ -1,0 +1,108 @@
+./.pythonlibs/lib/python3.11/site-packages/flask/__init__.py:from .signals import before_render_template as before_render_template
+./.pythonlibs/lib/python3.11/site-packages/flask/__init__.py:from .templating import render_template as render_template
+./.pythonlibs/lib/python3.11/site-packages/flask/__init__.py:from .templating import render_template_string as render_template_string
+./.pythonlibs/lib/python3.11/site-packages/flask/app.py:        # The values passed to render_template take precedence. Keep a
+./.pythonlibs/lib/python3.11/site-packages/flask/helpers.py:            return render_template('index.html', foo=42)
+./.pythonlibs/lib/python3.11/site-packages/flask/helpers.py:            response = make_response(render_template('index.html', foo=42))
+./.pythonlibs/lib/python3.11/site-packages/flask/helpers.py:        response = make_response(render_template('not_found.html'), 404)
+./.pythonlibs/lib/python3.11/site-packages/flask/signals.py:before_render_template = _signals.signal("before-render-template")
+./.pythonlibs/lib/python3.11/site-packages/flask/templating.py:from .signals import before_render_template
+./.pythonlibs/lib/python3.11/site-packages/flask/templating.py:    before_render_template.send(
+./.pythonlibs/lib/python3.11/site-packages/flask/templating.py:def render_template(
+./.pythonlibs/lib/python3.11/site-packages/flask/templating.py:def render_template_string(source: str, **context: t.Any) -> str:
+./.pythonlibs/lib/python3.11/site-packages/flask/templating.py:    before_render_template.send(
+./admin_routes.py:from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+./admin_routes.py:        return render_template('admin/dashboard.html',
+./admin_routes.py:        return render_template('admin/users.html',
+./admin_routes.py:        return render_template('admin/statistics.html',
+./admin_routes.py:    return render_template('admin/settings.html',
+./admin_routes.py:        return render_template('admin/logs.html',
+./admin_routes_v2.py:from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+./admin_routes_v2.py:        return render_template(
+./admin_routes_v2.py:        return render_template(
+./admin_routes_v2.py:        return render_template(
+./admin_routes_v2.py:        return render_template(
+./admin_routes_v2.py:        return render_template(
+./admin_routes_v2.py:        return render_template(
+./app_analytics_redesign.py:        return render_template('analytics_redesign.html',
+./app_analytics_redesign.py:        return render_template('analytics_redesign.html', error=str(e))
+./blueprints/clients.py:from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, jsonify
+./blueprints/clients.py:    return render_template('clients.html', 
+./blueprints/clients.py:    return render_template('create_client.html', organizations=organizations)
+./blueprints/clients.py:    return render_template('view_client.html', client=client, invoices=invoices, organization=organization)
+./blueprints/clients.py:    return render_template('edit_client.html', client=client, organizations=organizations)
+./classify_routes.py:from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+./classify_routes.py:        return render_template('classify_receipts.html', 
+./classify_routes.py:    return render_template('classify_receipts.html', 
+./image_test.py:from flask import Flask, url_for, render_template, request, jsonify
+./enhanced_classify_routes.py:from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort
+./enhanced_classify_routes.py:    return render_template(
+./organization_routes.py:from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify
+./organization_routes.py:    return render_template('organizations/index.html', 
+./organization_routes.py:            return render_template('organizations/create.html', is_modal=is_modal)
+./organization_routes.py:            return render_template('organizations/create_success_modal.html', 
+./organization_routes.py:    return render_template('organizations/create.html', is_modal=is_modal)
+./organization_routes.py:    return render_template('organizations/view.html',
+./organization_routes.py:    return render_template('organizations/edit.html', 
+./organization_routes.py:    return render_template('organizations/invite.html', 
+./organization_routes.py:    return render_template('organizations/branding.html', 
+./organization_routes.py:    msg.html = render_template('email/organization_invitation.html',
+./bank_account_routes.py:from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, abort
+./bank_account_routes.py:    return render_template('bank_accounts.html', 
+./bank_account_routes.py:            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
+./bank_account_routes.py:            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
+./bank_account_routes.py:            return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
+./bank_account_routes.py:    return render_template('create_bank_account.html', organizations=organizations, default_org_id=default_org_id, orgs_without_accounts=orgs_without_accounts)
+./bank_account_routes.py:    return render_template('view_bank_account.html', account=account)
+./bank_account_routes.py:            return render_template('edit_bank_account.html', account=account, organizations=organizations)
+./bank_account_routes.py:            return render_template('edit_bank_account.html', account=account, organizations=organizations)
+./bank_account_routes.py:            return render_template('edit_bank_account.html', account=account, organizations=organizations)
+./bank_account_routes.py:    return render_template('edit_bank_account.html', account=account, organizations=organizations)
+./bank_account_routes.py:    return render_template('organization_bank_accounts.html', 
+./bank_account_routes.py:            return render_template('create_organization_bank_account.html', organization=organization, has_existing_accounts=has_existing_accounts)
+./bank_account_routes.py:    return render_template('create_organization_bank_account.html', organization=organization, has_existing_accounts=has_existing_accounts)
+./bank_account_routes.py:            return render_template('edit_organization_bank_account.html', account=account, organization=organization)
+./bank_account_routes.py:    return render_template('edit_organization_bank_account.html', account=account, organization=organization)
+./expense_routes.py:from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
+./expense_routes.py:    return render_template('expenses.html', 
+./expense_routes.py:    return render_template('submit_expense.html', receipts=receipts, clients=clients)
+./expense_routes.py:    return render_template('view_expense.html', 
+./expense_routes.py:    return render_template('edit_expense.html', expense=expense, receipt=receipt, clients=clients)
+./expense_routes.py:    return render_template(
+./client_expense_routes.py:from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
+./client_expense_routes.py:    return render_template('allocate_to_client.html', receipt=receipt, clients=clients)
+./client_expense_routes.py:    return render_template('client_expenses.html', 
+./client_expense_routes.py:    return render_template('view_client_expense.html', 
+./client_expense_routes.py:    return render_template('edit_client_expense.html', 
+./client_expense_routes.py:    return render_template('client_expenses_by_client.html', 
+./unified_receipt_expense_routes.py:from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort, send_file
+./unified_receipt_expense_routes.py:    return render_template(
+./unified_receipt_expense_routes.py:    return render_template(
+./invoice_routes.py:from flask import render_template, request, jsonify, flash, redirect, url_for, abort
+./invoice_routes.py:        return render_template('invoices.html', 
+./invoice_routes.py:    return render_template('invoices.html', 
+./invoice_routes.py:    return render_template('create_invoice.html', 
+./invoice_routes.py:    return render_template('view_invoice.html', invoice=invoice, bank_account=bank_account, organization=organization)
+./invoice_routes.py:    return render_template('edit_invoice.html', 
+./invoice_routes.py:    return render_template('record_payment.html', 
+./invoice_routes.py:        html_body = render_template(
+./invoice_routes.py:        return render_template('clients.html', 
+./invoice_routes.py:    return render_template('clients.html', 
+./invoice_routes.py:    return render_template('create_client.html')
+./invoice_routes.py:    return render_template('view_client.html', 
+./invoice_routes.py:    return render_template('edit_client.html', client=client, organizations=organizations)
+./app.py:from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file
+./app.py:    return render_template('error.html', 
+./app.py:    return render_template('error.html', 
+./app.py:    return render_template('home.html')
+./app.py:    return render_template('preview.html')
+./app.py:    return render_template('index.html')
+./app.py:    return render_template('feature_unavailable.html')
+./app.py:    return render_template('feature_unavailable.html')
+./app.py:    return render_template('feature_unavailable.html')
+./app.py:        return render_template(
+./app.py:        return render_template('tax_savings.html', error=str(e))
+./app.py:    return render_template('login.html')
+./app.py:    return render_template('register.html')
+./app.py:    return render_template('profile.html')
+./app.py:    return render_template('invite_friends.html')
