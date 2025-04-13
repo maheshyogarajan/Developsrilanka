@@ -4,6 +4,18 @@
 
 {% block styles %}
 <style>
+    /* View controls styling */
+    .view-controls {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 3px;
+        background-color: #f8f9fa;
+    }
+    .view-controls .btn {
+        min-width: 80px;
+        font-weight: 500;
+    }
+    
     .filter-panel {
         background-color: #f8f9fa;
         border-radius: 8px;
@@ -540,6 +552,7 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Search form handling
         const searchForm = document.getElementById('searchForm');
         if (searchForm) {
             const searchInput = searchForm.querySelector('input[name="search"]');
@@ -549,6 +562,50 @@
                 }
             });
         }
+        
+        // View mode toggle functionality
+        const gridViewBtn = document.getElementById('grid-view-btn');
+        const listViewBtn = document.getElementById('list-view-btn');
+        const gridView = document.getElementById('grid-view');
+        const listView = document.getElementById('list-view');
+        
+        // Function to save view preference to localStorage
+        function saveViewPreference(mode) {
+            localStorage.setItem('receiptHistoryViewMode', mode);
+        }
+        
+        // Function to get view preference from localStorage
+        function getViewPreference() {
+            return localStorage.getItem('receiptHistoryViewMode') || 'list'; // Default to list view
+        }
+        
+        // Function to set view mode
+        function setViewMode(mode) {
+            if (mode === 'grid') {
+                gridViewBtn.classList.add('active');
+                listViewBtn.classList.remove('active');
+                gridView.classList.remove('d-none');
+                listView.classList.add('d-none');
+            } else {
+                gridViewBtn.classList.remove('active');
+                listViewBtn.classList.add('active');
+                gridView.classList.add('d-none');
+                listView.classList.remove('d-none');
+            }
+            saveViewPreference(mode);
+        }
+        
+        // Initialize view mode from saved preference
+        setViewMode(getViewPreference());
+        
+        // Add event listeners for view mode buttons
+        gridViewBtn.addEventListener('click', function() {
+            setViewMode('grid');
+        });
+        
+        listViewBtn.addEventListener('click', function() {
+            setViewMode('list');
+        });
     });
 </script>
 {% endblock %}
