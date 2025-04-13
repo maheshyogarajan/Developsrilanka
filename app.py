@@ -954,8 +954,19 @@ def save_receipt():
         
         receipt_data = session['receipt_data']
         
+        # Check if we have a directly uploaded S3 key from the scan process
+        # If yes, use it instead of the one in receipt_data
+        if 'receipt_s3_key' in session and session['receipt_s3_key']:
+            direct_s3_key = session['receipt_s3_key']
+            logging.info(f"Found direct S3 key in session: {direct_s3_key}")
+            # Update the receipt data with this key
+            receipt_data['s3_key'] = direct_s3_key
+            logging.info(f"Updated receipt_data with direct S3 key: {direct_s3_key}")
+        
         # Add additional debug logging
         logging.debug(f"Receipt data keys: {receipt_data.keys() if receipt_data else 'None'}")
+        logging.info(f"Image path: {receipt_data.get('image_path', 'None')}")
+        logging.info(f"S3 key: {receipt_data.get('s3_key', 'None')}")
         
         # Extract vendor_name and total_amount early to avoid undefined variable errors
         vendor_name = receipt_data.get('vendor_name', 'Unknown Vendor') 
