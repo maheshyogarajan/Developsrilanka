@@ -56,13 +56,13 @@ def upload_receipt_to_s3(image, organization_id=None, receipt_id=None):
         logger.info(f"Generated UUID for image: {image_id}")
         
         # Create the S3 key based on organization and receipt if provided
-        # Use test/ folder which we know works
+        # Use receipts/ folder for production use
         if organization_id and receipt_id:
-            s3_key = f"test/{organization_id}_{receipt_id}_{image_id}.jpg"
+            s3_key = f"receipts/{organization_id}_{receipt_id}_{image_id}.jpg"
         elif organization_id:
-            s3_key = f"test/{organization_id}_{image_id}.jpg"
+            s3_key = f"receipts/{organization_id}_{image_id}.jpg"
         else:
-            s3_key = f"test/{image_id}.jpg"
+            s3_key = f"receipts/{image_id}.jpg"
         
         logger.info(f"Generated S3 key: {s3_key}")
         
