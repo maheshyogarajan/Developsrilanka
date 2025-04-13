@@ -6,6 +6,7 @@ This module provides both functions and a class for uploading images to S3 and r
 import os
 import logging
 import io
+import traceback
 import boto3
 from botocore.exceptions import ClientError
 from PIL import Image
@@ -106,7 +107,6 @@ class S3Storage:
                     logger.info(f"S3 UPLOAD - File upload successful")
                 except Exception as file_error:
                     logger.error(f"S3 UPLOAD - Error uploading file: {str(file_error)}")
-                    import traceback
                     logger.error(traceback.format_exc())
                     raise
             else:  # If image is a PIL Image object
@@ -129,7 +129,6 @@ class S3Storage:
                     logger.info(f"S3 UPLOAD - upload_fileobj completed successfully")
                 except Exception as img_error:
                     logger.error(f"S3 UPLOAD - Error preparing or uploading image: {str(img_error)}")
-                    import traceback
                     logger.error(traceback.format_exc())
                     raise
             
@@ -150,12 +149,10 @@ class S3Storage:
             
         except ClientError as e:
             logger.error(f"S3 UPLOAD - Error uploading image to S3: {str(e)}")
-            import traceback
             logger.error(traceback.format_exc())
             raise
         except Exception as e:
             logger.error(f"S3 UPLOAD - Unexpected error uploading image to S3: {str(e)}")
-            import traceback
             logger.error(traceback.format_exc())
             raise
     
