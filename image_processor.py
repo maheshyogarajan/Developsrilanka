@@ -24,27 +24,43 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Flag to control whether to use S3 or local storage
-# Check if S3 credentials are available
-USE_S3_STORAGE = all([
-    os.environ.get('AWS_S3_BUCKET_NAME'),
-    os.environ.get('AWS_ACCESS_KEY_ID'),
-    os.environ.get('AWS_SECRET_ACCESS_KEY'),
-    os.environ.get('AWS_REGION')
-])
+# Module-level variables for S3 storage
+s3_handler = None
 
-logger.info(f"S3 Storage enabled? {USE_S3_STORAGE}")
-logger.info(f"AWS_S3_BUCKET_NAME available: {bool(os.environ.get('AWS_S3_BUCKET_NAME'))}")
-logger.info(f"AWS_ACCESS_KEY_ID available: {bool(os.environ.get('AWS_ACCESS_KEY_ID'))}")
-logger.info(f"AWS_SECRET_ACCESS_KEY available: {bool(os.environ.get('AWS_SECRET_ACCESS_KEY'))}")
-logger.info(f"AWS_REGION available: {bool(os.environ.get('AWS_REGION'))}")
+def init_s3_storage():
+    """Initialize S3 storage based on environment variables."""
+    global s3_handler
+    
+    # Check if S3 credentials are available
+    use_s3 = all([
+        os.environ.get('AWS_S3_BUCKET_NAME'),
+        os.environ.get('AWS_ACCESS_KEY_ID'),
+        os.environ.get('AWS_SECRET_ACCESS_KEY'),
+        os.environ.get('AWS_REGION')
+    ])
+    
+    logger.info(f"S3 Storage enabled? {use_s3}")
+    logger.info(f"AWS_S3_BUCKET_NAME available: {bool(os.environ.get('AWS_S3_BUCKET_NAME'))}")
+    logger.info(f"AWS_ACCESS_KEY_ID available: {bool(os.environ.get('AWS_ACCESS_KEY_ID'))}")
+    logger.info(f"AWS_SECRET_ACCESS_KEY available: {bool(os.environ.get('AWS_SECRET_ACCESS_KEY'))}")
+    logger.info(f"AWS_REGION available: {bool(os.environ.get('AWS_REGION'))}")
+    
+    # Initialize S3 storage handler if S3 is enabled
+    if use_s3:
+        try:
+            s3_handler = s3_storage.S3Storage()
+            logger.info(f"S3 handler initialized: {s3_handler is not None}")
+        except Exception as e:
+            logger.error(f"Error initializing S3 storage handler: {str(e)}")
+            s3_handler = None
+    else:
+        logger.info("S3 storage disabled due to missing credentials")
+        s3_handler = None
+    
+    return use_s3
 
-# Initialize S3 storage handler if S3 is enabled
-try:
-    s3_handler = s3_storage.S3Storage() if USE_S3_STORAGE else None
-    logger.info(f"S3 handler initialized: {s3_handler is not None}")
-except Exception as e:
-    logger.error(f"Error initializing S3 storage handler: {str(e)}")
-    s3_handler = None
+# Initialize S3 storage when module is loaded
+USE_S3_STORAGE = init_s3_storage()
 
 
 def save_uploaded_image(image_data, filename, organization_id=None):
@@ -59,18 +75,52 @@ def save_uploaded_image(image_data, filename, organization_id=None):
     Returns:
         Dictionary containing image path and S3 key (if applicable)
     """
+    global s3_handler  # Declare global at the start of the function
+    
     try:
+        # Debug log all environment variables to check if S3 is properly configured
+        logger.info("=== S3 Environment Variables Check ===")
+        logger.info(f"AWS_S3_BUCKET_NAME: {bool(os.environ.get('AWS_S3_BUCKET_NAME'))}")
+        logger.info(f"AWS_ACCESS_KEY_ID: {bool(os.environ.get('AWS_ACCESS_KEY_ID'))}")
+        logger.info(f"AWS_SECRET_ACCESS_KEY: {bool(os.environ.get('AWS_SECRET_ACCESS_KEY'))}")
+        logger.info(f"AWS_REGION: {bool(os.environ.get('AWS_REGION'))}")
+        logger.info(f"USE_S3_STORAGE calculated value: {USE_S3_STORAGE}")
+        logger.info(f"S3 handler initialized: {s3_handler is not None}")
+        logger.info("=======================================")
+        
+        # Force check if S3 should be enabled based on environment variables
+        s3_enabled = all([
+            os.environ.get('AWS_S3_BUCKET_NAME'),
+            os.environ.get('AWS_ACCESS_KEY_ID'),
+            os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            os.environ.get('AWS_REGION')
+        ])
+        
+        logger.info(f"S3 should be enabled based on env vars: {s3_enabled}")
+        
+        # Reinitialize S3 handler if needed
+        if USE_S3_STORAGE and s3_handler is None:
+            logger.info("Initializing S3 handler since it was None but USE_S3_STORAGE is True")
+            try:
+                s3_handler = s3_storage.S3Storage()
+                logger.info(f"Successfully reinitialized S3 handler: {s3_handler is not None}")
+            except Exception as init_error:
+                logger.error(f"Error reinitializing S3 handler: {str(init_error)}")
+        
         # Ensure we're working with a PIL Image
         if not isinstance(image_data, Image.Image):
             if isinstance(image_data, bytes):
                 image_data = Image.open(BytesIO(image_data))
+                logger.info(f"Converted bytes to PIL Image with format: {image_data.format}")
             else:
-                raise ValueError("Invalid image data type")
+                logger.error(f"Invalid image data type: {type(image_data)}")
+                raise ValueError(f"Invalid image data type: {type(image_data)}")
         
         # Generate a unique filename to prevent overwriting
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name, ext = os.path.splitext(filename)
         unique_filename = f"{base_name}_{timestamp}{ext}"
+        logger.info(f"Generated unique filename: {unique_filename}")
         
         # Prepare result dictionary
         result = {
@@ -98,11 +148,15 @@ def save_uploaded_image(image_data, filename, organization_id=None):
                 result['image_path'] = relative_path
                 logger.info(f"Backup image saved locally to {file_path}")
                 
+                # Return full result with both local path and S3 key
+                logger.info(f"Returning storage result with image_path={result['image_path']} and s3_key={result['s3_key']}")
                 return result
             except Exception as s3_error:
                 logger.error(f"Error using S3 storage, falling back to local: {str(s3_error)}")
                 logger.error(traceback.format_exc())
                 # Fall back to local storage on S3 error
+        else:
+            logger.warning(f"S3 storage skipped: USE_S3_STORAGE={USE_S3_STORAGE}, s3_handler available={s3_handler is not None}")
         
         # Save to local storage (either as primary or fallback)
         file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
@@ -111,6 +165,8 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         result['image_path'] = relative_path
         logger.info(f"Image saved locally to {file_path}")
         
+        # Return result with local path only
+        logger.info(f"Returning storage result with image_path={result['image_path']} and empty s3_key")
         return result
     
     except Exception as e:
