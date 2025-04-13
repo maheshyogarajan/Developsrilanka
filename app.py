@@ -695,9 +695,38 @@ def scan_receipt():
             # Save the image and get storage results (local path and s3 key)
             storage_result = None
             try:
+                # Log image details before saving
+                logging.info("============ Receipt Image Details ============")
+                logging.info(f"Image format: {img.format}, size: {img.size}, mode: {img.mode}")
+                logging.info(f"Image filename: {receipt_file.filename}")
+                logging.info(f"Organization ID for storage: {organization_id}")
+                logging.info("==========================================")
+                
+                # Check AWS environment variables before S3 upload attempt
+                aws_vars_present = all([
+                    os.environ.get('AWS_S3_BUCKET_NAME'),
+                    os.environ.get('AWS_ACCESS_KEY_ID'),
+                    os.environ.get('AWS_SECRET_ACCESS_KEY'),
+                    os.environ.get('AWS_REGION')
+                ])
+                logging.info(f"AWS environment variables present: {aws_vars_present}")
+                
+                # Save the image to storage (local and/or S3)
                 storage_result = save_uploaded_image(img, receipt_file.filename, organization_id)
                 image_path_value = storage_result.get('image_path', '') if storage_result else ''
                 s3_key_value = storage_result.get('s3_key', '') if storage_result else ''
+                
+                # Log detailed storage results
+                logging.info("============ Storage Result ============")
+                logging.info(f"image_path: '{image_path_value}'")
+                logging.info(f"s3_key: '{s3_key_value}'")
+                logging.info("=======================================")
+                
+                # If no S3 key was returned, log a warning
+                if not s3_key_value and aws_vars_present:
+                    logging.warning("S3 upload failed or was not attempted despite AWS credentials being present")
+                elif not aws_vars_present:
+                    logging.info("S3 upload was not attempted because AWS credentials are not fully configured")
                 
                 logging.info(f"Image saved with relative path {image_path_value} and S3 key {s3_key_value}")
             except Exception as save_error:
@@ -955,6 +984,18 @@ def save_receipt():
         
         # Log detailed information about the receipt being created
         logging.info(f"Creating new receipt with s3_key='{s3_key}' and image_path='{image_path}'")
+        
+        # Log detailed information about receipt data
+        logging.info("============ Receipt Save Details ============")
+        logging.info(f"User ID: {current_user.id}")
+        logging.info(f"Organization ID: {organization_id}")
+        logging.info(f"Image path: '{image_path}'")
+        logging.info(f"S3 key: '{s3_key}'")
+        logging.info(f"Vendor: {vendor_name}")
+        logging.info(f"Total amount: {total_amount}")
+        logging.info(f"Date: {receipt_date}")
+        logging.info(f"Number of items: {len(receipt_data.get('items', []))}")
+        logging.info("=============================================")
         
         # Create a new receipt and associate it with the current user
         new_receipt = Receipt(

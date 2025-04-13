@@ -86,6 +86,13 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         logger.info(f"AWS_REGION: {bool(os.environ.get('AWS_REGION'))}")
         logger.info(f"USE_S3_STORAGE calculated value: {USE_S3_STORAGE}")
         logger.info(f"S3 handler initialized: {s3_handler is not None}")
+        logger.info(f"Function input - filename: {filename}, organization_id: {organization_id}")
+        if hasattr(image_data, 'size'):
+            logger.info(f"Image size: {image_data.size}, format: {getattr(image_data, 'format', 'unknown')}")
+        elif isinstance(image_data, bytes):
+            logger.info(f"Image data type: bytes, size: {len(image_data)} bytes")
+        else:
+            logger.info(f"Image data type: {type(image_data)}")
         logger.info("=======================================")
         
         # Force check if S3 should be enabled based on environment variables
@@ -106,6 +113,7 @@ def save_uploaded_image(image_data, filename, organization_id=None):
                 logger.info(f"Successfully reinitialized S3 handler: {s3_handler is not None}")
             except Exception as init_error:
                 logger.error(f"Error reinitializing S3 handler: {str(init_error)}")
+                logger.error(traceback.format_exc())
         
         # Ensure we're working with a PIL Image
         if not isinstance(image_data, Image.Image):

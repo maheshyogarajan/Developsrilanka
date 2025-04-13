@@ -56,11 +56,21 @@ class S3Storage:
         """
         try:
             # Log S3 client details for debugging
-            logger.info(f"S3 client initialized: {self.s3_client is not None}")
-            logger.info(f"Using bucket name: {self.bucket_name}")
+            logger.info(f"S3 UPLOAD - S3 client initialized: {self.s3_client is not None}")
+            logger.info(f"S3 UPLOAD - Using bucket name: {self.bucket_name}")
+            
+            # Log input parameters
+            logger.info(f"S3 UPLOAD - organization_id: {organization_id}, receipt_id: {receipt_id}")
+            if hasattr(image, 'size'):
+                logger.info(f"S3 UPLOAD - Image size: {image.size}, format: {getattr(image, 'format', 'unknown')}")
+            elif isinstance(image, str):
+                logger.info(f"S3 UPLOAD - Image path: {image}")
+            else:
+                logger.info(f"S3 UPLOAD - Image type: {type(image)}")
             
             # Generate a unique key for the image
             image_id = str(uuid.uuid4())
+            logger.info(f"S3 UPLOAD - Generated UUID: {image_id}")
             
             # Create a path based on organization and receipt if provided
             if organization_id and receipt_id:
@@ -70,39 +80,81 @@ class S3Storage:
             else:
                 s3_key = f"receipts/{image_id}.jpg"
             
-            logger.info(f"Generated S3 key: {s3_key}")
+            logger.info(f"S3 UPLOAD - Generated S3 key: {s3_key}")
+            
+            # Print all AWS environment variables (masking the values)
+            logger.info(f"S3 UPLOAD - AWS_S3_BUCKET_NAME present: {bool(os.environ.get('AWS_S3_BUCKET_NAME'))}")
+            logger.info(f"S3 UPLOAD - AWS_ACCESS_KEY_ID present: {bool(os.environ.get('AWS_ACCESS_KEY_ID'))}")
+            logger.info(f"S3 UPLOAD - AWS_SECRET_ACCESS_KEY present: {bool(os.environ.get('AWS_SECRET_ACCESS_KEY'))}")
+            logger.info(f"S3 UPLOAD - AWS_REGION present: {bool(os.environ.get('AWS_REGION'))}")
             
             # Handle different image input types
             if isinstance(image, str):  # If image is a file path
-                logger.info(f"Uploading file from path: {image}")
-                self.s3_client.upload_file(image, self.bucket_name, s3_key)
+                logger.info(f"S3 UPLOAD - Uploading file from path: {image}")
+                try:
+                    # Check if file exists
+                    if not os.path.exists(image):
+                        logger.error(f"S3 UPLOAD - File does not exist: {image}")
+                        raise FileNotFoundError(f"File does not exist: {image}")
+                    
+                    # Log file size
+                    file_size = os.path.getsize(image)
+                    logger.info(f"S3 UPLOAD - File size: {file_size} bytes")
+                    
+                    # Upload file
+                    self.s3_client.upload_file(image, self.bucket_name, s3_key)
+                    logger.info(f"S3 UPLOAD - File upload successful")
+                except Exception as file_error:
+                    logger.error(f"S3 UPLOAD - Error uploading file: {str(file_error)}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    raise
             else:  # If image is a PIL Image object
-                logger.info(f"Uploading PIL Image object with format: {image.format}")
-                img_byte_arr = io.BytesIO()
-                image.save(img_byte_arr, format='JPEG')
-                img_byte_arr.seek(0)
-                logger.info(f"Image byte array size: {img_byte_arr.getbuffer().nbytes} bytes")
-                
-                self.s3_client.upload_fileobj(img_byte_arr, self.bucket_name, s3_key)
+                try:
+                    logger.info(f"S3 UPLOAD - Uploading PIL Image object with format: {getattr(image, 'format', 'unknown')}")
+                    img_byte_arr = io.BytesIO()
+                    image.save(img_byte_arr, format='JPEG')
+                    img_byte_arr.seek(0)
+                    buffer_size = img_byte_arr.getbuffer().nbytes
+                    logger.info(f"S3 UPLOAD - Image byte array size: {buffer_size} bytes")
+                    
+                    # If buffer size is 0, something went wrong
+                    if buffer_size == 0:
+                        logger.error("S3 UPLOAD - Image buffer size is 0 bytes")
+                        raise ValueError("Image buffer size is 0 bytes")
+                    
+                    # Upload byte array
+                    logger.info(f"S3 UPLOAD - Starting upload_fileobj to {self.bucket_name}, key: {s3_key}")
+                    self.s3_client.upload_fileobj(img_byte_arr, self.bucket_name, s3_key)
+                    logger.info(f"S3 UPLOAD - upload_fileobj completed successfully")
+                except Exception as img_error:
+                    logger.error(f"S3 UPLOAD - Error preparing or uploading image: {str(img_error)}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    raise
             
-            logger.info(f"Successfully uploaded image to S3: {s3_key}")
+            logger.info(f"S3 UPLOAD - Successfully uploaded image to S3: {s3_key}")
             
             # Verify the upload was successful by checking if the object exists
             try:
-                self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
-                logger.info(f"Verified image exists in S3 at key: {s3_key}")
+                logger.info(f"S3 UPLOAD - Verifying upload with head_object for key: {s3_key}")
+                response = self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                logger.info(f"S3 UPLOAD - Verified image exists in S3 at key: {s3_key}")
+                logger.info(f"S3 UPLOAD - Object metadata: {response}")
             except Exception as verify_error:
-                logger.warning(f"Could not verify image upload: {str(verify_error)}")
+                logger.warning(f"S3 UPLOAD - Could not verify image upload: {str(verify_error)}")
+                logger.warning(traceback.format_exc())
+                # Continue anyway since the upload might still have succeeded
                 
             return s3_key
             
         except ClientError as e:
-            logger.error(f"Error uploading image to S3: {str(e)}")
+            logger.error(f"S3 UPLOAD - Error uploading image to S3: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             raise
         except Exception as e:
-            logger.error(f"Unexpected error uploading image to S3: {str(e)}")
+            logger.error(f"S3 UPLOAD - Unexpected error uploading image to S3: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             raise
