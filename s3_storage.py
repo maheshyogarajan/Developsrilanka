@@ -74,12 +74,13 @@ class S3Storage:
             logger.info(f"S3 UPLOAD - Generated UUID: {image_id}")
             
             # Create a path based on organization and receipt if provided
+            # Use test/ folder path to match the format that's known to work with AWS 
             if organization_id and receipt_id:
-                s3_key = f"receipts/{organization_id}/{receipt_id}/{image_id}.jpg"
+                s3_key = f"test/{organization_id}_{receipt_id}_{image_id}.jpg"
             elif organization_id:
-                s3_key = f"receipts/{organization_id}/{image_id}.jpg"
+                s3_key = f"test/{organization_id}_{image_id}.jpg"
             else:
-                s3_key = f"receipts/{image_id}.jpg"
+                s3_key = f"test/{image_id}.jpg"
             
             logger.info(f"S3 UPLOAD - Generated S3 key: {s3_key}")
             
@@ -296,12 +297,13 @@ def upload_image_to_s3(image, organization_id=None, receipt_id=None):
         image_id = str(uuid.uuid4())
         
         # Create a path based on organization and receipt if provided
+        # Use test/ folder path to match the format that's known to work with AWS
         if organization_id and receipt_id:
-            s3_key = f"receipts/{organization_id}/{receipt_id}/{image_id}.jpg"
+            s3_key = f"test/{organization_id}_{receipt_id}_{image_id}.jpg"
         elif organization_id:
-            s3_key = f"receipts/{organization_id}/{image_id}.jpg"
+            s3_key = f"test/{organization_id}_{image_id}.jpg"
         else:
-            s3_key = f"receipts/{image_id}.jpg"
+            s3_key = f"test/{image_id}.jpg"
         
         # Handle different image input types
         if isinstance(image, str):  # If image is a file path

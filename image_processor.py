@@ -225,12 +225,32 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         image_data = base64.b64decode(image_data_b64)
         image = Image.open(BytesIO(image_data))
         
-        # Save the image to disk and/or S3 FIRST, before processing with Gemini
+        # Upload directly to S3 first using the standalone function for maximum reliability
+        # This avoids any potential issues with class-based handlers and shared state
+        logger.info(f"Attempting direct S3 upload outside the save_uploaded_image function...")
+        s3_key = ""
+        try:
+            # Make a copy of the image to ensure we don't have issues with closed files
+            img_copy = image.copy()
+            s3_key = s3_storage.upload_image_to_s3(img_copy, organization_id)
+            logger.info(f"✅ Direct S3 upload successful with key: {s3_key}")
+        except Exception as direct_s3_error:
+            logger.error(f"❌ Direct S3 upload failed: {str(direct_s3_error)}")
+            logger.error(traceback.format_exc())
+        
+        # Also save the image using the normal method to ensure it's saved locally
         storage_result = save_uploaded_image(image, original_filename, organization_id)
         
         # Log successful image storage
         image_path = storage_result.get('image_path', '') if storage_result else ''
-        s3_key = storage_result.get('s3_key', '') if storage_result else ''
+        # If we got a successful direct S3 upload, use that key instead
+        if not storage_result.get('s3_key') and s3_key:
+            logger.info(f"Using directly uploaded S3 key: {s3_key} instead of storage result key")
+            if storage_result:
+                storage_result['s3_key'] = s3_key
+        else:
+            s3_key = storage_result.get('s3_key', '') if storage_result else ''
+            
         logger.info(f"Before Gemini processing - Image saved with path: {image_path} and S3 key: {s3_key}")
         
         # Process with Gemini Vision API AFTER saving the image
