@@ -257,17 +257,13 @@ class Receipt(db.Model):
 
     def to_dict(self):
         """Convert the receipt to a dictionary."""
-        # Generate image URL from the image_path
-        image_url = None
-        if self.image_path:
-            # Handle both formats: with or without 'static/' prefix
-            clean_path = self.image_path.replace('static/', '')
-            # Ensure path doesn't start with slash to avoid double slashes
-            clean_path = clean_path.lstrip('/')
-            # Create the full static URL
-            image_url = f"/static/{clean_path}"
-            
-        # Use S3 URL if s3_key is available
+        # Import here to avoid circular imports
+        from utils import get_receipt_image_url
+        
+        # Use the standardized helper function to get the image URL
+        image_url = get_receipt_image_url(self, prefer_s3=True)
+        
+        # For backward compatibility, still include s3_url separately
         s3_url = self.s3_url if self.s3_key else None
             
         return {

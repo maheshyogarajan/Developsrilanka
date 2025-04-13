@@ -99,11 +99,9 @@ def view_unified_receipt(receipt_id):
             client = Client.query.get(company_expense.client_id)
             company_expense.client_name = client.name if client else "Unknown Client"
     
-    # Ensure image URL is available
-    if receipt.s3_key and hasattr(receipt, 's3_url') and receipt.s3_url:
-        receipt.image_url = receipt.s3_url
-    elif receipt.image_path:
-        receipt.image_url = f"/static/{receipt.image_path}"
+    # Use standardized helper to get the image URL
+    from utils import get_receipt_image_url
+    receipt.image_url = get_receipt_image_url(receipt)
     
     # Get receipt items with tax deductible status
     receipt_items = ReceiptItem.query.filter_by(receipt_id=receipt_id).all()
@@ -347,11 +345,9 @@ def history():
         if receipt.organization_id:
             receipt.organization = Organization.query.get(receipt.organization_id)
         
-        # Ensure image URL is available
-        if receipt.s3_key and hasattr(receipt, 's3_url') and receipt.s3_url:
-            receipt.image_url = receipt.s3_url
-        elif receipt.image_path:
-            receipt.image_url = f"/static/{receipt.image_path}"
+        # Use standardized helper to get the image URL
+        from utils import get_receipt_image_url
+        receipt.image_url = get_receipt_image_url(receipt)
         
         enhanced_receipts.append(receipt)
     
