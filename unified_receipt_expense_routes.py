@@ -48,6 +48,10 @@ def view_unified_receipt(receipt_id):
                 abort(403)  # Forbidden access
         else:
             abort(403)  # Forbidden access
+            
+    # Get image URL using the standardized helper function
+    from utils import get_receipt_image_url
+    receipt.image_url = get_receipt_image_url(receipt, prefer_s3=True)
     
     # Get user's organizations for the form dropdowns
     user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()

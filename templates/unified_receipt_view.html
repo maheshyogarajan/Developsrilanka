@@ -207,6 +207,138 @@
         </div>
     </div>
 
+    <!-- Receipt Details Card -->
+    <div class="row mt-4">
+        <div class="col-md-8" id="receiptDetailsCard">
+            <div class="card receipt-details-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Receipt Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Vendor Information</h5>
+                            <p><strong>Vendor:</strong> {{ receipt.vendor_name }}</p>
+                            {% if receipt.vendor_address %}
+                            <p><strong>Address:</strong> {{ receipt.vendor_address }}</p>
+                            {% endif %}
+                            {% if receipt.vendor_contact %}
+                            <p><strong>Contact:</strong> {{ receipt.vendor_contact }}</p>
+                            {% endif %}
+                            {% if receipt.vat_registration_number %}
+                            <p><strong>VAT Reg #:</strong> {{ receipt.vat_registration_number }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Receipt Information</h5>
+                            <p><strong>Date:</strong> {{ receipt.date.strftime('%B %d, %Y') if receipt.date else 'Not specified' }}</p>
+                            <p><strong>Total Amount:</strong> {{ receipt.total_amount|currency }}</p>
+                            {% if receipt.service_charge > 0 %}
+                            <p><strong>Service Charge:</strong> {{ receipt.service_charge|currency }}</p>
+                            {% endif %}
+                            {% if receipt.vat_tax > 0 %}
+                            <p><strong>VAT:</strong> {{ receipt.vat_tax|currency }}</p>
+                            {% endif %}
+                            {% if receipt.sscl_tax > 0 %}
+                            <p><strong>SSCL Tax:</strong> {{ receipt.sscl_tax|currency }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h5>Category Information</h5>
+                            <p>
+                                <strong>Major Category:</strong> {{ receipt.expense_major_category or 'Uncategorized' }}
+                                {% if receipt.expense_minor_category %}
+                                <br><strong>Minor Category:</strong> {{ receipt.expense_minor_category }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Receipt Items -->
+            <div class="card mt-3" id="viewItemsTable">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> Receipt Items</h5>
+                    <button id="toggleEditItems" class="btn btn-sm btn-light">
+                        <i class="fas fa-edit"></i> Edit Items
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                    <th>Tax Deductible</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>{{ item.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>{{ item.price|currency }}</td>
+                                    <td>{{ (item.price * item.quantity)|currency }}</td>
+                                    <td>
+                                        {% if item.tax_deductible %}
+                                        <span class="tax-deductible"><i class="fas fa-check"></i> Yes</span>
+                                        {% else %}
+                                        <span class="not-tax-deductible"><i class="fas fa-times"></i> No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No items found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="3" class="text-end">Total Amount:</th>
+                                    <th>{{ receipt.total_amount|currency }}</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Receipt Image -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-image"></i> Receipt Image</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if receipt.image_url %}
+                        <a href="{{ receipt.image_url }}" target="_blank" title="View full-size image">
+                            <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image img-fluid">
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> No receipt image available
+                        </div>
+                        <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                             alt="No receipt image" class="receipt-image img-fluid opacity-50">
+                    {% endif %}
+                    <div class="mt-2">
+                        <small class="text-muted">Click image to view full size</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Receipt Classification Form (Initially Hidden) -->
     <div id="classificationForm" class="receipt-classification-form">
         <div class="card">
