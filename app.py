@@ -816,8 +816,28 @@ def preview_update_data():
             response.headers.set('Content-Type', 'application/json')
             return response, 400
             
+        # Get current session data to preserve image paths
+        current_session_data = session.get('receipt_data', {})
+        
+        # Preserve image paths from original session data
+        original_image_path = current_session_data.get('image_path', '')
+        original_s3_key = current_session_data.get('s3_key', '')
+        
+        # Log the paths we're preserving
+        logging.info(f"Preserving image paths in preview_update_data - image_path: '{original_image_path}', s3_key: '{original_s3_key}'")
+        
+        # Make sure updated_data includes these paths
+        if 'image_path' not in updated_data or not updated_data['image_path']:
+            updated_data['image_path'] = original_image_path
+        
+        if 's3_key' not in updated_data or not updated_data['s3_key']:
+            updated_data['s3_key'] = original_s3_key
+        
         # Update the session data with corrected values
         session['receipt_data'] = updated_data
+        
+        # Log the final data for debugging
+        logging.info(f"Final preview updated data - image_path: '{updated_data.get('image_path')}', s3_key: '{updated_data.get('s3_key')}'")
         
         response = jsonify({'success': True, 'data': updated_data})
         response.headers.set('Content-Type', 'application/json')
