@@ -698,15 +698,22 @@ def scan_receipt():
             
             try:
                 img.save(local_path)
-                # Store the path relative to static folder
-                extracted_data['image_path'] = os.path.join('uploads', unique_filename)
-                logging.info(f"Image saved locally to {local_path}")
+                # Store the path relative to static folder as a string
+                image_path_value = os.path.join('uploads', unique_filename)
+                extracted_data['image_path'] = image_path_value
+                logging.info(f"Image saved locally to {local_path} with relative path {image_path_value}")
                 
                 # Set s3_key to empty string for compatibility with existing code
                 extracted_data['s3_key'] = ''
+                
+                # Verify the path was set correctly in the extracted_data
+                logging.info(f"Verification - extracted_data['image_path'] = {extracted_data.get('image_path')}")
             except Exception as save_error:
                 logging.error(f"Error saving image locally: {str(save_error)}")
-                # If we can't save the image, log the error but continue
+                # If we can't save the image, set default values instead of leaving None
+                extracted_data['image_path'] = ''
+                extracted_data['s3_key'] = ''
+                logging.info("Set empty strings for image_path and s3_key due to save error")
             
             # Store the extracted data in session for potential correction
             session['receipt_data'] = extracted_data

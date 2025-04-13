@@ -140,9 +140,24 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         
         # Add the image path and S3 key to the extracted data
         if storage_result:
-            extracted_data['image_path'] = storage_result.get('image_path')
-            extracted_data['s3_key'] = storage_result.get('s3_key', '')
-            logger.info(f"Added storage information to extracted data: path={storage_result.get('image_path')}, s3_key={storage_result.get('s3_key', '')}")
+            # Get the values with proper defaults
+            image_path_value = storage_result.get('image_path', '')
+            s3_key_value = storage_result.get('s3_key', '')
+            
+            # Set explicit values in the extracted data
+            extracted_data['image_path'] = image_path_value
+            extracted_data['s3_key'] = s3_key_value
+            
+            # Log for debugging
+            logger.info(f"Added storage information to extracted data: path='{image_path_value}', s3_key='{s3_key_value}'")
+            
+            # Verify the data was set correctly
+            logger.info(f"Verification - extracted_data now has: image_path='{extracted_data.get('image_path')}', s3_key='{extracted_data.get('s3_key')}'")
+        else:
+            # Set default values if storage_result is empty
+            extracted_data['image_path'] = ''
+            extracted_data['s3_key'] = ''
+            logger.info("No storage result available, set empty strings for image_path and s3_key")
         
         # Add organization ID to the extracted data
         if organization_id:
