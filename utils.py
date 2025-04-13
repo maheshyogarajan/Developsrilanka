@@ -79,6 +79,6 @@ def get_receipt_image_url(receipt, prefer_s3=True):
             logging.debug(f"Falling back to S3 URL for receipt {receipt.id}: {s3_url}")
             return s3_url
     
-    # No valid image URL found
+    # No valid image URL found, return a placeholder image URL
     logging.warning(f"No valid image URL found for receipt {receipt.id}")
-    return None
+    return "/static/img/receipt-placeholder.svg"

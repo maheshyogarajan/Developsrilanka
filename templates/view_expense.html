@@ -262,25 +262,14 @@
                     <h5 class="card-title mb-0">Receipt Image</h5>
                 </div>
                 <div class="card-body text-center">
-                    {% if expense.image_url %}
                     <img src="{{ expense.image_url }}" 
-                         class="img-fluid mb-3" alt="Receipt image"
-                         onerror="this.onerror=null; this.src='/static/img/receipt-placeholder.svg'; document.getElementById('receipt-error-message').style.display='block';">
+                         class="img-fluid mb-3" alt="Receipt image">
                     <div class="d-grid">
                         <a href="{{ expense.image_url }}" 
                            class="btn btn-outline-primary" target="_blank">
                             <i class="fas fa-search-plus me-2"></i>View Full Size
                         </a>
                     </div>
-                    <div id="receipt-error-message" style="display:none;" class="alert alert-warning mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i> The receipt image could not be loaded. It may be unavailable or in an unsupported format.
-                    </div>
-                    {% else %}
-                    <div class="text-muted my-5">
-                        <i class="fas fa-receipt fa-4x mb-3"></i>
-                        <p>No receipt image available</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
