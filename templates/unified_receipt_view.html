@@ -10,10 +10,52 @@
         align-items: flex-start;
         margin-bottom: 1.5rem;
     }
+    .receipt-frame {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        height: 320px;
+        width: 100%;
+        margin-bottom: 15px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .receipt-frame:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
     .receipt-image {
+        height: 300px;
         max-width: 100%;
+        width: auto;
+        object-fit: contain;
         border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .receipt-image:hover {
+        transform: scale(1.02);
+    }
+    
+    .no-image-placeholder {
+        opacity: 0.6;
+        max-width: 100px;
+        margin: 20px auto;
+    }
+    
+    .receipt-frame .placeholder-text {
+        display: block;
+        text-align: center;
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-top: 10px;
     }
     .tax-deductible {
         color: #28a745;

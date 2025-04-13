@@ -1002,7 +1002,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="receipt-frame">
                                         ${receipt.image_url ? 
                                             `<a href="${receipt.image_url}" target="_blank" title="View full-size image">
-                                                <img src="${receipt.image_url}" alt="Receipt" class="receipt-image img-fluid">
+                                                <img src="${receipt.image_url}" alt="Receipt" class="receipt-image" 
+                                                     onerror="this.onerror=null; this.src='/static/img/receipt-placeholder.svg'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                                             </a>`
                                         :
                                             `<div class="text-center">
