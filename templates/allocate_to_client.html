@@ -32,20 +32,20 @@
                         <!-- Use S3 URL if available -->
                         <a href="{{ receipt.s3_url }}" target="_blank" title="View full-size image">
                             <img src="{{ receipt.s3_url }}" 
-                                alt="Receipt Image" class="receipt-image img-fluid"
-                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                alt="Receipt Image" class="receipt-image"
+                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                         </a>
                         {% elif receipt.image_url %}
                         <a href="{{ receipt.image_url }}" target="_blank" title="View full-size image">
                             <img src="{{ receipt.image_url }}" 
-                                alt="Receipt Image" class="receipt-image img-fluid"
-                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                alt="Receipt Image" class="receipt-image"
+                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                         </a>
                         {% elif receipt.image_path %}
                         <a href="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" target="_blank" title="View full-size image">
                             <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
-                                alt="Receipt Image" class="receipt-image img-fluid"
-                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                alt="Receipt Image" class="receipt-image"
+                                onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                         </a>
                         {% else %}
                         <div class="text-center">

@@ -138,8 +138,10 @@
                             {% if receipt.image_url %}
                             <a href="{{ receipt.image_url }}" target="_blank">
                                 <img src="{{ receipt.image_url }}" 
-                                     class="receipt-image img-fluid" 
-                                     alt="Receipt Image">
+                                     class="receipt-image" 
+                                     alt="Receipt Image"
+                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
+                                >
                             </a>
                             {% else %}
                             <div class="text-center">
