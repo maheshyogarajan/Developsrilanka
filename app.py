@@ -861,13 +861,16 @@ def save_receipt():
         s3_key = receipt_data.get('s3_key', '')
         image_path = receipt_data.get('image_path')
         
+        # Handle case where image_path is the string 'None' instead of actual path or None
+        if image_path == 'None':
+            image_path = None
+        
         # Log what we're working with
         logging.info(f"Receipt data has s3_key: '{s3_key}' and image_path: '{image_path}'")
         
         # Validate image path exists if provided
-        if receipt_data.get('image_path'):
+        if image_path and image_path != 'None':
             try:
-                image_path = receipt_data.get('image_path')
                 if image_path.startswith('uploads/'):
                     # Ensure correct path format
                     full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', image_path)
@@ -878,9 +881,14 @@ def save_receipt():
                 
                 if not os.path.exists(full_path):
                     logging.warning(f"Image file not found at {full_path}")
+                    
+                    # If the file doesn't exist, set image_path to None
+                    logging.info("Setting image_path to None because the file doesn't exist")
+                    image_path = None
             except Exception as error:
                 logging.error(f"Error validating image path: {str(error)}")
-                # Continue with the path we have
+                # Set image_path to None if there's an error
+                image_path = None
         
         # Create a new receipt and associate it with the current user
         new_receipt = Receipt(
