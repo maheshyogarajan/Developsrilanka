@@ -626,6 +626,11 @@ def scan_receipt():
             default_org = current_user.get_default_organization()
             if default_org:
                 organization_id = default_org.id
+                logging.info(f"Using organization_id={organization_id} for S3 storage path from organization {default_org.name}")
+            else:
+                logging.warning("User has no default organization")
+        else:
+            logging.warning("User has no get_default_organization method")
         
         # Decide if we should use async processing or direct processing
         # We'll use async processing if the ENABLE_ASYNC_PROCESSING env var is set
@@ -947,6 +952,9 @@ def save_receipt():
                 logging.error(f"Error validating image path: {str(error)}")
                 # Set image_path to None if there's an error
                 image_path = None
+        
+        # Log detailed information about the receipt being created
+        logging.info(f"Creating new receipt with s3_key='{s3_key}' and image_path='{image_path}'")
         
         # Create a new receipt and associate it with the current user
         new_receipt = Receipt(
