@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app import db
 from models import ClientExpense, Receipt, Client, Organization
 from decorators import role_required
+from utils import get_receipt_image_url
 
 client_expense_bp = Blueprint('client_expense', __name__)
 
@@ -84,10 +85,8 @@ def allocate_to_client(receipt_id):
             return redirect(url_for('view_receipt', receipt_id=receipt_id))
     
     # GET request - render form
-    # Get image URL from S3 if available
-    receipt_dict = receipt.to_dict()
-    if 'image_url' in receipt_dict:
-        receipt.image_url = receipt_dict['image_url']
+    # Use standardized helper to get the image URL
+    receipt.image_url = get_receipt_image_url(receipt)
         
     return render_template('allocate_to_client.html', receipt=receipt, clients=clients)
 
@@ -186,14 +185,8 @@ def view_client_expense(expense_id):
     receipt = Receipt.query.get_or_404(expense.receipt_id)
     client = Client.query.get_or_404(expense.client_id)
     
-    # Get image URL from S3 if available, this leverages Receipt model's s3_url property
-    receipt_dict = receipt.to_dict()
-    
-    # Use s3_url if available, otherwise fall back to image_url or image_path
-    if receipt.s3_key and receipt.s3_url:
-        receipt.image_url = receipt.s3_url
-    elif 'image_url' in receipt_dict:
-        receipt.image_url = receipt_dict['image_url']
+    # Use standardized helper to get the image URL
+    receipt.image_url = get_receipt_image_url(receipt)
     
     return render_template('view_client_expense.html', 
                            expense=expense,
@@ -259,14 +252,8 @@ def edit_client_expense(expense_id):
     # GET request - render form
     receipt = Receipt.query.get_or_404(expense.receipt_id)
     
-    # Get image URL from S3 if available, this leverages Receipt model's s3_url property
-    receipt_dict = receipt.to_dict()
-    
-    # Use s3_url if available, otherwise fall back to image_url or image_path
-    if receipt.s3_key and receipt.s3_url:
-        receipt.image_url = receipt.s3_url
-    elif 'image_url' in receipt_dict:
-        receipt.image_url = receipt_dict['image_url']
+    # Use standardized helper to get the image URL
+    receipt.image_url = get_receipt_image_url(receipt)
     
     return render_template('edit_client_expense.html', 
                            expense=expense, 
