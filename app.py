@@ -601,6 +601,7 @@ def scan_receipt():
         
         # Read and process the image
         img_bytes = receipt_file.read()
+        receipt_file.seek(0)  # Reset file pointer for later use
         
         # Ensure the image is in a format Gemini can process
         try:
@@ -614,6 +615,9 @@ def scan_receipt():
                 img.save(img_byte_arr, format='JPEG', quality=85)
                 img_byte_arr.seek(0)
                 img = Image.open(img_byte_arr)
+                
+            # Make a copy of the image for immediate S3 upload
+            img_for_s3 = img.copy()
         except Exception as img_error:
             logging.error(f"Error processing image: {str(img_error)}")
             response = jsonify({'error': f'Unable to process image format. Please try with a JPEG or PNG image. Details: {str(img_error)}'})
@@ -631,6 +635,22 @@ def scan_receipt():
                 logging.warning("User has no default organization")
         else:
             logging.warning("User has no get_default_organization method")
+            
+        # IMMEDIATE S3 UPLOAD: Upload the image to S3 FIRST, before any processing
+        # This ensures we don't lose the image even if processing fails
+        try:
+            from s3_direct_upload import upload_receipt_to_s3
+            direct_s3_key = upload_receipt_to_s3(img_for_s3, organization_id)
+            if direct_s3_key:
+                logging.info(f"✅ IMMEDIATE S3 UPLOAD SUCCESSFUL: {direct_s3_key}")
+                # Store in session for database update later
+                session['receipt_s3_key'] = direct_s3_key
+            else:
+                logging.error("❌ IMMEDIATE S3 UPLOAD FAILED, but continuing with processing")
+        except Exception as s3_error:
+            logging.error(f"❌ ERROR DURING IMMEDIATE S3 UPLOAD: {str(s3_error)}")
+            logging.error(traceback.format_exc())
+            # Continue with processing even if S3 upload fails
         
         # Decide if we should use async processing or direct processing
         # We'll use async processing if the ENABLE_ASYNC_PROCESSING env var is set
