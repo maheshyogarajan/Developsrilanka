@@ -132,7 +132,15 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Receipt & Expense History</h1>
-        <div>
+        <div class="d-flex align-items-center">
+            <div class="view-controls btn-group me-3">
+                <button type="button" id="grid-view-btn" class="btn btn-outline-primary" title="Grid View">
+                    <i class="fas fa-th-large"></i> Grid
+                </button>
+                <button type="button" id="list-view-btn" class="btn btn-outline-primary active" title="List View">
+                    <i class="fas fa-list"></i> List
+                </button>
+            </div>
             <a href="{{ url_for('unified_view.export_excel') }}" class="btn btn-outline-success">
                 <i class="fas fa-file-excel"></i> Export to Excel
             </a>
@@ -249,7 +257,8 @@
     
     <!-- Results Display -->
     {% if items %}
-        <div class="row">
+        <!-- Grid View -->
+        <div id="grid-view" class="row">
             {% for item in items %}
                 <div class="col-md-4">
                     <div class="card item-card">
@@ -381,6 +390,88 @@
                     </div>
                 </div>
             {% endfor %}
+        </div>
+
+        <!-- List View -->
+        <div id="list-view" class="d-none">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Details</th>
+                            <th>Amount</th>
+                            <th>Organization</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            <tr>
+                                {% if item.type == 'receipt' %}
+                                    <td>{{ item.receipt.date.strftime('%b %d, %Y') if item.receipt.date else 'N/A' }}</td>
+                                    <td><span class="badge bg-info">Receipt</span></td>
+                                    <td>
+                                        <strong>{{ item.receipt.vendor_name }}</strong>
+                                        {% if item.receipt.expense_major_category %}
+                                            <br>
+                                            <span class="badge bg-light text-dark">{{ item.receipt.expense_major_category }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.receipt.currency }} {{ item.receipt.total_amount|round(2) }}</td>
+                                    <td>
+                                        {% if item.receipt.organization %}
+                                            {{ item.receipt.organization.name }}
+                                        {% else %}
+                                            Personal
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('unified_view.view_unified_receipt', receipt_id=item.receipt.id) }}" class="btn btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                {% else %}
+                                    <td>{{ item.expense.date.strftime('%b %d, %Y') if item.expense.date else 'N/A' }}</td>
+                                    <td><span class="badge bg-success">Expense</span></td>
+                                    <td>
+                                        <strong>{{ item.expense.description }}</strong>
+                                        {% if item.expense.status %}
+                                            <br>
+                                            <span class="status-badge 
+                                                {% if item.expense.status == 'submitted' %}status-submitted
+                                                {% elif item.expense.status == 'approved' %}status-approved
+                                                {% elif item.expense.status == 'reimbursed' %}status-reimbursed
+                                                {% elif item.expense.status == 'rejected' %}status-rejected
+                                                {% elif item.expense.status == 'cancelled' %}status-cancelled{% endif %}">
+                                                {{ item.expense.status|title }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.expense.amount|currencyformat(item.expense.currency) }}</td>
+                                    <td>
+                                        {% if item.expense.organization %}
+                                            {{ item.expense.organization.name }}
+                                        {% else %}
+                                            Personal
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('expense.view_expense', expense_id=item.expense.id) }}" class="btn btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <!-- Pagination -->
