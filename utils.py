@@ -65,17 +65,29 @@ def get_receipt_image_url(receipt, prefer_s3=True):
         s3_key = None
     
     # Add enhanced debug logging
-    logging.debug(f"Getting image URL for receipt {receipt_id}: s3_key='{s3_key}', image_path='{image_path}'")
+    logging.info(f"Getting image URL for receipt {receipt_id}: s3_key='{s3_key}', image_path='{image_path}'")
     
     # Approach 1: Use S3 URL if available and preferred
     if prefer_s3 and s3_key and hasattr(receipt, 's3_url'):
         try:
+            logging.info(f"Trying to get S3 URL for receipt {receipt_id} with key '{s3_key}'")
             s3_url = receipt.s3_url
             if s3_url and s3_url != '' and s3_url != 'None':
-                logging.debug(f"Using S3 URL for receipt {receipt_id}: {s3_url}")
+                logging.info(f"Successfully generated S3 URL for receipt {receipt_id}: {s3_url}")
                 return s3_url
+            else:
+                logging.warning(f"Generated empty S3 URL for receipt {receipt_id} with key '{s3_key}'")
         except Exception as s3_error:
             logging.error(f"Error getting S3 URL for receipt {receipt_id}: {str(s3_error)}")
+            import traceback
+            logging.error(traceback.format_exc())
+    else:
+        if not prefer_s3:
+            logging.info(f"Skipping S3 URL for receipt {receipt_id} because prefer_s3=False")
+        elif not s3_key:
+            logging.info(f"No S3 key available for receipt {receipt_id}")
+        elif not hasattr(receipt, 's3_url'):
+            logging.warning(f"Receipt {receipt_id} has no s3_url property")
     
     # Approach 2: Use local image path if available
     if image_path:
@@ -89,15 +101,19 @@ def get_receipt_image_url(receipt, prefer_s3=True):
             import os
             full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', clean_path)
             
+            logging.info(f"Checking local image path for receipt {receipt_id}: {full_path}")
+            
             if os.path.exists(full_path) and os.path.isfile(full_path):
                 # Create the full static URL
                 image_url = f"/static/{clean_path}"
-                logging.debug(f"Using local image path for receipt {receipt_id}: {image_url}")
+                logging.info(f"Using local image path for receipt {receipt_id}: {image_url}")
                 return image_url
             else:
                 logging.warning(f"File not found for receipt {receipt_id}: {full_path}")
         except Exception as e:
             logging.error(f"Error formatting image path '{image_path}' for receipt {receipt_id}: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
     
     # Approach 3: Fall back to S3 URL if not already tried and available
     if not prefer_s3 and s3_key and hasattr(receipt, 's3_url'):
