@@ -50,35 +50,48 @@ def get_receipt_image_url(receipt, prefer_s3=True):
         str: URL to display the receipt image
     """
     image_url = None
+    receipt_id = getattr(receipt, 'id', 'unknown')
     
-    # Add debug logging
-    logging.debug(f"Getting image URL for receipt {receipt.id}: s3_key={receipt.s3_key}, image_path={receipt.image_path}")
+    # Get path and S3 key with additional validation
+    s3_key = getattr(receipt, 's3_key', None)
+    image_path = getattr(receipt, 'image_path', None)
+    
+    # Handle special case where image_path is literally 'None' or empty
+    if image_path == 'None' or image_path == '':
+        image_path = None
+    
+    # Add enhanced debug logging
+    logging.debug(f"Getting image URL for receipt {receipt_id}: s3_key='{s3_key}', image_path='{image_path}'")
     
     # Approach 1: Use S3 URL if available and preferred
-    if prefer_s3 and receipt.s3_key and hasattr(receipt, 's3_url'):
+    if prefer_s3 and s3_key and s3_key != '' and hasattr(receipt, 's3_url'):
         s3_url = receipt.s3_url
-        if s3_url:
-            logging.debug(f"Using S3 URL for receipt {receipt.id}: {s3_url}")
+        if s3_url and s3_url != '':
+            logging.debug(f"Using S3 URL for receipt {receipt_id}: {s3_url}")
             return s3_url
     
     # Approach 2: Use local image path if available
-    if receipt.image_path:
-        # Handle both formats: with or without 'static/' prefix
-        clean_path = receipt.image_path.replace('static/', '')
-        # Ensure path doesn't start with slash to avoid double slashes
-        clean_path = clean_path.lstrip('/')
-        # Create the full static URL
-        image_url = f"/static/{clean_path}"
-        logging.debug(f"Using local image path for receipt {receipt.id}: {image_url}")
-        return image_url
+    if image_path and image_path != 'None' and image_path != '':
+        try:
+            # Handle both formats: with or without 'static/' prefix
+            clean_path = str(image_path).replace('static/', '')
+            # Ensure path doesn't start with slash to avoid double slashes
+            clean_path = clean_path.lstrip('/')
+            # Create the full static URL
+            image_url = f"/static/{clean_path}"
+            logging.debug(f"Using local image path for receipt {receipt_id}: {image_url}")
+            return image_url
+        except Exception as e:
+            logging.error(f"Error formatting image path '{image_path}': {str(e)}")
+            # Fall through to next approach
     
     # Approach 3: Fall back to S3 URL if not already tried and available
-    if not prefer_s3 and receipt.s3_key and hasattr(receipt, 's3_url'):
+    if not prefer_s3 and s3_key and s3_key != '' and hasattr(receipt, 's3_url'):
         s3_url = receipt.s3_url
-        if s3_url:
-            logging.debug(f"Falling back to S3 URL for receipt {receipt.id}: {s3_url}")
+        if s3_url and s3_url != '':
+            logging.debug(f"Falling back to S3 URL for receipt {receipt_id}: {s3_url}")
             return s3_url
     
     # No valid image URL found, return a placeholder image URL
-    logging.warning(f"No valid image URL found for receipt {receipt.id}")
+    logging.warning(f"No valid image URL found for receipt {receipt_id}, using placeholder")
     return "/static/img/receipt-placeholder.svg"
