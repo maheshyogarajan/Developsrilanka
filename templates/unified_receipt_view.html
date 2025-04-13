@@ -320,20 +320,24 @@
                     <h5 class="mb-0"><i class="fas fa-image"></i> Receipt Image</h5>
                 </div>
                 <div class="card-body text-center">
+                    <div class="receipt-frame">
+                        {% if receipt.image_url %}
+                            <a href="{{ receipt.image_url }}" target="_blank" title="View full-size image">
+                                <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image img-fluid">
+                            </a>
+                        {% else %}
+                            <div class="text-center">
+                                <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                                     alt="No receipt image" class="no-image-placeholder">
+                                <span class="placeholder-text">No receipt image available</span>
+                            </div>
+                        {% endif %}
+                    </div>
                     {% if receipt.image_url %}
-                        <a href="{{ receipt.image_url }}" target="_blank" title="View full-size image">
-                            <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image img-fluid">
-                        </a>
-                    {% else %}
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i> No receipt image available
-                        </div>
-                        <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
-                             alt="No receipt image" class="receipt-image img-fluid opacity-50">
-                    {% endif %}
                     <div class="mt-2">
                         <small class="text-muted">Click image to view full size</small>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

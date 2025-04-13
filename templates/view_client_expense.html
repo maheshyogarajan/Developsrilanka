@@ -132,14 +132,28 @@
                         </table>
                     </div>
                     
-                    <div class="text-center mt-4">
-                        <h6>Receipt Image</h6>
-                        <!-- Using standardized image URL -->
-                        <a href="{{ receipt.image_url }}" target="_blank">
-                            <img src="{{ receipt.image_url }}" 
-                                 class="receipt-image img-fluid" 
-                                 alt="Receipt Image">
-                        </a>
+                    <div class="mt-4">
+                        <h6 class="text-center">Receipt Image</h6>
+                        <div class="receipt-frame">
+                            {% if receipt.image_url %}
+                            <a href="{{ receipt.image_url }}" target="_blank">
+                                <img src="{{ receipt.image_url }}" 
+                                     class="receipt-image img-fluid" 
+                                     alt="Receipt Image">
+                            </a>
+                            {% else %}
+                            <div class="text-center">
+                                <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                                     alt="No Receipt" class="no-image-placeholder">
+                                <span class="placeholder-text">No receipt image available</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if receipt.image_url %}
+                        <div class="text-center mt-2">
+                            <small class="text-muted">Click image to view full size</small>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="card-footer bg-light">

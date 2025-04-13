@@ -999,18 +999,23 @@ document.addEventListener('DOMContentLoaded', function() {
                             <!-- Receipt Image -->
                             <div class="card mb-3">
                                 <div class="card-body text-center p-2">
+                                    <div class="receipt-frame">
+                                        ${receipt.image_url ? 
+                                            `<a href="${receipt.image_url}" target="_blank" title="View full-size image">
+                                                <img src="${receipt.image_url}" alt="Receipt" class="receipt-image img-fluid">
+                                            </a>`
+                                        :
+                                            `<div class="text-center">
+                                                <img src="/static/img/receipt-placeholder.svg" alt="No Receipt" class="no-image-placeholder">
+                                                <span class="placeholder-text">No image available</span>
+                                            </div>`
+                                        }
+                                    </div>
                                     ${receipt.image_url ? 
-                                        `<a href="${receipt.image_url}" target="_blank" title="View full-size image">
-                                            <img src="${receipt.image_url}" alt="Receipt" class="receipt-image img-fluid">
-                                        </a>
-                                        <div class="mt-1">
-                                            <small class="text-muted">Click to view full size</small>
-                                        </div>`
-                                    :
-                                        `<div class="alert alert-warning py-2">
-                                            <i class="fas fa-exclamation-triangle"></i> No image available
-                                        </div>`
-                                    }
+                                        `<div class="text-center">
+                                            <small class="text-muted">Click image to view full size</small>
+                                        </div>` 
+                                    : ''}
                                 </div>
                             </div>
                         </div>
