@@ -110,14 +110,14 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         
         logger.info(f"S3 should be enabled based on env vars: {s3_enabled}")
         
-        # Reinitialize S3 handler if needed
-        if USE_S3_STORAGE and s3_handler is None:
-            logger.info("Initializing S3 handler since it was None but USE_S3_STORAGE is True")
+        # Always reinitialize S3 handler to ensure a fresh connection
+        if s3_enabled:
+            logger.info("S3 environment variables are set - initializing fresh S3 handler")
             try:
                 s3_handler = s3_storage.S3Storage()
-                logger.info(f"Successfully reinitialized S3 handler: {s3_handler is not None}")
+                logger.info(f"Successfully initialized S3 handler: {s3_handler is not None}")
             except Exception as init_error:
-                logger.error(f"Error reinitializing S3 handler: {str(init_error)}")
+                logger.error(f"Error initializing S3 handler: {str(init_error)}")
                 logger.error(traceback.format_exc())
         
         # Ensure we're working with a PIL Image
@@ -142,17 +142,29 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         }
         
         # If S3 storage is enabled and the handler is available, use it
-        if USE_S3_STORAGE and s3_handler:
+        if s3_enabled and s3_handler:
             logger.info(f"Using S3 storage for image: {filename}")
             try:
                 # Add detailed debugging to diagnose S3 upload
                 logger.info(f"S3 handler type: {type(s3_handler)}")
                 logger.info(f"Bucket name: {s3_handler.bucket_name if hasattr(s3_handler, 'bucket_name') else 'None'}")
                 
-                # Upload to S3
-                s3_key = s3_handler.upload_image(image_data, organization_id)
+                # Create a deep copy of the image to avoid potential closed file issues
+                img_copy = image_data.copy()
+                logger.info(f"Created image copy with size: {img_copy.size}")
+                
+                # Upload to S3, using direct upload from s3_storage module if we have issues
+                try:
+                    s3_key = s3_handler.upload_image(img_copy, organization_id)
+                    logger.info(f"Image uploaded to S3 with key: {s3_key}")
+                except Exception as handler_error:
+                    # If the class-based upload failed, try the direct function
+                    logger.warning(f"S3 handler upload failed: {str(handler_error)}, trying direct upload function")
+                    img_copy = image_data.copy()  # Create a fresh copy
+                    s3_key = s3_storage.upload_image_to_s3(img_copy, organization_id)
+                    logger.info(f"Direct S3 upload successful with key: {s3_key}")
+                
                 result['s3_key'] = s3_key
-                logger.info(f"Image uploaded to S3 with key: {s3_key}")
                 
                 # Still save locally as a backup and for immediate display
                 file_path = os.path.join(UPLOAD_FOLDER, unique_filename)

@@ -5,6 +5,7 @@ This script will test S3 connection and upload a test image directly.
 
 import os
 import logging
+import sys
 import traceback
 import boto3
 from botocore.exceptions import ClientError
@@ -15,7 +16,8 @@ import time
 from datetime import datetime
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO, stream=sys.stdout, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def verify_aws_configuration():
