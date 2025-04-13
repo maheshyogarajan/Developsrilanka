@@ -995,6 +995,24 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="badge bg-primary p-2">${receipt.expense_major_category || 'Uncategorized'}</span>
                                 <span class="badge bg-light text-dark p-2">${receipt.expense_minor_category || 'Uncategorized'}</span>
                             </div>
+                            
+                            <!-- Receipt Image -->
+                            <div class="card mb-3">
+                                <div class="card-body text-center p-2">
+                                    ${receipt.image_url ? 
+                                        `<a href="${receipt.image_url}" target="_blank" title="View full-size image">
+                                            <img src="${receipt.image_url}" alt="Receipt" class="img-fluid" style="max-height: 200px; border-radius: 6px;">
+                                        </a>
+                                        <div class="mt-1">
+                                            <small class="text-muted">Click to view full size</small>
+                                        </div>`
+                                    :
+                                        `<div class="alert alert-warning py-2">
+                                            <i class="fas fa-exclamation-triangle"></i> No image available
+                                        </div>`
+                                    }
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <div class="card bg-light h-100">
