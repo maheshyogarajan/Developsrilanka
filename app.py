@@ -683,37 +683,43 @@ def scan_receipt():
         else:
             # Synchronous (direct) processing for development or fallback
             logging.info("Using synchronous receipt processing")
-            extracted_data = process_receipt_with_gemini(img)
             
-            if not extracted_data:
-                return jsonify({'error': 'Failed to extract data from the receipt'}), 500
-                
-            # Save the image locally
+            # Save the image locally FIRST, before processing
             # Generate a unique filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             unique_filename = f"receipt_{timestamp}.jpg"
             upload_folder = os.path.join('static', 'uploads')
             os.makedirs(upload_folder, exist_ok=True)
             local_path = os.path.join(upload_folder, unique_filename)
+            image_path_value = None
+            s3_key_value = None
             
             try:
                 img.save(local_path)
                 # Store the path relative to static folder as a string
                 image_path_value = os.path.join('uploads', unique_filename)
-                extracted_data['image_path'] = image_path_value
                 logging.info(f"Image saved locally to {local_path} with relative path {image_path_value}")
                 
-                # Set s3_key to empty string for compatibility with existing code
-                extracted_data['s3_key'] = ''
-                
-                # Verify the path was set correctly in the extracted_data
-                logging.info(f"Verification - extracted_data['image_path'] = {extracted_data.get('image_path')}")
+                # Default s3_key to empty string for compatibility with existing code
+                s3_key_value = ''
             except Exception as save_error:
                 logging.error(f"Error saving image locally: {str(save_error)}")
-                # If we can't save the image, set default values instead of leaving None
-                extracted_data['image_path'] = ''
-                extracted_data['s3_key'] = ''
-                logging.info("Set empty strings for image_path and s3_key due to save error")
+                image_path_value = None
+                s3_key_value = None
+            
+            # Process receipt with Gemini AFTER saving the image
+            extracted_data = process_receipt_with_gemini(img)
+            
+            if not extracted_data:
+                return jsonify({'error': 'Failed to extract data from the receipt'}), 500
+                
+            # Now add the image paths to extracted data
+            extracted_data['image_path'] = image_path_value if image_path_value else ''
+            extracted_data['s3_key'] = s3_key_value if s3_key_value else ''
+            
+            # Double check the path values
+            logging.info(f"Final image_path in extracted_data: {extracted_data.get('image_path')}")
+            logging.info(f"Final s3_key in extracted_data: {extracted_data.get('s3_key')}")
             
             # Store the extracted data in session for potential correction
             session['receipt_data'] = extracted_data
@@ -757,8 +763,20 @@ def task_status(task_id):
                 result = task_result.get()
                 logging.info(f"Task {task_id} completed successfully with data")
                 
+                # Validate the image paths in the result before storing in session
+                # Check s3_key
+                s3_key = result.get('s3_key', '')
+                logging.debug(f"Received s3_key in task result: '{s3_key}'")
+                
+                # Check image_path
+                image_path = result.get('image_path', '')
+                logging.debug(f"Received image_path in task result: '{image_path}'")
+                
                 # Store the extracted data in session for potential correction
                 session['receipt_data'] = result
+                
+                # Extra verification
+                logging.debug(f"Receipt data for task {task_id}: s3_key={result.get('s3_key', 'None')}, image_path={result.get('image_path', 'None')}")
                 
                 return jsonify({
                     'status': 'completed',
