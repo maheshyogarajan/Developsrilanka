@@ -934,6 +934,13 @@ def save_receipt():
         
         receipt_data = session['receipt_data']
         
+        # Add additional debug logging
+        logging.debug(f"Receipt data keys: {receipt_data.keys() if receipt_data else 'None'}")
+        
+        # Extract vendor_name and total_amount early to avoid undefined variable errors
+        vendor_name = receipt_data.get('vendor_name', 'Unknown Vendor') 
+        total_amount = receipt_data.get('total_amount', 0)
+        
         # Parse date if it exists
         receipt_date = None
         if receipt_data.get('date'):

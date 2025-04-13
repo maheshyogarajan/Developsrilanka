@@ -77,6 +77,11 @@ def save_uploaded_image(image_data, filename, organization_id=None):
     """
     global s3_handler  # Declare global at the start of the function
     
+    # Enable more debug logging
+    logging.basicConfig(level=logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
+    logger.debug(f"Starting save_uploaded_image with filename={filename}, organization_id={organization_id}")
+    
     try:
         # Debug log all environment variables to check if S3 is properly configured
         logger.info("=== S3 Environment Variables Check ===")
