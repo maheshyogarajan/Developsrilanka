@@ -176,6 +176,7 @@ class User(UserMixin, db.Model):
     invoices = db.relationship('Invoice', backref='user', lazy=True)
     bank_accounts = db.relationship('BankAccount', backref='user', lazy=True)
     sent_invitations = db.relationship('OrganizationInvitation', foreign_keys='OrganizationInvitation.invited_by_user_id', backref='sender', lazy=True)
+    # This relationship is defined in onboarding_models.py with backref
     
     def is_admin(self):
         """Check if user has global admin role."""
