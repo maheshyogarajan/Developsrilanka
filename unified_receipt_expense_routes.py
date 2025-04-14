@@ -175,15 +175,40 @@ def history():
         tax_deductible = request.args.get('tax_deductible', '')
         sort_by = request.args.get('sort_by', 'date_desc')
         
-        # Initialize query
-        query = Receipt.query.filter(
-            or_(
-                Receipt.user_id == current_user.id,
-                and_(
-                    Receipt.organization_id.in_(user_org_ids)
+        # Initialize query using text() to handle schema variations
+        # This approach allows for more flexible column selection when schema might vary
+        try:
+            # Try to use the standard ORM approach first
+            query = Receipt.query.filter(
+                or_(
+                    Receipt.user_id == current_user.id,
+                    and_(
+                        Receipt.organization_id.in_(user_org_ids)
+                    )
                 )
             )
-        )
+        except Exception as orm_error:
+            logging.error(f"ORM query error, falling back to core SQL: {str(orm_error)}")
+            
+            # If that fails, fall back to a more explicit query using SQL text
+            base_query = """
+            SELECT receipt.* FROM receipt
+            WHERE receipt.user_id = :user_id
+            OR receipt.organization_id IN :org_ids
+            """
+            
+            # Create a text-based query with explicit params for safety
+            stmt = text(base_query)
+            params = {"user_id": current_user.id, "org_ids": tuple(user_org_ids) if user_org_ids else (-1,)}
+            
+            # Execute with core API
+            result_proxy = db.session.execute(stmt, params)
+            
+            # Convert to ORM objects manually
+            receipt_ids = [row.id for row in result_proxy]
+            
+            # Then use IDs to get ORM objects (safer)
+            query = Receipt.query.filter(Receipt.id.in_(receipt_ids))
         
         # Add organization filter if selected
         if selected_org_id:
