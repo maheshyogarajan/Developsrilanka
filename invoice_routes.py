@@ -762,7 +762,9 @@ def edit_invoice(invoice_id):
 def send_invoice(invoice_id):
     """Mark an invoice as sent and optionally email it."""
     import traceback
-    invoice = Invoice.query.options(db.joinedload('items')).filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    # Make sure to load the items relationship
+    db.session.refresh(invoice)
     
     # Check if the email_after_send parameter is present
     email_after_send = request.form.get('email_after_send', 'false') == 'true'
@@ -992,7 +994,10 @@ def email_invoice(invoice_id):
         abort(404)
         
     # Get the invoice with its items
-    invoice = Invoice.query.options(db.joinedload('items')).get(invoice_id)
+    invoice = Invoice.query.get(invoice_id)
+    # Make sure to load the items relationship
+    if invoice:
+        db.session.refresh(invoice)
     
     # Check if invoice can be emailed (must have client and client email, and not be a draft)
     if not result[2]:  # client_id is None
