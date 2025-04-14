@@ -247,10 +247,22 @@ def create_client():
 def view_client(client_id):
     """View a specific client."""
     import logging
+    import traceback
+    
+    # Configure file-based logging for debugging
+    file_handler = logging.FileHandler('/tmp/client_debug.log')
+    file_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    
     logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(file_handler)
+    
+    logger.debug(f"---- START Client View ----")
+    logger.debug(f"Attempting to view client with ID: {client_id} for user {current_user.id}")
     
     try:
-        logger.debug(f"Attempting to fetch client with ID: {client_id} for user {current_user.id}")
         
         # Use raw SQL to get a specific client by ID
         result = db.session.execute(text("""
@@ -390,7 +402,13 @@ def view_client(client_id):
         logger.error(f"Error in invoice processing section: {str(e)}")
         invoices = []
     
-    return render_template('view_client.html', client=client, invoices=invoices, organization=organization)
+    try:
+        logger.debug(f"Rendering template with client={client}, invoices count={len(invoices)}, organization={organization}")
+        return render_template('view_client.html', client=client, invoices=invoices, organization=organization)
+    except Exception as e:
+        logger.error(f"Error rendering template: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise
 
 @clients_bp.route('/<int:client_id>/edit', methods=['GET', 'POST'])
 @login_required
