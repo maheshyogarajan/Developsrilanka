@@ -375,10 +375,7 @@ def history():
             if receipt.organization_id:
                 receipt.organization = Organization.query.get(receipt.organization_id)
             
-            # Use standardized helper to get the image URL
-            from utils import get_receipt_image_url
-            receipt.image_url = get_receipt_image_url(receipt)
-            
+            # Don't generate image URLs here - they'll be loaded on demand by JavaScript
             enhanced_receipts.append(receipt)
         
         # Create filtered parameter dictionaries for template
