@@ -99,6 +99,41 @@
             <p>From {{ sender_name }}</p>
         </div>
         
+        <!-- Added client information section -->
+        <div style="margin-bottom: 25px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+            <h3 style="color: #4a6da7; margin-top: 0; margin-bottom: 10px;">Client Information</h3>
+            <table style="width: 100%;">
+                <tr>
+                    <th style="text-align: left; padding: 5px; width: 30%;">Name:</th>
+                    <td style="padding: 5px;">{{ invoice.client.name }}</td>
+                </tr>
+                {% if invoice.client.company_name %}
+                <tr>
+                    <th style="text-align: left; padding: 5px;">Company:</th>
+                    <td style="padding: 5px;">{{ invoice.client.company_name }}</td>
+                </tr>
+                {% endif %}
+                {% if invoice.client.email %}
+                <tr>
+                    <th style="text-align: left; padding: 5px;">Email:</th>
+                    <td style="padding: 5px;">{{ invoice.client.email }}</td>
+                </tr>
+                {% endif %}
+                {% if invoice.client.phone %}
+                <tr>
+                    <th style="text-align: left; padding: 5px;">Phone:</th>
+                    <td style="padding: 5px;">{{ invoice.client.phone }}</td>
+                </tr>
+                {% endif %}
+                {% if invoice.client.address %}
+                <tr>
+                    <th style="text-align: left; padding: 5px;">Address:</th>
+                    <td style="padding: 5px;">{{ invoice.client.address }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        
         <p class="greeting">Dear {{ invoice.client.name }},</p>
         
         <p>I hope this email finds you well. Please find attached your invoice #{{ invoice.invoice_number }} for your recent services.</p>
