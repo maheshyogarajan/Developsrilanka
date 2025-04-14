@@ -912,6 +912,8 @@ def delete_payment(invoice_id, payment_id):
 @login_required
 def email_invoice(invoice_id):
     """Email the invoice to the client."""
+    import traceback
+    
     # Use raw SQL to get invoice with client info
     result = db.session.execute(text("""
         SELECT i.id, i.user_id, i.client_id, i.status,
@@ -944,11 +946,14 @@ def email_invoice(invoice_id):
         flash('Invoice has been marked as sent!', 'success')
     
     try:
-        # Create email message
-        subject = f"Invoice #{invoice.invoice_number} from {invoice.sender_name or current_user.name}"
+        # Get client email from the query result
+        client_email = result[4]  # From the raw SQL select
         
         # Get sender name (use user's name if sender_name is not set)
         sender_name = invoice.sender_name or current_user.name
+        
+        # Create email message
+        subject = f"Invoice #{invoice.invoice_number} from {sender_name}"
         
         # Get bank account details if available
         bank_account = None
@@ -958,37 +963,80 @@ def email_invoice(invoice_id):
             # Use default bank account if available
             bank_account = BankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
         
+        # Get the app URL base
+        app_url = request.host_url.rstrip('/')
+        
         # Render HTML email template
         html_body = render_template(
             'email/invoice_email.html',
             invoice=invoice,
             sender_name=sender_name,
             bank_account=bank_account,
-            view_url=url_for('view_invoice', invoice_id=invoice.id, _external=True)
+            view_url=url_for('view_invoice', invoice_id=invoice.id, _external=True),
+            app_url=app_url,
+            current_year=datetime.utcnow().year
         )
         
-        # Get client email from the query result
-        client_email = result[4]  # From the raw SQL select
+        # Log the email attempt
+        logging.info(f"Sending invoice email to: {client_email}")
+        logging.info(f"From: {sender_name} <{app.config['MAIL_USERNAME']}>")
+        logging.info(f"Subject: {subject}")
+        
+        # Check if Gmail credentials are configured
+        if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+            logging.warning("Gmail credentials are not configured. Email will not be sent.")
+            # For development purposes, log what would have been sent
+            logging.info(f"Would have sent email to: {client_email}")
+            logging.info(f"Subject: {subject}")
+            logging.info(f"From: {sender_name} <{app.config['MAIL_USERNAME']}>")
+            flash("Email feature requires Gmail credentials configuration", "warning")
+            return redirect(url_for('view_invoice', invoice_id=invoice.id))
         
         # Create message
         msg = Message(
             subject=subject,
             recipients=[client_email],
             html=html_body,
-            sender=(sender_name, app.config['MAIL_USERNAME'])
+            sender=app.config['MAIL_DEFAULT_SENDER']
         )
         
-        # Send email
-        mail.send(msg)
-        
-        # Update invoice sent timestamp
-        invoice.last_sent_at = datetime.utcnow()
-        db.session.commit()
-        
-        flash(f'Invoice has been emailed to {client_email} successfully!', 'success')
+        # Send the email using Flask-Mail with verbose logging
+        try:
+            # Log detailed email headers and info
+            logging.info(f"Preparing to send email with the following details:")
+            logging.info(f"From: {app.config['MAIL_DEFAULT_SENDER']}")
+            logging.info(f"To: {client_email}")
+            logging.info(f"Subject: {subject}")
+            logging.info(f"SMTP Server: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
+            logging.info(f"TLS Enabled: {app.config['MAIL_USE_TLS']}")
+            logging.info(f"SSL Enabled: {app.config['MAIL_USE_SSL']}")
+            
+            # Actually send the email
+            mail.send(msg)
+            
+            # Update invoice sent timestamp
+            invoice.last_sent_at = datetime.utcnow()
+            db.session.commit()
+            
+            # Log successful sending
+            logging.info(f"Successfully sent invoice email to {client_email}")
+            logging.info(f"Email delivered to SMTP server for {client_email}")
+            print(f"EMAIL SENT: Successfully delivered invoice to SMTP server for {client_email}")  # Console log for immediate visibility
+            
+            flash(f'Invoice has been emailed to {client_email} successfully!', 'success')
+        except Exception as mail_error:
+            error_details = traceback.format_exc()
+            logging.error(f"Failed to send email to {client_email}: {str(mail_error)}")
+            logging.error(f"Error details: {error_details}")
+            logging.error(f"Mail configuration: USERNAME={app.config['MAIL_USERNAME']}, SERVER={app.config['MAIL_SERVER']}")
+            print(f"EMAIL ERROR: Failed to send to {client_email}: {str(mail_error)}")  # Console log for immediate visibility
+            
+            flash(f"Failed to send invoice: {str(mail_error)}", "danger")
     except Exception as e:
-        logging.error(f"Error sending invoice email: {str(e)}")
-        flash(f'Error sending email: {str(e)}', 'danger')
+        error_details = traceback.format_exc()
+        logging.error(f"Failed to send invoice email: {str(e)}")
+        logging.error(f"Error details: {error_details}")
+        flash(f"Invoice email system error: {str(e)}", "danger")
     
     return redirect(url_for('view_invoice', invoice_id=invoice.id))
 
