@@ -155,10 +155,35 @@
                             {% endif %}
                             
                             {% if current_receipt.image_url or current_receipt.image_path %}
-                            <div class="text-center mt-3">
-                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
-                                    <i class="fas fa-image me-1"></i> View Receipt Image
-                                </button>
+                            <div class="card mt-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Receipt Image</h6>
+                                </div>
+                                <div class="card-body p-3 text-center">
+                                    <!-- Thumbnail preview that opens the modal when clicked -->
+                                    <div class="receipt-thumbnail-container" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                                        {% if current_receipt.thumbnail_url %}
+                                        <img src="{{ current_receipt.thumbnail_url }}" 
+                                             alt="Receipt Thumbnail" class="img-fluid thumbnail-preview"
+                                             style="max-height: 150px; border-radius: 5px;"
+                                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                        {% elif current_receipt.image_url %}
+                                        <img src="{{ current_receipt.image_url }}" 
+                                             alt="Receipt Image" class="img-fluid thumbnail-preview"
+                                             style="max-height: 150px; border-radius: 5px;"
+                                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                        {% else %}
+                                        <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                                             alt="Receipt Placeholder" class="img-fluid thumbnail-preview"
+                                             style="max-height: 150px; border-radius: 5px;">
+                                        {% endif %}
+                                    </div>
+                                    <div class="mt-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                                            <i class="fas fa-search-plus me-1"></i> View Full Image
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             {% endif %}
                         </div>
@@ -181,18 +206,11 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body text-center">
-                                {% if current_receipt.s3_key %}
-                                <!-- Use S3 URL if available -->
-                                <img src="{{ current_receipt.s3_url }}" 
-                                     alt="Receipt Image" class="img-fluid"
-                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
-                                {% elif current_receipt.image_url %}
+                                <!-- Always use the centralized image_url property for consistency -->
+                                {% if current_receipt.image_url %}
                                 <img src="{{ current_receipt.image_url }}" 
                                      alt="Receipt Image" class="img-fluid"
-                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
-                                {% elif current_receipt.image_path %}
-                                <img src="{{ url_for('static', filename=current_receipt.image_path.replace('static/', '')) }}" 
-                                     alt="Receipt Image" class="img-fluid"
+                                     style="max-height: 600px;"
                                      onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
                                 {% else %}
                                 <div class="text-muted">
