@@ -218,6 +218,7 @@ class Receipt(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     image_path = db.Column(db.String(255), nullable=True)  # Local file path (legacy)
     s3_key = db.Column(db.String(255), nullable=True)  # S3 object key for receipt image
+    thumbnail_s3_key = db.Column(db.String(255), nullable=True)  # S3 object key for receipt thumbnail
     expense_major_category = db.Column(db.String(100), nullable=True)
     expense_minor_category = db.Column(db.String(100), nullable=True)
     items = db.relationship('ReceiptItem', backref='receipt', lazy=True, cascade='all, delete-orphan')
