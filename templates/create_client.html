@@ -1,58 +1,68 @@
-{% extends 'layout.html' %}
+{% extends "layout.html" %}
+
+{% block title %}Add New Client - Develop Sri Lanka{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-3">
+<div class="container">
+    <div class="row mb-4">
         <div class="col">
-            <a href="{{ url_for('clients.list_all_clients') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Clients
-            </a>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('clients.clients') }}">Clients</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Add New Client</li>
+                </ol>
+            </nav>
+            <h2 class="mb-3"><i class="fas fa-user-plus me-2"></i>Add New Client</h2>
         </div>
     </div>
-    
-    <div class="card">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">Create New Client</h5>
-        </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
         <div class="card-body">
-            <form method="post" action="{{ url_for('clients.create_client') }}">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="name" class="form-label">Client Name*</label>
+            <form method="POST" action="{{ url_for('clients.create_client') }}">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="name" class="form-label">Client Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name" required>
+                        <small class="text-muted">Primary name for the client (person or business)</small>
                     </div>
-                    <div class="col-md-6">
-                        <label for="organization_id" class="form-label">Organization</label>
-                        <select class="form-select" id="organization_id" name="organization_id">
-                            <option value="">Select Organization</option>
-                            {% for org in organizations %}
-                                <option value="{{ org[0] }}" {% if org[2] %}selected{% endif %}>
-                                    {{ org[1] }} {% if org[2] %}(Default){% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="company_name" class="form-label">Company Name</label>
-                        <input type="text" class="form-control" id="company_name" name="company_name">
-                    </div>
-                    <div class="col-md-6">
-                        <label for="contact_person" class="form-label">Contact Person</label>
-                        <input type="text" class="form-control" id="contact_person" name="contact_person">
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-6 mb-3">
                         <label for="email" class="form-label">Email</label>
                         <input type="email" class="form-control" id="email" name="email">
                     </div>
-                    <div class="col-md-6">
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="company_name" class="form-label">Company Name</label>
+                        <input type="text" class="form-control" id="company_name" name="company_name">
+                        <small class="text-muted">Optional if client is a company</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="contact_person" class="form-label">Contact Person</label>
+                        <input type="text" class="form-control" id="contact_person" name="contact_person">
+                        <small class="text-muted">Main contact if client is a company</small>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
                         <label for="phone" class="form-label">Phone</label>
-                        <input type="tel" class="form-control" id="phone" name="phone">
+                        <input type="text" class="form-control" id="phone" name="phone">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="tax_registration_number" class="form-label">Tax Registration Number</label>
+                        <input type="text" class="form-control" id="tax_registration_number" name="tax_registration_number" placeholder="VAT/TIN/GST Number">
                     </div>
                 </div>
                 
@@ -61,24 +71,29 @@
                     <textarea class="form-control" id="address" name="address" rows="3"></textarea>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="tax_registration_number" class="form-label">Tax Registration Number</label>
-                        <input type="text" class="form-control" id="tax_registration_number" name="tax_registration_number">
-                    </div>
-                </div>
-                
                 <div class="mb-3">
                     <label for="notes" class="form-label">Notes</label>
-                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional information about this client"></textarea>
                 </div>
                 
-                <div class="d-flex justify-content-end">
-                    <a href="{{ url_for('clients.list_all_clients') }}" class="btn btn-secondary me-2">Cancel</a>
-                    <button type="submit" class="btn btn-primary">Create Client</button>
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('clients.clients') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Clients
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save Client
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('page-title').textContent = 'Add New Client';
+    });
+</script>
 {% endblock %}

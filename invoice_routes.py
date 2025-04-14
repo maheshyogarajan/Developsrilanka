@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from flask_mail import Mail, Message
 from sqlalchemy import text
 from app import app, db
-from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount, Organization
+from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount
 
 # Initialize Flask-Mail with Gmail settings if not already initialized
 if not hasattr(app, 'mail'):
@@ -943,18 +943,12 @@ def email_invoice(invoice_id):
             # Use default bank account if available
             bank_account = BankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
         
-        # Get organization if available
-        organization = None
-        if hasattr(invoice, 'organization_id') and invoice.organization_id:
-            organization = Organization.query.get(invoice.organization_id)
-            
         # Render HTML email template
         html_body = render_template(
             'email/invoice_email.html',
             invoice=invoice,
             sender_name=sender_name,
             bank_account=bank_account,
-            organization=organization,
             view_url=url_for('view_invoice', invoice_id=invoice.id, _external=True)
         )
         

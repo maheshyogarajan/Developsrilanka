@@ -1,111 +1,257 @@
-{% extends 'layout.html' %}
+{% extends "layout.html" %}
+
+{% block title %}Client Management - Develop Sri Lanka{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center bg-white">
-            <h5 class="mb-0">Clients</h5>
-            <div>
-                <a href="{{ url_for('clients.create_client') }}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> New Client
-                </a>
-            </div>
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3"><i class="fas fa-users me-2"></i>Client Management</h2>
+            <p class="text-muted">Manage your business clients for invoicing and payment tracking.</p>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if organizations and organizations|length > 1 %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-transparent">
+            <h5 class="mb-0">Organization Filter</h5>
         </div>
         <div class="card-body">
-            {% if organizations and organizations|length > 1 %}
-            <div class="mb-4">
-                <form method="get" action="{{ url_for('clients.list_all_clients') }}" class="d-flex align-items-center">
-                    <div class="me-2">
-                        <label for="organization_filter" class="form-label mb-0">Organization:</label>
-                    </div>
-                    <div class="me-2">
-                        <select name="organization_id" id="organization_filter" class="form-select form-select-sm" style="min-width: 200px;" onchange="this.form.submit()">
-                            <option value="">All Organizations</option>
-                            {% for org in organizations %}
-                                <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>
-                                    {{ org.name }} {% if org.is_default %}(Default){% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </form>
+            <div class="d-flex flex-wrap gap-2" id="organizationFilterContainer">
+                <a href="{{ url_for('clients.clients') }}" 
+                   class="btn {% if not selected_org %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                    All
+                </a>
+                {% for org in organizations %}
+                <a href="{{ url_for('clients.clients', organization_id=org.id) }}" 
+                   class="btn {% if selected_org and selected_org.id == org.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {{ org.name }}
+                    {% if org.is_default %}<i class="fas fa-star ms-1 text-warning"></i>{% endif %}
+                </a>
+                {% endfor %}
+                {% if selected_org %}
+                <a href="{{ url_for('clients.clients') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i> Clear Filter
+                </a>
+                {% endif %}
             </div>
-            {% endif %}
-            
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                Your Clients
+                {% if selected_org %}
+                <span class="badge bg-primary ms-2">{{ selected_org.name }}</span>
+                {% endif %}
+            </h5>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createClientModal">
+                <i class="fas fa-plus me-1"></i> Add New Client
+            </button>
+        </div>
+        <div class="card-body p-0">
             {% if clients %}
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
                             <tr>
-                                <th>Name</th>
-                                <th>Company</th>
-                                <th>Email</th>
-                                <th>Phone</th>
+                                <th>Client Name</th>
+                                <th>Contact</th>
+                                <th>Tax Registration</th>
+                                {% if not selected_org %}
                                 <th>Organization</th>
-                                <th>Invoices</th>
-                                <th>Outstanding</th>
-                                <th>Actions</th>
+                                {% endif %}
+                                <th>Created</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for client in clients %}
                                 <tr>
-                                    <td><a href="{{ url_for('clients.view_client', client_id=client.id) }}">{{ client.name }}</a></td>
-                                    <td>{{ client.company_name }}</td>
-                                    <td>{{ client.email }}</td>
-                                    <td>{{ client.phone }}</td>
-                                    <td>{{ client.organization_name }}</td>
-                                    <td>{{ client.invoice_count }}</td>
-                                    <td>{{ client.outstanding_amount|currency }}</td>
                                     <td>
+                                        <div class="fw-medium">{{ client.name }}</div>
+                                        {% if client.company_name %}
+                                            <div class="small">Company: {{ client.company_name }}</div>
+                                        {% endif %}
+                                        {% if client.contact_person %}
+                                            <div class="small">Contact: {{ client.contact_person }}</div>
+                                        {% endif %}
+                                        <div class="small text-muted">{{ client.address|truncate(30) if client.address else 'No address on file' }}</div>
+                                    </td>
+                                    <td>
+                                        {% if client.email %}
+                                            <div><a href="mailto:{{ client.email }}">{{ client.email }}</a></div>
+                                        {% endif %}
+                                        {% if client.phone %}
+                                            <div class="small text-muted">{{ client.phone }}</div>
+                                        {% endif %}
+                                        {% if not client.email and not client.phone %}
+                                            <span class="text-muted">No contact details</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if client.tax_registration_number %}
+                                            {{ client.tax_registration_number }}
+                                        {% else %}
+                                            <span class="text-muted">Not provided</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if not selected_org %}
+                                    <td>
+                                        {% if client.organization_name %}
+                                            <span class="badge bg-primary">{{ client.organization_name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">No Organization</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
+                                    <td>{{ client.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td class="text-end">
                                         <div class="btn-group">
-                                            <a href="{{ url_for('clients.view_client', client_id=client.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <a href="{{ url_for('clients.view_client', client_id=client.id) }}" class="btn btn-sm btn-outline-secondary" title="View Client">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{{ url_for('clients.edit_client', client_id=client.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <a href="{{ url_for('clients.edit_client', client_id=client.id) }}" class="btn btn-sm btn-outline-primary" title="Edit Client">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                    onclick="confirmDelete({{ client.id }}, '{{ client.name }}')">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" title="Delete Client" 
+                                                    data-bs-toggle="modal" data-bs-target="#deleteClientModal{{ client.id }}">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
+                                
+                                <!-- Delete Client Confirmation Modal -->
+                                <div class="modal fade" id="deleteClientModal{{ client.id }}" tabindex="-1" aria-labelledby="deleteClientModalLabel{{ client.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteClientModalLabel{{ client.id }}">Confirm Delete</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Are you sure you want to delete client <strong>{{ client.name }}</strong>?</p>
+                                                <p class="text-danger">This action cannot be undone. All data associated with this client will be permanently removed.</p>
+                                                <p class="mb-0"><strong>Note:</strong> You cannot delete a client that has invoices. You must delete all invoices for this client first.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <form action="{{ url_for('clients.delete_client', client_id=client.id) }}" method="POST">
+                                                    <button type="submit" class="btn btn-danger">Delete Client</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             {% else %}
-                <div class="alert alert-info">
-                    <p>You don't have any clients yet.</p>
-                    <a href="{{ url_for('clients.create_client') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Create your first client
-                    </a>
+                <div class="text-center p-5">
+                    <div class="mb-3">
+                        <i class="fas fa-users fa-3x text-muted"></i>
+                    </div>
+                    <h5>No Clients Yet</h5>
+                    <p class="text-muted mb-3">Add your first client to get started with invoicing.</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createClientModal">
+                        <i class="fas fa-plus me-1"></i> Add New Client
+                    </button>
                 </div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<!-- Create Client Modal -->
+<div class="modal fade" id="createClientModal" tabindex="-1" aria-labelledby="createClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteClientModalLabel">Confirm Delete</h5>
+                <h5 class="modal-title" id="createClientModalLabel">Add New Client</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete client <span id="clientNameToDelete"></span>?</p>
-                <p class="text-danger">This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteClientForm" method="post" action="">
-                    <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
-            </div>
+            <form method="POST" action="{{ url_for('clients.create_client') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Client Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Primary name for the client (could be person or company)</div>
+                    </div>
+                    
+                    {% if organizations and organizations|length > 1 %}
+                    <div class="mb-3">
+                        <label for="organization_id" class="form-label">Organization</label>
+                        <select class="form-select" id="organization_id" name="organization_id">
+                            {% for org in organizations %}
+                            <option value="{{ org.id }}" {% if org.is_default %}selected{% endif %}>
+                                {{ org.name }} {% if org.is_default %}(Default){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Select which organization this client belongs to</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="company_name" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="company_name" name="company_name">
+                            <div class="form-text">Optional, if client is a company</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_person" class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" id="contact_person" name="contact_person">
+                            <div class="form-text">Optional, main contact at the company</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="text" class="form-control" id="phone" name="phone">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tax_registration_number" class="form-label">Tax Registration Number</label>
+                        <input type="text" class="form-control" id="tax_registration_number" name="tax_registration_number">
+                        <div class="form-text">For example, VAT number or business registration number</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Client</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -113,13 +259,8 @@
 
 {% block scripts %}
 <script>
-    function confirmDelete(clientId, clientName) {
-        document.getElementById('clientNameToDelete').textContent = clientName;
-        document.getElementById('deleteClientForm').action = "{{ url_for('clients.delete_client', client_id=0) }}".replace('0', clientId);
-        
-        // Show the modal
-        var deleteModal = new bootstrap.Modal(document.getElementById('deleteClientModal'));
-        deleteModal.show();
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('page-title').textContent = 'Client Management';
+    });
 </script>
 {% endblock %}
