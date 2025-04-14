@@ -30,7 +30,8 @@ class Organization(db.Model):
     """Organization model for multi-tenant functionality."""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    logo_path = db.Column(db.String(255), nullable=True)
+    logo_path = db.Column(db.String(255), nullable=True)  # Legacy field, kept for backward compatibility
+    logo_s3_key = db.Column(db.String(255), nullable=True)  # S3 key for stored logo
     website = db.Column(db.String(255), nullable=True)
     email = db.Column(db.String(255), nullable=True)
     phone = db.Column(db.String(50), nullable=True)
@@ -51,12 +52,25 @@ class Organization(db.Model):
     invoices = db.relationship('Invoice', backref='organization', lazy=True)
     bank_accounts = db.relationship('BankAccount', backref='organization', lazy=True)
     
+    @property
+    def logo_url(self):
+        """Generate the URL for the logo image."""
+        if self.logo_s3_key:
+            from s3_storage import get_s3_url
+            try:
+                return get_s3_url(self.logo_s3_key)
+            except Exception:
+                pass
+        return None
+    
     def to_dict(self):
         """Convert the organization to a dictionary."""
         return {
             'id': self.id,
             'name': self.name,
             'logo_path': self.logo_path or '',
+            'logo_s3_key': self.logo_s3_key or '',
+            'logo_url': self.logo_url or '',
             'website': self.website or '',
             'email': self.email or '',
             'phone': self.phone or '',
