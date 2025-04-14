@@ -558,6 +558,8 @@
                     Register Account
                 {% elif request.path == '/preview' %}
                     Preview Receipt Scanner
+                {% elif '/getting-started' in request.path %}
+                    Getting Started
                 {% elif '/admin/' in request.path %}
                     Admin Dashboard
                 {% else %}
