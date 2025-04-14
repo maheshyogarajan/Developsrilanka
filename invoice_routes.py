@@ -761,6 +761,7 @@ def edit_invoice(invoice_id):
 @login_required
 def send_invoice(invoice_id):
     """Mark an invoice as sent and optionally email it."""
+    import traceback
     invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     
     # Check if the email_after_send parameter is present
@@ -774,8 +775,71 @@ def send_invoice(invoice_id):
         
         # If requested, email the invoice after marking as sent
         if email_after_send and invoice.client and invoice.client.email:
-            # Redirect to the email_invoice route
-            return redirect(url_for('email_invoice', invoice_id=invoice.id))
+            # Instead of redirecting, call the email functionality directly
+            try:
+                client_email = invoice.client.email
+                # Get sender name (use user's name if sender_name is not set)
+                sender_name = invoice.sender_name or current_user.name
+                
+                # Create email message
+                subject = f"Invoice #{invoice.invoice_number} from {sender_name}"
+                
+                # Get bank account details if available
+                bank_account = None
+                if invoice.bank_account_id:
+                    bank_account = BankAccount.query.get(invoice.bank_account_id)
+                else:
+                    # Use default bank account if available
+                    bank_account = BankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
+                
+                # Get the app URL base
+                app_url = request.host_url.rstrip('/')
+                
+                # Render HTML email template
+                html_body = render_template(
+                    'email/invoice_email.html',
+                    invoice=invoice,
+                    sender_name=sender_name,
+                    bank_account=bank_account,
+                    view_url=url_for('view_invoice', invoice_id=invoice.id, _external=True),
+                    app_url=app_url,
+                    current_year=datetime.utcnow().year
+                )
+                
+                # Check if Gmail credentials are configured
+                if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+                    logging.warning("Gmail credentials are not configured. Email will not be sent.")
+                    # For development purposes, log what would have been sent
+                    logging.info(f"Would have sent email to: {client_email}")
+                    logging.info(f"Subject: {subject}")
+                    logging.info(f"From: {sender_name} <{app.config['MAIL_USERNAME']}>")
+                    flash("Email feature requires Gmail credentials configuration", "warning")
+                    return redirect(url_for('view_invoice', invoice_id=invoice.id))
+                
+                # Create message
+                msg = Message(
+                    subject=subject,
+                    recipients=[client_email],
+                    html=html_body,
+                    sender=app.config['MAIL_DEFAULT_SENDER']
+                )
+                
+                # Send the email using Flask-Mail with verbose logging
+                logging.info(f"Sending invoice email to: {client_email}")
+                mail.send(msg)
+                
+                # Update invoice sent timestamp
+                invoice.last_sent_at = datetime.utcnow()
+                db.session.commit()
+                
+                # Log successful sending
+                logging.info(f"Successfully sent invoice email to {client_email}")
+                flash(f'Invoice has been emailed to {client_email} successfully!', 'success')
+            except Exception as e:
+                error_details = traceback.format_exc()
+                logging.error(f"Failed to send invoice email: {str(e)}")
+                logging.error(f"Error details: {error_details}")
+                flash(f"Failed to send invoice: {str(e)}", "danger")
     else:
         flash('Only draft invoices can be marked as sent', 'warning')
     
