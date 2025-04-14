@@ -106,10 +106,12 @@ def classify_receipts(page=None, receipt_id=None):
     current_receipt_id = all_receipt_ids[current_index]
     current_receipt = Receipt.query.get_or_404(current_receipt_id)
     
-    # Get image URL from S3 if available
-    receipt_dict = current_receipt.to_dict()
-    if 'image_url' in receipt_dict:
-        current_receipt.image_url = receipt_dict['image_url']
+    # Import utility functions for image URLs
+    from utils import get_receipt_image_url, get_receipt_thumbnail_url
+    
+    # Get the full-size image URL and thumbnail URL
+    current_receipt.image_url = get_receipt_image_url(current_receipt)
+    current_receipt.thumbnail_url = get_receipt_thumbnail_url(current_receipt)
     
     # Check if this receipt is already processed
     existing_expense = CompanyExpense.query.filter_by(receipt_id=current_receipt_id).first()

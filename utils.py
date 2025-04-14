@@ -37,7 +37,7 @@ def format_currency(amount, currency="Rs "):
     except (ValueError, TypeError):
         return f"{currency}0.00"
 
-def get_receipt_image_url(receipt, prefer_s3=True):
+def get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=False):
     """
     Get the image URL for a receipt with consistent prioritization.
     This is a centralized helper to standardize image URL generation across the application.
@@ -45,6 +45,7 @@ def get_receipt_image_url(receipt, prefer_s3=True):
     Args:
         receipt: Receipt model object
         prefer_s3: Whether to prioritize S3 URLs over local paths (default: True)
+        prefer_thumbnail: Whether to prioritize thumbnail over full-size image (default: False)
     
     Returns:
         str: URL to display the receipt image
@@ -54,6 +55,7 @@ def get_receipt_image_url(receipt, prefer_s3=True):
     
     # Get path and S3 key with extensive validation
     s3_key = getattr(receipt, 's3_key', None)
+    thumbnail_s3_key = getattr(receipt, 'thumbnail_s3_key', None)
     image_path = getattr(receipt, 'image_path', None)
     
     # Handle all invalid image_path cases
@@ -63,11 +65,30 @@ def get_receipt_image_url(receipt, prefer_s3=True):
     # Handle all invalid s3_key cases
     if not s3_key or s3_key == 'None' or s3_key == '' or s3_key is None:
         s3_key = None
+        
+    # Handle all invalid thumbnail_s3_key cases
+    if not thumbnail_s3_key or thumbnail_s3_key == 'None' or thumbnail_s3_key == '' or thumbnail_s3_key is None:
+        thumbnail_s3_key = None
     
     # Add enhanced debug logging
-    logging.info(f"Getting image URL for receipt {receipt_id}: s3_key='{s3_key}', image_path='{image_path}'")
+    logging.info(f"Getting image URL for receipt {receipt_id}: s3_key='{s3_key}', thumbnail_s3_key='{thumbnail_s3_key}', image_path='{image_path}'")
     
-    # Approach 1: Use S3 URL if available and preferred
+    # Approach 1: Use thumbnail URL if preferred and available
+    if prefer_thumbnail and thumbnail_s3_key and hasattr(receipt, 'thumbnail_url'):
+        try:
+            logging.info(f"Trying to get thumbnail URL for receipt {receipt_id} with key '{thumbnail_s3_key}'")
+            thumbnail_url = receipt.thumbnail_url
+            if thumbnail_url and thumbnail_url != '' and thumbnail_url != 'None':
+                logging.info(f"Successfully generated thumbnail URL for receipt {receipt_id}")
+                return thumbnail_url
+            else:
+                logging.warning(f"Generated empty thumbnail URL for receipt {receipt_id} with key '{thumbnail_s3_key}'")
+        except Exception as thumb_error:
+            logging.error(f"Error getting thumbnail URL for receipt {receipt_id}: {str(thumb_error)}")
+            import traceback
+            logging.error(traceback.format_exc())
+    
+    # Approach 2: Use S3 URL if available and preferred
     if prefer_s3 and s3_key and hasattr(receipt, 's3_url'):
         try:
             logging.info(f"Trying to get S3 URL for receipt {receipt_id} with key '{s3_key}'")
@@ -89,7 +110,7 @@ def get_receipt_image_url(receipt, prefer_s3=True):
         elif not hasattr(receipt, 's3_url'):
             logging.warning(f"Receipt {receipt_id} has no s3_url property")
     
-    # Approach 2: Use local image path if available
+    # Approach 3: Use local image path if available
     if image_path:
         try:
             # Handle both formats: with or without 'static/' prefix
@@ -115,7 +136,7 @@ def get_receipt_image_url(receipt, prefer_s3=True):
             import traceback
             logging.error(traceback.format_exc())
     
-    # Approach 3: Fall back to S3 URL if not already tried and available
+    # Approach 4: Fall back to S3 URL if not already tried and available
     if not prefer_s3 and s3_key and hasattr(receipt, 's3_url'):
         try:
             s3_url = receipt.s3_url
@@ -128,3 +149,17 @@ def get_receipt_image_url(receipt, prefer_s3=True):
     # No valid image URL found, return a placeholder image URL
     logging.warning(f"No valid image URL found for receipt {receipt_id}, using placeholder")
     return "/static/img/receipt-placeholder.svg"
+    
+def get_receipt_thumbnail_url(receipt):
+    """
+    Helper function to specifically get the thumbnail URL for a receipt.
+    If no thumbnail is available, falls back to a placeholder.
+    
+    Args:
+        receipt: Receipt model object
+        
+    Returns:
+        str: URL for the receipt thumbnail
+    """
+    # Use the main function with thumbnail preference
+    return get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=True)
