@@ -120,7 +120,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Team Members</h4>
                     {% if can_invite %}
-                    <a href="{{ url_for('organizations.invite_member', org_id=active_org.id) }}" class="btn btn-primary btn-sm">
+                    <a href="{{ url_for('organizations.invite_team_member', org_id=active_org.id) }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-user-plus"></i> Invite New Member
                     </a>
                     {% endif %}
@@ -496,7 +496,7 @@
                     
                     {% if can_invite %}
                     <div class="text-center mt-3">
-                        <a href="{{ url_for('organizations.invite_member', org_id=active_org.id) }}" class="btn btn-primary btn-sm btn-block">
+                        <a href="{{ url_for('organizations.invite_team_member', org_id=active_org.id) }}" class="btn btn-primary btn-sm btn-block">
                             <i class="fas fa-user-plus"></i> Invite New Member
                         </a>
                     </div>
