@@ -135,6 +135,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading API routes: {str(e)}")
 
+# Import team management routes
+try:
+    from blueprints.team import register_routes as register_team_routes
+    # Register team management routes
+    register_team_routes(app)
+    logger.info("Team management routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading team management routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()

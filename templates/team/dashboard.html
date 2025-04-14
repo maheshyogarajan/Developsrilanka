@@ -1,0 +1,534 @@
+{% extends 'layout.html' %}
+{% block title %}Team Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+    .member-card {
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    .member-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .role-section {
+        margin-bottom: 30px;
+    }
+    .role-title {
+        font-size: 1.2rem;
+        color: #4a6da7;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f1f1f1;
+        margin-bottom: 20px;
+    }
+    .invitation-card {
+        border-left: 4px solid #ffc107;
+    }
+    .invitation-expired {
+        border-left: 4px solid #dc3545;
+        opacity: 0.7;
+    }
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+        background-color: #4a6da7;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .member-name {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    .member-email {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    .member-role {
+        font-size: 0.85rem;
+        background-color: #f8f9fa;
+        padding: 3px 8px;
+        border-radius: 15px;
+    }
+    .role-owner {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .role-admin {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .role-member {
+        background-color: #28a745;
+        color: white;
+    }
+    .role-viewer {
+        background-color: #6c757d;
+        color: white;
+    }
+    .empty-state {
+        padding: 40px;
+        text-align: center;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        color: #dee2e6;
+        margin-bottom: 15px;
+    }
+    .invitation-actions {
+        display: flex;
+        gap: 10px;
+    }
+    .org-dropdown .dropdown-toggle::after {
+        margin-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Team Management</h1>
+        <div class="dropdown org-dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="orgDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{ active_org.name }}
+            </button>
+            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="orgDropdown">
+                {% for org_user in organizations %}
+                <a class="dropdown-item {% if org_user.organization_id == active_org.id %}active{% endif %}" 
+                   href="{{ url_for('team.team_dashboard', organization=org_user.organization_id) }}">
+                    {{ org_user.organization.name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-9">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Team Members</h4>
+                    {% if can_invite %}
+                    <a href="{{ url_for('organizations.invite_member', org_id=active_org.id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-user-plus"></i> Invite New Member
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <!-- Owners Section -->
+                    <div class="role-section">
+                        <h5 class="role-title">
+                            <i class="fas fa-crown mr-2"></i> Owner
+                        </h5>
+                        {% if role_hierarchy[UserRole.OWNER.value]|length > 0 %}
+                            {% for member in role_hierarchy[UserRole.OWNER.value] %}
+                            <div class="card member-card">
+                                <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar mr-3">
+                                            {{ member.user.name[:1]|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="member-name">{{ member.user.name }}</div>
+                                            <div class="member-email">{{ member.user.email }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <span class="member-role role-owner mx-3">
+                                            <i class="fas fa-crown"></i> Owner
+                                        </span>
+                                        
+                                        {% if current_user.id == member.user_id and role_hierarchy[UserRole.OWNER.value]|length > 1 %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                                                Actions
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right">
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="leave">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="fas fa-sign-out-alt"></i> Leave Organization
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-users"></i>
+                                <p>No owner assigned to this organization.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Admins Section -->
+                    <div class="role-section">
+                        <h5 class="role-title">
+                            <i class="fas fa-user-shield mr-2"></i> Administrators
+                        </h5>
+                        {% if role_hierarchy[UserRole.ADMIN.value]|length > 0 %}
+                            {% for member in role_hierarchy[UserRole.ADMIN.value] %}
+                            <div class="card member-card">
+                                <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar mr-3">
+                                            {{ member.user.name[:1]|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="member-name">{{ member.user.name }}</div>
+                                            <div class="member-email">{{ member.user.email }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <span class="member-role role-admin mx-3">
+                                            <i class="fas fa-user-shield"></i> Admin
+                                        </span>
+                                        
+                                        {% if (current_user_role == UserRole.OWNER.value) or 
+                                             (current_user_role == UserRole.ADMIN.value and current_user.id == member.user_id) %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                                                Actions
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right">
+                                                {% if current_user_role == UserRole.OWNER.value %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="change_role">
+                                                    <input type="hidden" name="role" value="{{ UserRole.MEMBER.value }}">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-user"></i> Change to Member
+                                                    </button>
+                                                </form>
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="change_role">
+                                                    <input type="hidden" name="role" value="{{ UserRole.VIEWER.value }}">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-eye"></i> Change to Viewer
+                                                    </button>
+                                                </form>
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="transfer_ownership">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-crown"></i> Transfer Ownership
+                                                    </button>
+                                                </form>
+                                                <div class="dropdown-divider"></div>
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="fas fa-trash"></i> Remove from Organization
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                                
+                                                {% if current_user.id == member.user_id %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="leave">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="fas fa-sign-out-alt"></i> Leave Organization
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-user-shield"></i>
+                                <p>No administrators in this organization.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Members Section -->
+                    <div class="role-section">
+                        <h5 class="role-title">
+                            <i class="fas fa-user mr-2"></i> Members
+                        </h5>
+                        {% if role_hierarchy[UserRole.MEMBER.value]|length > 0 %}
+                            {% for member in role_hierarchy[UserRole.MEMBER.value] %}
+                            <div class="card member-card">
+                                <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar mr-3">
+                                            {{ member.user.name[:1]|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="member-name">{{ member.user.name }}</div>
+                                            <div class="member-email">{{ member.user.email }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <span class="member-role role-member mx-3">
+                                            <i class="fas fa-user"></i> Member
+                                        </span>
+                                        
+                                        {% if (current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value]) or 
+                                             (current_user.id == member.user_id) %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                                                Actions
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right">
+                                                {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="change_role">
+                                                    <input type="hidden" name="role" value="{{ UserRole.ADMIN.value }}">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-user-shield"></i> Promote to Admin
+                                                    </button>
+                                                </form>
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="change_role">
+                                                    <input type="hidden" name="role" value="{{ UserRole.VIEWER.value }}">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-eye"></i> Change to Viewer
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                                
+                                                {% if current_user_role == UserRole.OWNER.value %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="transfer_ownership">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-crown"></i> Transfer Ownership
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                                
+                                                {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
+                                                <div class="dropdown-divider"></div>
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="fas fa-trash"></i> Remove from Organization
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                                
+                                                {% if current_user.id == member.user_id %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="leave">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="fas fa-sign-out-alt"></i> Leave Organization
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-user"></i>
+                                <p>No members in this organization.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Viewers Section -->
+                    <div class="role-section">
+                        <h5 class="role-title">
+                            <i class="fas fa-eye mr-2"></i> Viewers
+                        </h5>
+                        {% if role_hierarchy[UserRole.VIEWER.value]|length > 0 %}
+                            {% for member in role_hierarchy[UserRole.VIEWER.value] %}
+                            <div class="card member-card">
+                                <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar mr-3">
+                                            {{ member.user.name[:1]|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="member-name">{{ member.user.name }}</div>
+                                            <div class="member-email">{{ member.user.email }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <span class="member-role role-viewer mx-3">
+                                            <i class="fas fa-eye"></i> Viewer
+                                        </span>
+                                        
+                                        {% if (current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value]) or 
+                                             (current_user.id == member.user_id) %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                                                Actions
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right">
+                                                {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="change_role">
+                                                    <input type="hidden" name="role" value="{{ UserRole.MEMBER.value }}">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-user"></i> Promote to Member
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                                
+                                                {% if current_user_role == UserRole.OWNER.value %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="change_role">
+                                                    <input type="hidden" name="role" value="{{ UserRole.ADMIN.value }}">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-user-shield"></i> Promote to Admin
+                                                    </button>
+                                                </form>
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="transfer_ownership">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-crown"></i> Transfer Ownership
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                                
+                                                {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
+                                                <div class="dropdown-divider"></div>
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="fas fa-trash"></i> Remove from Organization
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                                
+                                                {% if current_user.id == member.user_id %}
+                                                <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="action" value="leave">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="fas fa-sign-out-alt"></i> Leave Organization
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-eye"></i>
+                                <p>No viewers in this organization.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <!-- Pending Invitations Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Pending Invitations</h5>
+                </div>
+                <div class="card-body">
+                    {% if invitations|length > 0 %}
+                        {% for invitation in invitations %}
+                        <div class="card invitation-card mb-3 {% if invitation.is_expired() %}invitation-expired{% endif %}">
+                            <div class="card-body p-3">
+                                <h6>{{ invitation.email }}</h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        {% if invitation.is_expired() %}
+                                            <span class="text-danger">Expired</span>
+                                        {% else %}
+                                            Expires: {{ ((invitation.expires_at - now).days + 1)|int }} day(s)
+                                        {% endif %}
+                                    </small>
+                                    <div class="invitation-actions">
+                                        <form action="{{ url_for('team.resend_invitation', org_id=active_org.id, invitation_id=invitation.id) }}" method="post">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('team.cancel_invitation', org_id=active_org.id, invitation_id=invitation.id) }}" method="post">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div>
+                                    <small>Role: 
+                                        <span class="badge 
+                                            {% if invitation.role == UserRole.ADMIN.value %}badge-info
+                                            {% elif invitation.role == UserRole.MEMBER.value %}badge-success
+                                            {% elif invitation.role == UserRole.VIEWER.value %}badge-secondary
+                                            {% endif %}">
+                                            {{ invitation.role }}
+                                        </span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-envelope-open text-muted mb-2" style="font-size: 2rem;"></i>
+                            <p class="text-muted mb-0">No pending invitations</p>
+                        </div>
+                    {% endif %}
+                    
+                    {% if can_invite %}
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('organizations.invite_member', org_id=active_org.id) }}" class="btn btn-primary btn-sm btn-block">
+                            <i class="fas fa-user-plus"></i> Invite New Member
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Team Permissions Info Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Role Permissions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6><i class="fas fa-crown text-warning"></i> Owner</h6>
+                        <p class="text-muted small mb-0">Full control over organization and members</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6><i class="fas fa-user-shield text-info"></i> Admin</h6>
+                        <p class="text-muted small mb-0">Manage members, data and settings</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6><i class="fas fa-user text-success"></i> Member</h6>
+                        <p class="text-muted small mb-0">Create and edit organization data</p>
+                    </div>
+                    <div>
+                        <h6><i class="fas fa-eye text-secondary"></i> Viewer</h6>
+                        <p class="text-muted small mb-0">Read-only access to organization data</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

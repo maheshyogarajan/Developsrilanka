@@ -458,9 +458,9 @@
                     </ul>
                 </li>
                 
-                <!-- Who (Organizations/Bank) group -->
-                <li class="menu-item {% if '/organizations' in request.path or '/bank-accounts' in request.path %}open{% endif %}">
-                    <a href="#" class="menu-link has-submenu {% if '/organizations' in request.path or '/bank-accounts' in request.path %}active{% endif %}">
+                <!-- Who (Organizations/Team/Bank) group -->
+                <li class="menu-item {% if '/organizations' in request.path or '/team' in request.path or '/bank-accounts' in request.path %}open{% endif %}">
+                    <a href="#" class="menu-link has-submenu {% if '/organizations' in request.path or '/team' in request.path or '/bank-accounts' in request.path %}active{% endif %}">
                         <i class="fas fa-user-tie menu-icon"></i>
                         <span class="menu-text">Who</span>
                     </a>
@@ -469,6 +469,12 @@
                             <a href="{{ url_for('organizations.organizations') }}" class="submenu-link {% if '/organizations' in request.path %}active{% endif %}">
                                 <i class="fas fa-building submenu-icon"></i>
                                 <span>Organizations</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('team.team_dashboard') }}" class="submenu-link {% if '/team' in request.path %}active{% endif %}">
+                                <i class="fas fa-users submenu-icon"></i>
+                                <span>Team</span>
                             </a>
                         </li>
                         <li>
@@ -525,6 +531,8 @@
                     Bank Accounts
                 {% elif '/organizations' in request.path %}
                     Organizations
+                {% elif '/team' in request.path %}
+                    Team Management
                 {% elif '/expenses' in request.path %}
                     Expenses
                 {% elif '/classify' in request.path %}
