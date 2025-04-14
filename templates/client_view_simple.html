@@ -113,24 +113,59 @@
                     {% if invoices %}
                         <div class="list-group list-group-flush">
                             {% for invoice in invoices %}
-                                <a href="{{ url_for('invoices.view_invoice', invoice_id=invoice.id) }}" class="list-group-item list-group-item-action">
+                                <a href="{{ url_for('invoices.view_invoice', invoice_id=invoice.id if invoice is not mapping else invoice['id']) }}" class="list-group-item list-group-item-action">
                                     <div class="d-flex w-100 justify-content-between">
-                                        <h6 class="mb-1">{{ invoice.invoice_number }}</h6>
-                                        <small>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</small>
+                                        <h6 class="mb-1">
+                                            {% if invoice is mapping %}
+                                                {{ invoice['invoice_number'] }}
+                                            {% else %}
+                                                {{ invoice.invoice_number }}
+                                            {% endif %}
+                                        </h6>
+                                        <small>
+                                            {% if invoice is mapping %}
+                                                {% if invoice['issue_date'] %}
+                                                    {{ invoice['issue_date'].strftime('%Y-%m-%d') }}
+                                                {% else %}
+                                                    Unknown date
+                                                {% endif %}
+                                            {% elif invoice.issue_date %}
+                                                {{ invoice.issue_date.strftime('%Y-%m-%d') }}
+                                            {% else %}
+                                                Unknown date
+                                            {% endif %}
+                                        </small>
                                     </div>
-                                    <p class="mb-1">{{ invoice.total|currency }}</p>
-                                    {% if invoice.status == 'paid' %}
+                                    <p class="mb-1">
+                                        {% if invoice is mapping %}
+                                            {% if invoice['total'] is not none %}
+                                                {{ invoice['total']|currency }}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        {% elif invoice.total is not none %}
+                                            {{ invoice.total|currency }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </p>
+                                    
+                                    {% set status = invoice.status if invoice is not mapping else invoice['status'] %}
+                                    
+                                    {% if status == 'paid' %}
                                         <span class="badge bg-success">Paid</span>
-                                    {% elif invoice.status == 'partially_paid' %}
+                                    {% elif status == 'partially_paid' %}
                                         <span class="badge bg-warning text-dark">Partially Paid</span>
-                                    {% elif invoice.status == 'overdue' %}
+                                    {% elif status == 'overdue' %}
                                         <span class="badge bg-danger">Overdue</span>
-                                    {% elif invoice.status == 'sent' %}
+                                    {% elif status == 'sent' %}
                                         <span class="badge bg-info text-dark">Sent</span>
-                                    {% elif invoice.status == 'draft' %}
+                                    {% elif status == 'draft' %}
                                         <span class="badge bg-secondary">Draft</span>
-                                    {% elif invoice.status == 'cancelled' %}
+                                    {% elif status == 'cancelled' %}
                                         <span class="badge bg-dark">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ status|default('Unknown') }}</span>
                                     {% endif %}
                                 </a>
                             {% endfor %}

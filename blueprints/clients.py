@@ -318,6 +318,135 @@ def debug_client(client_id):
     except Exception as e:
         return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
+@clients_bp.route('/client_debug/<int:client_id>')
+def client_debug(client_id):
+    """Debug view for a client (no auth required for testing)."""
+    import traceback
+    import json
+    
+    try:
+        output = "<h1>Client Debug Info</h1>"
+        
+        # Check if client exists
+        result = db.session.execute(text("""
+            SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
+                   phone, address, tax_registration_number, notes, created_at, updated_at
+            FROM client
+            WHERE id = :client_id
+            LIMIT 1
+        """), {'client_id': client_id}).first()
+        
+        if not result:
+            return f"<div style='color: red'>Client with ID {client_id} not found</div>"
+        
+        output += "<h2>Client Data</h2>"
+        output += "<table border='1' cellpadding='5'>"
+        output += "<tr><th>Field</th><th>Value</th><th>Type</th></tr>"
+        
+        field_names = ["id", "user_id", "organization_id", "name", "company_name", "contact_person", 
+                      "email", "phone", "address", "tax_registration_number", "notes", "created_at", "updated_at"]
+        
+        for i, field in enumerate(field_names):
+            val = result[i]
+            val_display = val if val is not None else '<b style="color:red">NULL</b>'
+            output += f"<tr><td>{field}</td><td>{val_display}</td><td>{type(val).__name__}</td></tr>"
+        
+        output += "</table>"
+        
+        # Get invoices 
+        invoice_results = db.session.execute(text("""
+            SELECT id, invoice_number, issue_date, due_date, status, total
+            FROM invoice
+            WHERE client_id = :client_id
+            ORDER BY issue_date DESC
+        """), {'client_id': client_id}).fetchall()
+        
+        output += f"<h2>Invoices ({len(invoice_results)})</h2>"
+        
+        if invoice_results:
+            output += "<table border='1' cellpadding='5'>"
+            output += "<tr><th>ID</th><th>Number</th><th>Issue Date</th><th>Due Date</th><th>Status</th><th>Total</th></tr>"
+            
+            for row in invoice_results:
+                output += "<tr>"
+                for i, val in enumerate(row):
+                    style = ""
+                    if val is None:
+                        style = " style='color:red;font-weight:bold'"
+                        val = "NULL"
+                    output += f"<td{style}>{val}</td>"
+                output += "</tr>"
+            
+            output += "</table>"
+        else:
+            output += "<p>No invoices found</p>"
+        
+        # Check registered routes
+        output += "<h2>Template Test</h2>"
+        output += "<p>Testing template rendering...</p>"
+        
+        try:
+            # Try to render a simple template
+            test_client = Client(
+                id=result[0],
+                user_id=result[1],
+                organization_id=result[2],
+                name=result[3],
+                company_name=result[4] or '',
+                contact_person=result[5] or '',
+                email=result[6] or '',
+                phone=result[7] or '',
+                address=result[8] or '',
+                tax_registration_number=result[9] or '',
+                notes=result[10] or '',
+                created_at=result[11],
+                updated_at=result[12]
+            )
+            
+            # Create test invoices with safe data
+            test_invoices = []
+            if invoice_results:
+                for row in invoice_results:
+                    invoice = {
+                        'id': row[0] or 0,
+                        'invoice_number': row[1] or 'No number',
+                        'issue_date': row[2] or None,
+                        'due_date': row[3] or None,
+                        'status': row[4] or 'unknown',
+                        'total': row[5] or 0
+                    }
+                    test_invoices.append(invoice)
+            
+            # Try rendering just part of the template as test
+            from flask import render_template_string
+            test_template = """
+            <h3>Test Client Information</h3>
+            <p>Name: {{ client.name }}</p>
+            <p>Email: {{ client.email }}</p>
+            
+            <h3>Test Invoices</h3>
+            <ul>
+            {% for invoice in invoices %}
+                <li>{{ invoice.invoice_number }} - {{ invoice.status }} - {{ invoice.total }}</li>
+            {% else %}
+                <li>No invoices found</li>
+            {% endfor %}
+            </ul>
+            """
+            
+            rendered = render_template_string(test_template, client=test_client, invoices=test_invoices)
+            output += rendered
+            output += "<p style='color: green'>✓ Template rendering successful</p>"
+            
+        except Exception as e:
+            output += f"<p style='color: red'>Error rendering test template: {str(e)}</p>"
+            output += f"<pre>{traceback.format_exc()}</pre>"
+        
+        # Output all the debug info
+        return output
+    except Exception as e:
+        return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
+
 @clients_bp.route('/simple_view/<int:client_id>')
 @login_required
 def simple_view_client(client_id):
@@ -336,43 +465,43 @@ def simple_view_client(client_id):
             flash("Client not found", "danger")
             return redirect(url_for('clients.clients'))
         
-        # Convert row to Client object
+        # Convert row to Client object with defensive coding
         client = Client(
             id=result[0],
             user_id=result[1],
             organization_id=result[2],
-            name=result[3],
-            company_name=result[4],
-            contact_person=result[5],
-            email=result[6],
-            phone=result[7],
-            address=result[8],
-            tax_registration_number=result[9],
-            notes=result[10],
+            name=result[3] or "Unnamed Client",
+            company_name=result[4] or '',
+            contact_person=result[5] or '',
+            email=result[6] or '',
+            phone=result[7] or '',
+            address=result[8] or '',
+            tax_registration_number=result[9] or '',
+            notes=result[10] or '',
             created_at=result[11],
             updated_at=result[12]
         )
         
-        # Get invoices
+        # Get invoices with minimal fields needed
         invoice_results = db.session.execute(text("""
-            SELECT id, invoice_number, issue_date, due_date, status, total
+            SELECT id, invoice_number, issue_date, due_date, status, total 
             FROM invoice
             WHERE client_id = :client_id AND user_id = :user_id
             ORDER BY issue_date DESC
         """), {'client_id': client_id, 'user_id': current_user.id})
         
-        # Convert to simple invoice objects
-        from models import Invoice
+        # Convert to simple invoice objects - very defensive approach
         invoices = []
         for row in invoice_results:
-            invoice = Invoice(
-                id=row[0],
-                invoice_number=row[1],
-                issue_date=row[2],
-                due_date=row[3],
-                status=row[4],
-                total=row[5]
-            )
+            # Create dictionary instead of Invoice object to avoid possible model issues
+            invoice = {
+                'id': row[0],
+                'invoice_number': row[1] or 'No number',
+                'issue_date': row[2],
+                'due_date': row[3],
+                'status': row[4] or 'unknown',
+                'total': row[5] or 0
+            }
             invoices.append(invoice)
         
         # Render the simple template
@@ -380,7 +509,9 @@ def simple_view_client(client_id):
                                client=client, 
                                invoices=invoices)
     except Exception as e:
+        import traceback
         logger.error(f"Error in simple_view_client: {str(e)}")
+        logger.error(traceback.format_exc())
         flash(f"An error occurred: {str(e)}", "danger")
         return redirect(url_for('clients.clients'))
 
