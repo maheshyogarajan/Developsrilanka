@@ -9,7 +9,7 @@ import os
 import io
 from PIL import Image, ImageOps
 import logging
-from s3_storage import upload_file, check_file_exists, generate_presigned_url, download_file
+from s3_storage import generate_presigned_url, upload_image_to_s3, get_image_from_s3
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -93,6 +93,28 @@ def get_thumbnail_s3_key(original_s3_key):
     return thumbnail_key
 
 
+def check_file_exists_in_s3(s3_key):
+    """
+    Check if a file exists in S3.
+    
+    Args:
+        s3_key (str): The S3 object key
+        
+    Returns:
+        bool: True if file exists, False otherwise
+    """
+    if not s3_key:
+        return False
+        
+    try:
+        # Try to generate a URL - if it returns None, the file doesn't exist
+        url = generate_presigned_url(s3_key)
+        return url is not None
+    except Exception as e:
+        logger.error(f"Error checking if file exists: {str(e)}")
+        return False
+
+
 def generate_thumbnail_for_s3(original_s3_key):
     """
     Generate a thumbnail for an image stored in S3 and upload it back to S3.
@@ -111,15 +133,20 @@ def generate_thumbnail_for_s3(original_s3_key):
         thumbnail_s3_key = get_thumbnail_s3_key(original_s3_key)
         
         # Check if thumbnail already exists
-        if check_file_exists(thumbnail_s3_key):
+        if check_file_exists_in_s3(thumbnail_s3_key):
             logger.info(f"Thumbnail already exists: {thumbnail_s3_key}")
             return thumbnail_s3_key
         
         # Download the original image
-        image_data = download_file(original_s3_key)
-        if not image_data:
+        original_image = get_image_from_s3(original_s3_key)
+        if not original_image:
             logger.error(f"Failed to download original image: {original_s3_key}")
             return None
+        
+        # Convert PIL Image to bytes
+        img_byte_arr = io.BytesIO()
+        original_image.save(img_byte_arr, format=original_image.format)
+        image_data = img_byte_arr.getvalue()
             
         # Create the thumbnail
         thumbnail_data = create_thumbnail(image_data)
@@ -128,11 +155,33 @@ def generate_thumbnail_for_s3(original_s3_key):
             return None
             
         # Upload the thumbnail to S3
-        if upload_file(thumbnail_data, thumbnail_s3_key):
+        # Extract original parts from the key (org ID, receipt ID, etc)
+        parts = original_s3_key.split('/')
+        org_id = None
+        receipt_id = None
+        
+        if len(parts) > 1:
+            try:
+                # Try to parse numeric IDs from the original key if they exist
+                for part in parts:
+                    if part.isdigit():
+                        if org_id is None:
+                            org_id = int(part)
+                        else:
+                            receipt_id = int(part)
+            except:
+                pass
+                
+        # Upload the thumbnail
+        result = upload_image_to_s3(thumbnail_data, organization_id=org_id, receipt_id=receipt_id)
+        
+        if result:
+            # Override the generated key with our thumbnail key
+            thumbnail_s3_key = THUMBNAIL_PREFIX + result.split('/', 1)[1] if '/' in result else THUMBNAIL_PREFIX + result
             logger.info(f"Successfully generated and uploaded thumbnail: {thumbnail_s3_key}")
             return thumbnail_s3_key
         else:
-            logger.error(f"Failed to upload thumbnail: {thumbnail_s3_key}")
+            logger.error("Failed to upload thumbnail")
             return None
             
     except Exception as e:
