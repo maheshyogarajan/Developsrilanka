@@ -102,14 +102,26 @@ def create_bank_account():
         flash('You need to create an organization before adding a bank account.', 'warning')
         return redirect(url_for('create_organization'))
     
-    # Find default organization ID
+    # Check for organization parameter from redirect
+    org_param = request.args.get('organization')
     default_org_id = None
-    for org in organizations:
-        if org.is_default:
-            default_org_id = org.id
-            break
     
-    # If no default organization is set but organizations exist
+    if org_param and org_param.isdigit():
+        pre_selected_org_id = int(org_param)
+        # Verify this organization belongs to the user
+        for org in organizations:
+            if org.id == pre_selected_org_id:
+                default_org_id = pre_selected_org_id
+                break
+    
+    # If no org specified or invalid org, use the default org
+    if default_org_id is None:
+        for org in organizations:
+            if org.is_default:
+                default_org_id = org.id
+                break
+    
+    # If still no default, use the first one
     if default_org_id is None and organizations:
         default_org_id = organizations[0].id
     
