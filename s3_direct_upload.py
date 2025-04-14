@@ -3,6 +3,8 @@ Standalone S3 Direct Upload Module
 
 This module provides a simple API for directly uploading images to S3
 without any dependencies on other parts of the application.
+
+It also handles thumbnail generation and uploads thumbnails to S3.
 """
 
 import os

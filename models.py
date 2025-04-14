@@ -242,6 +242,42 @@ class Receipt(db.Model):
         except Exception as e:
             logging.error(f"Error generating S3 URL for key {self.s3_key}: {str(e)}")
             return None
+    
+    @property
+    def thumbnail_url(self):
+        """Generate a presigned URL for the thumbnail image in S3 if available."""
+        # If we have a stored thumbnail key, use it directly
+        if self.thumbnail_s3_key:
+            # Import here to avoid circular imports
+            from s3_storage import generate_presigned_url
+            import logging
+            
+            try:
+                # Generate and return the presigned URL for the thumbnail
+                url = generate_presigned_url(self.thumbnail_s3_key)
+                if url:
+                    return url
+                logging.warning(f"Failed to generate thumbnail URL for key: {self.thumbnail_s3_key} (object may not exist)")
+            except Exception as e:
+                logging.error(f"Error generating thumbnail URL for key {self.thumbnail_s3_key}: {str(e)}")
+        
+        # If no thumbnail is stored or there was an error, try generating one on-the-fly
+        if self.s3_key:
+            # Import here to avoid circular imports
+            from thumbnail_manager import get_thumbnail_url
+            import logging
+            
+            try:
+                # Generate a thumbnail URL from the original image
+                url = get_thumbnail_url(self.s3_key)
+                if url:
+                    return url
+                logging.warning(f"Failed to generate thumbnail URL for original image: {self.s3_key}")
+            except Exception as e:
+                logging.error(f"Error generating thumbnail URL from original image {self.s3_key}: {str(e)}")
+        
+        # Fallback to the full-sized image URL
+        return self.s3_url
 
     def get_tax_deductible_amount(self):
         """Calculate the total amount for tax deductible items.
@@ -283,8 +319,10 @@ class Receipt(db.Model):
             'created_at': self.created_at.isoformat(),
             'image_path': self.image_path or '',
             's3_key': self.s3_key or '',
+            'thumbnail_s3_key': self.thumbnail_s3_key or '',
             'image_url': image_url,
             's3_url': s3_url,
+            'thumbnail_url': self.thumbnail_url if hasattr(self, 'thumbnail_url') else None,
             'expense_major_category': self.expense_major_category or '',
             'expense_minor_category': self.expense_minor_category or '',
             'tax_deductible_amount': self.get_tax_deductible_amount(),
