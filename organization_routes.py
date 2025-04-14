@@ -141,6 +141,33 @@ def edit_organization(org_id):
         organization.secondary_color = request.form.get('secondary_color')
         organization.email_footer_text = request.form.get('email_footer_text')
         
+        # Handle logo upload
+        logo_file = request.files.get('logo')
+        if logo_file and logo_file.filename:
+            try:
+                from PIL import Image
+                from s3_storage import S3Storage
+                import io
+                
+                # Read the uploaded file
+                img_data = logo_file.read()
+                img = Image.open(io.BytesIO(img_data))
+                
+                # Resize the image if necessary (max dimensions 500x500)
+                max_size = (500, 500)
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                
+                # Initialize S3 storage and upload
+                s3 = S3Storage()
+                s3_key = s3.upload_image(img, organization_id=organization.id)
+                
+                # Save S3 key to organization
+                organization.logo_s3_key = s3_key
+                logger.info(f"Logo uploaded for organization {organization.id}, S3 key: {s3_key}")
+            except Exception as e:
+                logger.error(f"Error uploading organization logo: {str(e)}")
+                flash(f'Error uploading logo: {str(e)}', 'error')
+        
         db.session.commit()
         
         flash('Organization updated successfully!', 'success')

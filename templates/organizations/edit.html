@@ -14,7 +14,22 @@
                     </a>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="logo" class="form-label">Organization Logo</label>
+                            {% if organization.logo_url %}
+                                <div class="mb-2">
+                                    <img src="{{ organization.logo_url }}" alt="{{ organization.name }}" class="img-thumbnail" style="max-height: 100px; max-width: 300px;">
+                                </div>
+                            {% elif organization.logo_path %}
+                                <div class="mb-2">
+                                    <img src="{{ organization.logo_path }}" alt="{{ organization.name }}" class="img-thumbnail" style="max-height: 100px; max-width: 300px;">
+                                </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                            <div class="form-text">Upload a logo for your organization (JPG, PNG or SVG format recommended)</div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="name" class="form-label">Organization Name *</label>
                             <input type="text" class="form-control" id="name" name="name" value="{{ organization.name }}" required>

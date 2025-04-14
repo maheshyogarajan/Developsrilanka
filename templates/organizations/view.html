@@ -7,7 +7,9 @@
     <div class="row mb-4">
         <div class="col">
             <h1>
-                {% if organization.logo_path %}
+                {% if organization.logo_url %}
+                    <img src="{{ organization.logo_url }}" alt="{{ organization.name }}" style="max-height: 40px; margin-right: 10px; vertical-align: middle;">
+                {% elif organization.logo_path %}
                     <img src="{{ organization.logo_path }}" alt="{{ organization.name }}" style="max-height: 40px; margin-right: 10px; vertical-align: middle;">
                 {% endif %}
                 {{ organization.name }}

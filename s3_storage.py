@@ -359,6 +359,21 @@ def get_image_from_s3(s3_key):
         logger.error(f"Unexpected error retrieving image from S3: {str(e)}")
         raise
 
+def get_s3_url(s3_key, expiration=3600):
+    """
+    Generate and return a presigned URL for an S3 object.
+    This is a convenience function used by models to generate URLs.
+    
+    Args:
+        s3_key: S3 key of the object
+        expiration: Time in seconds for the URL to remain valid (default: 1 hour)
+        
+    Returns:
+        str: Presigned URL for the S3 object
+    """
+    return generate_presigned_url(s3_key, expiration)
+
+
 def generate_presigned_url(s3_key, expiration=3600):
     """
     Generate a presigned URL for an S3 object.
