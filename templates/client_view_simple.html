@@ -1,0 +1,163 @@
+{% extends "layout.html" %}
+
+{% block title %}Client: {{ client.name }} - Develop Sri Lanka{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('clients.clients') }}">Clients</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ client.name }}</li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0"><i class="fas fa-user-tie me-2"></i>{{ client.name }}</h2>
+                <div>
+                    <a href="{{ url_for('clients.edit_client', client_id=client.id) }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Edit
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <!-- Client Info Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Client Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th scope="row">Name</th>
+                                <td>{{ client.name }}</td>
+                            </tr>
+                            {% if client.company_name %}
+                            <tr>
+                                <th scope="row">Company</th>
+                                <td>{{ client.company_name }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if client.contact_person %}
+                            <tr>
+                                <th scope="row">Contact Person</th>
+                                <td>{{ client.contact_person }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if client.email %}
+                            <tr>
+                                <th scope="row">Email</th>
+                                <td><a href="mailto:{{ client.email }}">{{ client.email }}</a></td>
+                            </tr>
+                            {% endif %}
+                            {% if client.phone %}
+                            <tr>
+                                <th scope="row">Phone</th>
+                                <td>{{ client.phone }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if client.tax_registration_number %}
+                            <tr>
+                                <th scope="row">Tax Registration</th>
+                                <td>{{ client.tax_registration_number }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if client.address %}
+                            <tr>
+                                <th scope="row">Address</th>
+                                <td>{{ client.address|replace('\n', '<br>')|safe }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if client.notes %}
+                            <tr>
+                                <th scope="row">Notes</th>
+                                <td>{{ client.notes|replace('\n', '<br>')|safe }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th scope="row">Client Since</th>
+                                <td>{{ client.created_at.strftime('%Y-%m-%d') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Invoices Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Invoices</h5>
+                    <a href="{{ url_for('invoices.create_invoice') }}?client_id={{ client.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i> New Invoice
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if invoices %}
+                        <div class="list-group list-group-flush">
+                            {% for invoice in invoices %}
+                                <a href="{{ url_for('invoices.view_invoice', invoice_id=invoice.id) }}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ invoice.invoice_number }}</h6>
+                                        <small>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ invoice.total|currency }}</p>
+                                    {% if invoice.status == 'paid' %}
+                                        <span class="badge bg-success">Paid</span>
+                                    {% elif invoice.status == 'partially_paid' %}
+                                        <span class="badge bg-warning text-dark">Partially Paid</span>
+                                    {% elif invoice.status == 'overdue' %}
+                                        <span class="badge bg-danger">Overdue</span>
+                                    {% elif invoice.status == 'sent' %}
+                                        <span class="badge bg-info text-dark">Sent</span>
+                                    {% elif invoice.status == 'draft' %}
+                                        <span class="badge bg-secondary">Draft</span>
+                                    {% elif invoice.status == 'cancelled' %}
+                                        <span class="badge bg-dark">Cancelled</span>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center p-4">
+                            <p class="mb-2 text-muted">No invoices yet</p>
+                            <a href="{{ url_for('invoices.create_invoice') }}?client_id={{ client.id }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i> Create Invoice
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set the page title using the correct element ID
+        const pageTitleElement = document.getElementById('pageTitle');
+        if (pageTitleElement) {
+            pageTitleElement.textContent = 'Client: {{ client.name }}';
+        }
+    });
+</script>
+{% endblock %}

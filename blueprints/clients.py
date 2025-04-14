@@ -318,374 +318,234 @@ def debug_client(client_id):
     except Exception as e:
         return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
-@clients_bp.route('/<int:client_id>')
+@clients_bp.route('/simple_view/<int:client_id>')
 @login_required
-def view_client(client_id):
-    """View a specific client."""
-    import logging
-    import traceback
-    import json
-    
-    # Configure console logging for more immediate feedback
-    logger = logging.getLogger('client_view')
-    logger.setLevel(logging.DEBUG)
-    
-    # Very important: remove handlers to prevent duplication
-    if logger.handlers:
-        for handler in logger.handlers:
-            logger.removeHandler(handler)
-    
-    # Add console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    
-    logger.debug(f"---- START Client View ----")
-    logger.debug(f"Attempting to view client with ID: {client_id} for user {current_user.id}")
-    
+def simple_view_client(client_id):
+    """Simplified view for a client - robust and minimal."""
     try:
-        # Use raw SQL to get a specific client by ID
+        # Get the client using raw SQL - simplest possible implementation
         result = db.session.execute(text("""
             SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
-                phone, address, tax_registration_number, notes, created_at, updated_at
+                   phone, address, tax_registration_number, notes, created_at, updated_at
             FROM client
             WHERE id = :client_id AND user_id = :user_id
             LIMIT 1
         """), {'client_id': client_id, 'user_id': current_user.id}).first()
         
         if not result:
-            logger.warning(f"Client with ID {client_id} not found for user {current_user.id}")
-            abort(404)
-            
-        logger.debug(f"Successfully fetched client with ID: {client_id}")
-    except Exception as e:
-        logger.error(f"Error fetching client: {str(e)}")
-        raise
-    
-    # Convert row to Client object
-    client = Client(
-        id=result[0],
-        user_id=result[1],
-        organization_id=result[2],
-        name=result[3],
-        company_name=result[4],
-        contact_person=result[5],
-        email=result[6],
-        phone=result[7],
-        address=result[8],
-        tax_registration_number=result[9],
-        notes=result[10],
-        created_at=result[11],
-        updated_at=result[12]
-    )
-    
-    # Get invoices for this client using raw SQL
-    invoice_results = db.session.execute(text("""
-        SELECT id, user_id, client_id, bank_account_id, invoice_number, 
-               issue_date, due_date, status, notes, currency, 
-               subtotal, tax_percent, tax_amount, discount_percent, 
-               discount_amount, total, sender_name, sender_company, 
-               sender_address, sender_phone, sender_email, 
-               sender_tax_registration, last_sent_at, created_at, updated_at
-        FROM invoice
-        WHERE client_id = :client_id AND user_id = :user_id
-        ORDER BY issue_date DESC
-    """), {'client_id': client_id, 'user_id': current_user.id})
-    
-    # Get user's organizations for the dropdown (needed for template)
-    organizations_result = db.session.execute(text("""
-        SELECT o.id, o.name, o.logo_path, o.primary_color, o.email, ou.is_default
-        FROM organization o
-        JOIN organization_user ou ON o.id = ou.organization_id
-        WHERE ou.user_id = :user_id
-        ORDER BY ou.is_default DESC, o.name ASC
-    """), {'user_id': current_user.id})
-    
-    organizations = [
-        {
-            'id': row[0],
-            'name': row[1],
-            'logo_path': row[2],
-            'primary_color': row[3],
-            'email': row[4],
-            'is_default': row[5]
-        }
-        for row in organizations_result
-    ]
-    
-    # Get organization info if applicable
-    organization = None
-    if client.organization_id:
-        logger.debug(f"Fetching organization with ID: {client.organization_id}")
-        try:
-            org_result = db.session.execute(text("""
-                SELECT id, name, logo_path, logo_s3_key, primary_color, email
-                FROM organization
-                WHERE id = :organization_id
-                LIMIT 1
-            """), {'organization_id': client.organization_id}).first()
-            
-            if org_result:
-                logger.debug(f"Found organization: {org_result[1]}")
-                
-                from s3_storage import get_s3_url
-                logo_url = None
-                if org_result[3]:  # logo_s3_key
-                    logger.debug(f"Organization has S3 logo key: {org_result[3]}")
-                    try:
-                        logo_url = get_s3_url(org_result[3])
-                        logger.debug(f"Generated S3 URL for logo: {logo_url}")
-                    except Exception as e:
-                        logger.error(f"Error generating S3 URL: {str(e)}")
-                        pass
-                else:
-                    logger.debug("Organization has no S3 logo key")
-                        
-                organization = {
-                    'id': org_result[0],
-                    'name': org_result[1],
-                    'logo_path': org_result[2],
-                    'logo_s3_key': org_result[3],
-                    'logo_url': logo_url,
-                    'primary_color': org_result[4],
-                    'email': org_result[5]
-                }
-                logger.debug(f"Created organization dictionary: {organization}")
-            else:
-                logger.warning(f"Organization with ID {client.organization_id} not found")
-        except Exception as e:
-            logger.error(f"Error fetching organization: {str(e)}")
-            # Continue without organization data instead of failing completely
-            organization = None
-    
-    # Process invoices
-    # For simplicity in this blueprint migration, we'll import Invoice model from models
-    try:
+            flash("Client not found", "danger")
+            return redirect(url_for('clients.clients'))
+        
+        # Convert row to Client object
+        client = Client(
+            id=result[0],
+            user_id=result[1],
+            organization_id=result[2],
+            name=result[3],
+            company_name=result[4],
+            contact_person=result[5],
+            email=result[6],
+            phone=result[7],
+            address=result[8],
+            tax_registration_number=result[9],
+            notes=result[10],
+            created_at=result[11],
+            updated_at=result[12]
+        )
+        
+        # Get invoices
+        invoice_results = db.session.execute(text("""
+            SELECT id, invoice_number, issue_date, due_date, status, total
+            FROM invoice
+            WHERE client_id = :client_id AND user_id = :user_id
+            ORDER BY issue_date DESC
+        """), {'client_id': client_id, 'user_id': current_user.id})
+        
+        # Convert to simple invoice objects
         from models import Invoice
         invoices = []
+        for row in invoice_results:
+            invoice = Invoice(
+                id=row[0],
+                invoice_number=row[1],
+                issue_date=row[2],
+                due_date=row[3],
+                status=row[4],
+                total=row[5]
+            )
+            invoices.append(invoice)
         
-        logger.debug(f"Processing invoices for client ID: {client_id}")
-        
-        for inv_row in invoice_results:
-            try:
-                invoice = Invoice(
-                    id=inv_row[0],
-                    user_id=inv_row[1],
-                    client_id=inv_row[2],
-                    bank_account_id=inv_row[3],
-                    invoice_number=inv_row[4],
-                    issue_date=inv_row[5],
-                    due_date=inv_row[6],
-                    status=inv_row[7],
-                    notes=inv_row[8],
-                    currency=inv_row[9],
-                    subtotal=inv_row[10],
-                    tax_percent=inv_row[11],
-                    tax_amount=inv_row[12],
-                    discount_percent=inv_row[13],
-                    discount_amount=inv_row[14],
-                    total=inv_row[15],
-                    sender_name=inv_row[16],
-                    sender_company=inv_row[17],
-                    sender_address=inv_row[18],
-                    sender_phone=inv_row[19],
-                    sender_email=inv_row[20],
-                    sender_tax_registration=inv_row[21],
-                    last_sent_at=inv_row[22],
-                    created_at=inv_row[23],
-                    updated_at=inv_row[24]
-                )
-                invoices.append(invoice)
-                logger.debug(f"Added invoice {inv_row[4]} to result list")
-            except Exception as e:
-                logger.error(f"Error processing invoice row: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error in invoice processing section: {str(e)}")
-        invoices = []
-    
-    # Calculate financial summary
-    total_invoiced = 0
-    total_paid = 0
-    total_due = 0
-    
-    for invoice in invoices:
-        if invoice.total:
-            total_invoiced += invoice.total
-            
-            if invoice.status == 'paid':
-                total_paid += invoice.total
-            elif invoice.status == 'partially_paid':
-                # Assume 50% paid for partially paid invoices (simplified)
-                total_paid += invoice.total * 0.5
-                total_due += invoice.total * 0.5
-            elif invoice.status != 'cancelled':
-                total_due += invoice.total
-    
-    try:
-        logger.debug(f"Rendering template with client={client}, invoices count={len(invoices)}, organization={organization}")
-        return render_template('client_details.html', 
+        # Render the simple template
+        return render_template('client_view_simple.html', 
                                client=client, 
-                               invoices=invoices, 
-                               organizations=organizations,
-                               organization=organization,
-                               total_invoiced=total_invoiced,
-                               total_paid=total_paid,
-                               total_due=total_due)
+                               invoices=invoices)
     except Exception as e:
-        logger.error(f"Error rendering template: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise
+        logger.error(f"Error in simple_view_client: {str(e)}")
+        flash(f"An error occurred: {str(e)}", "danger")
+        return redirect(url_for('clients.clients'))
+
+@clients_bp.route('/<int:client_id>')
+@login_required
+def view_client(client_id):
+    """View a specific client."""
+    # Redirect to the simple client view to avoid issues
+    return redirect(url_for('clients.simple_view_client', client_id=client_id))
 
 @clients_bp.route('/<int:client_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_client(client_id):
     """Edit an existing client."""
-    # Get the client using raw SQL
-    result = db.session.execute(text("""
-        SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
-               phone, address, tax_registration_number, notes, created_at, updated_at
-        FROM client
-        WHERE id = :client_id AND user_id = :user_id
-        LIMIT 1
-    """), {'client_id': client_id, 'user_id': current_user.id}).first()
-    
-    if not result:
-        abort(404)
-    
-    # Convert row to Client object
-    client = Client(
-        id=result[0],
-        user_id=result[1],
-        organization_id=result[2],
-        name=result[3],
-        company_name=result[4],
-        contact_person=result[5],
-        email=result[6],
-        phone=result[7],
-        address=result[8],
-        tax_registration_number=result[9],
-        notes=result[10],
-        created_at=result[11],
-        updated_at=result[12]
-    )
-    
-    if request.method == 'POST':
-        try:
-            # Get updated values
-            name = request.form.get('name')
-            company_name = request.form.get('company_name', '')
-            contact_person = request.form.get('contact_person', '')
-            email = request.form.get('email', '')
-            phone = request.form.get('phone', '')
-            address = request.form.get('address', '')
-            tax_registration_number = request.form.get('tax_registration_number', '')
-            notes = request.form.get('notes', '')
-            
-            # Check if organization_id was provided in the form
-            organization_id = None
-            form_org_id = request.form.get('organization_id')
-            
-            if form_org_id:
-                # Verify this organization belongs to the user
-                result = db.session.execute(text("""
-                    SELECT organization_id FROM organization_user
-                    WHERE user_id = :user_id AND organization_id = :organization_id
-                """), {'user_id': current_user.id, 'organization_id': form_org_id}).first()
+    try:
+        # Get the client using raw SQL
+        result = db.session.execute(text("""
+            SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
+                   phone, address, tax_registration_number, notes, created_at, updated_at
+            FROM client
+            WHERE id = :client_id AND user_id = :user_id
+            LIMIT 1
+        """), {'client_id': client_id, 'user_id': current_user.id}).first()
+        
+        if not result:
+            flash('Client not found', 'danger')
+            return redirect(url_for('clients.clients'))
+        
+        # Convert row to Client object
+        client = Client(
+            id=result[0],
+            user_id=result[1],
+            organization_id=result[2],
+            name=result[3],
+            company_name=result[4],
+            contact_person=result[5],
+            email=result[6],
+            phone=result[7],
+            address=result[8],
+            tax_registration_number=result[9],
+            notes=result[10],
+            created_at=result[11],
+            updated_at=result[12]
+        )
+        
+        if request.method == 'POST':
+            try:
+                # Get updated values
+                name = request.form.get('name')
+                company_name = request.form.get('company_name', '')
+                contact_person = request.form.get('contact_person', '')
+                email = request.form.get('email', '')
+                phone = request.form.get('phone', '')
+                address = request.form.get('address', '')
+                tax_registration_number = request.form.get('tax_registration_number', '')
+                notes = request.form.get('notes', '')
                 
-                if not result:
-                    # Organization doesn't belong to user
-                    flash('Invalid organization selected', 'danger')
-                    return redirect(url_for('clients.view_client', client_id=client_id))
+                # Check if organization_id was provided in the form
+                organization_id = None
+                form_org_id = request.form.get('organization_id')
                 
-                organization_id = int(form_org_id)
-            
-            # Update the client
-            update_sql = """
-                UPDATE client
-                SET name = :name, company_name = :company_name, contact_person = :contact_person,
-                    email = :email, phone = :phone, address = :address, 
-                    tax_registration_number = :tax_registration_number, notes = :notes
-            """
-            
-            # Only add organization_id to the update if it was provided
-            if organization_id:
-                update_sql += ", organization_id = :organization_id"
+                if form_org_id:
+                    # Verify this organization belongs to the user
+                    result = db.session.execute(text("""
+                        SELECT organization_id FROM organization_user
+                        WHERE user_id = :user_id AND organization_id = :organization_id
+                    """), {'user_id': current_user.id, 'organization_id': form_org_id}).first()
+                    
+                    if not result:
+                        # Organization doesn't belong to user
+                        flash('Invalid organization selected', 'danger')
+                        return redirect(url_for('clients.view_client', client_id=client_id))
+                    
+                    organization_id = int(form_org_id)
                 
-            update_sql += """
-                , updated_at = CURRENT_TIMESTAMP
-                WHERE id = :client_id AND user_id = :user_id
-            """
-            
-            update_params = {
-                'client_id': client_id,
-                'user_id': current_user.id,
-                'name': name,
-                'company_name': company_name,
-                'contact_person': contact_person,
-                'email': email,
-                'phone': phone,
-                'address': address,
-                'tax_registration_number': tax_registration_number,
-                'notes': notes
+                # Update the client
+                update_sql = """
+                    UPDATE client
+                    SET name = :name, company_name = :company_name, contact_person = :contact_person,
+                        email = :email, phone = :phone, address = :address, 
+                        tax_registration_number = :tax_registration_number, notes = :notes
+                """
+                
+                # Only add organization_id to the update if it was provided
+                if organization_id:
+                    update_sql += ", organization_id = :organization_id"
+                    
+                update_sql += """
+                    , updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :client_id AND user_id = :user_id
+                """
+                
+                update_params = {
+                    'client_id': client_id,
+                    'user_id': current_user.id,
+                    'name': name,
+                    'company_name': company_name,
+                    'contact_person': contact_person,
+                    'email': email,
+                    'phone': phone,
+                    'address': address,
+                    'tax_registration_number': tax_registration_number,
+                    'notes': notes
+                }
+                
+                # Add organization_id to params if it was provided
+                if organization_id:
+                    update_params['organization_id'] = organization_id
+                    
+                db.session.execute(text(update_sql), update_params)
+                
+                db.session.commit()
+                
+                # Update client object with new values for template rendering
+                client.name = name
+                client.company_name = company_name
+                client.contact_person = contact_person
+                client.email = email
+                client.phone = phone
+                client.address = address
+                client.tax_registration_number = tax_registration_number
+                client.notes = notes
+                client.updated_at = datetime.utcnow()
+                
+                # Update organization_id in the client object if it was changed
+                if organization_id:
+                    client.organization_id = organization_id
+                
+                flash('Client updated successfully!', 'success')
+                return redirect(url_for('clients.view_client', client_id=client.id))
+                
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error updating client: {str(e)}")
+                flash(f'Error updating client: {str(e)}', 'danger')
+                return redirect(url_for('clients.view_client', client_id=client.id))
+        
+        # GET request - render the form
+        # Get user's organizations for the dropdown
+        organizations_result = db.session.execute(text("""
+            SELECT o.id, o.name, o.logo_path, o.primary_color, o.email, ou.is_default
+            FROM organization o
+            JOIN organization_user ou ON o.id = ou.organization_id
+            WHERE ou.user_id = :user_id
+            ORDER BY ou.is_default DESC, o.name ASC
+        """), {'user_id': current_user.id})
+        
+        organizations = [
+            {
+                'id': row[0],
+                'name': row[1],
+                'logo_path': row[2],
+                'primary_color': row[3],
+                'email': row[4],
+                'is_default': row[5]
             }
-            
-            # Add organization_id to params if it was provided
-            if organization_id:
-                update_params['organization_id'] = organization_id
-                
-            db.session.execute(text(update_sql), update_params)
-            
-            db.session.commit()
-            
-            # Update client object with new values for template rendering
-            client.name = name
-            client.company_name = company_name
-            client.contact_person = contact_person
-            client.email = email
-            client.phone = phone
-            client.address = address
-            client.tax_registration_number = tax_registration_number
-            client.notes = notes
-            client.updated_at = datetime.utcnow()
-            
-            # Update organization_id in the client object if it was changed
-            if organization_id:
-                client.organization_id = organization_id
-            
-            flash('Client updated successfully!', 'success')
-            return redirect(url_for('clients.view_client', client_id=client.id))
-            
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error updating client: {str(e)}")
-            flash(f'Error updating client: {str(e)}', 'danger')
-            return redirect(url_for('clients.view_client', client_id=client.id))
-    
-    # GET request - render the form
-    # Get user's organizations for the dropdown
-    organizations_result = db.session.execute(text("""
-        SELECT o.id, o.name, o.logo_path, o.primary_color, o.email, ou.is_default
-        FROM organization o
-        JOIN organization_user ou ON o.id = ou.organization_id
-        WHERE ou.user_id = :user_id
-        ORDER BY ou.is_default DESC, o.name ASC
-    """), {'user_id': current_user.id})
-    
-    organizations = [
-        {
-            'id': row[0],
-            'name': row[1],
-            'logo_path': row[2],
-            'primary_color': row[3],
-            'email': row[4],
-            'is_default': row[5]
-        }
-        for row in organizations_result
-    ]
-    
-    return render_template('edit_client.html', client=client, organizations=organizations)
+            for row in organizations_result
+        ]
+        
+        # Use the fixed edit client template
+        return render_template('edit_client_fixed.html', client=client, organizations=organizations)
+    except Exception as e:
+        logger.error(f"Error in edit_client route: {str(e)}")
+        flash(f"An error occurred while editing client: {str(e)}", "danger")
+        return redirect(url_for('clients.clients'))
 
 @clients_bp.route('/<int:client_id>/delete', methods=['POST'])
 @login_required
