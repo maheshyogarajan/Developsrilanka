@@ -998,6 +998,13 @@ def email_invoice(invoice_id):
     # Make sure to load the items relationship
     if invoice:
         db.session.refresh(invoice)
+        
+    # Explicitly load the client data for the email template
+    client = None
+    if result[2]:  # if client_id exists
+        client = Client.query.get(result[2])
+        # Attach client to invoice for template access
+        invoice.client = client
     
     # Check if invoice can be emailed (must have client and client email, and not be a draft)
     if not result[2]:  # client_id is None
