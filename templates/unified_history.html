@@ -319,11 +319,11 @@
                                 </p>
                                 <div class="d-flex mb-3">
                                     {% if item.receipt.thumbnail_url %}
-                                        <img src="{{ item.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image">
+                                        <img src="{{ item.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image" loading="lazy">
                                     {% elif item.receipt.s3_url %}
-                                        <img src="{{ item.receipt.s3_url }}" alt="Receipt Image" class="item-image">
+                                        <img src="{{ item.receipt.s3_url }}" alt="Receipt Image" class="item-image" loading="lazy">
                                     {% elif item.receipt.image_path %}
-                                        <img src="{{ url_for('static', filename=item.receipt.image_path) }}" alt="Receipt Image" class="item-image">
+                                        <img src="{{ url_for('static', filename=item.receipt.image_path) }}" alt="Receipt Image" class="item-image" loading="lazy">
                                     {% else %}
                                         <div class="text-muted fst-italic">No image available</div>
                                     {% endif %}
@@ -353,11 +353,11 @@
                                 </p>
                                 <div class="d-flex mb-3">
                                     {% if item.expense.receipt and item.expense.receipt.thumbnail_url %}
-                                        <img src="{{ item.expense.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image">
+                                        <img src="{{ item.expense.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image" loading="lazy">
                                     {% elif item.expense.receipt and item.expense.receipt.s3_url %}
-                                        <img src="{{ item.expense.receipt.s3_url }}" alt="Receipt Image" class="item-image">
+                                        <img src="{{ item.expense.receipt.s3_url }}" alt="Receipt Image" class="item-image" loading="lazy">
                                     {% elif item.expense.receipt and item.expense.receipt.image_path %}
-                                        <img src="{{ url_for('static', filename=item.expense.receipt.image_path) }}" alt="Receipt Image" class="item-image">
+                                        <img src="{{ url_for('static', filename=item.expense.receipt.image_path) }}" alt="Receipt Image" class="item-image" loading="lazy">
                                     {% else %}
                                         <div class="text-muted fst-italic">No image available</div>
                                     {% endif %}
