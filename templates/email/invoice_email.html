@@ -95,6 +95,9 @@
 <body>
     <div class="container">
         <div class="header">
+            {% if organization and organization.logo_url %}
+                <img src="{{ organization.logo_url }}" alt="{{ organization.name }}" class="logo">
+            {% endif %}
             <h1>Invoice #{{ invoice.invoice_number }}</h1>
             <p>From {{ sender_name }}</p>
         </div>

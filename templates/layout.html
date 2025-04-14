@@ -345,9 +345,15 @@
         <button class="mobile-toggle" id="mobileSidebarToggle">
             <i class="fas fa-bars"></i>
         </button>
-        <a href="/" class="sidebar-brand mx-auto">
-            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo" style="height: 30px;">
-        </a>
+        <div class="d-flex align-items-center justify-content-center mx-auto">
+            <a href="/" class="sidebar-brand me-2">
+                <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo" style="height: 30px;">
+            </a>
+            {% if current_user.is_authenticated and current_user.default_organization and current_user.default_organization.logo_url %}
+                <img src="{{ current_user.default_organization.logo_url }}" alt="{{ current_user.default_organization.name }}" 
+                     style="height: 25px; max-width: 80px; object-fit: contain;">
+            {% endif %}
+        </div>
     </header>
     
     <!-- Sidebar Overlay (for mobile) -->
@@ -360,6 +366,14 @@
                 <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo">
                 <span class="brand-text">Develop Sri Lanka</span>
             </a>
+            
+            {% if current_user.is_authenticated and current_user.default_organization and current_user.default_organization.logo_url %}
+            <div class="org-logo-sidebar mt-2">
+                <img src="{{ current_user.default_organization.logo_url }}" alt="{{ current_user.default_organization.name }}" 
+                     style="max-height: 25px; max-width: 80%; display: block; margin: 0 auto; object-fit: contain;">
+                <div class="small text-muted text-center mt-1" style="font-size: 0.7rem;">{{ current_user.default_organization.name }}</div>
+            </div>
+            {% endif %}
             <button class="sidebar-toggle" id="sidebarToggle">
                 <i class="fas fa-chevron-left"></i>
             </button>
