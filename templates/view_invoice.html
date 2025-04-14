@@ -67,6 +67,9 @@
             <div class="row mb-4">
                 <div class="col-md-6">
                     {% if organization %}
+                        {% if organization.logo_url %}
+                            <img src="{{ organization.logo_url }}" alt="{{ organization.name }}" style="max-height: 80px; max-width: 200px; object-fit: contain; margin-bottom: 15px;">
+                        {% endif %}
                         <h3 class="fw-bold">{{ organization.name }}</h3>
                         {% if organization.address %}
                             <p class="mb-0">{{ organization.address|replace('\n', '<br>')|safe }}</p>
