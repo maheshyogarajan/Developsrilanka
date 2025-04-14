@@ -260,7 +260,11 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('page-title').textContent = 'Client Management';
+        // Get the page title element by its correct ID 'pageTitle'
+        const pageTitleElement = document.getElementById('pageTitle');
+        if (pageTitleElement) {
+            pageTitleElement.textContent = 'Client Management';
+        }
     });
 </script>
 {% endblock %}

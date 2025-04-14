@@ -236,6 +236,12 @@
 
 {% block scripts %}
 <script>
-    // No need to set page title here - it's already set in the template
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set page title properly with client name
+        const pageTitleElement = document.getElementById('pageTitle');
+        if (pageTitleElement) {
+            pageTitleElement.textContent = 'Client: {{ client.name }}';
+        }
+    });
 </script>
 {% endblock %}

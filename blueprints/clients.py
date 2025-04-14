@@ -242,22 +242,105 @@ def create_client():
     
     return render_template('create_client.html', organizations=organizations)
 
+@clients_bp.route('/debug_client/<int:client_id>')
+def debug_client(client_id):
+    """Debug view for a client (no auth required for testing)."""
+    # Get the client using raw SQL
+    from app import db
+    from sqlalchemy import text
+    import traceback
+    
+    try:
+        # Use raw SQL to get a specific client by ID (no user_id filter for debugging)
+        result = db.session.execute(text("""
+            SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
+                phone, address, tax_registration_number, notes, created_at, updated_at
+            FROM client
+            WHERE id = :client_id
+            LIMIT 1
+        """), {'client_id': client_id}).first()
+        
+        if not result:
+            return f"Client with ID {client_id} not found", 404
+            
+        # Get client info
+        client_info = {
+            'id': result[0],
+            'user_id': result[1],
+            'organization_id': result[2],
+            'name': result[3],
+            'company_name': result[4],
+            'contact_person': result[5],
+            'email': result[6],
+            'phone': result[7],
+            'address': result[8],
+            'tax_registration_number': result[9],
+            'notes': result[10],
+            'created_at': result[11],
+            'updated_at': result[12]
+        }
+        
+        # Get organization info if applicable
+        org_info = None
+        if result[2]:  # organization_id
+            org_result = db.session.execute(text("""
+                SELECT id, name, logo_path, logo_s3_key, primary_color, email
+                FROM organization
+                WHERE id = :organization_id
+                LIMIT 1
+            """), {'organization_id': result[2]}).first()
+            
+            if org_result:
+                org_info = {
+                    'id': org_result[0],
+                    'name': org_result[1],
+                    'logo_path': org_result[2],
+                    'logo_s3_key': org_result[3],
+                    'primary_color': org_result[4],
+                    'email': org_result[5]
+                }
+        
+        # Get invoice count
+        invoice_count = db.session.execute(text("""
+            SELECT COUNT(*) FROM invoice
+            WHERE client_id = :client_id
+        """), {'client_id': client_id}).scalar()
+        
+        # Build debug output
+        output = "<h1>Client Debug Information</h1>"
+        output += "<h2>Client Details</h2>"
+        output += "<pre>" + str(client_info) + "</pre>"
+        output += "<h2>Organization Details</h2>"
+        output += "<pre>" + str(org_info) + "</pre>"
+        output += f"<h2>Invoice Count</h2><p>{invoice_count}</p>"
+        
+        return output
+    except Exception as e:
+        return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
+
 @clients_bp.route('/<int:client_id>')
 @login_required
 def view_client(client_id):
     """View a specific client."""
     import logging
     import traceback
+    import json
     
-    # Configure file-based logging for debugging
-    file_handler = logging.FileHandler('/tmp/client_debug.log')
-    file_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(formatter)
-    
-    logger = logging.getLogger(__name__)
+    # Configure console logging for more immediate feedback
+    logger = logging.getLogger('client_view')
     logger.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
+    
+    # Very important: remove handlers to prevent duplication
+    if logger.handlers:
+        for handler in logger.handlers:
+            logger.removeHandler(handler)
+    
+    # Add console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
     
     logger.debug(f"---- START Client View ----")
     logger.debug(f"Attempting to view client with ID: {client_id} for user {current_user.id}")
