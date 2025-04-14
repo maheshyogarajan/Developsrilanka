@@ -974,7 +974,7 @@ def delete_payment(invoice_id, payment_id):
     
     return redirect(url_for('view_invoice', invoice_id=invoice.id))
 
-@app.route('/invoices/<int:invoice_id>/email', methods=['POST'])
+@app.route('/invoices/<int:invoice_id>/email', methods=['POST', 'GET'])
 @login_required
 def email_invoice(invoice_id):
     """Email the invoice to the client."""
