@@ -581,173 +581,76 @@ def simple_view_client(client_id):
         flash(f"An error occurred viewing client details: {str(e)}", "danger")
         return redirect(url_for('clients.clients'))
 
+@clients_bp.route('/minimal/<int:client_id>')
+@login_required
+def view_client_minimal(client_id):
+    """Minimalistic client view with absolute bare essentials."""
+    import traceback
+    try:
+        # Direct database query for this client only
+        query = """
+        SELECT id, name, company_name, email, phone
+        FROM client 
+        WHERE id = :client_id AND user_id = :user_id
+        """
+        client = db.session.execute(text(query), {
+            'client_id': client_id, 
+            'user_id': current_user.id
+        }).first()
+        
+        if not client:
+            return "Client not found", 404
+            
+        # Return absolute bare-minimum HTML
+        html = f"""
+        <html>
+        <head>
+            <title>Client: {client[1]}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+                h1 {{ color: #333; }}
+                .info {{ margin: 20px 0; }}
+                .info div {{ margin: 5px 0; }}
+                .label {{ font-weight: bold; display: inline-block; width: 120px; }}
+                .nav {{ margin-top: 20px; }}
+                .nav a {{ margin-right: 10px; }}
+            </style>
+        </head>
+        <body>
+            <h1>Client Details</h1>
+            
+            <div class="info">
+                <div><span class="label">ID:</span> {client[0]}</div>
+                <div><span class="label">Name:</span> {client[1]}</div>
+                <div><span class="label">Company:</span> {client[2] or '(None)'}</div>
+                <div><span class="label">Email:</span> {client[3] or '(None)'}</div>
+                <div><span class="label">Phone:</span> {client[4] or '(None)'}</div>
+            </div>
+            
+            <div class="nav">
+                <a href="/clients">Back to Clients</a>
+                <a href="/clients/{client_id}/edit">Edit Client</a>
+            </div>
+        </body>
+        </html>
+        """
+        return html
+    except Exception as e:
+        error = f"Error: {str(e)}\n\n{traceback.format_exc()}"
+        logger.error(error)
+        return f"<pre>{error}</pre>", 500
+
 @clients_bp.route('/<int:client_id>')
 @login_required
 def view_client(client_id):
-    """Direct HTML output view for a client - no templates or complex dependencies."""
-    import traceback
-    
+    """View a specific client, falling back to minimal view if needed."""
     try:
-        # Get the client using raw SQL
-        result = db.session.execute(text("""
-            SELECT id, name, company_name, contact_person, email, phone, address,
-                  tax_registration_number, notes, created_at
-            FROM client
-            WHERE id = :client_id AND user_id = :user_id
-            LIMIT 1
-        """), {'client_id': client_id, 'user_id': current_user.id}).first()
-        
-        if not result:
-            return """
-            <html>
-            <head>
-                <title>Client Not Found</title>
-                <meta http-equiv="refresh" content="2;url=/clients">
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            </head>
-            <body class="container mt-3">
-                <div class="alert alert-danger">Client not found. Redirecting to client list...</div>
-            </body>
-            </html>
-            """
-        
-        # Build HTML output directly
-        return f"""
-        <html>
-        <head>
-            <title>Client: {result[1]}</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-        </head>
-        <body>
-            <div class="container mt-4">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="/">Home</a></li>
-                        <li class="breadcrumb-item"><a href="/clients">Clients</a></li>
-                        <li class="breadcrumb-item active">{result[1]}</li>
-                    </ol>
-                </nav>
-                
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h3 class="mb-0">Client Details</h3>
-                            <div>
-                                <a href="/clients/{client_id}/edit" class="btn btn-outline-primary">
-                                    <i class="fas fa-edit"></i> Edit
-                                </a>
-                                <button type="button" class="btn btn-outline-danger" 
-                                        onclick="if(confirm('Are you sure you want to delete this client?')) {{
-                                            const form = document.createElement('form');
-                                            form.method = 'POST';
-                                            form.action = '/clients/{client_id}/delete';
-                                            document.body.appendChild(form);
-                                            form.submit();
-                                        }}">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>Basic Information</h5>
-                                <table class="table table-borderless">
-                                    <tr>
-                                        <th style="width: 35%" class="text-muted">Name:</th>
-                                        <td>{result[1] or ''}</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="text-muted">Company:</th>
-                                        <td>{result[2] or ''}</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="text-muted">Contact Person:</th>
-                                        <td>{result[3] or ''}</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="text-muted">Email:</th>
-                                        <td>{f'<a href="mailto:{result[4]}">{result[4]}</a>' if result[4] else ''}</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="text-muted">Phone:</th>
-                                        <td>{result[5] or ''}</td>
-                                    </tr>
-                                </table>
-                            </div>
-                            <div class="col-md-6">
-                                <h5>Additional Details</h5>
-                                <table class="table table-borderless">
-                                    <tr>
-                                        <th style="width: 35%" class="text-muted">Address:</th>
-                                        <td>{result[6] or ''}</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="text-muted">Tax Registration:</th>
-                                        <td>{result[7] or ''}</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="text-muted">Notes:</th>
-                                        <td>{result[8] or ''}</td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-footer text-muted">
-                        <div class="d-flex justify-content-between">
-                            <span>Client ID: {result[0]}</span>
-                            <span>Created: {result[9].strftime('%Y-%m-%d') if result[9] else 'Unknown'}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mt-4 d-flex justify-content-between">
-                    <a href="/clients" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to Clients
-                    </a>
-                    <a href="/invoices/create?client_id={client_id}" class="btn btn-primary">
-                        <i class="fas fa-file-invoice"></i> Create New Invoice
-                    </a>
-                </div>
-            </div>
-            
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-        </body>
-        </html>
-        """
-        
+        # Redirect to the minimal view
+        return redirect(url_for('clients.view_client_minimal', client_id=client_id))
     except Exception as e:
-        error_message = f"""
-        <html>
-        <head>
-            <title>Error</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            <meta http-equiv="refresh" content="5;url=/clients">
-        </head>
-        <body class="container mt-4">
-            <div class="alert alert-danger">
-                <h4>Error viewing client</h4>
-                <p>{str(e)}</p>
-                <p class="mt-3">Redirecting to client list in 5 seconds...</p>
-            </div>
-            
-            <div class="card mt-3">
-                <div class="card-header bg-light">
-                    <h5>Error Details (For Administrators)</h5>
-                </div>
-                <div class="card-body">
-                    <pre style="white-space: pre-wrap;">{traceback.format_exc()}</pre>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        logger.error(f"Direct client view error: {str(e)}")
-        logger.error(traceback.format_exc())
-        return error_message
+        logger.error(f"Error in view_client redirect: {str(e)}")
+        # Super basic fallback
+        return f"<h1>Client {client_id}</h1><p>Error: {str(e)}</p>", 500
 
 @clients_bp.route('/<int:client_id>/edit', methods=['GET', 'POST'])
 @login_required
