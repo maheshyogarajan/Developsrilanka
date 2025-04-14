@@ -109,9 +109,11 @@ def classify_receipts(page=None, receipt_id=None):
     # Import utility functions for image URLs
     from utils import get_receipt_image_url, get_receipt_thumbnail_url
     
-    # Get the full-size image URL and thumbnail URL
+    # Get the full-size image URL only (thumbnail URL is already a property)
     current_receipt.image_url = get_receipt_image_url(current_receipt)
-    current_receipt.thumbnail_url = get_receipt_thumbnail_url(current_receipt)
+    
+    # No need to set thumbnail_url as it's already a property of the Receipt model
+    # that will be automatically accessed in the template
     
     # Check if this receipt is already processed
     existing_expense = CompanyExpense.query.filter_by(receipt_id=current_receipt_id).first()
