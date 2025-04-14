@@ -112,7 +112,7 @@
                     <p class="card-text">
                         This bank account belongs to the <strong>{{ account.organization_name }}</strong> organization.
                     </p>
-                    <a href="{{ url_for('organization_bank_accounts', org_id=account.organization_id) }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('bank_accounts', organization=account.organization_id) }}" class="btn btn-outline-primary">
                         <i class="bi bi-bank me-1"></i> View All {{ account.organization_name }} Bank Accounts
                     </a>
                 </div>

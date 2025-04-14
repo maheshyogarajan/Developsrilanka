@@ -487,53 +487,39 @@ def api_default_bank_account():
 
 @bank_account_bp.route('/organization/<int:org_id>/bank-accounts')
 @login_required
-def organization_bank_accounts(org_id):
-    """Render the organization bank accounts page for organization owners."""
-    # Check if user is allowed to manage this organization's bank accounts
+def redirect_to_main_bank_accounts(org_id):
+    """Redirect organization bank accounts page to the main bank accounts page with organization filter."""
+    # Check if the organization exists and user has access to it
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
     ).first()
     
-    if not org_user or org_user.role != UserRole.OWNER.value:
-        flash('You must be an organization owner to manage bank accounts.', 'danger')
-        return redirect(url_for('organizations'))
+    if not org_user:
+        flash('You do not have access to this organization.', 'danger')
+        return redirect(url_for('bank_accounts'))
     
-    # Get organization details
-    organization = Organization.query.get_or_404(org_id)
-    
-    # Get all bank accounts for this organization
-    result = db.session.execute(text("""
-        SELECT id, user_id, organization_id, account_name, bank_name, account_number, 
-               branch_name, swift_code, iban, is_default, created_at, updated_at 
-        FROM bank_account 
-        WHERE organization_id = :org_id
-        ORDER BY is_default DESC, account_name ASC
-    """), {'org_id': org_id})
-    
-    # Convert to list of dictionaries
-    accounts = []
-    for row in result:
-        accounts.append({
-            'id': row[0],
-            'user_id': row[1],
-            'organization_id': row[2],
-            'account_name': row[3],
-            'bank_name': row[4],
-            'account_number': row[5],
-            'branch_name': row[6],
-            'swift_code': row[7],
-            'iban': row[8],
-            'is_default': row[9],
-            'created_at': row[10],
-            'updated_at': row[11]
-        })
-    
-    return render_template('organization_bank_accounts.html', 
-                           organization=organization,
-                           accounts=accounts)
+    # Redirect to the main bank accounts page with organization filter
+    return redirect(url_for('bank_accounts', organization=org_id))
 
 @bank_account_bp.route('/organization/<int:org_id>/bank-accounts/create', methods=['GET', 'POST'])
+@login_required
+def redirect_to_create_bank_account(org_id):
+    """Redirect organization bank account creation to the main create bank account page."""
+    # Check if the organization exists and user has access to it
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id, 
+        organization_id=org_id
+    ).first()
+    
+    if not org_user:
+        flash('You do not have access to this organization.', 'danger')
+        return redirect(url_for('bank_accounts'))
+    
+    # Redirect to the main create bank account page with organization pre-selected
+    return redirect(url_for('create_bank_account', organization=org_id))
+    
+@bank_account_bp.route('/organization/<int:org_id>/bank-accounts/create-old', methods=['GET', 'POST'])
 @login_required
 def create_organization_bank_account(org_id):
     """Create a new bank account for an organization (owner only)."""
@@ -603,6 +589,33 @@ def create_organization_bank_account(org_id):
     return render_template('create_organization_bank_account.html', organization=organization, has_existing_accounts=has_existing_accounts)
 
 @bank_account_bp.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])
+@login_required
+def redirect_to_edit_bank_account(org_id, account_id):
+    """Redirect organization bank account editing to the main edit bank account page."""
+    # Check if the organization exists and user has access to it
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id, 
+        organization_id=org_id
+    ).first()
+    
+    if not org_user:
+        flash('You do not have access to this organization.', 'danger')
+        return redirect(url_for('bank_accounts'))
+    
+    # Get the bank account, ensuring it belongs to this organization
+    result = db.session.execute(text("""
+        SELECT id FROM bank_account 
+        WHERE id = :account_id AND organization_id = :org_id
+    """), {'account_id': account_id, 'org_id': org_id}).first()
+    
+    if not result:
+        flash('Bank account not found.', 'danger')
+        return redirect(url_for('bank_accounts', organization=org_id))
+    
+    # Redirect to the main edit bank account page
+    return redirect(url_for('edit_bank_account', account_id=account_id))
+    
+@bank_account_bp.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit-old', methods=['GET', 'POST'])
 @login_required
 def edit_organization_bank_account(org_id, account_id):
     """Edit an organization bank account (owner only)."""
@@ -703,6 +716,33 @@ def edit_organization_bank_account(org_id, account_id):
     return render_template('edit_organization_bank_account.html', account=account, organization=organization)
 
 @bank_account_bp.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/delete', methods=['POST'])
+@login_required
+def redirect_to_delete_bank_account(org_id, account_id):
+    """Redirect organization bank account deletion to the main delete bank account page."""
+    # Check if the organization exists and user has access to it
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id, 
+        organization_id=org_id
+    ).first()
+    
+    if not org_user:
+        flash('You do not have access to this organization.', 'danger')
+        return redirect(url_for('bank_accounts'))
+    
+    # Get the bank account, ensuring it belongs to this organization
+    result = db.session.execute(text("""
+        SELECT id FROM bank_account 
+        WHERE id = :account_id AND organization_id = :org_id
+    """), {'account_id': account_id, 'org_id': org_id}).first()
+    
+    if not result:
+        flash('Bank account not found.', 'danger')
+        return redirect(url_for('bank_accounts', organization=org_id))
+    
+    # Redirect to the main delete bank account endpoint
+    return redirect(url_for('delete_bank_account', account_id=account_id))
+    
+@bank_account_bp.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/delete-old', methods=['POST'])
 @login_required
 def delete_organization_bank_account(org_id, account_id):
     """Delete an organization bank account (owner only)."""
@@ -847,10 +887,10 @@ def register_routes(app):
     app.route('/api/bank-accounts')(api_bank_accounts)
     app.route('/api/bank-accounts/default')(api_default_bank_account)
     
-    # Organization bank account routes
-    app.route('/organization/<int:org_id>/bank-accounts')(organization_bank_accounts)
-    app.route('/organization/<int:org_id>/bank-accounts/create', methods=['GET', 'POST'])(create_organization_bank_account)
-    app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])(edit_organization_bank_account)
-    app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/delete', methods=['POST'])(delete_organization_bank_account)
+    # Add redirect routes to handle old organization bank account URLs
+    app.route('/organization/<int:org_id>/bank-accounts')(redirect_to_main_bank_accounts)
+    app.route('/organization/<int:org_id>/bank-accounts/create', methods=['GET', 'POST'])(redirect_to_create_bank_account)
+    app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/edit', methods=['GET', 'POST'])(redirect_to_edit_bank_account)
+    app.route('/organization/<int:org_id>/bank-accounts/<int:account_id>/delete', methods=['POST'])(redirect_to_delete_bank_account)
     app.route('/api/organizations/<int:org_id>/bank-accounts')(api_organization_bank_accounts)
     app.route('/api/organizations/<int:org_id>/bank-accounts/default')(api_organization_default_bank_account)
