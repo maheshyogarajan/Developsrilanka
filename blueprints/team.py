@@ -83,6 +83,7 @@ def team_dashboard():
                           invitations=invitations,
                           current_user_role=current_user_role,
                           can_invite=can_invite,
+                          UserRole=UserRole,  # Add UserRole enum to template context
                           now=datetime.utcnow())  # For expiration calculations
 
 @team_bp.route('/manage_member/<int:org_id>/<int:member_id>', methods=['POST'])
