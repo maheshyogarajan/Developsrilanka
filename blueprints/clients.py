@@ -346,7 +346,6 @@ def view_client(client_id):
     logger.debug(f"Attempting to view client with ID: {client_id} for user {current_user.id}")
     
     try:
-        
         # Use raw SQL to get a specific client by ID
         result = db.session.execute(text("""
             SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
@@ -394,6 +393,27 @@ def view_client(client_id):
         WHERE client_id = :client_id AND user_id = :user_id
         ORDER BY issue_date DESC
     """), {'client_id': client_id, 'user_id': current_user.id})
+    
+    # Get user's organizations for the dropdown (needed for template)
+    organizations_result = db.session.execute(text("""
+        SELECT o.id, o.name, o.logo_path, o.primary_color, o.email, ou.is_default
+        FROM organization o
+        JOIN organization_user ou ON o.id = ou.organization_id
+        WHERE ou.user_id = :user_id
+        ORDER BY ou.is_default DESC, o.name ASC
+    """), {'user_id': current_user.id})
+    
+    organizations = [
+        {
+            'id': row[0],
+            'name': row[1],
+            'logo_path': row[2],
+            'primary_color': row[3],
+            'email': row[4],
+            'is_default': row[5]
+        }
+        for row in organizations_result
+    ]
     
     # Get organization info if applicable
     organization = None
@@ -485,9 +505,34 @@ def view_client(client_id):
         logger.error(f"Error in invoice processing section: {str(e)}")
         invoices = []
     
+    # Calculate financial summary
+    total_invoiced = 0
+    total_paid = 0
+    total_due = 0
+    
+    for invoice in invoices:
+        if invoice.total:
+            total_invoiced += invoice.total
+            
+            if invoice.status == 'paid':
+                total_paid += invoice.total
+            elif invoice.status == 'partially_paid':
+                # Assume 50% paid for partially paid invoices (simplified)
+                total_paid += invoice.total * 0.5
+                total_due += invoice.total * 0.5
+            elif invoice.status != 'cancelled':
+                total_due += invoice.total
+    
     try:
         logger.debug(f"Rendering template with client={client}, invoices count={len(invoices)}, organization={organization}")
-        return render_template('view_client.html', client=client, invoices=invoices, organization=organization)
+        return render_template('client_details.html', 
+                               client=client, 
+                               invoices=invoices, 
+                               organizations=organizations,
+                               organization=organization,
+                               total_invoiced=total_invoiced,
+                               total_paid=total_paid,
+                               total_due=total_due)
     except Exception as e:
         logger.error(f"Error rendering template: {str(e)}")
         logger.error(traceback.format_exc())

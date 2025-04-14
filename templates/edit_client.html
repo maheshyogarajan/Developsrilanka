@@ -111,7 +111,11 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('page-title').textContent = 'Edit Client';
+        // Set the page title using the correct element ID
+        const pageTitleElement = document.getElementById('pageTitle');
+        if (pageTitleElement) {
+            pageTitleElement.textContent = 'Edit Client';
+        }
     });
 </script>
 {% endblock %}
