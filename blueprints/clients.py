@@ -15,9 +15,14 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
 
+def register_blueprint(app):
+    """Register the clients blueprint with the Flask app."""
+    app.register_blueprint(clients_bp)
+    return app
+
 @clients_bp.route('/')
 @login_required
-def clients():
+def list_all_clients():
     """Render the clients page showing list of user's clients."""
     # Get user's organizations
     org_result = db.session.execute(text("""
@@ -233,7 +238,7 @@ def edit_client(client_id):
     
     if not client:
         flash('Client not found', 'danger')
-        return redirect(url_for('clients.clients'))
+        return redirect(url_for('clients.list_all_clients'))
     
     if request.method == 'POST':
         try:
@@ -337,7 +342,7 @@ def delete_client(client_id):
         
         if not client:
             flash('Client not found', 'danger')
-            return redirect(url_for('clients.clients'))
+            return redirect(url_for('clients.list_all_clients'))
         
         # Check if client has invoices
         invoice_count = db.session.execute(text("""
@@ -356,7 +361,7 @@ def delete_client(client_id):
         db.session.commit()
         
         flash('Client deleted successfully!', 'success')
-        return redirect(url_for('clients.clients'))
+        return redirect(url_for('clients.list_all_clients'))
         
     except Exception as e:
         db.session.rollback()
