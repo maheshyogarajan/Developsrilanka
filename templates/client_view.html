@@ -1,0 +1,215 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <a href="{{ url_for('clients.list_all_clients') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Clients
+            </a>
+        </div>
+        <div class="col text-end">
+            <div class="btn-group">
+                <a href="{{ url_for('clients.edit_client', client_id=client.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit"></i> Edit Client
+                </a>
+                <button type="button" class="btn btn-outline-danger" 
+                        onclick="confirmDelete({{ client.id }}, '{{ client.name }}')">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Client Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Name:</div>
+                        <div class="col-md-8">{{ client.name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Company Name:</div>
+                        <div class="col-md-8">{{ client.company_name or 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Contact Person:</div>
+                        <div class="col-md-8">{{ client.contact_person or 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if client.email %}
+                                <a href="mailto:{{ client.email }}">{{ client.email }}</a>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Phone:</div>
+                        <div class="col-md-8">
+                            {% if client.phone %}
+                                <a href="tel:{{ client.phone }}">{{ client.phone }}</a>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Address:</div>
+                        <div class="col-md-8">{{ client.address or 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Tax Registration:</div>
+                        <div class="col-md-8">{{ client.tax_registration_number or 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Organization:</div>
+                        <div class="col-md-8">{{ organization_name or 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Notes</h5>
+                </div>
+                <div class="card-body">
+                    {% if client.notes %}
+                        <p>{{ client.notes|nl2br }}</p>
+                    {% else %}
+                        <p class="text-muted">No notes available for this client.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Invoices</h5>
+                    <a href="{{ url_for('create_invoice', client_id=client.id) if has_invoices_route else '#' }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> New Invoice
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if invoices %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Date</th>
+                                        <th>Due Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invoice in invoices %}
+                                        <tr>
+                                            <td>{{ invoice.invoice_number }}</td>
+                                            <td>{{ invoice.date }}</td>
+                                            <td>{{ invoice.due_date }}</td>
+                                            <td>{{ invoice.total_amount|currency }}</td>
+                                            <td>
+                                                <span class="badge 
+                                                    {% if invoice.status == 'paid' %}
+                                                        bg-success
+                                                    {% elif invoice.status == 'overdue' %}
+                                                        bg-danger
+                                                    {% elif invoice.status == 'unpaid' %}
+                                                        bg-warning text-dark
+                                                    {% else %}
+                                                        bg-secondary
+                                                    {% endif %}">
+                                                    {{ invoice.status|capitalize }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <a href="{{ url_for('view_invoice', invoice_id=invoice.id) if has_invoices_route else '#' }}" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No invoices found for this client.</p>
+                        <a href="{{ url_for('create_invoice', client_id=client.id) if has_invoices_route else '#' }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create First Invoice
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteClientModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete client <span id="clientNameToDelete"></span>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+                
+                <div id="hasInvoicesWarning" class="alert alert-danger d-none">
+                    <i class="fas fa-exclamation-triangle"></i> This client has active invoices. 
+                    You must delete all invoices before you can delete this client.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteClientForm" method="post" action="">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmDelete(clientId, clientName) {
+        document.getElementById('clientNameToDelete').textContent = clientName;
+        document.getElementById('deleteClientForm').action = "{{ url_for('clients.delete_client', client_id=0) }}".replace('0', clientId);
+        
+        // Check if client has invoices
+        const hasInvoices = {{ (invoices|length > 0)|tojson }};
+        const warningElement = document.getElementById('hasInvoicesWarning');
+        
+        if (hasInvoices) {
+            warningElement.classList.remove('d-none');
+            document.querySelector('#deleteClientForm button[type="submit"]').disabled = true;
+        } else {
+            warningElement.classList.add('d-none');
+            document.querySelector('#deleteClientForm button[type="submit"]').disabled = false;
+        }
+        
+        // Show the modal
+        var deleteModal = new bootstrap.Modal(document.getElementById('deleteClientModal'));
+        deleteModal.show();
+    }
+</script>
+{% endblock %}

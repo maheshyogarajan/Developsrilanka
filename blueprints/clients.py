@@ -160,72 +160,104 @@ def create_client():
 @clients_bp.route('/<int:client_id>')
 @login_required
 def view_client(client_id):
-    """Simple client view with minimal dependencies."""
+    """View client details with organization information and invoices."""
     try:
-        # Direct SQL query using raw SQL
+        # Get client data with full details
         query = """
-        SELECT id, name, email, company_name, phone
-        FROM client 
-        WHERE id = :client_id AND user_id = :user_id
+        SELECT 
+            c.id, 
+            c.name, 
+            c.company_name,
+            c.contact_person,
+            c.email, 
+            c.phone,
+            c.address,
+            c.tax_registration_number,
+            c.notes,
+            c.created_at,
+            c.organization_id
+        FROM 
+            client c
+        WHERE 
+            c.id = :client_id AND c.user_id = :user_id
         """
-        result = db.session.execute(text(query), {
+        client_result = db.session.execute(text(query), {
             'client_id': client_id, 
             'user_id': current_user.id
         }).first()
         
-        if not result:
-            return "Client not found", 404
+        if not client_result:
+            flash('Client not found', 'danger')
+            return redirect(url_for('clients.list_all_clients'))
         
-        # Return simple HTML
-        return f"""
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <title>Client {result[0]}</title>
-                <style>
-                    body {{ font-family: Arial; padding: 20px; }}
-                    h1 {{ color: #333; }}
-                    .client-card {{ 
-                        border: 1px solid #ddd;
-                        border-radius: 5px;
-                        padding: 15px;
-                        margin-bottom: 20px;
-                    }}
-                    .field {{
-                        margin-bottom: 10px;
-                    }}
-                    .label {{
-                        font-weight: bold;
-                    }}
-                </style>
-            </head>
-            <body>
-                <h1>Client Details</h1>
-                
-                <div class="client-card">
-                    <div class="field">
-                        <span class="label">ID:</span> {result[0]}
-                    </div>
-                    <div class="field">
-                        <span class="label">Name:</span> {result[1]}
-                    </div>
-                    <div class="field">
-                        <span class="label">Email:</span> {result[2] or '(None)'}
-                    </div>
-                    <div class="field">
-                        <span class="label">Company:</span> {result[3] or '(None)'}
-                    </div>
-                    <div class="field">
-                        <span class="label">Phone:</span> {result[4] or '(None)'}
-                    </div>
-                </div>
-                
-                <p><a href="/">Back to home</a> | <a href="/clients">Clients List</a></p>
-            </body>
-        </html>
-        """
+        # Convert SQL result to a more template-friendly format
+        client = {
+            'id': client_result[0],
+            'name': client_result[1],
+            'company_name': client_result[2],
+            'contact_person': client_result[3],
+            'email': client_result[4],
+            'phone': client_result[5],
+            'address': client_result[6],
+            'tax_registration_number': client_result[7],
+            'notes': client_result[8],
+            'created_at': client_result[9],
+            'organization_id': client_result[10]
+        }
+        
+        # Get organization name if the client belongs to an organization
+        organization_name = None
+        if client['organization_id']:
+            org_query = "SELECT name FROM organization WHERE id = :org_id"
+            org_result = db.session.execute(text(org_query), {'org_id': client['organization_id']}).first()
+            if org_result:
+                organization_name = org_result[0]
+        
+        # Try to get invoices for this client, if any exist
+        invoices = []
+        try:
+            invoice_query = """
+            SELECT 
+                id, 
+                invoice_number, 
+                date, 
+                due_date, 
+                total_amount, 
+                status
+            FROM 
+                invoice
+            WHERE 
+                client_id = :client_id
+            ORDER BY 
+                date DESC
+            """
+            invoice_results = db.session.execute(text(invoice_query), {'client_id': client_id}).fetchall()
+            
+            # Convert SQL results to a list of dictionaries
+            invoices = [{
+                'id': row[0],
+                'invoice_number': row[1],
+                'date': row[2],
+                'due_date': row[3],
+                'total_amount': float(row[4]),
+                'status': row[5]
+            } for row in invoice_results]
+        except Exception as e:
+            logger.error(f"Error fetching invoices for client {client_id}: {str(e)}")
+            # Continue without invoices if there's an error
+        
+        # Check if the view_invoice route exists
+        has_invoices_route = True
+        
+        return render_template('client_view.html', 
+                              client=client, 
+                              organization_name=organization_name,
+                              invoices=invoices,
+                              has_invoices_route=has_invoices_route)
     except Exception as e:
-        return f"<h1>Error</h1><p>{str(e)}</p>", 500
+        logger.error(f"Error viewing client: {str(e)}")
+        flash(f'Error viewing client: {str(e)}', 'danger')
+        return redirect(url_for('clients.list_all_clients'))
 
 @clients_bp.route('/<int:client_id>/edit', methods=['GET', 'POST'])
 @login_required
