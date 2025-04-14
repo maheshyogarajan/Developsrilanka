@@ -67,6 +67,15 @@ def classify_receipts(page=None, receipt_id=None):
     
     unclassified_receipt_ids = [row[0] for row in db.session.execute(unclassified_query, {'user_id': current_user.id}).fetchall()]
     
+    # Get the count of all receipts for correct pagination counting 
+    total_receipts_query = text("""
+        SELECT COUNT(r.id)
+        FROM receipt r
+        WHERE r.user_id = :user_id
+    """)
+    
+    total_receipt_count = db.session.execute(total_receipts_query, {'user_id': current_user.id}).scalar() or 0
+    
     # Then, get classified receipts
     classified_query = text("""
         SELECT r.id
@@ -131,12 +140,25 @@ def classify_receipts(page=None, receipt_id=None):
     # Get receipt items
     receipt_items = ReceiptItem.query.filter_by(receipt_id=current_receipt_id).all()
     
+    # Calculate remaining unclassified receipts for counter display
+    remaining_to_classify = len(unclassified_receipt_ids)
+    receipts_classified = len(classified_receipt_ids)
+    
+    # Determine if receipt is processed (classified)
+    is_processed = current_receipt.is_processed
+    
+    # Calculate position in classification process - for display
+    receipt_position = receipts_classified + (0 if is_processed else 1)
+    
     return render_template('classify_receipts.html', 
                            receipts=all_receipt_ids,
                            current_receipt=current_receipt,
                            receipt_items=receipt_items,
                            current_index=current_index,
-                           total_receipts=len(all_receipt_ids),
+                           total_receipts=total_receipt_count,
+                           receipts_classified=receipts_classified,
+                           remaining_to_classify=remaining_to_classify,
+                           receipt_position=receipt_position,
                            organizations=organizations,
                            clients=clients,
                            existing_expense=existing_expense)
@@ -242,6 +264,18 @@ def classify_receipt_submit(receipt_id):
             
             db.session.commit()
             flash('Receipt classified as an expense successfully', 'success')
+        
+        # Get next unclassified receipt if any
+        unclassified_query = text("""
+            SELECT r.id
+            FROM receipt r
+            LEFT JOIN company_expense e ON r.id = e.receipt_id
+            WHERE r.user_id = :user_id AND e.id IS NULL
+            ORDER BY r.date DESC
+            LIMIT 1
+        """)
+        
+        next_receipt = db.session.execute(unclassified_query, {'user_id': current_user.id}).first()
         
         # Redirect to next receipt
         return redirect(url_for('classify.classify_receipts', page='next', receipt_id=receipt_id))

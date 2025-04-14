@@ -15,7 +15,8 @@
                 {% if receipts %}
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Receipt {{ current_index + 1 }} of {{ total_receipts }}</strong>
+                    <strong>Receipt {{ receipt_position }} of {{ total_receipts }}</strong>
+                    <span class="ms-2">({{ remaining_to_classify }} left to classify)</span>
                     {% if current_receipt.is_processed %}
                     <span class="badge bg-success ms-2">Processed</span>
                     {% else %}
