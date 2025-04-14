@@ -1,0 +1,114 @@
+{% extends "layout.html" %}
+
+{% block title %}Client Details: {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">Client Details</h3>
+                <div>
+                    <a href="{{ url_for('clients.edit_client', client_id=client.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteClientModal">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Basic Information</h5>
+                    <table class="table table-borderless">
+                        <tr>
+                            <th class="text-muted">Name:</th>
+                            <td>{{ client.name }}</td>
+                        </tr>
+                        {% if client.company_name %}
+                        <tr>
+                            <th class="text-muted">Company:</th>
+                            <td>{{ client.company_name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if client.contact_person %}
+                        <tr>
+                            <th class="text-muted">Contact Person:</th>
+                            <td>{{ client.contact_person }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if client.email %}
+                        <tr>
+                            <th class="text-muted">Email:</th>
+                            <td><a href="mailto:{{ client.email }}">{{ client.email }}</a></td>
+                        </tr>
+                        {% endif %}
+                        {% if client.phone %}
+                        <tr>
+                            <th class="text-muted">Phone:</th>
+                            <td>{{ client.phone }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5>Additional Details</h5>
+                    <table class="table table-borderless">
+                        {% if client.address %}
+                        <tr>
+                            <th class="text-muted">Address:</th>
+                            <td>{{ client.address }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if client.tax_registration_number %}
+                        <tr>
+                            <th class="text-muted">Tax Reg. No:</th>
+                            <td>{{ client.tax_registration_number }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if client.notes %}
+                        <tr>
+                            <th class="text-muted">Notes:</th>
+                            <td>{{ client.notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer text-muted">
+            <small>Client ID: {{ client.id }} | Created: {{ client.created_at.strftime('%Y-%m-%d') }}</small>
+        </div>
+    </div>
+
+    <!-- Invoice button - but no invoice listing -->
+    <div class="mt-4 text-center">
+        <a href="{{ url_for('create_invoice', client_id=client.id) }}" class="btn btn-primary">
+            <i class="fas fa-file-invoice"></i> Create New Invoice
+        </a>
+    </div>
+</div>
+
+<!-- Delete Client Modal -->
+<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteClientModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete client "{{ client.name }}"? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('clients.delete_client', client_id=client.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

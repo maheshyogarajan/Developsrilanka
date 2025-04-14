@@ -515,7 +515,10 @@ def client_debug(client_id):
 @clients_bp.route('/simple_view/<int:client_id>')
 @login_required
 def simple_view_client(client_id):
-    """Simplified view for a client - robust and minimal."""
+    """Ultra-simplified view for a client - no dependencies on invoices."""
+    import traceback
+    from datetime import datetime
+    
     try:
         # Get the client using raw SQL - simplest possible implementation
         result = db.session.execute(text("""
@@ -530,54 +533,57 @@ def simple_view_client(client_id):
             flash("Client not found", "danger")
             return redirect(url_for('clients.clients'))
         
-        # Convert row to Client object with defensive coding
-        client = Client(
-            id=result[0],
-            user_id=result[1],
-            organization_id=result[2],
-            name=result[3] or "Unnamed Client",
-            company_name=result[4] or '',
-            contact_person=result[5] or '',
-            email=result[6] or '',
-            phone=result[7] or '',
-            address=result[8] or '',
-            tax_registration_number=result[9] or '',
-            notes=result[10] or '',
-            created_at=result[11],
-            updated_at=result[12]
-        )
+        # Create a simple client class just for template rendering
+        class SimpleClient:
+            def __init__(self, data):
+                self.id = data[0]
+                self.user_id = data[1]
+                self.organization_id = data[2]
+                self.name = data[3] or "Unnamed Client"
+                self.company_name = data[4] or ''
+                self.contact_person = data[5] or ''
+                self.email = data[6] or ''
+                self.phone = data[7] or ''
+                self.address = data[8] or ''
+                self.tax_registration_number = data[9] or ''
+                self.notes = data[10] or ''
+                
+                # Handle date formatting properly
+                created_at = data[11]
+                if isinstance(created_at, str):
+                    try:
+                        self.created_at = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                    except:
+                        self.created_at = datetime.now()
+                else:
+                    self.created_at = created_at or datetime.now()
+                
+                updated_at = data[12]
+                if isinstance(updated_at, str):
+                    try:
+                        self.updated_at = datetime.strptime(updated_at, '%Y-%m-%d %H:%M:%S')
+                    except:
+                        self.updated_at = datetime.now()
+                else:
+                    self.updated_at = updated_at or datetime.now()
+                
+                # Add strftime method to handle date formatting
+                def strftime(self, format_string):
+                    return self.created_at.strftime(format_string)
+                
+                # Add the method to the created_at attribute
+                self.created_at.strftime = lambda format_string: strftime(self, format_string)
         
-        # Get invoices with minimal fields needed
-        invoice_results = db.session.execute(text("""
-            SELECT id, invoice_number, issue_date, due_date, status, total 
-            FROM invoice
-            WHERE client_id = :client_id AND user_id = :user_id
-            ORDER BY issue_date DESC
-        """), {'client_id': client_id, 'user_id': current_user.id})
+        # Create a client object with our safe wrapper class
+        client = SimpleClient(result)
         
-        # Convert to simple invoice objects - very defensive approach
-        invoices = []
-        for row in invoice_results:
-            # Create dictionary instead of Invoice object to avoid possible model issues
-            invoice = {
-                'id': row[0],
-                'invoice_number': row[1] or 'No number',
-                'issue_date': row[2],
-                'due_date': row[3],
-                'status': row[4] or 'unknown',
-                'total': row[5] or 0
-            }
-            invoices.append(invoice)
+        # Use our ultra-simple template with no invoice dependencies
+        return render_template('client_details_simple.html', client=client)
         
-        # Render the simple template
-        return render_template('client_view_simple.html', 
-                               client=client, 
-                               invoices=invoices)
     except Exception as e:
-        import traceback
-        logger.error(f"Error in simple_view_client: {str(e)}")
+        logger.error(f"Ultra-simple client view error: {str(e)}")
         logger.error(traceback.format_exc())
-        flash(f"An error occurred: {str(e)}", "danger")
+        flash(f"An error occurred viewing client details: {str(e)}", "danger")
         return redirect(url_for('clients.clients'))
 
 @clients_bp.route('/<int:client_id>')
