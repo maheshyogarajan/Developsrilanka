@@ -798,113 +798,7 @@ def cancel_invoice(invoice_id):
     return redirect(url_for('view_invoice', invoice_id=invoice.id))
 
 
-@app.route('/invoices/<int:invoice_id>/email', methods=['POST'])
-@login_required
-def email_invoice_to_client(invoice_id):
-    """Email the invoice to the client."""
-    from app import mail
-    from flask_mail import Message
-    
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
-    client = Client.query.filter_by(id=invoice.client_id).first()
-    organization = Organization.query.filter_by(id=invoice.organization_id).first() if invoice.organization_id else None
-    
-    if not client or not client.email:
-        flash('Client does not have an email address!', 'danger')
-        return redirect(url_for('view_invoice', invoice_id=invoice.id))
-    
-    # Build invoice URL with full domain
-    invoice_url = url_for('view_invoice', invoice_id=invoice.id, _external=True)
-    
-    try:
-        # Create email message
-        sender_name = organization.name if organization else current_user.username
-        subject = f"Invoice #{invoice.invoice_number} from {sender_name}"
-        
-        # Create HTML email body
-        html_body = f"""
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background-color: #f5f5f5; padding: 15px; border-radius: 5px 5px 0 0; }}
-                .content {{ padding: 20px; }}
-                .footer {{ background-color: #f5f5f5; padding: 15px; border-radius: 0 0 5px 5px; font-size: 12px; color: #777; }}
-                .button {{ display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; 
-                           text-decoration: none; border-radius: 4px; margin-top: 20px; }}
-                .details {{ margin: 20px 0; }}
-                .amount {{ font-size: 24px; font-weight: bold; margin: 15px 0; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h2>Invoice #{invoice.invoice_number}</h2>
-                </div>
-                <div class="content">
-                    <p>Dear {client.name},</p>
-                    
-                    <p>Please find attached invoice #{invoice.invoice_number} for your records.</p>
-                    
-                    <div class="details">
-                        <p><strong>Due Date:</strong> {invoice.due_date.strftime('%Y-%m-%d')}</p>
-                        <p><strong>Amount Due:</strong></p>
-                        <p class="amount">{invoice.currency} {invoice.total:.2f}</p>
-                    </div>
-                    
-                    <p>You can view the full invoice details by clicking the button below:</p>
-                    
-                    <a href="{invoice_url}" class="button">View Invoice</a>
-                    
-                    <p>If you have any questions or concerns regarding this invoice, please don't hesitate to contact us.</p>
-                    
-                    <p>Thank you for your business!</p>
-                    
-                    <p>
-                    Best regards,<br>
-                    {sender_name}
-                    </p>
-                </div>
-                <div class="footer">
-                    <p>This email was sent from Develop Sri Lanka financial management system.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        # Create message
-        msg = Message(
-            subject=subject,
-            recipients=[client.email],
-            html=html_body,
-            sender=(sender_name, app.config['MAIL_USERNAME'])
-        )
-        
-        # Add custom footer if organization has one
-        if organization and organization.email_footer_text:
-            footer_text = organization.email_footer_text
-            # Insert the footer before the closing div
-            html_body = html_body.replace('</div>\n        </body>', f'{footer_text}</div>\n        </body>')
-            msg.html = html_body
-        
-        # Send email
-        mail.send(msg)
-        
-        # Update invoice status if it's still in draft
-        if invoice.status == InvoiceStatus.DRAFT.value:
-            invoice.status = InvoiceStatus.SENT.value
-            invoice.updated_at = datetime.utcnow()
-            db.session.commit()
-        
-        flash(f'Invoice has been emailed to {client.name} at {client.email}!', 'success')
-        
-    except Exception as e:
-        flash(f'Error sending email: {str(e)}', 'danger')
-        app.logger.error(f"Error sending invoice email: {str(e)}")
-    
-    return redirect(url_for('view_invoice', invoice_id=invoice.id))
+
 
 
 @app.route('/invoices/<int:invoice_id>/delete', methods=['POST'])
@@ -1042,9 +936,12 @@ def email_invoice(invoice_id):
         flash('Client does not have an email address', 'danger')
         return redirect(url_for('view_invoice', invoice_id=invoice.id))
     
+    # If the invoice is still in draft status, mark it as sent
     if result[3] == InvoiceStatus.DRAFT.value:  # invoice status
-        flash('You cannot email a draft invoice. Please mark it as sent first.', 'warning')
-        return redirect(url_for('view_invoice', invoice_id=invoice.id))
+        invoice.status = InvoiceStatus.SENT.value
+        invoice.updated_at = datetime.utcnow()
+        db.session.commit()
+        flash('Invoice has been marked as sent!', 'success')
     
     try:
         # Create email message
