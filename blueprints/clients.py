@@ -567,12 +567,7 @@ def simple_view_client(client_id):
                 else:
                     self.updated_at = updated_at or datetime.now()
                 
-                # Add strftime method to handle date formatting
-                def strftime(self, format_string):
-                    return self.created_at.strftime(format_string)
-                
-                # Add the method to the created_at attribute
-                self.created_at.strftime = lambda format_string: strftime(self, format_string)
+                # We'll handle date formatting directly in the string template
         
         # Create a client object with our safe wrapper class
         client = SimpleClient(result)
@@ -589,9 +584,170 @@ def simple_view_client(client_id):
 @clients_bp.route('/<int:client_id>')
 @login_required
 def view_client(client_id):
-    """View a specific client."""
-    # Redirect to the simple client view to avoid issues
-    return redirect(url_for('clients.simple_view_client', client_id=client_id))
+    """Direct HTML output view for a client - no templates or complex dependencies."""
+    import traceback
+    
+    try:
+        # Get the client using raw SQL
+        result = db.session.execute(text("""
+            SELECT id, name, company_name, contact_person, email, phone, address,
+                  tax_registration_number, notes, created_at
+            FROM client
+            WHERE id = :client_id AND user_id = :user_id
+            LIMIT 1
+        """), {'client_id': client_id, 'user_id': current_user.id}).first()
+        
+        if not result:
+            return """
+            <html>
+            <head>
+                <title>Client Not Found</title>
+                <meta http-equiv="refresh" content="2;url=/clients">
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            </head>
+            <body class="container mt-3">
+                <div class="alert alert-danger">Client not found. Redirecting to client list...</div>
+            </body>
+            </html>
+            """
+        
+        # Build HTML output directly
+        return f"""
+        <html>
+        <head>
+            <title>Client: {result[1]}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+        </head>
+        <body>
+            <div class="container mt-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/">Home</a></li>
+                        <li class="breadcrumb-item"><a href="/clients">Clients</a></li>
+                        <li class="breadcrumb-item active">{result[1]}</li>
+                    </ol>
+                </nav>
+                
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">Client Details</h3>
+                            <div>
+                                <a href="/clients/{client_id}/edit" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" 
+                                        onclick="if(confirm('Are you sure you want to delete this client?')) {{
+                                            const form = document.createElement('form');
+                                            form.method = 'POST';
+                                            form.action = '/clients/{client_id}/delete';
+                                            document.body.appendChild(form);
+                                            form.submit();
+                                        }}">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Basic Information</h5>
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <th style="width: 35%" class="text-muted">Name:</th>
+                                        <td>{result[1] or ''}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Company:</th>
+                                        <td>{result[2] or ''}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Contact Person:</th>
+                                        <td>{result[3] or ''}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Email:</th>
+                                        <td>{f'<a href="mailto:{result[4]}">{result[4]}</a>' if result[4] else ''}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Phone:</th>
+                                        <td>{result[5] or ''}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Additional Details</h5>
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <th style="width: 35%" class="text-muted">Address:</th>
+                                        <td>{result[6] or ''}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Tax Registration:</th>
+                                        <td>{result[7] or ''}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Notes:</th>
+                                        <td>{result[8] or ''}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted">
+                        <div class="d-flex justify-content-between">
+                            <span>Client ID: {result[0]}</span>
+                            <span>Created: {result[9].strftime('%Y-%m-%d') if result[9] else 'Unknown'}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 d-flex justify-content-between">
+                    <a href="/clients" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Clients
+                    </a>
+                    <a href="/invoices/create?client_id={client_id}" class="btn btn-primary">
+                        <i class="fas fa-file-invoice"></i> Create New Invoice
+                    </a>
+                </div>
+            </div>
+            
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        </body>
+        </html>
+        """
+        
+    except Exception as e:
+        error_message = f"""
+        <html>
+        <head>
+            <title>Error</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <meta http-equiv="refresh" content="5;url=/clients">
+        </head>
+        <body class="container mt-4">
+            <div class="alert alert-danger">
+                <h4>Error viewing client</h4>
+                <p>{str(e)}</p>
+                <p class="mt-3">Redirecting to client list in 5 seconds...</p>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h5>Error Details (For Administrators)</h5>
+                </div>
+                <div class="card-body">
+                    <pre style="white-space: pre-wrap;">{traceback.format_exc()}</pre>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        logger.error(f"Direct client view error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return error_message
 
 @clients_bp.route('/<int:client_id>/edit', methods=['GET', 'POST'])
 @login_required
