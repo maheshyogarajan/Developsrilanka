@@ -141,7 +141,7 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Invoices</h5>
-                    <a href="{{ url_for('create_invoice') }}?client_id={{ client.id }}" class="btn btn-sm btn-primary">
+                    <a href="{{ url_for('invoices.create_invoice') }}?client_id={{ client.id }}" class="btn btn-sm btn-primary">
                         <i class="fas fa-plus me-1"></i> New Invoice
                     </a>
                 </div>
@@ -236,8 +236,6 @@
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('page-title').textContent = 'View Client';
-    });
+    // No need to set page title here - it's already set in the template
 </script>
 {% endblock %}
