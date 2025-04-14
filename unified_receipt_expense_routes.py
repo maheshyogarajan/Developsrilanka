@@ -895,6 +895,97 @@ def export_excel():
     )
 
 
+@unified_view_bp.route('/api/image/<int:receipt_id>')
+@login_required
+def api_receipt_image(receipt_id):
+    """API endpoint to get a receipt image URL for AJAX loading."""
+    receipt = Receipt.query.get_or_404(receipt_id)
+    
+    # Check if the receipt belongs to the current user or their organization
+    if receipt.user_id != current_user.id:
+        # If receipt belongs to an organization, check user's permissions
+        if receipt.organization_id:
+            org_user = OrganizationUser.query.filter_by(
+                user_id=current_user.id,
+                organization_id=receipt.organization_id
+            ).first()
+            
+            if not org_user:
+                return jsonify({"error": "Access denied", "status": 403}), 403
+        else:
+            return jsonify({"error": "Access denied", "status": 403}), 403
+    
+    # Get the image URL
+    from utils import get_receipt_image_url
+    image_url = None
+    
+    if receipt.thumbnail_s3_key:
+        # Try to get thumbnail URL first
+        try:
+            from thumbnail_manager import get_thumbnail_url
+            image_url = get_thumbnail_url(receipt.thumbnail_s3_key)
+        except Exception as e:
+            logging.error(f"Error getting thumbnail URL: {e}")
+    
+    # Fall back to original image if thumbnail not available
+    if not image_url:
+        image_url = get_receipt_image_url(receipt)
+    
+    return jsonify({
+        "image_url": image_url,
+        "receipt_id": receipt_id
+    })
+
+@unified_view_bp.route('/api/expense-image/<int:expense_id>')
+@login_required
+def api_expense_image(expense_id):
+    """API endpoint to get an expense's receipt image URL for AJAX loading."""
+    # Get expense
+    expense = CompanyExpense.query.get_or_404(expense_id)
+    
+    # Check permissions
+    if expense.user_id != current_user.id:
+        # If expense belongs to an organization, check user's permissions
+        if expense.organization_id:
+            org_user = OrganizationUser.query.filter_by(
+                user_id=current_user.id,
+                organization_id=expense.organization_id
+            ).first()
+            
+            if not org_user:
+                return jsonify({"error": "Access denied", "status": 403}), 403
+        else:
+            return jsonify({"error": "Access denied", "status": 403}), 403
+    
+    # Get associated receipt
+    receipt = None
+    if expense.receipt_id:
+        receipt = Receipt.query.get(expense.receipt_id)
+    
+    if not receipt:
+        return jsonify({"error": "No receipt found", "status": 404}), 404
+    
+    # Get the image URL
+    from utils import get_receipt_image_url
+    image_url = None
+    
+    if receipt.thumbnail_s3_key:
+        # Try to get thumbnail URL first
+        try:
+            from thumbnail_manager import get_thumbnail_url
+            image_url = get_thumbnail_url(receipt.thumbnail_s3_key)
+        except Exception as e:
+            logging.error(f"Error getting thumbnail URL: {e}")
+    
+    # Fall back to original image if thumbnail not available
+    if not image_url:
+        image_url = get_receipt_image_url(receipt)
+    
+    return jsonify({
+        "image_url": image_url,
+        "expense_id": expense_id
+    })
+
 def register_routes(app):
     """Register the unified receipt/expense view routes with the app."""
     app.register_blueprint(unified_view_bp, url_prefix='/receipts')

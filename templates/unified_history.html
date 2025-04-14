@@ -317,13 +317,11 @@
                                         <small class="text-muted">Receipt #: {{ item.receipt.receipt_number }}</small><br>
                                     {% endif %}
                                 </p>
-                                <div class="d-flex mb-3">
-                                    {% if item.receipt.thumbnail_url %}
-                                        <img src="{{ item.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image" loading="lazy">
-                                    {% elif item.receipt.s3_url %}
-                                        <img src="{{ item.receipt.s3_url }}" alt="Receipt Image" class="item-image" loading="lazy">
-                                    {% elif item.receipt.image_path %}
-                                        <img src="{{ url_for('static', filename=item.receipt.image_path) }}" alt="Receipt Image" class="item-image" loading="lazy">
+                                <div class="d-flex mb-3 receipt-image-container" data-receipt-id="{{ item.receipt.id }}">
+                                    {% if item.receipt.thumbnail_url or item.receipt.s3_url or item.receipt.image_path %}
+                                        <div class="image-placeholder" style="width: 100%; height: 120px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-image fa-2x text-muted"></i>
+                                        </div>
                                     {% else %}
                                         <div class="text-muted fst-italic">No image available</div>
                                     {% endif %}
@@ -351,13 +349,11 @@
                                         <small class="text-muted">{{ item.expense.notes }}</small><br>
                                     {% endif %}
                                 </p>
-                                <div class="d-flex mb-3">
-                                    {% if item.expense.receipt and item.expense.receipt.thumbnail_url %}
-                                        <img src="{{ item.expense.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image" loading="lazy">
-                                    {% elif item.expense.receipt and item.expense.receipt.s3_url %}
-                                        <img src="{{ item.expense.receipt.s3_url }}" alt="Receipt Image" class="item-image" loading="lazy">
-                                    {% elif item.expense.receipt and item.expense.receipt.image_path %}
-                                        <img src="{{ url_for('static', filename=item.expense.receipt.image_path) }}" alt="Receipt Image" class="item-image" loading="lazy">
+                                <div class="d-flex mb-3 expense-image-container" data-expense-id="{{ item.expense.id }}">
+                                    {% if item.expense.receipt and (item.expense.receipt.thumbnail_url or item.expense.receipt.s3_url or item.expense.receipt.image_path) %}
+                                        <div class="image-placeholder" style="width: 100%; height: 120px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-image fa-2x text-muted"></i>
+                                        </div>
                                     {% else %}
                                         <div class="text-muted fst-italic">No image available</div>
                                     {% endif %}
@@ -589,6 +585,116 @@
         const gridView = document.getElementById('grid-view');
         const listView = document.getElementById('list-view');
         
+        // Stores the state of loaded images to prevent duplicate requests
+        const loadedImages = {
+            receipts: new Set(),
+            expenses: new Set()
+        };
+        
+        /**
+         * Fetch and display receipt image
+         * @param {number} receiptId - The receipt ID
+         */
+        function loadReceiptImage(receiptId) {
+            // Skip if already loaded
+            if (loadedImages.receipts.has(receiptId)) return;
+            
+            const container = document.querySelector(`.receipt-image-container[data-receipt-id="${receiptId}"]`);
+            if (!container) return;
+            
+            fetch(`/receipts/api/image/${receiptId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error loading image:', data.error);
+                        return;
+                    }
+                    
+                    if (data.image_url) {
+                        // Create and insert the image
+                        const img = document.createElement('img');
+                        img.src = data.image_url;
+                        img.alt = 'Receipt Image';
+                        img.classList.add('item-image');
+                        img.setAttribute('loading', 'lazy');
+                        
+                        // Replace placeholder with image
+                        container.innerHTML = '';
+                        container.appendChild(img);
+                        
+                        // Mark as loaded
+                        loadedImages.receipts.add(receiptId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching receipt image:', error);
+                });
+        }
+        
+        /**
+         * Fetch and display expense image
+         * @param {number} expenseId - The expense ID
+         */
+        function loadExpenseImage(expenseId) {
+            // Skip if already loaded
+            if (loadedImages.expenses.has(expenseId)) return;
+            
+            const container = document.querySelector(`.expense-image-container[data-expense-id="${expenseId}"]`);
+            if (!container) return;
+            
+            fetch(`/receipts/api/expense-image/${expenseId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error loading image:', data.error);
+                        return;
+                    }
+                    
+                    if (data.image_url) {
+                        // Create and insert the image
+                        const img = document.createElement('img');
+                        img.src = data.image_url;
+                        img.alt = 'Receipt Image';
+                        img.classList.add('item-image');
+                        img.setAttribute('loading', 'lazy');
+                        
+                        // Replace placeholder with image
+                        container.innerHTML = '';
+                        container.appendChild(img);
+                        
+                        // Mark as loaded
+                        loadedImages.expenses.add(expenseId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching expense image:', error);
+                });
+        }
+        
+        /**
+         * Load all images in the grid view
+         */
+        function loadAllImages() {
+            // Only load images if grid view is active
+            if (gridView && !gridView.classList.contains('d-none')) {
+                // Load receipt images
+                document.querySelectorAll('.receipt-image-container[data-receipt-id]').forEach(container => {
+                    const receiptId = container.getAttribute('data-receipt-id');
+                    if (receiptId) {
+                        loadReceiptImage(parseInt(receiptId));
+                    }
+                });
+                
+                // Load expense images
+                document.querySelectorAll('.expense-image-container[data-expense-id]').forEach(container => {
+                    const expenseId = container.getAttribute('data-expense-id');
+                    if (expenseId) {
+                        loadExpenseImage(parseInt(expenseId));
+                    }
+                });
+            }
+        }
+        
         // Only setup view mode if all required elements exist
         if (gridViewBtn && listViewBtn && gridView && listView) {
             // Function to save view preference to localStorage
@@ -608,6 +714,9 @@
                     listViewBtn.classList.remove('active');
                     gridView.classList.remove('d-none');
                     listView.classList.add('d-none');
+                    
+                    // Load images when switching to grid view
+                    loadAllImages();
                 } else {
                     gridViewBtn.classList.remove('active');
                     listViewBtn.classList.add('active');
