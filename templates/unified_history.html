@@ -583,49 +583,52 @@
             });
         }
         
-        // View mode toggle functionality
+        // View mode toggle functionality - only initialize if we're not in error state
         const gridViewBtn = document.getElementById('grid-view-btn');
         const listViewBtn = document.getElementById('list-view-btn');
         const gridView = document.getElementById('grid-view');
         const listView = document.getElementById('list-view');
         
-        // Function to save view preference to localStorage
-        function saveViewPreference(mode) {
-            localStorage.setItem('receiptHistoryViewMode', mode);
-        }
-        
-        // Function to get view preference from localStorage
-        function getViewPreference() {
-            return localStorage.getItem('receiptHistoryViewMode') || 'list'; // Default to list view
-        }
-        
-        // Function to set view mode
-        function setViewMode(mode) {
-            if (mode === 'grid') {
-                gridViewBtn.classList.add('active');
-                listViewBtn.classList.remove('active');
-                gridView.classList.remove('d-none');
-                listView.classList.add('d-none');
-            } else {
-                gridViewBtn.classList.remove('active');
-                listViewBtn.classList.add('active');
-                gridView.classList.add('d-none');
-                listView.classList.remove('d-none');
+        // Only setup view mode if all required elements exist
+        if (gridViewBtn && listViewBtn && gridView && listView) {
+            // Function to save view preference to localStorage
+            function saveViewPreference(mode) {
+                localStorage.setItem('receiptHistoryViewMode', mode);
             }
-            saveViewPreference(mode);
+            
+            // Function to get view preference from localStorage
+            function getViewPreference() {
+                return localStorage.getItem('receiptHistoryViewMode') || 'list'; // Default to list view
+            }
+            
+            // Function to set view mode
+            function setViewMode(mode) {
+                if (mode === 'grid') {
+                    gridViewBtn.classList.add('active');
+                    listViewBtn.classList.remove('active');
+                    gridView.classList.remove('d-none');
+                    listView.classList.add('d-none');
+                } else {
+                    gridViewBtn.classList.remove('active');
+                    listViewBtn.classList.add('active');
+                    gridView.classList.add('d-none');
+                    listView.classList.remove('d-none');
+                }
+                saveViewPreference(mode);
+            }
+            
+            // Initialize view mode from saved preference
+            setViewMode(getViewPreference());
+            
+            // Add event listeners for view mode buttons
+            gridViewBtn.addEventListener('click', function() {
+                setViewMode('grid');
+            });
+            
+            listViewBtn.addEventListener('click', function() {
+                setViewMode('list');
+            });
         }
-        
-        // Initialize view mode from saved preference
-        setViewMode(getViewPreference());
-        
-        // Add event listeners for view mode buttons
-        gridViewBtn.addEventListener('click', function() {
-            setViewMode('grid');
-        });
-        
-        listViewBtn.addEventListener('click', function() {
-            setViewMode('list');
-        });
     });
 </script>
 {% endblock %}
