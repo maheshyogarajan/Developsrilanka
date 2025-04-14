@@ -70,7 +70,7 @@
                                     <h5 class="card-title mb-1">Create an Organization</h5>
                                     <p class="card-text text-muted mb-2">Set up your business or personal organization with branding</p>
                                     <div class="mt-1">
-                                        <a href="{{ url_for('organization.list_organizations') }}" class="btn btn-sm {% if progress.organization_created %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                        <a href="{{ url_for('organizations.organizations') }}" class="btn btn-sm {% if progress.organization_created %}btn-outline-success{% else %}btn-primary{% endif %}">
                                             <i class="fas fa-building me-1"></i>
                                             {% if progress.organization_created %}View Organizations{% else %}Create Organization{% endif %}
                                         </a>
@@ -136,7 +136,7 @@
                                     <h5 class="card-title mb-1">Invite Team Members</h5>
                                     <p class="card-text text-muted mb-2">Invite colleagues or team members to collaborate</p>
                                     <div class="mt-1">
-                                        <a href="{{ url_for('team.list_members') }}" class="btn btn-sm {% if progress.team_member_invited %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                        <a href="{{ url_for('team.team_dashboard') }}" class="btn btn-sm {% if progress.team_member_invited %}btn-outline-success{% else %}btn-primary{% endif %}">
                                             <i class="fas fa-users me-1"></i>
                                             {% if progress.team_member_invited %}Manage Team{% else %}Invite Team Members{% endif %}
                                         </a>
@@ -169,7 +169,7 @@
                                     <h5 class="card-title mb-1">Set Up Customers</h5>
                                     <p class="card-text text-muted mb-2">Add customers or clients for invoicing and expense tracking</p>
                                     <div class="mt-1">
-                                        <a href="{{ url_for('clients.list_clients') }}" class="btn btn-sm {% if progress.customer_added %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                        <a href="{{ url_for('clients.clients') }}" class="btn btn-sm {% if progress.customer_added %}btn-outline-success{% else %}btn-primary{% endif %}">
                                             <i class="fas fa-address-book me-1"></i>
                                             {% if progress.customer_added %}View Customers{% else %}Add Customer{% endif %}
                                         </a>
