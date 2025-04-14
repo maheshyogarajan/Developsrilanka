@@ -643,14 +643,456 @@ def view_client_minimal(client_id):
 @clients_bp.route('/<int:client_id>')
 @login_required
 def view_client(client_id):
-    """View a specific client, falling back to minimal view if needed."""
+    """Enhanced client view with invoice summary/analytics."""
+    import traceback
+    
     try:
-        # Redirect to the minimal view
-        return redirect(url_for('clients.view_client_minimal', client_id=client_id))
+        # Direct database query for this client only
+        query = """
+        SELECT id, name, company_name, email, phone, contact_person, address, tax_registration_number, 
+               notes, created_at, updated_at, organization_id
+        FROM client 
+        WHERE id = :client_id AND user_id = :user_id
+        """
+        client = db.session.execute(text(query), {
+            'client_id': client_id, 
+            'user_id': current_user.id
+        }).first()
+        
+        if not client:
+            flash('Client not found', 'danger')
+            return redirect(url_for('clients.clients'))
+        
+        # Get invoice summary data for this client
+        invoice_summary_query = """
+        SELECT 
+            COUNT(id) as total_invoices,
+            SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_invoices,
+            SUM(CASE WHEN status = 'unpaid' THEN 1 ELSE 0 END) as unpaid_invoices,
+            SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue_invoices,
+            SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_invoices,
+            SUM(total_amount) as total_amount,
+            SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as paid_amount,
+            SUM(CASE WHEN status = 'unpaid' THEN total_amount ELSE 0 END) as unpaid_amount,
+            SUM(CASE WHEN status = 'overdue' THEN total_amount ELSE 0 END) as overdue_amount,
+            MAX(created_at) as last_invoice_date
+        FROM invoice
+        WHERE client_id = :client_id
+        """
+        invoice_summary = db.session.execute(text(invoice_summary_query), {
+            'client_id': client_id
+        }).first()
+        
+        # Get recent invoices for this client
+        recent_invoices_query = """
+        SELECT id, invoice_number, issue_date, due_date, total_amount, status
+        FROM invoice
+        WHERE client_id = :client_id
+        ORDER BY created_at DESC
+        LIMIT 5
+        """
+        recent_invoices = db.session.execute(text(recent_invoices_query), {
+            'client_id': client_id
+        }).fetchall()
+        
+        # Build direct HTML response with client details and invoice summary
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Client: {client[1]}</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+            <style>
+                .client-header {{
+                    background-color: #f8f9fa;
+                    border-bottom: 1px solid #dee2e6;
+                    padding: 1.5rem 0;
+                    margin-bottom: 2rem;
+                }}
+                .summary-card {{
+                    border-radius: 0.5rem;
+                    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+                    margin-bottom: 1.5rem;
+                }}
+                .summary-card .card-header {{
+                    background-color: #f8f9fa;
+                    border-bottom: 1px solid #dee2e6;
+                    font-weight: 600;
+                }}
+                .stat-item {{
+                    padding: 1rem;
+                    border-bottom: 1px solid #f0f0f0;
+                }}
+                .stat-item:last-child {{
+                    border-bottom: none;
+                }}
+                .stat-label {{
+                    color: #6c757d;
+                    font-size: 0.875rem;
+                }}
+                .stat-value {{
+                    font-size: 1.25rem;
+                    font-weight: 600;
+                }}
+                .nav-pills .nav-link.active {{
+                    background-color: #0d6efd;
+                }}
+                .tab-content {{
+                    padding: 1.5rem 0;
+                }}
+                .info-table td {{
+                    padding: 0.5rem;
+                }}
+                .info-table td:first-child {{
+                    font-weight: 600;
+                    width: 30%;
+                }}
+            </style>
+        </head>
+        <body>
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <div class="container">
+                    <a class="navbar-brand" href="/">
+                        <i class="fas fa-receipt me-2"></i>
+                        Receipt Scanner
+                    </a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/clients">
+                                    <i class="fas fa-users me-1"></i> Clients
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/invoices">
+                                    <i class="fas fa-file-invoice me-1"></i> Invoices
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="client-header">
+                <div class="container">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="mb-0">{client[1]}</h1>
+                            <p class="text-muted mb-0">{client[2] or ''}</p>
+                        </div>
+                        <div>
+                            <a href="/clients/{client_id}/edit" class="btn btn-primary me-2">
+                                <i class="fas fa-edit me-1"></i> Edit
+                            </a>
+                            <button type="button" class="btn btn-danger" 
+                                onclick="if(confirm('Are you sure you want to delete this client?')) {{
+                                    const form = document.createElement('form');
+                                    form.method = 'POST';
+                                    form.action = '/clients/{client_id}/delete';
+                                    document.body.appendChild(form);
+                                    form.submit();
+                                }}">
+                                <i class="fas fa-trash me-1"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container mb-5">
+                <div class="row">
+                    <div class="col-lg-4 order-lg-2">
+                        <!-- Invoice Summary Card -->
+                        <div class="card summary-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span>Invoice Summary</span>
+                                <a href="/invoices/create?client_id={client_id}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-plus me-1"></i> New Invoice
+                                </a>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="stat-item">
+                                    <div class="stat-label">Total Invoices</div>
+                                    <div class="stat-value">{invoice_summary[0] or 0}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Paid</div>
+                                    <div class="stat-value text-success">{invoice_summary[1] or 0}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Unpaid</div>
+                                    <div class="stat-value text-warning">{invoice_summary[2] or 0}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Overdue</div>
+                                    <div class="stat-value text-danger">{invoice_summary[3] or 0}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Draft</div>
+                                    <div class="stat-value text-secondary">{invoice_summary[4] or 0}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Total Amount</div>
+                                    <div class="stat-value">LKR {invoice_summary[5] or 0:,.2f}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Outstanding Amount</div>
+                                    <div class="stat-value text-danger">LKR {(invoice_summary[7] or 0) + (invoice_summary[8] or 0):,.2f}</div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <a href="/invoices?client_id={client_id}" class="btn btn-sm btn-outline-primary d-block">
+                                    View All Invoices
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Recent Invoices -->
+                        <div class="card summary-card">
+                            <div class="card-header">Recent Invoices</div>
+                            <div class="card-body p-0">
+                                {
+                                "".join(f'''
+                                <div class="p-3 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <span class="badge {'bg-success' if inv[5] == 'paid' else 'bg-warning' if inv[5] == 'unpaid' else 'bg-danger' if inv[5] == 'overdue' else 'bg-secondary'}">{inv[5]}</span>
+                                            <span class="ms-2">{inv[1]}</span>
+                                        </div>
+                                        <div class="text-nowrap">LKR {inv[4]:,.2f}</div>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted small">
+                                        <div>Issue: {inv[2].strftime('%Y-%m-%d') if inv[2] else 'N/A'}</div>
+                                        <div>Due: {inv[3].strftime('%Y-%m-%d') if inv[3] else 'N/A'}</div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <a href="/invoices/{inv[0]}" class="btn btn-sm btn-outline-secondary">View</a>
+                                    </div>
+                                </div>
+                                ''' for inv in recent_invoices) if recent_invoices else '''
+                                <div class="p-3 text-center text-muted">
+                                    No invoices found for this client
+                                </div>
+                                '''
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8 order-lg-1">
+                        <ul class="nav nav-pills mb-3" id="clientTabsNav" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button">
+                                    <i class="fas fa-info-circle me-1"></i> Details
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices" type="button">
+                                    <i class="fas fa-file-invoice me-1"></i> Invoices
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expenses" type="button">
+                                    <i class="fas fa-receipt me-1"></i> Expenses
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="clientTabsContent">
+                            <div class="tab-pane fade show active" id="details" role="tabpanel" aria-labelledby="details-tab">
+                                <div class="card">
+                                    <div class="card-header">Client Information</div>
+                                    <div class="card-body">
+                                        <table class="table info-table table-borderless">
+                                            <tr>
+                                                <td>Name</td>
+                                                <td>{client[1] or 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Company</td>
+                                                <td>{client[2] or 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Contact Person</td>
+                                                <td>{client[5] or 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Email</td>
+                                                <td>{f'<a href="mailto:{client[3]}">{client[3]}</a>' if client[3] else 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Phone</td>
+                                                <td>{client[4] or 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Address</td>
+                                                <td>{client[6] or 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Tax Registration Number</td>
+                                                <td>{client[7] or 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Notes</td>
+                                                <td>{client[8] or 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Created</td>
+                                                <td>{client[9].strftime('%Y-%m-%d') if client[9] else 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Last Updated</td>
+                                                <td>{client[10].strftime('%Y-%m-%d') if client[10] else 'N/A'}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="invoices" role="tabpanel" aria-labelledby="invoices-tab">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span>Invoices</span>
+                                        <a href="/invoices/create?client_id={client_id}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-plus me-1"></i> New Invoice
+                                        </a>
+                                    </div>
+                                    <div class="card-body">
+                                        {
+                                        '''
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Invoice #</th>
+                                                        <th>Date</th>
+                                                        <th>Due Date</th>
+                                                        <th>Amount</th>
+                                                        <th>Status</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                        ''' + "".join(f'''
+                                                    <tr>
+                                                        <td>{inv[1]}</td>
+                                                        <td>{inv[2].strftime('%Y-%m-%d') if inv[2] else 'N/A'}</td>
+                                                        <td>{inv[3].strftime('%Y-%m-%d') if inv[3] else 'N/A'}</td>
+                                                        <td class="text-end">LKR {inv[4]:,.2f}</td>
+                                                        <td><span class="badge {'bg-success' if inv[5] == 'paid' else 'bg-warning' if inv[5] == 'unpaid' else 'bg-danger' if inv[5] == 'overdue' else 'bg-secondary'}">{inv[5]}</span></td>
+                                                        <td class="text-end">
+                                                            <a href="/invoices/{inv[0]}" class="btn btn-sm btn-outline-primary">View</a>
+                                                        </td>
+                                                    </tr>
+                                        ''' for inv in recent_invoices) + '''
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        ''' if recent_invoices else '''
+                                        <div class="text-center p-4">
+                                            <div class="mb-3">
+                                                <i class="fas fa-file-invoice fa-3x text-muted"></i>
+                                            </div>
+                                            <h5>No Invoices Found</h5>
+                                            <p class="text-muted">This client doesn't have any invoices yet.</p>
+                                            <a href="/invoices/create?client_id={client_id}" class="btn btn-primary mt-2">
+                                                <i class="fas fa-plus me-1"></i> Create First Invoice
+                                            </a>
+                                        </div>
+                                        '''
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="expenses" role="tabpanel" aria-labelledby="expenses-tab">
+                                <div class="card">
+                                    <div class="card-header">Client Expenses</div>
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
+                                            <i class="fas fa-receipt fa-3x text-muted"></i>
+                                        </div>
+                                        <h5>Expense Tracking</h5>
+                                        <p class="text-muted">Track expenses related to this client.</p>
+                                        <a href="/receipts/classify?client_id={client_id}" class="btn btn-primary mt-2">
+                                            <i class="fas fa-plus me-1"></i> Add Client Expense
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="bg-light py-4 mt-5">
+                <div class="container">
+                    <div class="text-center text-muted">
+                        &copy; 2025 Receipt Scanner. All rights reserved.
+                    </div>
+                </div>
+            </footer>
+
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+            <script>
+                // Simple tab functionality
+                document.addEventListener('DOMContentLoaded', function() {
+                    const tabButtons = document.querySelectorAll('[data-bs-toggle="tab"]');
+                    tabButtons.forEach(button => {
+                        button.addEventListener('click', function() {
+                            const targetId = this.getAttribute('data-bs-target');
+                            
+                            // Hide all tab panes
+                            document.querySelectorAll('.tab-pane').forEach(pane => {
+                                pane.classList.remove('show', 'active');
+                            });
+                            
+                            // Remove active class from all tab buttons
+                            document.querySelectorAll('.nav-link').forEach(link => {
+                                link.classList.remove('active');
+                            });
+                            
+                            // Show the target tab pane
+                            document.querySelector(targetId).classList.add('show', 'active');
+                            
+                            // Mark this button as active
+                            this.classList.add('active');
+                        });
+                    });
+                });
+            </script>
+        </body>
+        </html>
+        """
+        
+        return html
+        
     except Exception as e:
-        logger.error(f"Error in view_client redirect: {str(e)}")
-        # Super basic fallback
-        return f"<h1>Client {client_id}</h1><p>Error: {str(e)}</p>", 500
+        logger.error(f"Error in view_client: {str(e)}")
+        logger.error(traceback.format_exc())
+        # Fallback to super basic view
+        return f"""
+        <html>
+        <head>
+            <title>Error: Client View</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="container mt-5">
+            <div class="alert alert-danger">
+                <h4>Error Viewing Client</h4>
+                <p>{str(e)}</p>
+                <pre>{traceback.format_exc()}</pre>
+            </div>
+            <a href="/clients" class="btn btn-primary">Return to Client List</a>
+        </body>
+        </html>
+        """, 500
 
 @clients_bp.route('/<int:client_id>/edit', methods=['GET', 'POST'])
 @login_required
