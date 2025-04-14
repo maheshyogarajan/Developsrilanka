@@ -413,11 +413,6 @@
                     <a href="{{ url_for('getting_started.wizard') }}" class="menu-link {% if '/getting-started' in request.path %}active{% endif %}">
                         <i class="fas fa-check-circle menu-icon"></i>
                         <span class="menu-text">Getting Started</span>
-                        {% if current_user.is_authenticated and hasattr(current_user, 'onboarding_progress') and current_user.onboarding_progress and not current_user.onboarding_progress.is_complete() %}
-                            <span class="badge badge-pill bg-warning ms-2">
-                                {{ current_user.onboarding_progress.get_completion_percentage() }}%
-                            </span>
-                        {% endif %}
                     </a>
                 </li>
                 
