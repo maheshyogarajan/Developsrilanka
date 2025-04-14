@@ -144,6 +144,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading team management routes: {str(e)}")
 
+# Import Getting Started wizard routes
+try:
+    import getting_started
+    # Register Getting Started routes
+    getting_started.register_routes(app)
+    logger.info("Getting Started wizard routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading Getting Started wizard routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
