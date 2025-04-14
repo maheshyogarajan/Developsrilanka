@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 from flask_login import UserMixin
 from enum import Enum
+from onboarding_models import OnboardingProgress
 
 class InvoiceStatus(Enum):
     DRAFT = "draft"

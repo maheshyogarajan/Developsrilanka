@@ -1,0 +1,289 @@
+{% extends "layout.html" %}
+
+{% block title %}Getting Started - DevelopSriLanka{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h2 class="mb-0"><i class="fas fa-check-circle me-2 text-success"></i>Getting Started</h2>
+                </div>
+                <div class="card-body">
+                    <p class="lead mb-4">Complete these steps to set up your account and start using DevelopSriLanka.</p>
+                    
+                    <!-- Progress bar -->
+                    <div class="progress mb-4" style="height: 10px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ completion_percentage }}%;" 
+                             aria-valuenow="{{ completion_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                    
+                    <!-- Step 1: Profile -->
+                    <div class="card mb-3 {% if progress.profile_completed %}border-success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="step-circle {% if progress.profile_completed %}bg-success{% else %}bg-light{% endif %}">
+                                        {% if progress.profile_completed %}
+                                            <i class="fas fa-check text-white"></i>
+                                        {% else %}
+                                            <span class="fw-bold">1</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5 class="card-title mb-1">Complete Your Profile</h5>
+                                    <p class="card-text text-muted mb-2">Add your personal information and profile photo</p>
+                                    <div class="mt-1">
+                                        <a href="{{ url_for('profile') }}" class="btn btn-sm {% if progress.profile_completed %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                            <i class="fas fa-user me-1"></i>
+                                            {% if progress.profile_completed %}View Profile{% else %}Update Profile{% endif %}
+                                        </a>
+                                        
+                                        {% if not progress.profile_completed %}
+                                        <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('profile')">
+                                            <i class="fas fa-check me-1"></i> Mark Complete
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2: Organization -->
+                    <div class="card mb-3 {% if progress.organization_created %}border-success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="step-circle {% if progress.organization_created %}bg-success{% else %}bg-light{% endif %}">
+                                        {% if progress.organization_created %}
+                                            <i class="fas fa-check text-white"></i>
+                                        {% else %}
+                                            <span class="fw-bold">2</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5 class="card-title mb-1">Create an Organization</h5>
+                                    <p class="card-text text-muted mb-2">Set up your business or personal organization with branding</p>
+                                    <div class="mt-1">
+                                        <a href="{{ url_for('organization.list_organizations') }}" class="btn btn-sm {% if progress.organization_created %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                            <i class="fas fa-building me-1"></i>
+                                            {% if progress.organization_created %}View Organizations{% else %}Create Organization{% endif %}
+                                        </a>
+                                        
+                                        {% if not progress.organization_created %}
+                                        <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('organization')">
+                                            <i class="fas fa-check me-1"></i> Mark Complete
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: Bank Account -->
+                    <div class="card mb-3 {% if progress.bank_account_added %}border-success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="step-circle {% if progress.bank_account_added %}bg-success{% else %}bg-light{% endif %}">
+                                        {% if progress.bank_account_added %}
+                                            <i class="fas fa-check text-white"></i>
+                                        {% else %}
+                                            <span class="fw-bold">3</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5 class="card-title mb-1">Set Up Bank Accounts</h5>
+                                    <p class="card-text text-muted mb-2">Add your business or personal bank accounts for invoicing</p>
+                                    <div class="mt-1">
+                                        <a href="{{ url_for('bank_accounts') }}" class="btn btn-sm {% if progress.bank_account_added %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                            <i class="fas fa-university me-1"></i>
+                                            {% if progress.bank_account_added %}View Bank Accounts{% else %}Add Bank Account{% endif %}
+                                        </a>
+                                        
+                                        {% if not progress.bank_account_added %}
+                                        <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('bank_account')">
+                                            <i class="fas fa-check me-1"></i> Mark Complete
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 4: Team Invitation -->
+                    <div class="card mb-3 {% if progress.team_member_invited %}border-success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="step-circle {% if progress.team_member_invited %}bg-success{% else %}bg-light{% endif %}">
+                                        {% if progress.team_member_invited %}
+                                            <i class="fas fa-check text-white"></i>
+                                        {% else %}
+                                            <span class="fw-bold">4</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5 class="card-title mb-1">Invite Team Members</h5>
+                                    <p class="card-text text-muted mb-2">Invite colleagues or team members to collaborate</p>
+                                    <div class="mt-1">
+                                        <a href="{{ url_for('team.list_members') }}" class="btn btn-sm {% if progress.team_member_invited %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                            <i class="fas fa-users me-1"></i>
+                                            {% if progress.team_member_invited %}Manage Team{% else %}Invite Team Members{% endif %}
+                                        </a>
+                                        
+                                        {% if not progress.team_member_invited %}
+                                        <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('team_member')">
+                                            <i class="fas fa-check me-1"></i> Mark Complete
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 5: Customer Setup -->
+                    <div class="card mb-3 {% if progress.customer_added %}border-success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="step-circle {% if progress.customer_added %}bg-success{% else %}bg-light{% endif %}">
+                                        {% if progress.customer_added %}
+                                            <i class="fas fa-check text-white"></i>
+                                        {% else %}
+                                            <span class="fw-bold">5</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5 class="card-title mb-1">Set Up Customers</h5>
+                                    <p class="card-text text-muted mb-2">Add customers or clients for invoicing and expense tracking</p>
+                                    <div class="mt-1">
+                                        <a href="{{ url_for('clients.list_clients') }}" class="btn btn-sm {% if progress.customer_added %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                            <i class="fas fa-address-book me-1"></i>
+                                            {% if progress.customer_added %}View Customers{% else %}Add Customer{% endif %}
+                                        </a>
+                                        
+                                        {% if not progress.customer_added %}
+                                        <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('customer')">
+                                            <i class="fas fa-check me-1"></i> Mark Complete
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 6: Document Scanning -->
+                    <div class="card mb-3 {% if progress.document_scanned %}border-success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="step-circle {% if progress.document_scanned %}bg-success{% else %}bg-light{% endif %}">
+                                        {% if progress.document_scanned %}
+                                            <i class="fas fa-check text-white"></i>
+                                        {% else %}
+                                            <span class="fw-bold">6</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5 class="card-title mb-1">Scan Your First Document</h5>
+                                    <p class="card-text text-muted mb-2">Process your first receipt using the AI-powered scan feature</p>
+                                    <div class="mt-1">
+                                        <a href="{{ url_for('index') }}" class="btn btn-sm {% if progress.document_scanned %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                            <i class="fas fa-camera me-1"></i>
+                                            {% if progress.document_scanned %}Scan More Documents{% else %}Scan Document{% endif %}
+                                        </a>
+                                        
+                                        {% if not progress.document_scanned %}
+                                        <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('document')">
+                                            <i class="fas fa-check me-1"></i> Mark Complete
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if progress.is_complete() %}
+                    <div class="alert alert-success mt-4">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Congratulations!</strong> You've completed all the getting started steps. You're now ready to use all the features of DevelopSriLanka!
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .step-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #495057;
+        border: 1px solid #ced4da;
+        background-color: #f8f9fa;
+    }
+    
+    .step-circle.bg-success {
+        border: none;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Function to mark step as complete via AJAX
+    function markStepComplete(step) {
+        fetch('{{ url_for("getting_started.update_progress") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                step: step,
+                completed: true
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload the page to show updated progress
+                location.reload();
+            } else {
+                console.error('Error updating progress:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    // Function to get CSRF token from meta tag
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+</script>
+{% endblock %}
