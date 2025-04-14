@@ -318,6 +318,71 @@ def debug_client(client_id):
     except Exception as e:
         return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
+@clients_bp.route('/basic_client_debug/<int:client_id>')
+def basic_client_debug(client_id):
+    """Super basic debug view with minimal dependencies."""
+    import traceback
+    
+    try:
+        # Check if client exists using minimal query
+        client_query = text("SELECT id, name FROM client WHERE id = :client_id LIMIT 1")
+        result = db.session.execute(client_query, {'client_id': client_id}).first()
+        
+        if not result:
+            return f"Client with ID {client_id} not found", 404
+        
+        # Build a very simple HTML response
+        output = f"""
+        <html>
+        <head><title>Client Debug: {result[1]}</title></head>
+        <body>
+            <h1>Basic Client Debug</h1>
+            <p>Client ID: {result[0]}</p>
+            <p>Client Name: {result[1]}</p>
+            
+            <h2>Database Query Tests</h2>
+        """
+        
+        # Test invoice count (without trying to process them)
+        invoice_count_query = text("SELECT COUNT(*) FROM invoice WHERE client_id = :client_id")
+        invoice_count = db.session.execute(invoice_count_query, {'client_id': client_id}).scalar() or 0
+        
+        output += f"<p>Invoice Count: {invoice_count}</p>"
+        
+        # Test if currency filter is working correctly
+        try:
+            from template_filters import currency_filter
+            test_amount = 1250.75
+            formatted = currency_filter(test_amount)
+            output += f"<p>Currency filter test: {test_amount} → {formatted}</p>"
+        except Exception as e:
+            output += f"<p style='color:red'>Currency filter error: {str(e)}</p>"
+        
+        # Test client model initialization with minimal fields
+        try:
+            client = Client(id=result[0], name=result[1])
+            output += f"<p>Client model test: successfully created client object with name {client.name}</p>"
+        except Exception as e:
+            output += f"<p style='color:red'>Client model error: {str(e)}</p>"
+        
+        output += """
+            <h2>Next Troubleshooting Steps</h2>
+            <p>Based on the tests above, try the following debugging paths:</p>
+            <ul>
+                <li>Check if invoice model is correctly defined (required fields, etc.)</li>
+                <li>Check if there are any rows with NULL values in required columns</li>
+                <li>Verify that template filters are correctly registered</li>
+                <li>Test the simple_view_client route with DEBUG logging</li>
+            </ul>
+        </body>
+        </html>
+        """
+        
+        return output
+    except Exception as e:
+        error_detail = f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>"
+        return error_detail, 500
+
 @clients_bp.route('/client_debug/<int:client_id>')
 def client_debug(client_id):
     """Debug view for a client (no auth required for testing)."""
