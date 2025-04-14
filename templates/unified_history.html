@@ -16,6 +16,8 @@
         font-weight: 500;
     }
     
+    /* No duplicate style needed here as we have it below */
+    
     .filter-panel {
         background-color: #f8f9fa;
         border-radius: 8px;
@@ -105,10 +107,15 @@
     .icon-expense {
         background-color: #d1e7dd;
     }
+    /* Updated thumbnail styling */
     .item-image {
-        max-height: 100px;
-        object-fit: cover;
+        max-width: 100%;
+        max-height: 150px;
+        object-fit: contain;
         border-radius: 4px;
+        margin: 0 auto;
+        display: block;
+        border: 1px solid #e9ecef;
     }
     .card-footer {
         background-color: transparent;
@@ -311,7 +318,9 @@
                                     {% endif %}
                                 </p>
                                 <div class="d-flex mb-3">
-                                    {% if item.receipt.s3_url %}
+                                    {% if item.receipt.thumbnail_url %}
+                                        <img src="{{ item.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image">
+                                    {% elif item.receipt.s3_url %}
                                         <img src="{{ item.receipt.s3_url }}" alt="Receipt Image" class="item-image">
                                     {% elif item.receipt.image_path %}
                                         <img src="{{ url_for('static', filename=item.receipt.image_path) }}" alt="Receipt Image" class="item-image">
@@ -343,7 +352,9 @@
                                     {% endif %}
                                 </p>
                                 <div class="d-flex mb-3">
-                                    {% if item.expense.receipt and item.expense.receipt.s3_url %}
+                                    {% if item.expense.receipt and item.expense.receipt.thumbnail_url %}
+                                        <img src="{{ item.expense.receipt.thumbnail_url }}" alt="Receipt Image" class="item-image">
+                                    {% elif item.expense.receipt and item.expense.receipt.s3_url %}
                                         <img src="{{ item.expense.receipt.s3_url }}" alt="Receipt Image" class="item-image">
                                     {% elif item.expense.receipt and item.expense.receipt.image_path %}
                                         <img src="{{ url_for('static', filename=item.expense.receipt.image_path) }}" alt="Receipt Image" class="item-image">
