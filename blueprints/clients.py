@@ -292,19 +292,29 @@ def view_client(client_id):
     organization = None
     if client.organization_id:
         org_result = db.session.execute(text("""
-            SELECT id, name, logo_path, primary_color, email
+            SELECT id, name, logo_path, logo_s3_key, primary_color, email
             FROM organization
             WHERE id = :organization_id
             LIMIT 1
         """), {'organization_id': client.organization_id}).first()
         
         if org_result:
+            from s3_storage import get_s3_url
+            logo_url = None
+            if org_result[3]:  # logo_s3_key
+                try:
+                    logo_url = get_s3_url(org_result[3])
+                except Exception:
+                    pass
+                    
             organization = {
                 'id': org_result[0],
                 'name': org_result[1],
                 'logo_path': org_result[2],
-                'primary_color': org_result[3],
-                'email': org_result[4]
+                'logo_s3_key': org_result[3],
+                'logo_url': logo_url,
+                'primary_color': org_result[4],
+                'email': org_result[5]
             }
     
     # Process invoices
