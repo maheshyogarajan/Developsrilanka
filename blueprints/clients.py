@@ -246,17 +246,29 @@ def create_client():
 @login_required
 def view_client(client_id):
     """View a specific client."""
-    # Use raw SQL to get a specific client by ID
-    result = db.session.execute(text("""
-        SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
-               phone, address, tax_registration_number, notes, created_at, updated_at
-        FROM client
-        WHERE id = :client_id AND user_id = :user_id
-        LIMIT 1
-    """), {'client_id': client_id, 'user_id': current_user.id}).first()
+    import logging
+    logger = logging.getLogger(__name__)
     
-    if not result:
-        abort(404)
+    try:
+        logger.debug(f"Attempting to fetch client with ID: {client_id} for user {current_user.id}")
+        
+        # Use raw SQL to get a specific client by ID
+        result = db.session.execute(text("""
+            SELECT id, user_id, organization_id, name, company_name, contact_person, email, 
+                phone, address, tax_registration_number, notes, created_at, updated_at
+            FROM client
+            WHERE id = :client_id AND user_id = :user_id
+            LIMIT 1
+        """), {'client_id': client_id, 'user_id': current_user.id}).first()
+        
+        if not result:
+            logger.warning(f"Client with ID {client_id} not found for user {current_user.id}")
+            abort(404)
+            
+        logger.debug(f"Successfully fetched client with ID: {client_id}")
+    except Exception as e:
+        logger.error(f"Error fetching client: {str(e)}")
+        raise
     
     # Convert row to Client object
     client = Client(
@@ -291,65 +303,92 @@ def view_client(client_id):
     # Get organization info if applicable
     organization = None
     if client.organization_id:
-        org_result = db.session.execute(text("""
-            SELECT id, name, logo_path, logo_s3_key, primary_color, email
-            FROM organization
-            WHERE id = :organization_id
-            LIMIT 1
-        """), {'organization_id': client.organization_id}).first()
-        
-        if org_result:
-            from s3_storage import get_s3_url
-            logo_url = None
-            if org_result[3]:  # logo_s3_key
-                try:
-                    logo_url = get_s3_url(org_result[3])
-                except Exception:
-                    pass
-                    
-            organization = {
-                'id': org_result[0],
-                'name': org_result[1],
-                'logo_path': org_result[2],
-                'logo_s3_key': org_result[3],
-                'logo_url': logo_url,
-                'primary_color': org_result[4],
-                'email': org_result[5]
-            }
+        logger.debug(f"Fetching organization with ID: {client.organization_id}")
+        try:
+            org_result = db.session.execute(text("""
+                SELECT id, name, logo_path, logo_s3_key, primary_color, email
+                FROM organization
+                WHERE id = :organization_id
+                LIMIT 1
+            """), {'organization_id': client.organization_id}).first()
+            
+            if org_result:
+                logger.debug(f"Found organization: {org_result[1]}")
+                
+                from s3_storage import get_s3_url
+                logo_url = None
+                if org_result[3]:  # logo_s3_key
+                    logger.debug(f"Organization has S3 logo key: {org_result[3]}")
+                    try:
+                        logo_url = get_s3_url(org_result[3])
+                        logger.debug(f"Generated S3 URL for logo: {logo_url}")
+                    except Exception as e:
+                        logger.error(f"Error generating S3 URL: {str(e)}")
+                        pass
+                else:
+                    logger.debug("Organization has no S3 logo key")
+                        
+                organization = {
+                    'id': org_result[0],
+                    'name': org_result[1],
+                    'logo_path': org_result[2],
+                    'logo_s3_key': org_result[3],
+                    'logo_url': logo_url,
+                    'primary_color': org_result[4],
+                    'email': org_result[5]
+                }
+                logger.debug(f"Created organization dictionary: {organization}")
+            else:
+                logger.warning(f"Organization with ID {client.organization_id} not found")
+        except Exception as e:
+            logger.error(f"Error fetching organization: {str(e)}")
+            # Continue without organization data instead of failing completely
+            organization = None
     
     # Process invoices
     # For simplicity in this blueprint migration, we'll import Invoice model from models
-    from models import Invoice
-    invoices = []
-    for inv_row in invoice_results:
-        invoice = Invoice(
-            id=inv_row[0],
-            user_id=inv_row[1],
-            client_id=inv_row[2],
-            bank_account_id=inv_row[3],
-            invoice_number=inv_row[4],
-            issue_date=inv_row[5],
-            due_date=inv_row[6],
-            status=inv_row[7],
-            notes=inv_row[8],
-            currency=inv_row[9],
-            subtotal=inv_row[10],
-            tax_percent=inv_row[11],
-            tax_amount=inv_row[12],
-            discount_percent=inv_row[13],
-            discount_amount=inv_row[14],
-            total=inv_row[15],
-            sender_name=inv_row[16],
-            sender_company=inv_row[17],
-            sender_address=inv_row[18],
-            sender_phone=inv_row[19],
-            sender_email=inv_row[20],
-            sender_tax_registration=inv_row[21],
-            last_sent_at=inv_row[22],
-            created_at=inv_row[23],
-            updated_at=inv_row[24]
-        )
-        invoices.append(invoice)
+    try:
+        from models import Invoice
+        invoices = []
+        
+        logger.debug(f"Processing invoices for client ID: {client_id}")
+        
+        for inv_row in invoice_results:
+            try:
+                invoice = Invoice(
+                    id=inv_row[0],
+                    user_id=inv_row[1],
+                    client_id=inv_row[2],
+                    bank_account_id=inv_row[3],
+                    invoice_number=inv_row[4],
+                    issue_date=inv_row[5],
+                    due_date=inv_row[6],
+                    status=inv_row[7],
+                    notes=inv_row[8],
+                    currency=inv_row[9],
+                    subtotal=inv_row[10],
+                    tax_percent=inv_row[11],
+                    tax_amount=inv_row[12],
+                    discount_percent=inv_row[13],
+                    discount_amount=inv_row[14],
+                    total=inv_row[15],
+                    sender_name=inv_row[16],
+                    sender_company=inv_row[17],
+                    sender_address=inv_row[18],
+                    sender_phone=inv_row[19],
+                    sender_email=inv_row[20],
+                    sender_tax_registration=inv_row[21],
+                    last_sent_at=inv_row[22],
+                    created_at=inv_row[23],
+                    updated_at=inv_row[24]
+                )
+                invoices.append(invoice)
+                logger.debug(f"Added invoice {inv_row[4]} to result list")
+            except Exception as e:
+                logger.error(f"Error processing invoice row: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in invoice processing section: {str(e)}")
+        invoices = []
     
     return render_template('view_client.html', client=client, invoices=invoices, organization=organization)
 
