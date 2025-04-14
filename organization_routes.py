@@ -148,10 +148,28 @@ def edit_organization(org_id):
                 from PIL import Image
                 from s3_storage import S3Storage
                 import io
+                import imghdr
                 
                 # Read the uploaded file
                 img_data = logo_file.read()
+                
+                # Validate that it's a valid image file
+                image_type = imghdr.what(None, h=img_data)
+                if not image_type:
+                    raise ValueError("Invalid image file format")
+                
+                # Define allowed image formats
+                ALLOWED_FORMATS = ['jpeg', 'jpg', 'png', 'gif']
+                
+                # Open the image with PIL
                 img = Image.open(io.BytesIO(img_data))
+                
+                # Format validation
+                img_format = getattr(img, 'format', '').lower()
+                logger.info(f"Uploaded image format: {img_format}, mode: {img.mode}")
+                
+                if img_format and img_format.lower() not in ALLOWED_FORMATS:
+                    raise ValueError(f"Unsupported image format: {img_format}. Please use JPEG, PNG or GIF.")
                 
                 # Resize the image if necessary (max dimensions 500x500)
                 max_size = (500, 500)
@@ -164,9 +182,12 @@ def edit_organization(org_id):
                 # Save S3 key to organization
                 organization.logo_s3_key = s3_key
                 logger.info(f"Logo uploaded for organization {organization.id}, S3 key: {s3_key}")
+            except ValueError as ve:
+                logger.warning(f"Invalid logo format: {str(ve)}")
+                flash(f'Invalid logo: {str(ve)}', 'warning')
             except Exception as e:
                 logger.error(f"Error uploading organization logo: {str(e)}")
-                flash(f'Error uploading logo: {str(e)}', 'error')
+                flash(f'Error uploading logo: {str(e)}', 'danger')
         
         db.session.commit()
         

@@ -73,14 +73,23 @@ class S3Storage:
             image_id = str(uuid.uuid4())
             logger.info(f"S3 UPLOAD - Generated UUID: {image_id}")
             
+            # Determine file extension based on image format if it's a PIL Image
+            if hasattr(image, 'format') and image.format:
+                extension = image.format.lower()
+                logger.info(f"S3 UPLOAD - Using image format: {image.format}")
+            else:
+                # Default to jpg for backward compatibility
+                extension = 'jpg'
+                logger.info(f"S3 UPLOAD - No image format detected, using default: {extension}")
+            
             # Create a path based on organization and receipt if provided
             # Use receipts/ folder for production use
             if organization_id and receipt_id:
-                s3_key = f"receipts/{organization_id}_{receipt_id}_{image_id}.jpg"
+                s3_key = f"receipts/{organization_id}_{receipt_id}_{image_id}.{extension}"
             elif organization_id:
-                s3_key = f"receipts/{organization_id}_{image_id}.jpg"
+                s3_key = f"receipts/{organization_id}_{image_id}.{extension}"
             else:
-                s3_key = f"receipts/{image_id}.jpg"
+                s3_key = f"receipts/{image_id}.{extension}"
             
             logger.info(f"S3 UPLOAD - Generated S3 key: {s3_key}")
             
@@ -112,9 +121,28 @@ class S3Storage:
                     raise
             else:  # If image is a PIL Image object
                 try:
-                    logger.info(f"S3 UPLOAD - Uploading PIL Image object with format: {getattr(image, 'format', 'unknown')}")
+                    logger.info(f"S3 UPLOAD - Uploading PIL Image object with format: {getattr(image, 'format', 'unknown')}, mode: {image.mode}")
+                    
+                    # Handle transparency in PNG images (RGBA mode)
+                    if image.mode == 'RGBA':
+                        logger.info("S3 UPLOAD - Converting RGBA image to RGB with white background")
+                        # Create a white background image
+                        background = Image.new('RGB', image.size, (255, 255, 255))
+                        # Paste the image with transparency on the background
+                        background.paste(image, mask=image.split()[3])  # 3 is the alpha channel
+                        # Use the new image without transparency
+                        image = background
+                        logger.info(f"S3 UPLOAD - Image converted to RGB mode: {image.mode}")
+                    
+                    # Determine the format to save
+                    save_format = getattr(image, 'format', 'JPEG')
+                    if not save_format:
+                        save_format = 'JPEG'
+                    
+                    logger.info(f"S3 UPLOAD - Saving image with format: {save_format}")
+                    
                     img_byte_arr = io.BytesIO()
-                    image.save(img_byte_arr, format='JPEG')
+                    image.save(img_byte_arr, format=save_format)
                     img_byte_arr.seek(0)
                     buffer_size = img_byte_arr.getbuffer().nbytes
                     logger.info(f"S3 UPLOAD - Image byte array size: {buffer_size} bytes")
@@ -296,21 +324,48 @@ def upload_image_to_s3(image, organization_id=None, receipt_id=None):
         # Generate a unique key for the image
         image_id = str(uuid.uuid4())
         
+        # Determine file extension based on image format if it's a PIL Image
+        if hasattr(image, 'format') and image.format:
+            extension = image.format.lower()
+            logger.info(f"Using image format: {image.format}")
+        else:
+            # Default to jpg for backward compatibility
+            extension = 'jpg'
+            logger.info(f"No image format detected, using default: {extension}")
+        
         # Create a path based on organization and receipt if provided
         # Use receipts/ folder for production use
         if organization_id and receipt_id:
-            s3_key = f"receipts/{organization_id}_{receipt_id}_{image_id}.jpg"
+            s3_key = f"receipts/{organization_id}_{receipt_id}_{image_id}.{extension}"
         elif organization_id:
-            s3_key = f"receipts/{organization_id}_{image_id}.jpg"
+            s3_key = f"receipts/{organization_id}_{image_id}.{extension}"
         else:
-            s3_key = f"receipts/{image_id}.jpg"
+            s3_key = f"receipts/{image_id}.{extension}"
         
         # Handle different image input types
         if isinstance(image, str):  # If image is a file path
             s3_client.upload_file(image, bucket_name, s3_key)
         else:  # If image is a PIL Image object
+            # Handle transparency in PNG images (RGBA mode)
+            if image.mode == 'RGBA':
+                logger.info("Converting RGBA image to RGB with white background")
+                # Create a white background image
+                background = Image.new('RGB', image.size, (255, 255, 255))
+                # Paste the image with transparency on the background
+                background.paste(image, mask=image.split()[3])  # 3 is the alpha channel
+                # Use the new image without transparency
+                image = background
+                logger.info(f"Image converted to RGB mode: {image.mode}")
+            
+            # Determine the format to save
+            save_format = getattr(image, 'format', 'JPEG')
+            if not save_format:
+                save_format = 'JPEG'
+            
+            logger.info(f"Saving image with format: {save_format}")
+            
             img_byte_arr = io.BytesIO()
-            image.save(img_byte_arr, format='JPEG')
+            image.save(img_byte_arr, format=save_format)
             img_byte_arr.seek(0)
             
             s3_client.upload_fileobj(img_byte_arr, bucket_name, s3_key)
