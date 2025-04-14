@@ -138,6 +138,53 @@
             </table>
         </div>
         
+        <!-- Invoice Items -->
+        <div style="margin-top: 25px; margin-bottom: 25px;">
+            <h3 style="color: #4a6da7; margin-bottom: 10px;">Invoice Items</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background-color: #f5f8ff;">
+                        <th style="text-align: left; padding: 10px; border-bottom: 1px solid #ddd;">Description</th>
+                        <th style="text-align: right; padding: 10px; border-bottom: 1px solid #ddd;">Quantity</th>
+                        <th style="text-align: right; padding: 10px; border-bottom: 1px solid #ddd;">Unit Price</th>
+                        <th style="text-align: right; padding: 10px; border-bottom: 1px solid #ddd;">Tax %</th>
+                        <th style="text-align: right; padding: 10px; border-bottom: 1px solid #ddd;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in invoice.items %}
+                    <tr>
+                        <td style="text-align: left; padding: 10px; border-bottom: 1px solid #eee;">{{ item.description }}</td>
+                        <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee;">{{ item.quantity }}</td>
+                        <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee;">{{ invoice.currency }} {{ "%.2f"|format(item.unit_price) }}</td>
+                        <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee;">{{ item.tax_percent }}%</td>
+                        <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee;">{{ invoice.currency }} {{ "%.2f"|format(item.total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" style="text-align: right; padding: 10px; font-weight: bold;">Subtotal:</td>
+                        <td style="text-align: right; padding: 10px; font-weight: bold;">{{ invoice.currency }} {{ "%.2f"|format(invoice.subtotal) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="text-align: right; padding: 10px; font-weight: bold;">Tax:</td>
+                        <td style="text-align: right; padding: 10px; font-weight: bold;">{{ invoice.currency }} {{ "%.2f"|format(invoice.tax_amount) }}</td>
+                    </tr>
+                    {% if invoice.discount_percent > 0 %}
+                    <tr>
+                        <td colspan="4" style="text-align: right; padding: 10px; font-weight: bold;">Discount ({{ invoice.discount_percent }}%):</td>
+                        <td style="text-align: right; padding: 10px; font-weight: bold;">{{ invoice.currency }} {{ "%.2f"|format(invoice.discount_amount) }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td colspan="4" style="text-align: right; padding: 10px; font-weight: bold; color: #2c3e50;">Total:</td>
+                        <td style="text-align: right; padding: 10px; font-weight: bold; color: #2c3e50;">{{ invoice.currency }} {{ "%.2f"|format(invoice.total) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
         {% if bank_account %}
             <div class="payment-info">
                 <h3>Payment Information</h3>
