@@ -302,12 +302,21 @@
                                 <i class="fas fa-print me-1"></i> Print Invoice
                             </button>
                             
-                            {% if invoice.client and invoice.client.email and invoice.status != 'draft' %}
-                                <form method="POST" action="{{ url_for('email_invoice', invoice_id=invoice.id) }}" class="d-inline ms-2">
-                                    <button type="submit" class="btn btn-outline-info">
-                                        <i class="fas fa-envelope me-1"></i> Email Invoice
-                                    </button>
-                                </form>
+                            {% if invoice.client and invoice.client.email %}
+                                {% if invoice.status == 'draft' %}
+                                    <form method="POST" action="{{ url_for('send_invoice', invoice_id=invoice.id) }}" class="d-inline ms-2">
+                                        <input type="hidden" name="email_after_send" value="true">
+                                        <button type="submit" class="btn btn-outline-info">
+                                            <i class="fas fa-envelope me-1"></i> Send & Email Invoice
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('email_invoice', invoice_id=invoice.id) }}" class="d-inline ms-2">
+                                        <button type="submit" class="btn btn-outline-info">
+                                            <i class="fas fa-envelope me-1"></i> Email Invoice
+                                        </button>
+                                    </form>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
