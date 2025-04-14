@@ -38,7 +38,7 @@
         }
         .button {
             display: inline-block;
-            background-color: {{ organization.primary_color }};
+            background-color: #4299e1; /* Lighter blue color for better contrast with text */
             color: white;
             padding: 12px 24px;
             text-decoration: none;
@@ -68,6 +68,8 @@
 <body>
     <div class="container">
         <div class="header">
+            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg', _external=True) }}" alt="DevelopSriLanka" class="logo" style="max-width: 150px; margin-bottom: 10px;">
+            <br>
             {% if organization.logo_path %}
                 <img src="{{ organization.logo_path }}" alt="{{ organization.name }}" class="logo">
             {% else %}
@@ -117,7 +119,8 @@
                 <p>&copy; {{ now().year }} {{ organization.name }}. All rights reserved.</p>
             {% endif %}
             <p>
-                DevelopSriLanka.com | Receipt Management System
+                <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg', _external=True) }}" alt="DevelopSriLanka" style="max-width: 100px; margin-bottom: 5px;"><br>
+                DevelopSriLanka.com | Accounting and Tax Made Easy
             </p>
         </div>
     </div>
