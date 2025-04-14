@@ -14,6 +14,7 @@ from PIL import Image
 from celery_config import app as celery_app
 # Import models and db at the function level to avoid circular imports
 import s3_storage
+import s3_direct_upload
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -227,13 +228,25 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         
         # Upload directly to S3 first using the standalone function for maximum reliability
         # This avoids any potential issues with class-based handlers and shared state
-        logger.info(f"Attempting direct S3 upload outside the save_uploaded_image function...")
+        logger.info(f"Attempting direct S3 upload with thumbnail generation...")
         s3_key = ""
+        thumbnail_s3_key = ""
         try:
             # Make a copy of the image to ensure we don't have issues with closed files
             img_copy = image.copy()
-            s3_key = s3_storage.upload_image_to_s3(img_copy, organization_id)
-            logger.info(f"✅ Direct S3 upload successful with key: {s3_key}")
+            # Use the new direct upload function that also generates a thumbnail
+            s3_key, thumbnail_s3_key = s3_direct_upload.upload_receipt_to_s3(img_copy, organization_id)
+            if s3_key:
+                logger.info(f"✅ Direct S3 upload successful with key: {s3_key}")
+                if thumbnail_s3_key:
+                    logger.info(f"✅ Thumbnail generated and uploaded with key: {thumbnail_s3_key}")
+                else:
+                    logger.warning("⚠️ Main image uploaded but thumbnail generation failed")
+            else:
+                # Fall back to the old upload method if the new one fails completely
+                logger.warning("⚠️ New upload method failed, falling back to legacy method")
+                s3_key = s3_storage.upload_image_to_s3(img_copy, organization_id)
+                logger.info(f"✅ Legacy direct S3 upload successful with key: {s3_key}")
         except Exception as direct_s3_error:
             logger.error(f"❌ Direct S3 upload failed: {str(direct_s3_error)}")
             logger.error(traceback.format_exc())
@@ -260,26 +273,33 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         process_function = getattr(app_module, gemini_processor_fn)
         extracted_data = process_function(image)
         
-        # Add the image path and S3 key to the extracted data
+        # Add the image path, S3 key, and thumbnail S3 key to the extracted data
         if storage_result:
             # Get the values with proper defaults
             image_path_value = storage_result.get('image_path', '')
-            s3_key_value = storage_result.get('s3_key', '')
+            s3_key_value = storage_result.get('s3_key', '') if storage_result.get('s3_key') else s3_key
             
             # Set explicit values in the extracted data
             extracted_data['image_path'] = image_path_value
             extracted_data['s3_key'] = s3_key_value
             
+            # Add thumbnail key if available
+            if thumbnail_s3_key:
+                extracted_data['thumbnail_s3_key'] = thumbnail_s3_key
+                logger.info(f"Added thumbnail S3 key to extracted data: {thumbnail_s3_key}")
+            
             # Log for debugging
-            logger.info(f"Added storage information to extracted data: path='{image_path_value}', s3_key='{s3_key_value}'")
+            logger.info(f"Added storage information to extracted data: path='{image_path_value}', s3_key='{s3_key_value}', thumbnail_key='{thumbnail_s3_key}'")
             
             # Verify the data was set correctly
-            logger.info(f"Verification - extracted_data now has: image_path='{extracted_data.get('image_path')}', s3_key='{extracted_data.get('s3_key')}'")
+            logger.info(f"Verification - extracted_data now has: image_path='{extracted_data.get('image_path')}', s3_key='{extracted_data.get('s3_key')}', thumbnail_key='{extracted_data.get('thumbnail_s3_key', '')}'")
         else:
             # Set default values if storage_result is empty
             extracted_data['image_path'] = ''
-            extracted_data['s3_key'] = ''
-            logger.info("No storage result available, set empty strings for image_path and s3_key")
+            extracted_data['s3_key'] = s3_key if s3_key else ''
+            if thumbnail_s3_key:
+                extracted_data['thumbnail_s3_key'] = thumbnail_s3_key
+            logger.info(f"Limited storage result, using direct upload values: s3_key='{s3_key}', thumbnail_key='{thumbnail_s3_key}'")
         
         # Add organization ID to the extracted data
         if organization_id:
@@ -325,6 +345,7 @@ def save_receipt_to_database(self, receipt_data):
         total_amount = float(receipt_data.get('total_amount', 0))
         image_path = receipt_data.get('image_path', '')
         s3_key = receipt_data.get('s3_key', '')
+        thumbnail_s3_key = receipt_data.get('thumbnail_s3_key', '')
         expense_major_category = receipt_data.get('expense_major_category', '')
         expense_minor_category = receipt_data.get('expense_minor_category', '')
         service_charge = float(receipt_data.get('service_charge', 0))
@@ -360,6 +381,7 @@ def save_receipt_to_database(self, receipt_data):
             vat_tax=vat_tax,
             image_path=image_path,
             s3_key=s3_key,
+            thumbnail_s3_key=thumbnail_s3_key,
             organization_id=organization_id,
             expense_major_category=expense_major_category,
             expense_minor_category=expense_minor_category
