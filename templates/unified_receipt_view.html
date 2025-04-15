@@ -376,15 +376,15 @@
                 <div class="card-body text-center">
                     <div class="receipt-frame">
                         {% if receipt.image_url %}
-                            <div class="receipt-thumbnail-container" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                            <div class="receipt-thumbnail-container">
                                 <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
                                 >
-                            </div>
-                            <div class="mt-3 mb-1">
-                                <button type="button" class="btn btn-sm btn-outline-primary btn-block w-100" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
-                                    <i class="fas fa-search-plus me-1"></i> View Full Image
-                                </button>
+                                <div class="mt-3">
+                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                                        <i class="fas fa-search-plus me-1"></i> View Full Image
+                                    </button>
+                                </div>
                             </div>
                         {% else %}
                             <div class="text-center">
@@ -394,11 +394,7 @@
                             </div>
                         {% endif %}
                     </div>
-                    {% if receipt.image_url %}
-                    <div class="mt-2">
-                        <small class="text-muted">Click image to view full size</small>
-                    </div>
-                    {% endif %}
+
                 </div>
             </div>
         </div>
