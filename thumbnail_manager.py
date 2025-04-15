@@ -335,19 +335,39 @@ def get_thumbnail_url(original_s3_key):
     if not original_s3_key:
         return None
         
+    # Log for debugging the input format
+    logger.info(f"Getting thumbnail URL for key: {original_s3_key}")
+    
+    # Handle the case where original_s3_key might be a tuple by mistake
+    # This is the root cause of our issue
+    if isinstance(original_s3_key, tuple):
+        logger.warning(f"Received tuple instead of string: {original_s3_key}")
+        # Extract just the original image key (first element in tuple)
+        original_s3_key = original_s3_key[0] if original_s3_key else None
+        logger.info(f"Extracted original key from tuple: {original_s3_key}")
+        
+    if not original_s3_key:
+        return None
+        
     # Generate the thumbnail S3 key
     thumbnail_s3_key = get_thumbnail_s3_key(original_s3_key)
     
     # Check if thumbnail exists
-    if not check_file_exists(thumbnail_s3_key):
-        # Generate the thumbnail
-        thumbnail_s3_key = generate_thumbnail_for_s3(original_s3_key)
-        
-    # Generate a URL for the thumbnail
-    if thumbnail_s3_key:
+    if check_file_exists(thumbnail_s3_key):
+        # Generate URL for the existing thumbnail
+        logger.info(f"Using existing thumbnail: {thumbnail_s3_key}")
         return generate_presigned_url(thumbnail_s3_key)
     
+    # Generate the thumbnail if it doesn't exist
+    logger.info(f"No existing thumbnail found, generating one")
+    generated_key = generate_thumbnail_for_s3(original_s3_key)
+    
+    if generated_key:
+        logger.info(f"Using newly generated thumbnail: {generated_key}")
+        return generate_presigned_url(generated_key)
+    
     # Fallback to original image URL if thumbnail generation failed
+    logger.warning(f"Thumbnail generation failed, falling back to original image")
     return generate_presigned_url(original_s3_key)
 
 

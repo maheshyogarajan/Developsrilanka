@@ -118,10 +118,23 @@ def classify_receipts(page=None, receipt_id=None):
     # Import utility functions for image URLs
     from utils import get_receipt_image_url, get_receipt_thumbnail_url
     
-    # Get the full-size image URL only (thumbnail URL is already a property)
+    # Get the full-size image URL
     current_receipt.image_url = get_receipt_image_url(current_receipt)
     
-    # No need to set thumbnail_url as it's already a property of the Receipt model
+    # Add extensive logging for debugging the image URLs
+    logger.info(f"Receipt {current_receipt.id} details:")
+    logger.info(f"  s3_key: {current_receipt.s3_key}")
+    logger.info(f"  thumbnail_s3_key: {current_receipt.thumbnail_s3_key}")
+    logger.info(f"  image_url set to: {current_receipt.image_url}")
+    
+    # The thumbnail_url property might be causing issues, let's see what it contains
+    try:
+        thumbnail_url = current_receipt.thumbnail_url
+        logger.info(f"  thumbnail_url property returns: {thumbnail_url}")
+    except Exception as e:
+        logger.error(f"  Error accessing thumbnail_url property: {str(e)}")
+        
+    # No need to explicitly set thumbnail_url as it's a property of the Receipt model
     # that will be automatically accessed in the template
     
     # Check if this receipt is already processed

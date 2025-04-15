@@ -441,8 +441,23 @@ def generate_presigned_url(s3_key, expiration=3600):
         str: Presigned URL
     """
     try:
-        if not s3_key or s3_key == "":
+        if not s3_key:
             logger.warning(f"Empty S3 key provided, cannot generate presigned URL")
+            return None
+        
+        # Handle the case where s3_key might be a tuple by mistake
+        if isinstance(s3_key, tuple):
+            logger.warning(f"Received tuple as s3_key: {s3_key}, this is likely an error")
+            # Extract original key to prevent crashes
+            s3_key = s3_key[0] if s3_key else None
+            logger.warning(f"Extracted key from tuple: {s3_key}")
+            
+            if not s3_key:
+                return None
+                
+        # Handle string check after tuple check
+        if s3_key == "":
+            logger.warning(f"Empty string S3 key provided, cannot generate presigned URL")
             return None
             
         s3_client = get_s3_client()
