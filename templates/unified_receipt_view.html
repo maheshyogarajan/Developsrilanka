@@ -364,11 +364,13 @@
                 <div class="card-body text-center">
                     <div class="receipt-frame">
                         {% if receipt.image_url %}
-                            <a href="#" class="receipt-popup-link" data-image-url="{{ receipt.image_url }}" title="View full-size image">
-                                <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
-                                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
-                                >
-                            </a>
+                            <div class="receipt-image-wrapper">
+                                <a href="#" class="receipt-popup-link" data-image-url="{{ receipt.image_url }}" title="View full-size image" onclick="event.preventDefault(); showReceiptModal('{{ receipt.image_url }}');">
+                                    <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
+                                        onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
+                                    >
+                                </a>
+                            </div>
                         {% else %}
                             <div class="text-center">
                                 <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
@@ -527,6 +529,21 @@
 
 {% block scripts %}
 <script>
+    // Direct function to show the receipt modal
+    function showReceiptModal(imageUrl) {
+        console.log('showReceiptModal called with URL:', imageUrl);
+        const modal = document.getElementById('receiptImageModal');
+        const modalImg = document.getElementById('receiptModalImage');
+        
+        if (modal && modalImg) {
+            modal.style.display = 'block';
+            modalImg.src = imageUrl;
+            document.body.style.overflow = 'hidden';
+        } else {
+            console.error('Modal or modal image element not found!');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Setup the receipt image lightbox
         setupReceiptLightbox();
@@ -642,11 +659,20 @@
         const closeBtn = document.querySelector('.receipt-modal-close');
         const links = document.querySelectorAll('.receipt-popup-link');
         
+        console.log('Lightbox setup - Modal found:', !!modal);
+        console.log('Lightbox setup - Modal image found:', !!modalImg);
+        console.log('Lightbox setup - Close button found:', !!closeBtn);
+        console.log('Lightbox setup - Found receipt links:', links.length);
+        
         // Add click event to all receipt image links
         links.forEach(link => {
+            console.log('Adding click handler to link:', link);
             link.addEventListener('click', function(e) {
+                console.log('Receipt image clicked!');
                 e.preventDefault();
+                e.stopPropagation(); // Stop event propagation
                 const imageUrl = this.getAttribute('data-image-url');
+                console.log('Image URL from data attribute:', imageUrl);
                 
                 // Show the modal and set the image source
                 modal.style.display = 'block';
