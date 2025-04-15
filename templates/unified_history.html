@@ -683,7 +683,7 @@
         }
         
         /**
-         * Fetch and display expense image
+         * Fetch and display expense image (with thumbnail optimization)
          * @param {number} expenseId - The expense ID
          */
         function loadExpenseImage(expenseId) {
@@ -703,15 +703,66 @@
                     
                     if (data.image_url) {
                         // Create and insert the image
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'text-center';
+                        
+                        // Create the thumbnail image
                         const img = document.createElement('img');
                         img.src = data.image_url;
-                        img.alt = 'Receipt Image';
+                        img.alt = 'Expense Receipt';
                         img.classList.add('item-image');
                         img.setAttribute('loading', 'lazy');
                         
-                        // Replace placeholder with image
+                        // Create view full image button
+                        const viewButton = document.createElement('button');
+                        viewButton.className = 'btn btn-sm btn-outline-primary mt-2';
+                        viewButton.innerHTML = '<i class="fas fa-search-plus"></i> View Full Image';
+                        viewButton.onclick = function() {
+                            // Show image in a Bootstrap modal
+                            const modalId = 'expenseModal' + expenseId;
+                            
+                            // Create modal if it doesn't exist
+                            if (!document.getElementById(modalId)) {
+                                const modal = document.createElement('div');
+                                modal.className = 'modal fade';
+                                modal.id = modalId;
+                                modal.tabIndex = '-1';
+                                modal.setAttribute('aria-hidden', 'true');
+                                
+                                modal.innerHTML = `
+                                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Expense Receipt</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body text-center">
+                                                <img src="${data.image_url}" alt="Expense Receipt" style="max-width: 100%;" />
+                                            </div>
+                                            <div class="modal-footer">
+                                                <a href="${data.image_url}" class="btn btn-primary" target="_blank">Open In New Tab</a>
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                document.body.appendChild(modal);
+                            }
+                            
+                            // Show the modal
+                            const modalElem = document.getElementById(modalId);
+                            const bsModal = new bootstrap.Modal(modalElem);
+                            bsModal.show();
+                        };
+                        
+                        // Add thumbnail and button to container
+                        imgContainer.appendChild(img);
+                        imgContainer.appendChild(viewButton);
+                        
+                        // Replace placeholder with image container
                         container.innerHTML = '';
-                        container.appendChild(img);
+                        container.appendChild(imgContainer);
                         
                         // Mark as loaded
                         loadedImages.expenses.add(expenseId);
