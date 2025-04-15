@@ -624,7 +624,7 @@ def edit_branding(org_id):
 
 def send_invitation_email(invitation):
     """
-    Send an organization invitation email.
+    Send an organization invitation email using direct SMTP connection.
     
     Args:
         invitation: OrganizationInvitation object
@@ -633,6 +633,9 @@ def send_invitation_email(invitation):
         Boolean indicating success or failure
     """
     import traceback  # For detailed error logging
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
     
     try:
         organization = invitation.organization
@@ -654,17 +657,18 @@ def send_invitation_email(invitation):
         logger.info(f"From: {inviter.name if inviter else 'Organization owner'} <{inviter.email if inviter else 'unknown'}>")
         logger.info(f"Subject: {subject}")
         
-        # Access mail object directly from current_app
-        from flask_mail import Mail
-        mail = current_app._get_current_object().extensions['mail']
+        # Get mail configuration from app config
+        mail_username = current_app.config['MAIL_USERNAME']
+        mail_password = current_app.config['MAIL_PASSWORD']
+        mail_server = current_app.config['MAIL_SERVER']
+        mail_port = current_app.config['MAIL_PORT']
+        mail_use_tls = current_app.config['MAIL_USE_TLS']
         
         # Check if Gmail credentials are configured
-        if not current_app.config['MAIL_USERNAME'] or not current_app.config['MAIL_PASSWORD']:
+        if not mail_username or not mail_password:
             logger.warning("Gmail credentials are not configured. Email will not be sent.")
-            # For development purposes, log what would have been sent
             logger.info(f"Would have sent organization invitation email to: {invitation.email}")
             logger.info(f"Subject: {subject}")
-            logger.info(f"From: {organization.name} via DevelopSriLanka")
             flash("Email feature requires Gmail credentials configuration", "warning")
             return False
         
@@ -675,43 +679,52 @@ def send_invitation_email(invitation):
                                 accept_url=accept_url,
                                 invitation=invitation)
         
-        # Create a message object with proper configuration
-        from flask_mail import Message
-        msg = Message(
-            subject=subject,
-            recipients=[invitation.email],
-            html=msg_html,
-            sender=current_app.config['MAIL_DEFAULT_SENDER']  # Use the same sender as friend invites
-        )
+        # Create direct email message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"DevelopSriLanka <{mail_username}>"
+        msg['To'] = invitation.email
         
-        # Send the email using Flask-Mail with verbose logging
+        # Attach HTML content
+        msg.attach(MIMEText(msg_html, 'html'))
+        
+        # Send the email using direct SMTP connection
         try:
-            # Log detailed email headers and info
-            logger.info(f"Preparing to send organization invitation email with the following details:")
-            logger.info(f"From: {current_app.config['MAIL_DEFAULT_SENDER']}")
+            # Log email sending details
+            logger.info(f"Preparing to send organization invitation email with direct SMTP:")
+            logger.info(f"From: {msg['From']}")
             logger.info(f"To: {invitation.email}")
             logger.info(f"Subject: {subject}")
-            logger.info(f"SMTP Server: {current_app.config['MAIL_SERVER']}:{current_app.config['MAIL_PORT']}")
-            logger.info(f"TLS Enabled: {current_app.config['MAIL_USE_TLS']}")
-            logger.info(f"SSL Enabled: {current_app.config['MAIL_USE_SSL']}")
+            logger.info(f"SMTP Server: {mail_server}:{mail_port}")
+            logger.info(f"TLS Enabled: {mail_use_tls}")
             
-            # Actually send the email
-            mail.send(msg)
-            
-            # Log successful sending
-            logger.info(f"Successfully sent organization invitation email to {invitation.email}")
-            logger.info(f"Email delivered to SMTP server for {invitation.email}")
-            print(f"EMAIL SENT: Successfully delivered organization invitation to SMTP server for {invitation.email}")  # Console log for immediate visibility
-            
-            return True
-        except Exception as mail_error:
+            # Connect to SMTP server
+            with smtplib.SMTP(mail_server, mail_port) as server:
+                # Set debug level for verbose logging
+                server.set_debuglevel(1)
+                
+                # Start TLS if configured
+                if mail_use_tls:
+                    server.starttls()
+                
+                # Login with credentials
+                server.login(mail_username, mail_password)
+                
+                # Send email
+                server.send_message(msg)
+                
+                # Log successful sending
+                logger.info(f"Successfully sent organization invitation via direct SMTP to {invitation.email}")
+                print(f"DIRECT EMAIL SENT: Successfully sent organization invitation to {invitation.email}")
+                
+                return True
+        except Exception as smtp_error:
             error_details = traceback.format_exc()
-            logger.error(f"Failed to send organization invitation email to {invitation.email}: {str(mail_error)}")
+            logger.error(f"Failed to send organization invitation via direct SMTP to {invitation.email}: {str(smtp_error)}")
             logger.error(f"Error details: {error_details}")
-            logger.error(f"Mail configuration: USERNAME={current_app.config['MAIL_USERNAME']}, SERVER={current_app.config['MAIL_SERVER']}")
-            print(f"EMAIL ERROR: Failed to send organization invitation to {invitation.email}: {str(mail_error)}")  # Console log for immediate visibility
+            print(f"DIRECT EMAIL ERROR: Failed to send organization invitation to {invitation.email}: {str(smtp_error)}")
             
-            flash(f"Failed to send organization invitation: {str(mail_error)}", "danger")
+            flash(f"Failed to send organization invitation: {str(smtp_error)}", "danger")
             return False
             
     except Exception as e:
