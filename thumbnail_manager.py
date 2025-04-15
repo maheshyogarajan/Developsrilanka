@@ -342,7 +342,7 @@ def get_thumbnail_url(original_s3_key):
     Will check if a thumbnail exists, and if not, generate one.
     
     Args:
-        original_s3_key (str): The original image S3 key
+        original_s3_key (str or tuple): The original image S3 key
         
     Returns:
         str: The thumbnail URL or None if failed
@@ -354,13 +354,40 @@ def get_thumbnail_url(original_s3_key):
     logger.info(f"Getting thumbnail URL for key: {original_s3_key}")
     
     # Handle the case where original_s3_key might be a tuple by mistake
-    # This is the root cause of our issue
     if isinstance(original_s3_key, tuple):
         logger.warning(f"Received tuple instead of string: {original_s3_key}")
-        # Extract just the original image key (first element in tuple)
+        # If it's a tuple with two elements, the second one might be the thumbnail key
+        if len(original_s3_key) > 1 and original_s3_key[1]:
+            logger.info(f"Using thumbnail key from tuple: {original_s3_key[1]}")
+            # Generate the URL directly from the thumbnail key
+            return generate_presigned_url(original_s3_key[1])
+        # Otherwise use the first element as the original key
         original_s3_key = original_s3_key[0] if original_s3_key else None
         logger.info(f"Extracted original key from tuple: {original_s3_key}")
-        
+    
+    # Handle the case where s3_key is a string representation of a tuple: "(key1,key2)"
+    elif isinstance(original_s3_key, str) and original_s3_key.startswith('(') and original_s3_key.endswith(')') and ',' in original_s3_key:
+        logger.warning(f"Received string representation of a tuple: {original_s3_key}")
+        try:
+            # Extract thumbnail key from the tuple representation
+            parts = original_s3_key[1:-1].split(',')
+            # If there's a second part, it might be the thumbnail key
+            if len(parts) > 1 and parts[1].strip():
+                thumbnail_key = parts[1].strip('"\'')
+                logger.info(f"Using thumbnail key from string tuple: {thumbnail_key}")
+                # Generate URL directly from the extracted thumbnail key
+                return generate_presigned_url(thumbnail_key)
+            # Otherwise use the first part as the original key
+            if parts and parts[0].strip():
+                original_s3_key = parts[0].strip('"\'')
+                logger.info(f"Extracted original key from string tuple: {original_s3_key}")
+            else:
+                logger.error(f"Failed to extract valid key from string tuple: {original_s3_key}")
+                return None
+        except Exception as e:
+            logger.error(f"Error parsing string tuple: {str(e)}")
+            return None
+    
     if not original_s3_key:
         return None
         

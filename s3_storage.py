@@ -454,8 +454,26 @@ def generate_presigned_url(s3_key, expiration=3600):
             
             if not s3_key:
                 return None
+        
+        # Handle the case where s3_key is a string representation of a tuple: "(key1,key2)"
+        elif isinstance(s3_key, str) and s3_key.startswith('(') and s3_key.endswith(')') and ',' in s3_key:
+            logger.warning(f"Received string representation of a tuple: {s3_key}")
+            try:
+                # Extract the first key from the tuple representation
+                # Remove the parentheses and split by comma
+                parts = s3_key[1:-1].split(',')
+                if parts and parts[0]:
+                    # Use the first part as the key
+                    s3_key = parts[0].strip('"\'')
+                    logger.warning(f"Extracted key from string tuple: {s3_key}")
+                else:
+                    logger.error(f"Failed to extract valid key from string tuple: {s3_key}")
+                    return None
+            except Exception as e:
+                logger.error(f"Error parsing string tuple: {str(e)}")
+                return None
                 
-        # Handle string check after tuple check
+        # Handle string check after tuple checks
         if s3_key == "":
             logger.warning(f"Empty string S3 key provided, cannot generate presigned URL")
             return None
