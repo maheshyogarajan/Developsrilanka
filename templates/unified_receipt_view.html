@@ -364,12 +364,15 @@
                 <div class="card-body text-center">
                     <div class="receipt-frame">
                         {% if receipt.image_url %}
-                            <div class="receipt-image-wrapper">
-                                <a href="#" class="receipt-popup-link" data-image-url="{{ receipt.image_url }}" title="View full-size image" onclick="event.preventDefault(); showReceiptModal('{{ receipt.image_url }}');">
-                                    <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
-                                        onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
-                                    >
-                                </a>
+                            <div class="receipt-thumbnail-container" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                                <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
+                                    onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
+                                >
+                            </div>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                                    <i class="fas fa-search-plus me-1"></i> View Full Image
+                                </button>
                             </div>
                         {% else %}
                             <div class="text-center">
@@ -450,10 +453,32 @@
 </div>
 
 <!-- Receipt Image Modal -->
-<div id="receiptImageModal" class="receipt-modal">
-    <span class="receipt-modal-close">&times;</span>
-    <div class="receipt-modal-content">
-        <img id="receiptModalImage" class="receipt-modal-image" src="" alt="Full Size Receipt">
+<div class="modal fade" id="receiptImageModal" tabindex="-1" aria-labelledby="receiptImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="receiptImageModalLabel">Receipt Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                {% if receipt.image_url %}
+                <img src="{{ receipt.image_url }}" 
+                     alt="Receipt Image" class="img-fluid"
+                     style="max-height: 600px;"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                {% else %}
+                <div class="text-muted">
+                    <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                         class="img-fluid" style="max-height: 400px;" 
+                         alt="No Receipt Image Available">
+                    <p class="mt-2">No receipt image available</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -461,92 +486,22 @@
 {% block styles %}
 {{ super() }}
 <style>
-    /* Lightbox modal styles */
-    .receipt-modal {
-        display: none;
-        position: fixed;
-        z-index: 9999;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0,0,0,0.85);
-        animation: fadeIn 0.3s;
-    }
-    
-    .receipt-modal-content {
-        position: relative;
-        margin: auto;
-        padding: 0;
-        width: 90%;
-        max-width: 1200px;
-        max-height: 90vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    .receipt-modal-image {
-        display: block;
-        max-width: 100%;
-        max-height: 85vh;
-        object-fit: contain;
-        animation: zoomIn 0.3s;
+    /* Receipt image styles */
+    .receipt-thumbnail-container img {
+        max-height: 300px;
         border-radius: 5px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        transition: transform 0.3s ease;
     }
     
-    .receipt-modal-close {
-        position: absolute;
-        top: -30px;
-        right: 10px;
-        color: #f1f1f1;
-        font-size: 28px;
-        font-weight: bold;
-        transition: 0.3s;
-        z-index: 10;
-    }
-    
-    .receipt-modal-close:hover,
-    .receipt-modal-close:focus {
-        color: #bbb;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    
-    @keyframes fadeIn {
-        from {opacity: 0}
-        to {opacity: 1}
-    }
-    
-    @keyframes zoomIn {
-        from {transform: scale(0.95); opacity: 0;}
-        to {transform: scale(1); opacity: 1;}
+    .receipt-thumbnail-container:hover img {
+        transform: scale(1.03);
     }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Direct function to show the receipt modal
-    function showReceiptModal(imageUrl) {
-        console.log('showReceiptModal called with URL:', imageUrl);
-        const modal = document.getElementById('receiptImageModal');
-        const modalImg = document.getElementById('receiptModalImage');
-        
-        if (modal && modalImg) {
-            modal.style.display = 'block';
-            modalImg.src = imageUrl;
-            document.body.style.overflow = 'hidden';
-        } else {
-            console.error('Modal or modal image element not found!');
-        }
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
-        // Setup the receipt image lightbox
-        setupReceiptLightbox();
         
         // Toggle edit mode for receipt details
         const toggleEditButton = document.getElementById('toggleEditMode');
@@ -651,62 +606,7 @@
         }
     }
     
-    // Function to set up the receipt lightbox
-    function setupReceiptLightbox() {
-        // Get the modal and related elements
-        const modal = document.getElementById('receiptImageModal');
-        const modalImg = document.getElementById('receiptModalImage');
-        const closeBtn = document.querySelector('.receipt-modal-close');
-        const links = document.querySelectorAll('.receipt-popup-link');
-        
-        console.log('Lightbox setup - Modal found:', !!modal);
-        console.log('Lightbox setup - Modal image found:', !!modalImg);
-        console.log('Lightbox setup - Close button found:', !!closeBtn);
-        console.log('Lightbox setup - Found receipt links:', links.length);
-        
-        // Add click event to all receipt image links
-        links.forEach(link => {
-            console.log('Adding click handler to link:', link);
-            link.addEventListener('click', function(e) {
-                console.log('Receipt image clicked!');
-                e.preventDefault();
-                e.stopPropagation(); // Stop event propagation
-                const imageUrl = this.getAttribute('data-image-url');
-                console.log('Image URL from data attribute:', imageUrl);
-                
-                // Show the modal and set the image source
-                modal.style.display = 'block';
-                modalImg.src = imageUrl;
-                
-                // Disable scrolling on body
-                document.body.style.overflow = 'hidden';
-            });
-        });
-        
-        // Close the modal when clicking the close button
-        if (closeBtn) {
-            closeBtn.addEventListener('click', function() {
-                modal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            });
-        }
-        
-        // Close the modal when clicking outside the image
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            }
-        });
-        
-        // Close modal with ESC key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && modal.style.display === 'block') {
-                modal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            }
-        });
-    }
+
     
     // Function to load clients for a specific organization
     function loadClientListForOrganization(organizationId, clientSelectId) {
