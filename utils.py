@@ -65,10 +65,46 @@ def get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=False):
     # Handle all invalid s3_key cases
     if not s3_key or s3_key == 'None' or s3_key == '' or s3_key is None:
         s3_key = None
+    # Handle the case where s3_key is a string representation of a tuple: "(key1,key2)"
+    elif isinstance(s3_key, str) and s3_key.startswith('(') and s3_key.endswith(')') and ',' in s3_key:
+        logging.warning(f"Found string representation of a tuple in s3_key: {s3_key}")
+        try:
+            # Extract the first key from the tuple representation
+            parts = s3_key[1:-1].split(',')
+            if parts and parts[0].strip():
+                s3_key = parts[0].strip('"\'')
+                logging.info(f"Extracted original s3_key from string tuple: {s3_key}")
+                # If there's a second part, it might be the thumbnail key
+                if len(parts) > 1 and parts[1].strip():
+                    extracted_thumbnail = parts[1].strip('"\'')
+                    if not thumbnail_s3_key:  # Only set if not already set
+                        thumbnail_s3_key = extracted_thumbnail
+                        logging.info(f"Extracted thumbnail_s3_key from string tuple: {thumbnail_s3_key}")
+            else:
+                logging.error(f"Failed to extract valid key from string tuple: {s3_key}")
+                s3_key = None
+        except Exception as e:
+            logging.error(f"Error parsing string tuple for s3_key: {str(e)}")
+            s3_key = None
         
     # Handle all invalid thumbnail_s3_key cases
     if not thumbnail_s3_key or thumbnail_s3_key == 'None' or thumbnail_s3_key == '' or thumbnail_s3_key is None:
         thumbnail_s3_key = None
+    # Handle the case where thumbnail_s3_key is a string representation of a tuple
+    elif isinstance(thumbnail_s3_key, str) and thumbnail_s3_key.startswith('(') and thumbnail_s3_key.endswith(')') and ',' in thumbnail_s3_key:
+        logging.warning(f"Found string representation of a tuple in thumbnail_s3_key: {thumbnail_s3_key}")
+        try:
+            # Extract the second key from the tuple representation (it should be the thumbnail)
+            parts = thumbnail_s3_key[1:-1].split(',')
+            if len(parts) > 1 and parts[1].strip():
+                thumbnail_s3_key = parts[1].strip('"\'')
+                logging.info(f"Extracted thumbnail_s3_key from string tuple: {thumbnail_s3_key}")
+            else:
+                logging.error(f"Failed to extract valid thumbnail key from string tuple: {thumbnail_s3_key}")
+                thumbnail_s3_key = None
+        except Exception as e:
+            logging.error(f"Error parsing string tuple for thumbnail_s3_key: {str(e)}")
+            thumbnail_s3_key = None
     
     # Add enhanced debug logging
     logging.info(f"Getting image URL for receipt {receipt_id}: s3_key='{s3_key}', thumbnail_s3_key='{thumbnail_s3_key}', image_path='{image_path}'")
