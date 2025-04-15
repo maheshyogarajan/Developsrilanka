@@ -216,11 +216,26 @@ def get_thumbnail_s3_key(original_s3_key):
     Generate the S3 key for a thumbnail based on the original image key.
     
     Args:
-        original_s3_key (str): The original image S3 key
+        original_s3_key (str or tuple): The original image S3 key
         
     Returns:
         str: The thumbnail S3 key
     """
+    if not original_s3_key:
+        return None
+        
+    # Handle the case where original_s3_key might be a tuple 
+    # (s3_key, thumbnail_s3_key) by mistake
+    if isinstance(original_s3_key, tuple):
+        logger.warning(f"Received tuple instead of string for s3_key: {original_s3_key}")
+        # If it's already a tuple of (original, thumbnail), return the thumbnail part
+        if len(original_s3_key) > 1 and original_s3_key[1]:
+            logger.info(f"Using thumbnail key from tuple: {original_s3_key[1]}")
+            return original_s3_key[1]
+        # Otherwise use the first part of tuple as the original key
+        original_s3_key = original_s3_key[0] if original_s3_key else None
+        logger.info(f"Extracted original key from tuple: {original_s3_key}")
+        
     if not original_s3_key:
         return None
         
