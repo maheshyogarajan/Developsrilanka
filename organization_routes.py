@@ -334,12 +334,11 @@ def invite_team_member(org_id):
         db.session.commit()
         
         # Send invitation email
-        try:
-            send_invitation_email(invitation)
+        if send_invitation_email(invitation):
             flash(f'Invitation sent to {email} successfully!', 'success')
-        except Exception as e:
-            logger.error(f"Failed to send invitation email: {str(e)}")
-            flash(f'Invitation created but email could not be sent. Error: {str(e)}', 'warning')
+        else:
+            logger.error(f"Failed to send invitation email")
+            flash(f'Invitation created but email could not be sent. Please check email settings.', 'warning')
         
         return redirect(url_for('organizations.view_organization', org_id=org_id))
     
@@ -629,40 +628,98 @@ def send_invitation_email(invitation):
     
     Args:
         invitation: OrganizationInvitation object
+        
+    Returns:
+        Boolean indicating success or failure
     """
-    organization = invitation.organization
-    inviter = invitation.invited_by
+    import traceback  # For detailed error logging
     
-    # Create the accept invitation URL
-    accept_url = url_for('organizations.accept_invitation', 
-                         token=invitation.token, 
-                         _external=True)
-    
-    # Create the message with organization branding
-    subject = f"Invitation to join {organization.name} on DevelopSriLanka"
-    
-    # Get mail instance from app
-    mail = current_app.extensions.get('mail')
-    if not mail:
-        logger.error("Mail extension not found!")
-        raise Exception("Email service is not configured")
-    
-    msg = Message(
-        subject=subject,
-        recipients=[invitation.email],
-        sender=(f"{organization.name} via DevelopSriLanka", current_app.config.get('MAIL_USERNAME'))
-    )
-    
-    # Create HTML email with organization branding
-    msg.html = render_template('email/organization_invitation.html',
-                              organization=organization,
-                              inviter=inviter,
-                              accept_url=accept_url,
-                              invitation=invitation)
-    
-    # Send the email
-    mail.send(msg)
-    logger.info(f"Sent organization invitation email to {invitation.email}")
+    try:
+        organization = invitation.organization
+        inviter = invitation.invited_by
+        
+        # Create the accept invitation URL
+        accept_url = url_for('organizations.accept_invitation', 
+                            token=invitation.token, 
+                            _external=True)
+        
+        # Get app URL for links
+        app_url = request.host_url.rstrip('/')
+        
+        # Create the message with organization branding
+        subject = f"Invitation to join {organization.name} on DevelopSriLanka"
+        
+        # Log the email attempt
+        logger.info(f"Sending organization invitation email to: {invitation.email}")
+        logger.info(f"From: {inviter.name if inviter else 'Organization owner'} <{inviter.email if inviter else 'unknown'}>")
+        logger.info(f"Subject: {subject}")
+        
+        # Access mail object directly from current_app
+        from flask_mail import Mail
+        mail = current_app._get_current_object().extensions['mail']
+        
+        # Check if Gmail credentials are configured
+        if not current_app.config['MAIL_USERNAME'] or not current_app.config['MAIL_PASSWORD']:
+            logger.warning("Gmail credentials are not configured. Email will not be sent.")
+            # For development purposes, log what would have been sent
+            logger.info(f"Would have sent organization invitation email to: {invitation.email}")
+            logger.info(f"Subject: {subject}")
+            logger.info(f"From: {organization.name} via DevelopSriLanka")
+            flash("Email feature requires Gmail credentials configuration", "warning")
+            return False
+        
+        # Create HTML email with organization branding
+        msg_html = render_template('email/organization_invitation.html',
+                                organization=organization,
+                                inviter=inviter,
+                                accept_url=accept_url,
+                                invitation=invitation)
+        
+        # Create a message object with proper configuration
+        from flask_mail import Message
+        msg = Message(
+            subject=subject,
+            recipients=[invitation.email],
+            html=msg_html,
+            sender=current_app.config['MAIL_DEFAULT_SENDER']  # Use the same sender as friend invites
+        )
+        
+        # Send the email using Flask-Mail with verbose logging
+        try:
+            # Log detailed email headers and info
+            logger.info(f"Preparing to send organization invitation email with the following details:")
+            logger.info(f"From: {current_app.config['MAIL_DEFAULT_SENDER']}")
+            logger.info(f"To: {invitation.email}")
+            logger.info(f"Subject: {subject}")
+            logger.info(f"SMTP Server: {current_app.config['MAIL_SERVER']}:{current_app.config['MAIL_PORT']}")
+            logger.info(f"TLS Enabled: {current_app.config['MAIL_USE_TLS']}")
+            logger.info(f"SSL Enabled: {current_app.config['MAIL_USE_SSL']}")
+            
+            # Actually send the email
+            mail.send(msg)
+            
+            # Log successful sending
+            logger.info(f"Successfully sent organization invitation email to {invitation.email}")
+            logger.info(f"Email delivered to SMTP server for {invitation.email}")
+            print(f"EMAIL SENT: Successfully delivered organization invitation to SMTP server for {invitation.email}")  # Console log for immediate visibility
+            
+            return True
+        except Exception as mail_error:
+            error_details = traceback.format_exc()
+            logger.error(f"Failed to send organization invitation email to {invitation.email}: {str(mail_error)}")
+            logger.error(f"Error details: {error_details}")
+            logger.error(f"Mail configuration: USERNAME={current_app.config['MAIL_USERNAME']}, SERVER={current_app.config['MAIL_SERVER']}")
+            print(f"EMAIL ERROR: Failed to send organization invitation to {invitation.email}: {str(mail_error)}")  # Console log for immediate visibility
+            
+            flash(f"Failed to send organization invitation: {str(mail_error)}", "danger")
+            return False
+            
+    except Exception as e:
+        error_details = traceback.format_exc()
+        logger.error(f"Failed to prepare organization invitation email: {str(e)}")
+        logger.error(f"Error details: {error_details}")
+        flash(f"Organization invitation system error: {str(e)}", "danger")
+        return False
 
 @organizations_bp.route('/list')
 @login_required
