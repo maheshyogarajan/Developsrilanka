@@ -683,13 +683,18 @@ def send_invitation_email(invitation):
             sender_name = 'DevelopSriLanka'
             sender_email = from_email
             
-        # Create SendGrid mail message
+        # Create SendGrid mail message with proper sender formatting
+        # SendGrid requires the "from_email" to be a simple email address string
+        # The display name can be included as a separate parameter
         message = Mail(
-            from_email=(sender_email, f"{organization.name} via {sender_name}"),
+            from_email=sender_email,  # Just the email address
             to_emails=invitation.email,
             subject=subject,
             html_content=html_content
         )
+        
+        # Set the friendly name for the sender separately
+        message.from_email.name = f"{organization.name} via {sender_name}"
         
         # Send the email using SendGrid
         try:
