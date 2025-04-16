@@ -106,7 +106,7 @@
             <div class="dropdown-menu dropdown-menu-right" aria-labelledby="orgDropdown">
                 {% for org_user in organizations %}
                 <a class="dropdown-item {% if org_user.organization_id == active_org.id %}active{% endif %}" 
-                   href="{{ url_for('team.team_dashboard', organization=org_user.organization_id) }}">
+                   href="{{ url_for('team.team_dashboard', org_id=org_user.organization_id) }}">
                     {{ org_user.organization.name }}
                 </a>
                 {% endfor %}

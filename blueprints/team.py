@@ -176,7 +176,7 @@ def manage_member(org_id, member_id):
         # Redirect to organizations page since user is no longer in this org
         return redirect(url_for('organizations.organizations'))
     
-    return redirect(url_for('team.team_dashboard', organization=org_id))
+    return redirect(url_for('team.team_dashboard', org_id=org_id))
 
 @team_bp.route('/cancel_invitation/<int:org_id>/<int:invitation_id>', methods=['POST'])
 @login_required
@@ -201,7 +201,7 @@ def cancel_invitation(org_id, invitation_id):
     db.session.commit()
     
     flash(f'Invitation to {invitation.email} has been cancelled.', 'success')
-    return redirect(url_for('team.team_dashboard', organization=org_id))
+    return redirect(url_for('team.team_dashboard', org_id=org_id))
 
 @team_bp.route('/resend_invitation/<int:org_id>/<int:invitation_id>', methods=['POST'])
 @login_required
@@ -215,7 +215,7 @@ def resend_invitation(org_id, invitation_id):
     
     if current_user_org.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]:
         flash('You do not have permission to resend invitations.', 'danger')
-        return redirect(url_for('team.team_dashboard', organization=org_id))
+        return redirect(url_for('team.team_dashboard', org_id=org_id))
     
     invitation = OrganizationInvitation.query.filter_by(
         id=invitation_id,
@@ -231,7 +231,7 @@ def resend_invitation(org_id, invitation_id):
         logger.error(f"Failed to resend invitation email: {str(e)}")
         flash(f'Failed to resend invitation email: {str(e)}', 'danger')
     
-    return redirect(url_for('team.team_dashboard', organization=org_id))
+    return redirect(url_for('team.team_dashboard', org_id=org_id))
 
 def register_routes(app):
     """Register the team management routes with the app."""
