@@ -708,12 +708,21 @@ def send_invitation_email(invitation):
                                 invitation=invitation)
         
         # Get sender email from config or use a default
+        # Use noreply@developsrilanka.com as the default sender for better deliverability
+        # This address is more likely to be verified in the SendGrid account
         from_email = current_app.config.get('MAIL_DEFAULT_SENDER', ('DevelopSriLanka', 'noreply@developsrilanka.com'))
         if isinstance(from_email, tuple):
             sender_name, sender_email = from_email
         else:
             sender_name = 'DevelopSriLanka'
             sender_email = from_email
+            
+        # Try to use a Gmail address which is more likely to be verified in SendGrid
+        # SendGrid requires either domain verification or sender verification
+        sender_email = 'mydev.srilanka@gmail.com'  
+        
+        # Log which sender email we're using
+        logger.info(f"Using sender email address: {sender_email}")
             
         # Validate the recipient email address 
         import re
