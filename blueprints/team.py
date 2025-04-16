@@ -12,32 +12,23 @@ from decorators import role_required
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-team_bp = Blueprint('team', __name__, url_prefix='/team')
+team_bp = Blueprint('team', __name__, url_prefix='/organizations')
 
-@team_bp.route('/')
+@team_bp.route('/<int:org_id>/team')
 @login_required
-def team_dashboard():
-    """Render team overview for user's organizations."""
+def team_dashboard(org_id):
+    """Render team overview for a specific organization."""
     # Get all of the user's organizations
     user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
     
-    # Get the currently active organization
-    active_org_id = request.args.get('organization', type=int)
-    active_org = None
+    # Get the specified organization
+    active_org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first_or_404()
     
-    # If no specific organization is requested, use the default organization
-    if not active_org_id:
-        for org_user in user_orgs:
-            if org_user.is_default:
-                active_org = org_user.organization
-                active_org_id = active_org.id
-                break
-    else:
-        # Check if the user has access to the requested organization
-        for org_user in user_orgs:
-            if org_user.organization_id == active_org_id:
-                active_org = org_user.organization
-                break
+    active_org = active_org_user.organization
+    active_org_id = org_id
     
     # If user doesn't have a default organization and didn't specify one, redirect to create
     if not active_org:
@@ -98,7 +89,7 @@ def manage_member(org_id, member_id):
     
     if current_user_org.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]:
         flash('You do not have permission to manage members.', 'danger')
-        return redirect(url_for('team.team_dashboard', organization=org_id))
+        return redirect(url_for('team.team_dashboard', org_id=org_id))
     
     action = request.form.get('action')
     member = OrganizationUser.query.filter_by(
@@ -109,17 +100,17 @@ def manage_member(org_id, member_id):
     # Cannot modify the organization owner except by transferring ownership
     if member.role == UserRole.OWNER.value and action != 'transfer_ownership':
         flash('You cannot modify the role of the organization owner.', 'danger')
-        return redirect(url_for('team.team_dashboard', organization=org_id))
+        return redirect(url_for('team.team_dashboard', org_id=org_id))
     
     # Cannot modify your own role
     if member.user_id == current_user.id and action != 'leave':
         flash('You cannot modify your own role.', 'danger')
-        return redirect(url_for('team.team_dashboard', organization=org_id))
+        return redirect(url_for('team.team_dashboard', org_id=org_id))
     
     # Admins cannot modify other admins or owners
     if current_user_org.role == UserRole.ADMIN.value and member.role in [UserRole.ADMIN.value, UserRole.OWNER.value]:
         flash('Admins cannot modify other admins or the owner.', 'danger')
-        return redirect(url_for('team.team_dashboard', organization=org_id))
+        return redirect(url_for('team.team_dashboard', org_id=org_id))
     
     if action == 'change_role':
         new_role = request.form.get('role')
@@ -127,12 +118,12 @@ def manage_member(org_id, member_id):
         # Validate the new role
         if new_role not in [role.value for role in UserRole]:
             flash('Invalid role.', 'danger')
-            return redirect(url_for('team.team_dashboard', organization=org_id))
+            return redirect(url_for('team.team_dashboard', org_id=org_id))
         
         # Cannot set someone as owner through this method
         if new_role == UserRole.OWNER.value:
             flash('Use the transfer ownership function to change the owner.', 'danger')
-            return redirect(url_for('team.team_dashboard', organization=org_id))
+            return redirect(url_for('team.team_dashboard', org_id=org_id))
         
         member.role = new_role
         db.session.commit()
@@ -143,7 +134,7 @@ def manage_member(org_id, member_id):
         # Cannot remove the owner
         if member.role == UserRole.OWNER.value:
             flash('Cannot remove the organization owner.', 'danger')
-            return redirect(url_for('team.team_dashboard', organization=org_id))
+            return redirect(url_for('team.team_dashboard', org_id=org_id))
         
         db.session.delete(member)
         db.session.commit()
@@ -154,7 +145,7 @@ def manage_member(org_id, member_id):
         # Only the current owner can transfer ownership
         if current_user_org.role != UserRole.OWNER.value:
             flash('Only the organization owner can transfer ownership.', 'danger')
-            return redirect(url_for('team.team_dashboard', organization=org_id))
+            return redirect(url_for('team.team_dashboard', org_id=org_id))
         
         # Change current owner to admin
         current_user_org.role = UserRole.ADMIN.value
@@ -170,12 +161,12 @@ def manage_member(org_id, member_id):
         # Only allow if it's the current user's own membership
         if member.user_id != current_user.id:
             flash('You can only remove yourself with this action.', 'danger')
-            return redirect(url_for('team.team_dashboard', organization=org_id))
+            return redirect(url_for('team.team_dashboard', org_id=org_id))
         
         # Cannot leave if you are the owner
         if member.role == UserRole.OWNER.value:
             flash('As the owner, you cannot leave the organization. Transfer ownership first.', 'danger')
-            return redirect(url_for('team.team_dashboard', organization=org_id))
+            return redirect(url_for('team.team_dashboard', org_id=org_id))
         
         db.session.delete(member)
         db.session.commit()
