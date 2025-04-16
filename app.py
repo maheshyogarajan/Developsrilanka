@@ -1976,7 +1976,14 @@ def logout():
 @login_required
 def profile():
     """Show the user's profile page."""
-    return render_template('profile.html')
+    try:
+        logging.info(f"Accessing profile page for user: {current_user.id} - {current_user.name}")
+        return render_template('profile.html')
+    except Exception as e:
+        logging.error(f"Error rendering profile page: {str(e)}")
+        logging.error(traceback.format_exc())
+        flash(f"Error loading profile: {str(e)}", "danger")
+        return redirect(url_for('home'))
 
 @app.route('/invite-friends')
 @login_required
