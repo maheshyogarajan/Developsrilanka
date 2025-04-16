@@ -717,12 +717,12 @@ def send_invitation_email(invitation):
             sender_name = 'DevelopSriLanka'
             sender_email = from_email
             
-        # Try to use a Gmail address which is more likely to be verified in SendGrid
-        # SendGrid requires either domain verification or sender verification
-        sender_email = 'mydev.srilanka@gmail.com'  
+        # Use the verified sender email address from SendGrid account
+        # This is the only verified sender that can be used with this SendGrid account
+        sender_email = 'info@developsrilanka.com'  
         
         # Log which sender email we're using
-        logger.info(f"Using sender email address: {sender_email}")
+        logger.info(f"Using verified SendGrid sender email address: {sender_email}")
             
         # Validate the recipient email address 
         import re
