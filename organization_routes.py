@@ -358,7 +358,7 @@ def invite_team_member(org_id):
         
         # Send invitation email
         if send_invitation_email(invitation):
-            flash(f'Invitation sent to {email} successfully!', 'success')
+            flash(f'Invitation sent to {email} successfully! <span style="color: red; font-weight: bold;">Please ask the user to also check their SPAM emailbox.</span>', 'success')
         else:
             logger.error(f"Failed to send invitation email")
             flash(f'Invitation created but email could not be sent. Please check email settings.', 'warning')
