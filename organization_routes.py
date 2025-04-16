@@ -624,7 +624,7 @@ def edit_branding(org_id):
 
 def send_invitation_email(invitation):
     """
-    Send an organization invitation email using direct SMTP connection.
+    Send an organization invitation email using SendGrid.
     
     Args:
         invitation: OrganizationInvitation object
@@ -633,9 +633,9 @@ def send_invitation_email(invitation):
         Boolean indicating success or failure
     """
     import traceback  # For detailed error logging
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
+    import os
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent
     
     try:
         organization = invitation.organization
@@ -649,7 +649,7 @@ def send_invitation_email(invitation):
         # Get app URL for links
         app_url = request.host_url.rstrip('/')
         
-        # Create the message with organization branding
+        # Create the subject for email
         subject = f"Invitation to join {organization.name} on DevelopSriLanka"
         
         # Log the email attempt
@@ -657,74 +657,70 @@ def send_invitation_email(invitation):
         logger.info(f"From: {inviter.name if inviter else 'Organization owner'} <{inviter.email if inviter else 'unknown'}>")
         logger.info(f"Subject: {subject}")
         
-        # Get mail configuration from app config
-        mail_username = current_app.config['MAIL_USERNAME']
-        mail_password = current_app.config['MAIL_PASSWORD']
-        mail_server = current_app.config['MAIL_SERVER']
-        mail_port = current_app.config['MAIL_PORT']
-        mail_use_tls = current_app.config['MAIL_USE_TLS']
+        # Get the SendGrid API key
+        sendgrid_api_key = os.environ.get('SENDGRID_API_KEY')
         
-        # Check if Gmail credentials are configured
-        if not mail_username or not mail_password:
-            logger.warning("Gmail credentials are not configured. Email will not be sent.")
+        # Check if SendGrid API key is configured
+        if not sendgrid_api_key:
+            logger.warning("SendGrid API key is not configured. Email will not be sent.")
             logger.info(f"Would have sent organization invitation email to: {invitation.email}")
             logger.info(f"Subject: {subject}")
-            flash("Email feature requires Gmail credentials configuration", "warning")
+            flash("Email feature requires SendGrid API key configuration", "warning")
             return False
         
         # Create HTML email with organization branding
-        msg_html = render_template('email/organization_invitation.html',
+        html_content = render_template('email/organization_invitation.html',
                                 organization=organization,
                                 inviter=inviter,
                                 accept_url=accept_url,
                                 invitation=invitation)
         
-        # Create direct email message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f"DevelopSriLanka <{mail_username}>"
-        msg['To'] = invitation.email
+        # Get sender email from config or use a default
+        from_email = current_app.config.get('MAIL_DEFAULT_SENDER', ('DevelopSriLanka', 'noreply@developsrilanka.com'))
+        if isinstance(from_email, tuple):
+            sender_name, sender_email = from_email
+        else:
+            sender_name = 'DevelopSriLanka'
+            sender_email = from_email
+            
+        # Create SendGrid mail message
+        message = Mail(
+            from_email=(sender_email, f"{organization.name} via {sender_name}"),
+            to_emails=invitation.email,
+            subject=subject,
+            html_content=html_content
+        )
         
-        # Attach HTML content
-        msg.attach(MIMEText(msg_html, 'html'))
-        
-        # Send the email using direct SMTP connection
+        # Send the email using SendGrid
         try:
             # Log email sending details
-            logger.info(f"Preparing to send organization invitation email with direct SMTP:")
-            logger.info(f"From: {msg['From']}")
+            logger.info(f"Preparing to send organization invitation email with SendGrid:")
+            logger.info(f"From: {organization.name} via {sender_name} <{sender_email}>")
             logger.info(f"To: {invitation.email}")
             logger.info(f"Subject: {subject}")
-            logger.info(f"SMTP Server: {mail_server}:{mail_port}")
-            logger.info(f"TLS Enabled: {mail_use_tls}")
             
-            # Connect to SMTP server
-            with smtplib.SMTP(mail_server, mail_port) as server:
-                # Set debug level for verbose logging
-                server.set_debuglevel(1)
-                
-                # Start TLS if configured
-                if mail_use_tls:
-                    server.starttls()
-                
-                # Login with credentials
-                server.login(mail_username, mail_password)
-                
-                # Send email
-                server.send_message(msg)
-                
-                # Log successful sending
-                logger.info(f"Successfully sent organization invitation via direct SMTP to {invitation.email}")
-                print(f"DIRECT EMAIL SENT: Successfully sent organization invitation to {invitation.email}")
-                
-                return True
-        except Exception as smtp_error:
+            # Create SendGrid client and send message
+            sg = SendGridAPIClient(sendgrid_api_key)
+            response = sg.send(message)
+            
+            # Log the response
+            logger.info(f"SendGrid response status code: {response.status_code}")
+            logger.info(f"SendGrid response body: {response.body}")
+            logger.info(f"SendGrid response headers: {response.headers}")
+            
+            # Log successful sending
+            logger.info(f"Successfully sent organization invitation via SendGrid to {invitation.email}")
+            print(f"SENDGRID EMAIL SENT: Successfully sent organization invitation to {invitation.email}")
+            
+            return True
+            
+        except Exception as sendgrid_error:
             error_details = traceback.format_exc()
-            logger.error(f"Failed to send organization invitation via direct SMTP to {invitation.email}: {str(smtp_error)}")
+            logger.error(f"Failed to send organization invitation via SendGrid to {invitation.email}: {str(sendgrid_error)}")
             logger.error(f"Error details: {error_details}")
-            print(f"DIRECT EMAIL ERROR: Failed to send organization invitation to {invitation.email}: {str(smtp_error)}")
+            print(f"SENDGRID EMAIL ERROR: Failed to send organization invitation to {invitation.email}: {str(sendgrid_error)}")
             
-            flash(f"Failed to send organization invitation: {str(smtp_error)}", "danger")
+            flash(f"Failed to send organization invitation: {str(sendgrid_error)}", "danger")
             return False
             
     except Exception as e:
