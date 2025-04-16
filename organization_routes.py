@@ -5,7 +5,7 @@ import os
 import uuid
 import logging
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Markup
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from models import db, Organization, OrganizationUser, OrganizationInvitation, UserRole, Client
@@ -358,7 +358,7 @@ def invite_team_member(org_id):
         
         # Send invitation email
         if send_invitation_email(invitation):
-            flash(f'Invitation sent to {email} successfully! <span style="color: red; font-weight: bold;">Please ask the user to also check their SPAM emailbox.</span>', 'success')
+            flash(Markup(f'Invitation sent to {email} successfully! <span style="color: red; font-weight: bold;">Please ask the user to also check their SPAM emailbox.</span>'), 'success')
         else:
             logger.error(f"Failed to send invitation email")
             flash(f'Invitation created but email could not be sent. Please check email settings.', 'warning')
