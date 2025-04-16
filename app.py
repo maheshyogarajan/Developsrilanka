@@ -6,7 +6,7 @@ import time
 import traceback  # Added import
 from io import BytesIO
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file
+from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file, g
 import google.generativeai as genai
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
@@ -2176,7 +2176,19 @@ def send_invitation_email(to_email, from_user, personal_message=''):
 # Update the middleware to handle authentication required routes
 @app.before_request
 def check_authentication():
-    """Check if user is authenticated for protected routes."""
+    """Check if user is authenticated for protected routes and set default organization."""
+    # Set up default organization for authenticated users
+    if current_user.is_authenticated:
+        from models import Organization, OrganizationUser
+        # Get the user's default organization - usually the first one they're a member of
+        user_org = OrganizationUser.query.filter_by(user_id=current_user.id).first()
+        if user_org:
+            g.default_organization = Organization.query.get(user_org.organization_id)
+        else:
+            g.default_organization = None
+    else:
+        g.default_organization = None
+            
     # Paths that require authentication
     protected_paths = [
         '/scan', 

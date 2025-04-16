@@ -480,10 +480,17 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{{ url_for('team.team_dashboard') }}" class="submenu-link {% if '/team' in request.path %}active{% endif %}">
+                            {% if g.default_organization %}
+                            <a href="{{ url_for('team.team_dashboard', org_id=g.default_organization.id) }}" class="submenu-link {% if '/team' in request.path %}active{% endif %}">
                                 <i class="fas fa-users submenu-icon"></i>
                                 <span>Team</span>
                             </a>
+                            {% else %}
+                            <a href="{{ url_for('organizations.organizations') }}" class="submenu-link">
+                                <i class="fas fa-users submenu-icon"></i>
+                                <span>Team</span>
+                            </a>
+                            {% endif %}
                         </li>
                         <li>
                             <a href="{{ url_for('bank_accounts') }}" class="submenu-link {% if '/bank-accounts' in request.path %}active{% endif %}">

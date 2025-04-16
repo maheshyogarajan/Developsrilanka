@@ -190,7 +190,7 @@ def cancel_invitation(org_id, invitation_id):
     
     if current_user_org.role not in [UserRole.OWNER.value, UserRole.ADMIN.value]:
         flash('You do not have permission to cancel invitations.', 'danger')
-        return redirect(url_for('team.team_dashboard', organization=org_id))
+        return redirect(url_for('team.team_dashboard', org_id=org_id))
     
     invitation = OrganizationInvitation.query.filter_by(
         id=invitation_id,
