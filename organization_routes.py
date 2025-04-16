@@ -392,7 +392,6 @@ def accept_invitation(token):
     if not current_user.is_authenticated:
         flash('Please log in or create an account to accept this invitation.', 'info')
         # Store invitation token in session to redirect back after login
-        session = {}
         session['invitation_token'] = token
         return redirect(url_for('login'))
     

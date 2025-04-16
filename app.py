@@ -1815,6 +1815,56 @@ def email_login():
             login_user(user)
             # We'll handle success feedback through the animation instead of flash messages
             
+            # Check for and process any pending invitations for this user
+            from models import OrganizationInvitation, OrganizationUser, UserRole
+            from datetime import datetime
+            
+            # Check for invitation token in session first
+            if 'invitation_token' in session:
+                invitation_token = session.pop('invitation_token')
+                logging.info(f"Found invitation token in session: {invitation_token}")
+                return redirect(url_for('organizations.accept_invitation', token=invitation_token))
+            
+            # Also check for any pending invitations by email
+            pending_invitations = OrganizationInvitation.query.filter_by(
+                email=user.email,
+                accepted=False
+            ).filter(
+                OrganizationInvitation.expires_at > datetime.utcnow()
+            ).all()
+            
+            if pending_invitations:
+                logging.info(f"Found {len(pending_invitations)} pending invitations for {user.email}")
+                
+                # Process each pending invitation
+                for invitation in pending_invitations:
+                    # Check if user is already a member of this organization
+                    existing_member = OrganizationUser.query.filter_by(
+                        user_id=user.id,
+                        organization_id=invitation.organization_id
+                    ).first()
+                    
+                    if not existing_member:
+                        # Create organization membership
+                        is_first_org = OrganizationUser.query.filter_by(user_id=user.id).count() == 0
+                        org_user = OrganizationUser(
+                            user_id=user.id,
+                            organization_id=invitation.organization_id,
+                            role=invitation.role,
+                            is_default=is_first_org  # First organization is default
+                        )
+                        
+                        # Mark invitation as accepted
+                        invitation.accepted = True
+                        
+                        db.session.add(org_user)
+                        
+                        logging.info(f"Automatically accepted invitation to join {invitation.organization.name}")
+                        flash(f'You have been added to {invitation.organization.name} organization!', 'success')
+                
+                # Commit all changes in one transaction
+                db.session.commit()
+            
             # Redirect directly to scan page for better user experience
             return redirect(url_for('index'))
             
@@ -1845,6 +1895,49 @@ def email_login():
             
             # Display welcome message on first login - different from login success message
             flash('Account verification complete! Your account has been created and you are now logged in.', 'success')
+            
+            # Check for and process any pending invitations for this new user
+            from models import OrganizationInvitation, OrganizationUser, UserRole
+            from datetime import datetime
+            
+            # Check for invitation token in session first
+            if 'invitation_token' in session:
+                invitation_token = session.pop('invitation_token')
+                logging.info(f"Found invitation token in session for new user: {invitation_token}")
+                return redirect(url_for('organizations.accept_invitation', token=invitation_token))
+            
+            # Also check for any pending invitations by email for the new user
+            pending_invitations = OrganizationInvitation.query.filter_by(
+                email=new_user.email,
+                accepted=False
+            ).filter(
+                OrganizationInvitation.expires_at > datetime.utcnow()
+            ).all()
+            
+            if pending_invitations:
+                logging.info(f"Found {len(pending_invitations)} pending invitations for new user {new_user.email}")
+                
+                # Process each pending invitation
+                for invitation in pending_invitations:
+                    # Create organization membership (no need to check for existing membership since this is a new user)
+                    is_first_org = OrganizationUser.query.filter_by(user_id=new_user.id).count() == 0
+                    org_user = OrganizationUser(
+                        user_id=new_user.id,
+                        organization_id=invitation.organization_id,
+                        role=invitation.role,
+                        is_default=is_first_org  # First organization is default
+                    )
+                    
+                    # Mark invitation as accepted
+                    invitation.accepted = True
+                    
+                    db.session.add(org_user)
+                    
+                    logging.info(f"Automatically accepted invitation to join {invitation.organization.name} for new user")
+                    flash(f'You have been added to {invitation.organization.name} organization!', 'success')
+                
+                # Commit all changes in one transaction
+                db.session.commit()
             
             # Animation will handle feedback
             return redirect(url_for('index'))
@@ -1901,6 +1994,56 @@ def google_callback():
         login_user(user)
         flash('Successfully logged in with Google!', 'success')
         
+        # Check for and process any pending invitations for this user
+        from models import OrganizationInvitation, OrganizationUser, UserRole
+        from datetime import datetime
+        
+        # Check for invitation token in session first
+        if 'invitation_token' in session:
+            invitation_token = session.pop('invitation_token')
+            logging.info(f"Found invitation token in session for Google user: {invitation_token}")
+            return redirect(url_for('organizations.accept_invitation', token=invitation_token))
+        
+        # Also check for any pending invitations by email
+        pending_invitations = OrganizationInvitation.query.filter_by(
+            email=user.email,
+            accepted=False
+        ).filter(
+            OrganizationInvitation.expires_at > datetime.utcnow()
+        ).all()
+        
+        if pending_invitations:
+            logging.info(f"Found {len(pending_invitations)} pending invitations for Google user {user.email}")
+            
+            # Process each pending invitation
+            for invitation in pending_invitations:
+                # Check if user is already a member of this organization
+                existing_member = OrganizationUser.query.filter_by(
+                    user_id=user.id,
+                    organization_id=invitation.organization_id
+                ).first()
+                
+                if not existing_member:
+                    # Create organization membership
+                    is_first_org = OrganizationUser.query.filter_by(user_id=user.id).count() == 0
+                    org_user = OrganizationUser(
+                        user_id=user.id,
+                        organization_id=invitation.organization_id,
+                        role=invitation.role,
+                        is_default=is_first_org  # First organization is default
+                    )
+                    
+                    # Mark invitation as accepted
+                    invitation.accepted = True
+                    
+                    db.session.add(org_user)
+                    
+                    logging.info(f"Automatically accepted invitation to join {invitation.organization.name}")
+                    flash(f'You have been added to {invitation.organization.name} organization!', 'success')
+            
+            # Commit all changes in one transaction
+            db.session.commit()
+            
         # Redirect directly to scan page for better user experience
         return redirect(url_for('index'))
     
@@ -1955,6 +2098,56 @@ def facebook_callback():
         login_user(user)
         flash('Successfully logged in with Facebook!', 'success')
         
+        # Check for and process any pending invitations for this user
+        from models import OrganizationInvitation, OrganizationUser, UserRole
+        from datetime import datetime
+        
+        # Check for invitation token in session first
+        if 'invitation_token' in session:
+            invitation_token = session.pop('invitation_token')
+            logging.info(f"Found invitation token in session for Facebook user: {invitation_token}")
+            return redirect(url_for('organizations.accept_invitation', token=invitation_token))
+        
+        # Also check for any pending invitations by email
+        pending_invitations = OrganizationInvitation.query.filter_by(
+            email=user.email,
+            accepted=False
+        ).filter(
+            OrganizationInvitation.expires_at > datetime.utcnow()
+        ).all()
+        
+        if pending_invitations:
+            logging.info(f"Found {len(pending_invitations)} pending invitations for Facebook user {user.email}")
+            
+            # Process each pending invitation
+            for invitation in pending_invitations:
+                # Check if user is already a member of this organization
+                existing_member = OrganizationUser.query.filter_by(
+                    user_id=user.id,
+                    organization_id=invitation.organization_id
+                ).first()
+                
+                if not existing_member:
+                    # Create organization membership
+                    is_first_org = OrganizationUser.query.filter_by(user_id=user.id).count() == 0
+                    org_user = OrganizationUser(
+                        user_id=user.id,
+                        organization_id=invitation.organization_id,
+                        role=invitation.role,
+                        is_default=is_first_org  # First organization is default
+                    )
+                    
+                    # Mark invitation as accepted
+                    invitation.accepted = True
+                    
+                    db.session.add(org_user)
+                    
+                    logging.info(f"Automatically accepted invitation to join {invitation.organization.name}")
+                    flash(f'You have been added to {invitation.organization.name} organization!', 'success')
+            
+            # Commit all changes in one transaction
+            db.session.commit()
+            
         # Redirect directly to scan page for better user experience
         return redirect(url_for('index'))
     
