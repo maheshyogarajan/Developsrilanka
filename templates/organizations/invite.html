@@ -16,11 +16,22 @@
                 <div class="card-body">
                     <p class="text-muted mb-4">Invite a team member to join your organization {{ organization.name }}. They will receive an email with instructions to join.</p>
                     
+                    <div class="alert alert-info">
+                        <strong><i class="fas fa-info-circle"></i> Important:</strong> 
+                        Email invitations require a valid email format. Invitations may fail if the recipient's 
+                        email contains typos, invalid characters, or formatting errors.
+                    </div>
+                    
                     <form method="post">
                         <div class="mb-3">
                             <label for="email" class="form-label">Email Address *</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                            <div class="form-text">Enter the email address of the person you want to invite</div>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+                                   required>
+                            <div class="form-text">
+                                Enter a valid email address (e.g., name@example.com).
+                                <span class="text-danger">Make sure there are no typos or extra spaces.</span>
+                            </div>
                         </div>
 
                         <div class="mb-3">

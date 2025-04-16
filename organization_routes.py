@@ -317,9 +317,20 @@ def invite_team_member(org_id):
             flash(f'An invitation has already been sent to {email} and is still pending.', 'warning')
             return redirect(url_for('organizations.view_organization', org_id=org_id))
         
+        # Validate email format before creating invitation
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        
+        if not re.match(email_pattern, email):
+            flash(f'Invalid email format: {email}. Please enter a valid email address.', 'danger')
+            return redirect(url_for('organizations.invite_team_member', org_id=org_id))
+            
         # Create new invitation with token
         token = str(uuid.uuid4())
         expires_at = datetime.utcnow() + timedelta(days=7)  # 7 days expiration
+        
+        # Normalize email (lowercase)
+        email = email.strip().lower()
         
         invitation = OrganizationInvitation(
             organization_id=org_id,
@@ -683,11 +694,20 @@ def send_invitation_email(invitation):
             sender_name = 'DevelopSriLanka'
             sender_email = from_email
             
+        # Validate the recipient email address 
+        import re
+        recipient_email = invitation.email.strip().lower()
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        
+        if not re.match(email_pattern, recipient_email):
+            logger.error(f"Invalid recipient email format: {recipient_email}")
+            return False
+            
         # Create SendGrid mail message with proper sender formatting
         # The recommended way to set sender info based on SendGrid documentation
         message = Mail(
             from_email=sender_email,  # Just use plain email address
-            to_emails=invitation.email,
+            to_emails=recipient_email,  # Use the validated and normalized email
             subject=subject,
             html_content=html_content
         )
