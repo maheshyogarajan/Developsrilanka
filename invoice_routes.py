@@ -760,8 +760,21 @@ def edit_invoice(invoice_id):
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
 @login_required
 def send_invoice(invoice_id):
-    """Mark an invoice as sent and optionally email it."""
+    """Mark an invoice as sent and optionally email it using SendGrid."""
     import traceback
+    import os
+    import json
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+    
+    # Import the SendGrid logger for detailed API logging
+    from sendgrid_logger import (
+        log_api_request, 
+        log_api_response, 
+        log_api_error, 
+        log_email_content
+    )
+    
     invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     # Make sure to load the items relationship
     db.session.refresh(invoice)
@@ -783,7 +796,7 @@ def send_invoice(invoice_id):
                 # Get sender name (use user's name if sender_name is not set)
                 sender_name = invoice.sender_name or current_user.name
                 
-                # Create email message
+                # Create email subject
                 subject = f"Invoice #{invoice.invoice_number} from {sender_name}"
                 
                 # Get bank account details if available
@@ -797,46 +810,145 @@ def send_invoice(invoice_id):
                 # Get the app URL base
                 app_url = request.host_url.rstrip('/')
                 
+                # Get the organization if applicable
+                organization = None
+                if hasattr(invoice, 'organization_id') and invoice.organization_id:
+                    organization = Organization.query.get(invoice.organization_id)
+                
                 # Render HTML email template
-                html_body = render_template(
+                html_content = render_template(
                     'email/invoice_email.html',
                     invoice=invoice,
                     sender_name=sender_name,
                     bank_account=bank_account,
                     view_url=url_for('view_invoice', invoice_id=invoice.id, _external=True),
                     app_url=app_url,
-                    current_year=datetime.utcnow().year
+                    current_year=datetime.utcnow().year,
+                    organization=organization
                 )
                 
-                # Check if Gmail credentials are configured
-                if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-                    logging.warning("Gmail credentials are not configured. Email will not be sent.")
+                # Get the SendGrid API key
+                sendgrid_api_key = os.environ.get('SENDGRID_API_KEY')
+                
+                # Check if SendGrid API key is configured
+                if not sendgrid_api_key:
+                    logging.warning("SendGrid API key is not configured. Email will not be sent.")
                     # For development purposes, log what would have been sent
-                    logging.info(f"Would have sent email to: {client_email}")
+                    logging.info(f"Would have sent invoice email to: {client_email}")
                     logging.info(f"Subject: {subject}")
-                    logging.info(f"From: {sender_name} <{app.config['MAIL_USERNAME']}>")
-                    flash("Email feature requires Gmail credentials configuration", "warning")
+                    flash("Email feature requires SendGrid API key configuration", "warning")
                     return redirect(url_for('view_invoice', invoice_id=invoice.id))
                 
-                # Create message
-                msg = Message(
+                # Validate the recipient email address 
+                import re
+                recipient_email = client_email.strip().lower()
+                # More comprehensive email validation pattern
+                email_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*[a-zA-Z0-9]@[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$'
+                
+                if not re.match(email_pattern, recipient_email):
+                    logging.error(f"Invalid recipient email format: {recipient_email}")
+                    flash(f"Invalid email format: {client_email}", "danger")
+                    return redirect(url_for('view_invoice', invoice_id=invoice.id))
+                
+                # Use the verified sender email address from SendGrid account
+                sender_email = 'info@developsrilanka.com'
+                
+                # Log which sender email we're using
+                logging.info(f"Using verified SendGrid sender email address: {sender_email}")
+                
+                # Create SendGrid mail message
+                message = Mail(
+                    from_email=sender_email,
+                    to_emails=recipient_email,
                     subject=subject,
-                    recipients=[client_email],
-                    html=html_body,
-                    sender=app.config['MAIL_DEFAULT_SENDER']
+                    html_content=html_content
                 )
                 
-                # Send the email using Flask-Mail with verbose logging
-                logging.info(f"Sending invoice email to: {client_email}")
-                mail.send(msg)
+                # Set the friendly display name separately for better compatibility
+                message.from_email.name = f"{sender_name} via DevelopSriLanka"
                 
-                # Update invoice sent timestamp
-                invoice.last_sent_at = datetime.utcnow()
-                db.session.commit()
-                
-                # Log successful sending
-                logging.info(f"Successfully sent invoice email to {client_email}")
-                flash(f'Invoice has been emailed to {client_email} successfully!', 'success')
+                # Send the email using SendGrid
+                try:
+                    # Log email sending details using both regular logger and SendGrid logger
+                    logging.info(f"Preparing to send invoice email with SendGrid:")
+                    logging.info(f"From: {sender_name} via DevelopSriLanka <{sender_email}>")
+                    logging.info(f"To: {recipient_email}")
+                    logging.info(f"Subject: {subject}")
+                    
+                    # Use detailed SendGrid logger to log the API request
+                    log_api_request(
+                        recipient_email=recipient_email, 
+                        sender_email=sender_email,
+                        sender_name=f"{sender_name} via DevelopSriLanka",
+                        subject=subject
+                    )
+                    
+                    # Log the email content for debugging
+                    log_email_content(html_content=html_content)
+                    
+                    # Create SendGrid client and send message
+                    sg = SendGridAPIClient(sendgrid_api_key)
+                    
+                    # Capture raw API request data for logging
+                    api_request = message.get()
+                    print(f"SENDGRID API REQUEST: {json.dumps(api_request, indent=2)}")
+                    
+                    # Send the message
+                    response = sg.send(message)
+                    
+                    # Log the response with both loggers
+                    logging.info(f"SendGrid response status code: {response.status_code}")
+                    logging.info(f"SendGrid response body: {response.body}")
+                    logging.info(f"SendGrid response headers: {response.headers}")
+                    
+                    # Use detailed SendGrid logger for response
+                    log_api_response(
+                        status_code=response.status_code,
+                        response_body=response.body,
+                        response_headers=response.headers
+                    )
+                    
+                    # Update invoice sent timestamp
+                    invoice.last_sent_at = datetime.utcnow()
+                    db.session.commit()
+                    
+                    # Log successful sending
+                    logging.info(f"Successfully sent invoice email via SendGrid to {recipient_email}")
+                    print(f"SENDGRID EMAIL SENT: Successfully sent invoice to {recipient_email}")
+                    
+                    # Create a success message with SPAM folder notice in red text
+                    from markupsafe import Markup
+                    success_message = Markup(f'Invoice has been emailed to {client_email} successfully! <span style="color: red;">(Please check your SPAM folder if not visible in inbox)</span>')
+                    flash(success_message, 'success')
+                    
+                except Exception as sendgrid_error:
+                    error_details = traceback.format_exc()
+                    
+                    # Standard logger
+                    logging.error(f"==== SENDGRID ERROR DETAILS ====")
+                    logging.error(f"Failed to send invoice via SendGrid to {recipient_email}")
+                    logging.error(f"Error type: {type(sendgrid_error).__name__}")
+                    logging.error(f"Error message: {str(sendgrid_error)}")
+                    logging.error(f"From email: {sender_email}")
+                    logging.error(f"From name: {sender_name} via DevelopSriLanka")
+                    logging.error(f"Full error traceback: {error_details}")
+                    logging.error(f"==== END SENDGRID ERROR DETAILS ====")
+                    
+                    # Use detailed SendGrid logger for error
+                    log_api_error(
+                        error=sendgrid_error,
+                        recipient_email=recipient_email,
+                        error_type=type(sendgrid_error).__name__,
+                        detailed_traceback=True
+                    )
+                    
+                    # Also print to console for immediate debugging
+                    print(f"SENDGRID EMAIL ERROR: Failed to send invoice to {recipient_email}")
+                    print(f"Error type: {type(sendgrid_error).__name__}")
+                    print(f"Error message: {str(sendgrid_error)}")
+                    
+                    flash(f"Failed to send invoice: {str(sendgrid_error)}", "danger")
+                    
             except Exception as e:
                 error_details = traceback.format_exc()
                 logging.error(f"Failed to send invoice email: {str(e)}")
