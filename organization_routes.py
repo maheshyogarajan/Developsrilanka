@@ -657,8 +657,17 @@ def send_invitation_email(invitation):
     """
     import traceback  # For detailed error logging
     import os
+    import json
     from sendgrid import SendGridAPIClient
     from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent
+    
+    # Import the SendGrid logger for detailed API logging
+    from sendgrid_logger import (
+        log_api_request, 
+        log_api_response, 
+        log_api_error, 
+        log_email_content
+    )
     
     try:
         organization = invitation.organization
@@ -736,20 +745,44 @@ def send_invitation_email(invitation):
         
         # Send the email using SendGrid
         try:
-            # Log email sending details
+            # Log email sending details using both regular logger and SendGrid logger
             logger.info(f"Preparing to send organization invitation email with SendGrid:")
             logger.info(f"From: {organization.name} via {sender_name} <{sender_email}>")
             logger.info(f"To: {invitation.email}")
             logger.info(f"Subject: {subject}")
             
+            # Use detailed SendGrid logger to log the API request
+            log_api_request(
+                recipient_email=recipient_email, 
+                sender_email=sender_email,
+                sender_name=f"{organization.name} via {sender_name}",
+                subject=subject
+            )
+            
+            # Log the email content for debugging
+            log_email_content(html_content=html_content)
+            
             # Create SendGrid client and send message
             sg = SendGridAPIClient(sendgrid_api_key)
+            
+            # Capture raw API request data for logging
+            api_request = message.get()
+            print(f"SENDGRID API REQUEST: {json.dumps(api_request, indent=2)}")
+            
+            # Send the message
             response = sg.send(message)
             
-            # Log the response
+            # Log the response with both loggers
             logger.info(f"SendGrid response status code: {response.status_code}")
             logger.info(f"SendGrid response body: {response.body}")
             logger.info(f"SendGrid response headers: {response.headers}")
+            
+            # Use detailed SendGrid logger for response
+            log_api_response(
+                status_code=response.status_code,
+                response_body=response.body,
+                response_headers=response.headers
+            )
             
             # Log successful sending
             logger.info(f"Successfully sent organization invitation via SendGrid to {invitation.email}")
@@ -759,6 +792,8 @@ def send_invitation_email(invitation):
             
         except Exception as sendgrid_error:
             error_details = traceback.format_exc()
+            
+            # Standard logger
             logger.error(f"==== SENDGRID ERROR DETAILS ====")
             logger.error(f"Failed to send organization invitation via SendGrid to {invitation.email}")
             logger.error(f"Error type: {type(sendgrid_error).__name__}")
@@ -767,6 +802,14 @@ def send_invitation_email(invitation):
             logger.error(f"From name: {organization.name} via {sender_name}")
             logger.error(f"Full error traceback: {error_details}")
             logger.error(f"==== END SENDGRID ERROR DETAILS ====")
+            
+            # Use detailed SendGrid logger for error
+            log_api_error(
+                error=sendgrid_error,
+                recipient_email=recipient_email,
+                error_type=type(sendgrid_error).__name__,
+                detailed_traceback=True
+            )
             
             # Also print to console for immediate debugging
             print(f"SENDGRID EMAIL ERROR: Failed to send invitation to {invitation.email}")
