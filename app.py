@@ -2042,7 +2042,7 @@ def send_invitations():
 # Email sending function for invitations
 def send_invitation_email(to_email, from_user, personal_message=''):
     """
-    Send an invitation email to a friend.
+    Send an invitation email to a friend using SendGrid.
     
     Args:
         to_email: Recipient's email address
@@ -2052,125 +2052,164 @@ def send_invitation_email(to_email, from_user, personal_message=''):
     Returns:
         Boolean indicating success or failure
     """
+    import traceback  # For detailed error logging
+    import os
+    import json
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+    
+    # Import the SendGrid logger for detailed API logging
+    from sendgrid_logger import (
+        log_api_request, 
+        log_api_response, 
+        log_api_error, 
+        log_email_content
+    )
+    
     try:
-        # Use requests to send an email via SMTP server
+        # Get the app URL for links
         app_url = request.host_url.rstrip('/')
         
-        # Construct email subject and body with updated brand name
+        # Create the subject for email
         subject = f"{from_user.name} invites you to join DevelopSriLanka.com"
         
-        # Email body with HTML formatting and DevelopSriLanka.com logo
-        html_body = f"""
-        <html>
-        <body style="font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 15px;">
-            <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px;">
-                <!-- Header with logo and gradient background -->
-                <div style="background: linear-gradient(135deg, #004b87 0%, #00285a 100%); padding: 25px; text-align: center;">
-                    <img src="{app_url}/static/images/dev-sri-logo.jpg" alt="DevelopSriLanka.com Logo" style="max-width: 250px; height: auto; margin-bottom: 10px;">
-                    <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0; font-size: 16px;">Empowering financial intelligence</p>
-                </div>
-                
-                <!-- Main content -->
-                <div style="padding: 30px;">
-                    <h2 style="color: #004b87; margin-top: 0; margin-bottom: 20px; font-size: 22px;">You've Been Invited!</h2>
-                    <p style="margin-bottom: 20px;"><strong>{from_user.name}</strong> has invited you to join <strong>DevelopSriLanka.com</strong>, 
-                    the intelligent platform that helps you track expenses and optimize tax savings.</p>
-                    
-                    {f'''<div style="background-color: #e6f7ff; padding: 15px; border-radius: 6px; border-left: 4px solid #004b87; margin: 25px 0;">
-                        <p style="font-style: italic; margin: 0 0 10px;">"{personal_message}"</p>
-                        <p style="text-align: right; margin-bottom: 0; color: #4a5568;">- {from_user.name}</p>
-                    </div>''' if personal_message else ''}
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="{app_url}/login" style="display: inline-block; background-color: #ff9e1b; color: white; 
-                        padding: 12px 28px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;
-                        transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            Join Now
-                        </a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Features section -->
-            <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 20px;">
-                <h3 style="color: #004b87; margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Why Join DevelopSriLanka.com?</h3>
-                <ul style="padding-left: 20px; margin-top: 15px;">
-                    <li style="margin-bottom: 10px;">Track expenses with AI-powered receipt scanning</li>
-                    <li style="margin-bottom: 10px;">Calculate potential tax savings based on your income</li>
-                    <li style="margin-bottom: 10px;">Effortlessly categorize and organize your business expenses</li>
-                    <li style="margin-bottom: 10px;">Get insights to optimize your tax strategy</li>
-                </ul>
-            </div>
-            
-            <!-- Footer -->
-            <div style="text-align: center; color: #718096; font-size: 0.9em; margin-top: 20px;">
-                <p>If you don't want to receive invitation emails, please ignore this message.</p>
-                <p>&copy; 2025 DevelopSriLanka.com. All rights reserved.</p>
-            </div>
-        </body>
-        </html>
-        """
-        
         # Log the email attempt
-        logging.info(f"Sending invitation email to: {to_email}")
+        logging.info(f"Sending friend invitation email to: {to_email}")
         logging.info(f"From: {from_user.name} <{from_user.email}>")
         logging.info(f"Subject: {subject}")
         
-        # Create a message object
-        msg = Message(
+        # Get the SendGrid API key
+        sendgrid_api_key = os.environ.get('SENDGRID_API_KEY')
+        
+        # Check if SendGrid API key is configured
+        if not sendgrid_api_key:
+            logging.warning("SendGrid API key is not configured. Email will not be sent.")
+            logging.info(f"Would have sent friend invitation email to: {to_email}")
+            logging.info(f"Subject: {subject}")
+            logging.info(f"With personal message: {personal_message}")
+            flash("Email feature requires SendGrid API key configuration", "warning")
+            return False
+        
+        # Create HTML email with branding
+        html_content = render_template('email/friend_invitation.html',
+                                sender=from_user,
+                                personal_message=personal_message,
+                                app_url=app_url,
+                                current_year=datetime.utcnow().year)
+        
+        # Use the verified sender email address from SendGrid account
+        sender_email = 'info@developsrilanka.com'
+        
+        # Log which sender email we're using
+        logging.info(f"Using verified SendGrid sender email address: {sender_email}")
+            
+        # Validate the recipient email address 
+        import re
+        recipient_email = to_email.strip().lower()
+        # More comprehensive email validation pattern
+        email_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*[a-zA-Z0-9]@[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$'
+        
+        if not re.match(email_pattern, recipient_email):
+            logging.error(f"Invalid recipient email format: {recipient_email}")
+            return False
+            
+        # Create SendGrid mail message with proper sender formatting
+        message = Mail(
+            from_email=sender_email,  # Just use plain email address
+            to_emails=recipient_email,  # Use the validated and normalized email
             subject=subject,
-            recipients=[to_email],
-            html=html_body,
-            sender=app.config['MAIL_DEFAULT_SENDER']
+            html_content=html_content
         )
         
-        # Check if Gmail credentials are configured
-        if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-            logging.warning("Gmail credentials are not configured. Email will not be sent.")
-            # For development purposes, log what would have been sent
-            logging.info(f"Would have sent email to: {to_email}")
-            logging.info(f"Subject: {subject}")
-            logging.info(f"From: {from_user.name} <{from_user.email}>")
-            logging.info(f"With personal message: {personal_message}")
-            flash("Email feature requires Gmail credentials configuration", "warning")
-            return False
+        # Set the friendly display name separately for better compatibility
+        message.from_email.name = f"{from_user.name} via DevelopSriLanka"
         
-        # Send the email using Flask-Mail with verbose logging
+        # Send the email using SendGrid
         try:
-            # Log detailed email headers and info
-            logging.info(f"Preparing to send email with the following details:")
-            logging.info(f"From: {app.config['MAIL_DEFAULT_SENDER']}")
-            logging.info(f"To: {to_email}")
+            # Log email sending details using both regular logger and SendGrid logger
+            logging.info(f"Preparing to send friend invitation email with SendGrid:")
+            logging.info(f"From: {from_user.name} via DevelopSriLanka <{sender_email}>")
+            logging.info(f"To: {recipient_email}")
             logging.info(f"Subject: {subject}")
-            logging.info(f"SMTP Server: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
-            logging.info(f"TLS Enabled: {app.config['MAIL_USE_TLS']}")
-            logging.info(f"SSL Enabled: {app.config['MAIL_USE_SSL']}")
             
-            # Actually send the email
-            mail.send(msg)
+            # Use detailed SendGrid logger to log the API request
+            log_api_request(
+                recipient_email=recipient_email, 
+                sender_email=sender_email,
+                sender_name=f"{from_user.name} via DevelopSriLanka",
+                subject=subject
+            )
+            
+            # Log the email content for debugging
+            log_email_content(html_content=html_content)
+            
+            # Create SendGrid client and send message
+            sg = SendGridAPIClient(sendgrid_api_key)
+            
+            # Capture raw API request data for logging
+            api_request = message.get()
+            print(f"SENDGRID API REQUEST: {json.dumps(api_request, indent=2)}")
+            
+            # Send the message
+            response = sg.send(message)
+            
+            # Log the response with both loggers
+            logging.info(f"SendGrid response status code: {response.status_code}")
+            logging.info(f"SendGrid response body: {response.body}")
+            logging.info(f"SendGrid response headers: {response.headers}")
+            
+            # Use detailed SendGrid logger for response
+            log_api_response(
+                status_code=response.status_code,
+                response_body=response.body,
+                response_headers=response.headers
+            )
             
             # Log successful sending
-            logging.info(f"Successfully sent invitation email to {to_email}")
-            logging.info(f"Email delivered to SMTP server for {to_email}")
-            print(f"EMAIL SENT: Successfully delivered invitation to SMTP server for {to_email}")  # Console log for immediate visibility
+            logging.info(f"Successfully sent friend invitation via SendGrid to {recipient_email}")
+            print(f"SENDGRID EMAIL SENT: Successfully sent friend invitation to {recipient_email}")
             
-            flash(f"Invitation sent successfully to {to_email}!", "success")
+            # Create a success message with SPAM folder notice in red text
+            from markupsafe import Markup
+            success_message = Markup(f'Invitation sent successfully to {recipient_email}! <span style="color: red;">(Please ask your friend to check their SPAM folder if not visible in inbox)</span>')
+            flash(success_message, 'success')
+            
             return True
-        except Exception as mail_error:
-            error_details = traceback.format_exc()
-            logging.error(f"Failed to send email to {to_email}: {str(mail_error)}")
-            logging.error(f"Error details: {error_details}")
-            logging.error(f"Mail configuration: USERNAME={app.config['MAIL_USERNAME']}, SERVER={app.config['MAIL_SERVER']}")
-            print(f"EMAIL ERROR: Failed to send to {to_email}: {str(mail_error)}")  # Console log for immediate visibility
             
-            flash(f"Failed to send invitation: {str(mail_error)}", "danger")
+        except Exception as sendgrid_error:
+            error_details = traceback.format_exc()
+            
+            # Standard logger
+            logging.error(f"==== SENDGRID ERROR DETAILS ====")
+            logging.error(f"Failed to send friend invitation via SendGrid to {recipient_email}")
+            logging.error(f"Error type: {type(sendgrid_error).__name__}")
+            logging.error(f"Error message: {str(sendgrid_error)}")
+            logging.error(f"From email: {sender_email}")
+            logging.error(f"From name: {from_user.name} via DevelopSriLanka")
+            logging.error(f"Full error traceback: {error_details}")
+            logging.error(f"==== END SENDGRID ERROR DETAILS ====")
+            
+            # Use detailed SendGrid logger for error
+            log_api_error(
+                error=sendgrid_error,
+                recipient_email=recipient_email,
+                error_type=type(sendgrid_error).__name__,
+                detailed_traceback=True
+            )
+            
+            # Also print to console for immediate debugging
+            print(f"SENDGRID EMAIL ERROR: Failed to send friend invitation to {recipient_email}")
+            print(f"Error type: {type(sendgrid_error).__name__}")
+            print(f"Error message: {str(sendgrid_error)}")
+            
+            flash(f"Failed to send invitation: {str(sendgrid_error)}", "danger")
             return False
-        
+            
     except Exception as e:
         error_details = traceback.format_exc()
-        logging.error(f"Failed to send invitation email: {str(e)}")
+        logging.error(f"Failed to prepare friend invitation email: {str(e)}")
         logging.error(f"Error details: {error_details}")
-        flash(f"Invitation system error: {str(e)}", "danger")
+        flash(f"Friend invitation system error: {str(e)}", "danger")
         return False
 
 # Update the middleware to handle authentication required routes
