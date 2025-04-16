@@ -684,16 +684,16 @@ def send_invitation_email(invitation):
             sender_email = from_email
             
         # Create SendGrid mail message with proper sender formatting
-        # SendGrid requires the "from_email" to be a simple email address string
-        # The display name can be included as a separate parameter
+        # The recommended way to set sender info based on SendGrid documentation
         message = Mail(
-            from_email=sender_email,  # Just the email address
+            from_email=sender_email,  # Just use plain email address
             to_emails=invitation.email,
             subject=subject,
             html_content=html_content
         )
         
-        # Set the friendly name for the sender separately
+        # Set the friendly display name separately for better compatibility
+        # This is the recommended pattern in SendGrid's Python SDK
         message.from_email.name = f"{organization.name} via {sender_name}"
         
         # Send the email using SendGrid
