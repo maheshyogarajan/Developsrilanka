@@ -5,7 +5,8 @@ import os
 import uuid
 import logging
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify, Markup
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, jsonify
+from markupsafe import Markup
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from models import db, Organization, OrganizationUser, OrganizationInvitation, UserRole, Client
