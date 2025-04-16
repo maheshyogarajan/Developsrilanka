@@ -721,9 +721,19 @@ def send_invitation_email(invitation):
             
         except Exception as sendgrid_error:
             error_details = traceback.format_exc()
-            logger.error(f"Failed to send organization invitation via SendGrid to {invitation.email}: {str(sendgrid_error)}")
-            logger.error(f"Error details: {error_details}")
-            print(f"SENDGRID EMAIL ERROR: Failed to send organization invitation to {invitation.email}: {str(sendgrid_error)}")
+            logger.error(f"==== SENDGRID ERROR DETAILS ====")
+            logger.error(f"Failed to send organization invitation via SendGrid to {invitation.email}")
+            logger.error(f"Error type: {type(sendgrid_error).__name__}")
+            logger.error(f"Error message: {str(sendgrid_error)}")
+            logger.error(f"From email: {sender_email}")
+            logger.error(f"From name: {organization.name} via {sender_name}")
+            logger.error(f"Full error traceback: {error_details}")
+            logger.error(f"==== END SENDGRID ERROR DETAILS ====")
+            
+            # Also print to console for immediate debugging
+            print(f"SENDGRID EMAIL ERROR: Failed to send invitation to {invitation.email}")
+            print(f"Error type: {type(sendgrid_error).__name__}")
+            print(f"Error message: {str(sendgrid_error)}")
             
             flash(f"Failed to send organization invitation: {str(sendgrid_error)}", "danger")
             return False
