@@ -116,7 +116,7 @@
             {% if organization.email_footer_text %}
                 {{ organization.email_footer_text|safe }}
             {% else %}
-                <p>&copy; {{ now().year }} {{ organization.name }}. All rights reserved.</p>
+                <p>&copy; {{ current_year }} {{ organization.name }}. All rights reserved.</p>
             {% endif %}
             <p>
                 <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg', _external=True) }}" alt="DevelopSriLanka" style="max-width: 100px; margin-bottom: 5px;"><br>

@@ -706,7 +706,8 @@ def send_invitation_email(invitation):
                                 organization=organization,
                                 inviter=inviter,
                                 accept_url=accept_url,
-                                invitation=invitation)
+                                invitation=invitation,
+                                current_year=datetime.utcnow().year)
         
         # Get sender email from config or use a default
         # Use noreply@developsrilanka.com as the default sender for better deliverability

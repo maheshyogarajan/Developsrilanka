@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from flask_mail import Mail, Message
 from sqlalchemy import text
 from app import app, db
-from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount
+from models import Invoice, Client, InvoiceItem, Payment, InvoiceStatus, PaymentMethod, BankAccount, Organization
 
 # Initialize Flask-Mail with Gmail settings if not already initialized
 if not hasattr(app, 'mail'):
