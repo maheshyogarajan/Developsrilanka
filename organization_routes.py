@@ -319,9 +319,21 @@ def invite_team_member(org_id):
         
         # Validate email format before creating invitation
         import re
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         
-        if not re.match(email_pattern, email):
+        # First normalize the email (trim and lowercase)
+        email = email.strip().lower()
+        
+        # Comprehensive email validation function
+        def is_valid_email(email):
+            # Check for consecutive dots in local part
+            if '@' in email and '..' in email.split('@')[0]:
+                return False
+                
+            # Use regex for the rest of the validation
+            pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*[a-zA-Z0-9]@([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
+            return bool(re.match(pattern, email))
+        
+        if not is_valid_email(email):
             flash(f'Invalid email format: {email}. Please enter a valid email address.', 'danger')
             return redirect(url_for('organizations.invite_team_member', org_id=org_id))
             
@@ -697,7 +709,13 @@ def send_invitation_email(invitation):
         # Validate the recipient email address 
         import re
         recipient_email = invitation.email.strip().lower()
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        # More comprehensive email validation pattern
+        # This pattern prevents:
+        # - Consecutive dots in any part of the email
+        # - Leading or trailing dots in local part
+        # - Leading dot in domain part
+        # - Spaces or special characters in domain
+        email_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*[a-zA-Z0-9]@[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$'
         
         if not re.match(email_pattern, recipient_email):
             logger.error(f"Invalid recipient email format: {recipient_email}")

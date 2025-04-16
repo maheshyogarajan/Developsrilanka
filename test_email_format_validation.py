@@ -11,8 +11,23 @@ def test_email_format():
     """Test email format validation."""
     print("Testing email format validation...")
     
-    # Email validation pattern
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    # Email validation pattern - Final comprehensive pattern
+    # This pattern prevents:
+    # - Consecutive dots in any part of the email
+    # - Leading or trailing dots in local part
+    # - Leading dot in domain part
+    # - Double dots in domain or TLD
+    # - Spaces or special characters in domain
+    
+    # Simple validation function to handle all edge cases
+    def is_valid_email(email):
+        # Check for consecutive dots in local part
+        if '..' in email.split('@')[0]:
+            return False
+            
+        # Use regex for the rest of the validation
+        pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*[a-zA-Z0-9]@([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
+        return bool(re.match(pattern, email))
     
     # Valid email addresses
     valid_emails = [
@@ -46,13 +61,13 @@ def test_email_format():
     # Test valid emails
     print("\nTesting valid email addresses:")
     for email in valid_emails:
-        result = bool(re.match(email_pattern, email))
+        result = is_valid_email(email)
         print(f"{'✓' if result else '✗'} {email} - {'Valid' if result else 'Invalid'}")
         
     # Test invalid emails
     print("\nTesting invalid email addresses:")
     for email in invalid_emails:
-        result = bool(re.match(email_pattern, email))
+        result = is_valid_email(email)
         print(f"{'✗' if result else '✓'} {email} - {'Valid' if result else 'Invalid'}")
 
 if __name__ == "__main__":
