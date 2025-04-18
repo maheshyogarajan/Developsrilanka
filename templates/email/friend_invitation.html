@@ -1,121 +1,121 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta charset="utf-8">
-    <title>Invitation from {{ sender.name }}</title>
+    <title>{{ sender.name }} invites you to join DevelopSriLanka.com</title>
     <style>
         body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Arial, sans-serif;
             line-height: 1.6;
             color: #333;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
             max-width: 600px;
             margin: 0 auto;
+        }
+        .container {
             padding: 20px;
+            background-color: #f8f9fa;
         }
         .header {
             text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 20px;
+            padding: 20px 0;
+            background-color: #fff;
+            border-bottom: 2px solid #e9ecef;
         }
-        .logo {
-            max-width: 150px;
-            max-height: 80px;
+        .header img {
+            max-width: 200px;
         }
         .content {
-            margin-bottom: 30px;
-        }
-        .invitation-box {
-            background-color: #f0f7ff;
+            padding: 30px 20px;
+            background-color: #fff;
             border-radius: 5px;
-            padding: 20px;
-            margin-bottom: 20px;
+            margin: 20px 0;
         }
-        .button {
-            display: inline-block;
-            background-color: #4299e1; /* Lighter blue color for better contrast with text */
-            color: white;
-            padding: 12px 24px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-            margin-top: 15px;
-        }
-        .footer {
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-        }
-        .message-box {
-            background-color: #f9f9f9;
-            border-left: 4px solid #4299e1;
+        .personal-message {
+            background-color: #f8f9fa;
+            border-left: 4px solid #2d8cff;
             padding: 15px;
             margin: 20px 0;
             font-style: italic;
         }
-        .features {
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #2d8cff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
             margin: 20px 0;
         }
-        .features ul {
-            padding-left: 20px;
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #6c757d;
+            border-top: 1px solid #e9ecef;
         }
-        .features li {
-            margin-bottom: 10px;
+        .features {
+            display: block;
+            margin: 30px 0;
+        }
+        .feature {
+            margin-bottom: 15px;
+        }
+        .feature-icon {
+            color: #2d8cff;
+            font-weight: bold;
+            margin-right: 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg', _external=True) }}" alt="DevelopSriLanka Logo" class="logo">
-            <h2>You've Been Invited!</h2>
+            <img src="https://developsrilanka.com/logo.png" alt="DevelopSriLanka Logo">
         </div>
         
         <div class="content">
+            <h2>You've been invited!</h2>
             <p>Hello,</p>
-            <p>Your friend <strong>{{ sender.name }}</strong> has invited you to join <strong>DevelopSriLanka.com</strong>, the intelligent platform that helps you track expenses and optimize tax savings.</p>
+            <p><strong>{{ sender.name }}</strong> has invited you to join DevelopSriLanka.com, a tax-optimized financial platform designed specifically for Sri Lankans.</p>
             
             {% if personal_message %}
-            <div class="message-box">
+            <div class="personal-message">
                 <p>"{{ personal_message }}"</p>
-                <p style="text-align: right; margin-bottom: 0;">- {{ sender.name }}</p>
+                <p>- {{ sender.name }}</p>
             </div>
             {% endif %}
             
-            <div style="text-align: center;">
-                {% if token %}
-                <a href="{{ app_url }}/accept-invitation/{{ token }}" class="button">Join Now</a>
-                {% else %}
-                <a href="{{ app_url }}/login" class="button">Join Now</a>
-                {% endif %}
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">✓</span> Scan receipts with AI-powered recognition
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">✓</span> Create professional invoices in seconds
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">✓</span> Optimize your tax strategy with intelligent insights
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">✓</span> Manage multiple organizations with custom branding
+                </div>
             </div>
-        </div>
-        
-        <div class="features">
-            <h3>Why Join DevelopSriLanka.com?</h3>
-            <ul>
-                <li>Track expenses with AI-powered receipt scanning</li>
-                <li>Calculate potential tax savings based on your income</li>
-                <li>Effortlessly categorize and organize your business expenses</li>
-                <li>Get insights to optimize your tax strategy</li>
-            </ul>
+            
+            <p>Join thousands of Sri Lankans who are simplifying their financial lives today.</p>
+            
+            <center>
+                <a href="{{ app_url }}/accept-invitation/{{ token }}" class="button">Accept Invitation</a>
+            </center>
+            
+            <p>If the button above doesn't work, copy and paste this URL into your browser:</p>
+            <p style="word-break: break-all; font-size: 12px;">{{ app_url }}/accept-invitation/{{ token }}</p>
         </div>
         
         <div class="footer">
-            <p>If you don't want to receive invitation emails, please ignore this message.</p>
-            <p>&copy; {{ current_year }} DevelopSriLanka.com. All rights reserved.</p>
-            <p>
-                <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg', _external=True) }}" alt="DevelopSriLanka" style="max-width: 100px; margin-bottom: 5px;"><br>
-                DevelopSriLanka.com | Accounting and Tax Made Easy
-            </p>
+            <p>DevelopSriLanka.com - Accounting and Tax Made Easy</p>
+            <p>&copy; {{ current_year }} DevelopSriLanka. All rights reserved.</p>
+            <p>This invitation was sent to you by {{ sender.name }} ({{ sender.email }}). If you believe this was sent in error, please ignore this email.</p>
         </div>
     </div>
 </body>

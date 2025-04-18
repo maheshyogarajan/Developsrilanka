@@ -2092,6 +2092,9 @@ def profile():
     try:
         logging.info(f"Accessing profile page for user: {current_user.id} - {current_user.name}")
         
+        # Import the FriendInvitation model
+        from models import FriendInvitation
+        
         # Get friend invitations sent by the user
         friend_invitations = FriendInvitation.query.filter_by(
             invited_by_user_id=current_user.id
@@ -2124,6 +2127,9 @@ def resend_invitation():
         return redirect(url_for('profile'))
     
     try:
+        # Import the FriendInvitation model
+        from models import FriendInvitation
+        
         # Find the invitation by ID and verify ownership
         invitation = FriendInvitation.query.filter_by(
             id=invitation_id, 
@@ -2161,6 +2167,9 @@ def cancel_invitation():
         return redirect(url_for('profile'))
     
     try:
+        # Import the FriendInvitation model
+        from models import FriendInvitation
+        
         # Find the invitation by ID and verify ownership
         invitation = FriendInvitation.query.filter_by(
             id=invitation_id, 
@@ -2201,6 +2210,9 @@ def send_invitations():
     # Initialize counters for success/failure reporting
     sent_count = 0
     failed_emails = []
+    
+    # Import the FriendInvitation model
+    from models import FriendInvitation
     
     for email in email_list:
         try:
@@ -2274,6 +2286,9 @@ def send_invitations():
 def accept_friend_invitation(token):
     """Handle friend invitation acceptance via unique token."""
     try:
+        # Import the FriendInvitation model
+        from models import FriendInvitation
+        
         # Find the invitation by token
         invitation = FriendInvitation.query.filter_by(token=token).first()
         
