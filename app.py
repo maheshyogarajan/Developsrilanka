@@ -1769,6 +1769,14 @@ def login():
 @app.route('/register')
 def register():
     """Render the registration page for new users."""
+    # Check if we have an invitation token from the URL
+    invitation_token = request.args.get('invitation')
+    if invitation_token:
+        # Store token in session for post-registration processing
+        session['invitation_token'] = invitation_token
+        flash("Please complete registration to accept the invitation.", "info")
+        logging.info(f"Registration page accessed with invitation token: {invitation_token}")
+    
     return render_template('register.html')
 
 @app.route('/email_login', methods=['POST'])
@@ -1816,6 +1824,32 @@ def email_login():
             login_user(user)
             # We'll handle success feedback through the animation instead of flash messages
             
+            # Check if there's a pending invitation token in the session
+            invitation_token = session.get('invitation_token')
+            if invitation_token:
+                # Process the invitation
+                try:
+                    invitation = FriendInvitation.query.filter_by(token=invitation_token).first()
+                    if invitation and not invitation.accepted and invitation.expires_at > datetime.utcnow():
+                        # Mark invitation as accepted
+                        invitation.accepted = True
+                        invitation.accepted_at = datetime.utcnow()
+                        invitation.accepted_by_user_id = user.id
+                        db.session.commit()
+                        
+                        # Clear the token from session
+                        session.pop('invitation_token', None)
+                        
+                        flash(f"You've successfully accepted the invitation from {invitation.sender.name}!", "success")
+                        logging.info(f"User {user.id} accepted invitation with token {invitation_token}")
+                        
+                        # Redirect to profile page to show the accepted invitation
+                        return redirect(url_for('profile'))
+                    else:
+                        logging.warning(f"Invalid or expired invitation token in session: {invitation_token}")
+                except Exception as e:
+                    logging.error(f"Error processing invitation after login: {str(e)}")
+            
             # Redirect directly to scan page for better user experience
             return redirect(url_for('index'))
             
@@ -1846,6 +1880,32 @@ def email_login():
             
             # Display welcome message on first login - different from login success message
             flash('Account verification complete! Your account has been created and you are now logged in.', 'success')
+            
+            # Check if there's a pending invitation token in the session
+            invitation_token = session.get('invitation_token')
+            if invitation_token:
+                # Process the invitation
+                try:
+                    invitation = FriendInvitation.query.filter_by(token=invitation_token).first()
+                    if invitation and not invitation.accepted and invitation.expires_at > datetime.utcnow():
+                        # Mark invitation as accepted
+                        invitation.accepted = True
+                        invitation.accepted_at = datetime.utcnow()
+                        invitation.accepted_by_user_id = new_user.id
+                        db.session.commit()
+                        
+                        # Clear the token from session
+                        session.pop('invitation_token', None)
+                        
+                        flash(f"You've successfully accepted the invitation from {invitation.sender.name}!", "success")
+                        logging.info(f"New user {new_user.id} accepted invitation with token {invitation_token}")
+                        
+                        # Redirect to profile page to show the accepted invitation
+                        return redirect(url_for('profile'))
+                    else:
+                        logging.warning(f"Invalid or expired invitation token in session during registration: {invitation_token}")
+                except Exception as e:
+                    logging.error(f"Error processing invitation after registration: {str(e)}")
             
             # Animation will handle feedback
             return redirect(url_for('index'))
@@ -1902,6 +1962,32 @@ def google_callback():
         login_user(user)
         flash('Successfully logged in with Google!', 'success')
         
+        # Check if there's a pending invitation token in the session
+        invitation_token = session.get('invitation_token')
+        if invitation_token:
+            # Process the invitation
+            try:
+                invitation = FriendInvitation.query.filter_by(token=invitation_token).first()
+                if invitation and not invitation.accepted and invitation.expires_at > datetime.utcnow():
+                    # Mark invitation as accepted
+                    invitation.accepted = True
+                    invitation.accepted_at = datetime.utcnow()
+                    invitation.accepted_by_user_id = user.id
+                    db.session.commit()
+                    
+                    # Clear the token from session
+                    session.pop('invitation_token', None)
+                    
+                    flash(f"You've successfully accepted the invitation from {invitation.sender.name}!", "success")
+                    logging.info(f"User {user.id} accepted invitation with token {invitation_token} after Google login")
+                    
+                    # Redirect to profile page to show the accepted invitation
+                    return redirect(url_for('profile'))
+                else:
+                    logging.warning(f"Invalid or expired invitation token in session: {invitation_token}")
+            except Exception as e:
+                logging.error(f"Error processing invitation after Google login: {str(e)}")
+        
         # Redirect directly to scan page for better user experience
         return redirect(url_for('index'))
     
@@ -1955,6 +2041,32 @@ def facebook_callback():
         # Log the user in
         login_user(user)
         flash('Successfully logged in with Facebook!', 'success')
+        
+        # Check if there's a pending invitation token in the session
+        invitation_token = session.get('invitation_token')
+        if invitation_token:
+            # Process the invitation
+            try:
+                invitation = FriendInvitation.query.filter_by(token=invitation_token).first()
+                if invitation and not invitation.accepted and invitation.expires_at > datetime.utcnow():
+                    # Mark invitation as accepted
+                    invitation.accepted = True
+                    invitation.accepted_at = datetime.utcnow()
+                    invitation.accepted_by_user_id = user.id
+                    db.session.commit()
+                    
+                    # Clear the token from session
+                    session.pop('invitation_token', None)
+                    
+                    flash(f"You've successfully accepted the invitation from {invitation.sender.name}!", "success")
+                    logging.info(f"User {user.id} accepted invitation with token {invitation_token} after Facebook login")
+                    
+                    # Redirect to profile page to show the accepted invitation
+                    return redirect(url_for('profile'))
+                else:
+                    logging.warning(f"Invalid or expired invitation token in session: {invitation_token}")
+            except Exception as e:
+                logging.error(f"Error processing invitation after Facebook login: {str(e)}")
         
         # Redirect directly to scan page for better user experience
         return redirect(url_for('index'))
