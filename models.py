@@ -116,6 +116,40 @@ class OrganizationUser(db.Model):
             }
         }
 
+class FriendInvitation(db.Model):
+    """Model for storing friend invitations."""
+    id = db.Column(db.Integer, primary_key=True)
+    invited_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    token = db.Column(db.String(255), nullable=False, unique=True)
+    accepted = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    personal_message = db.Column(db.Text, nullable=True)
+    
+    # Relationships
+    invited_by = db.relationship('User', foreign_keys=[invited_by_user_id], backref='sent_friend_invitations')
+    
+    def is_expired(self):
+        """Check if the invitation is expired."""
+        return datetime.utcnow() > self.expires_at
+    
+    def to_dict(self):
+        """Convert the invitation to a dictionary."""
+        return {
+            'id': self.id,
+            'invited_by_user_id': self.invited_by_user_id,
+            'invited_by_name': self.invited_by.name,
+            'email': self.email,
+            'token': self.token,
+            'accepted': self.accepted,
+            'created_at': self.created_at.isoformat(),
+            'expires_at': self.expires_at.isoformat(),
+            'is_expired': self.is_expired(),
+            'personal_message': self.personal_message
+        }
+
+
 class OrganizationInvitation(db.Model):
     """Model for storing organization invitations."""
     id = db.Column(db.Integer, primary_key=True)
