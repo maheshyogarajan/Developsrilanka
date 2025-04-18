@@ -2091,7 +2091,17 @@ def profile():
     """Show the user's profile page."""
     try:
         logging.info(f"Accessing profile page for user: {current_user.id} - {current_user.name}")
-        return render_template('profile.html')
+        
+        # Get friend invitations sent by the user
+        friend_invitations = FriendInvitation.query.filter_by(
+            invited_by_user_id=current_user.id
+        ).order_by(FriendInvitation.created_at.desc()).all()
+        
+        # Add method to check if invitation is expired
+        for invitation in friend_invitations:
+            invitation.is_expired = lambda: invitation.expires_at < datetime.utcnow()
+        
+        return render_template('profile.html', sent_friend_invitations=friend_invitations)
     except Exception as e:
         logging.error(f"Error rendering profile page: {str(e)}")
         logging.error(traceback.format_exc())
@@ -2103,6 +2113,76 @@ def profile():
 def invite_friends():
     """Show the invite friends page."""
     return render_template('invite_friends.html')
+
+@app.route('/resend-invitation', methods=['POST'])
+@login_required
+def resend_invitation():
+    """Resend an expired friend invitation."""
+    invitation_id = request.form.get('invitation_id')
+    if not invitation_id:
+        flash('Invalid invitation ID.', 'danger')
+        return redirect(url_for('profile'))
+    
+    try:
+        # Find the invitation by ID and verify ownership
+        invitation = FriendInvitation.query.filter_by(
+            id=invitation_id, 
+            invited_by_user_id=current_user.id
+        ).first()
+        
+        if not invitation:
+            flash('Invitation not found or you are not authorized to modify it.', 'danger')
+            return redirect(url_for('profile'))
+        
+        # Update expiration date
+        invitation.expires_at = datetime.utcnow() + timedelta(days=7)
+        db.session.commit()
+        
+        # Resend the email
+        if send_invitation_email(invitation.email, current_user, invitation.personal_message, invitation.token):
+            flash(f'Invitation to {invitation.email} has been resent!', 'success')
+        else:
+            flash(f'Failed to resend invitation to {invitation.email}.', 'danger')
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error resending invitation: {str(e)}")
+        flash('An error occurred while resending the invitation.', 'danger')
+    
+    return redirect(url_for('profile'))
+
+@app.route('/cancel-invitation', methods=['POST'])
+@login_required
+def cancel_invitation():
+    """Cancel a pending friend invitation."""
+    invitation_id = request.form.get('invitation_id')
+    if not invitation_id:
+        flash('Invalid invitation ID.', 'danger')
+        return redirect(url_for('profile'))
+    
+    try:
+        # Find the invitation by ID and verify ownership
+        invitation = FriendInvitation.query.filter_by(
+            id=invitation_id, 
+            invited_by_user_id=current_user.id
+        ).first()
+        
+        if not invitation:
+            flash('Invitation not found or you are not authorized to modify it.', 'danger')
+            return redirect(url_for('profile'))
+        
+        # Delete the invitation
+        db.session.delete(invitation)
+        db.session.commit()
+        
+        flash(f'Invitation to {invitation.email} has been canceled.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error canceling invitation: {str(e)}")
+        flash('An error occurred while canceling the invitation.', 'danger')
+    
+    return redirect(url_for('profile'))
 
 @app.route('/send-invitations', methods=['POST'])
 @login_required

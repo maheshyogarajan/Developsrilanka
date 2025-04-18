@@ -52,6 +52,62 @@
             
             <div class="card border-0 shadow mt-4">
                 <div class="card-body p-4">
+                    <h3 class="card-title mb-4">Friend Invitations</h3>
+                    {% if sent_friend_invitations %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Sent Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invitation in sent_friend_invitations %}
+                                    <tr>
+                                        <td>{{ invitation.email }}</td>
+                                        <td>{{ invitation.created_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            {% if invitation.accepted %}
+                                                <span class="badge bg-success">Accepted</span>
+                                            {% elif invitation.is_expired() %}
+                                                <span class="badge bg-warning text-dark">Expired</span>
+                                            {% else %}
+                                                <span class="badge bg-info text-dark">Pending</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if not invitation.accepted and invitation.is_expired() %}
+                                                <form action="{{ url_for('resend_invitation') }}" method="post" class="d-inline">
+                                                    <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-primary">Resend</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if not invitation.accepted %}
+                                                <form action="{{ url_for('cancel_invitation') }}" method="post" class="d-inline">
+                                                    <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                                                </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> You haven't sent any invitations yet. 
+                            <a href="{{ url_for('invite_friends') }}" class="alert-link">Invite friends</a> to start using the platform together!
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow mt-4">
+                <div class="card-body p-4">
                     <h3 class="card-title mb-4">Tax Contribution Summary</h3>
                     <div class="row g-4">
                         <div class="col-md-6">

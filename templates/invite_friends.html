@@ -1,57 +1,32 @@
 {% extends 'layout.html' %}
 
-{% block title %}Invite Friends - Develop Sri Lanka{% endblock %}
-
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-lg-8">
             <div class="card border-0 shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i> Invite Friends</h4>
+                </div>
                 <div class="card-body p-4">
-                    <div class="text-center mb-4">
-                        <div class="display-6 text-primary animate__animated animate__fadeIn">
-                            <i class="fas fa-user-plus"></i>
-                        </div>
-                        <h2 class="mt-3 mb-4 animate__animated animate__fadeIn animate__delay-1">Invite Friends to Join Our Mission</h2>
-                        <p class="text-muted animate__animated animate__fadeIn animate__delay-2">
-                            Help grow our community! Invite your friends and colleagues to join the Develop Sri Lanka initiative and contribute to our country's development through transparent tax tracking.
-                        </p>
-                    </div>
-
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category }} alert-dismissible fade show animate__animated animate__fadeIn" role="alert">
-                                    {% if category == 'success' %}
-                                        <i class="fas fa-check-circle me-2"></i>
-                                    {% elif category == 'danger' %}
-                                        <i class="fas fa-exclamation-circle me-2"></i>
-                                    {% elif category == 'warning' %}
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                    {% elif category == 'info' %}
-                                        <i class="fas fa-info-circle me-2"></i>
-                                    {% endif %}
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-
-                    <form method="POST" action="{{ url_for('send_invitations') }}" id="inviteForm">
+                    <p class="lead mb-4">
+                        Invite your friends to join DevelopSriLanka.com and help them take control of their finances and tax strategies.
+                    </p>
+                    
+                    <form action="{{ url_for('send_invitations') }}" method="post">
                         <div class="mb-4">
                             <label for="emails" class="form-label">Email Addresses</label>
-                            <textarea class="form-control" id="emails" name="emails" rows="4" placeholder="Enter email addresses separated by commas" required></textarea>
-                            <div class="form-text">You can enter multiple email addresses separated by commas.</div>
+                            <textarea class="form-control" id="emails" name="emails" rows="3" placeholder="Enter email addresses separated by commas"></textarea>
+                            <small class="text-muted">Example: friend@example.com, coworker@company.com</small>
                         </div>
                         
                         <div class="mb-4">
                             <label for="message" class="form-label">Personal Message (Optional)</label>
-                            <textarea class="form-control" id="message" name="message" rows="3" placeholder="Add a personal message to your invitation"></textarea>
+                            <textarea class="form-control" id="message" name="message" rows="4" placeholder="Add a personal message to your invitation"></textarea>
                         </div>
                         
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
+                            <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-paper-plane me-2"></i> Send Invitations
                             </button>
                             <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary">
@@ -61,59 +36,59 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Social Sharing Section -->
+            
             <div class="card border-0 shadow mt-4">
                 <div class="card-body p-4">
-                    <h4 class="card-title mb-3">Share on Social Media</h4>
-                    <p class="text-muted mb-4">Spread the word about Develop Sri Lanka on your social networks!</p>
-                    
-                    <div class="d-flex justify-content-center gap-3">
-                        <a href="https://www.facebook.com/sharer/sharer.php?u=https://developsrilanka.com" target="_blank" class="btn btn-outline-primary">
-                            <i class="fab fa-facebook-f me-2"></i> Facebook
-                        </a>
-                        <a href="https://twitter.com/intent/tweet?text=Join%20me%20on%20Develop%20Sri%20Lanka%20to%20track%20your%20tax%20contributions!&url=https://developsrilanka.com" target="_blank" class="btn btn-outline-info">
-                            <i class="fab fa-twitter me-2"></i> Twitter
-                        </a>
-                        <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://developsrilanka.com" target="_blank" class="btn btn-outline-secondary">
-                            <i class="fab fa-linkedin-in me-2"></i> LinkedIn
-                        </a>
+                    <h5 class="card-title mb-3">Why invite friends?</h5>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="d-flex">
+                                <div class="me-3 text-primary">
+                                    <i class="fas fa-receipt fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6>AI-Powered Receipt Scanning</h6>
+                                    <p class="text-muted small">Help friends track expenses with our smart receipt scanner.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex">
+                                <div class="me-3 text-primary">
+                                    <i class="fas fa-calculator fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6>Tax Strategy Optimization</h6>
+                                    <p class="text-muted small">Empower friends to optimize their tax strategy with intelligent insights.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex">
+                                <div class="me-3 text-primary">
+                                    <i class="fas fa-file-invoice fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6>Professional Invoicing</h6>
+                                    <p class="text-muted small">Create and manage professional invoices that impress clients.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex">
+                                <div class="me-3 text-primary">
+                                    <i class="fas fa-building fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6>Multi-Organization Support</h6>
+                                    <p class="text-muted small">Manage personal finances and multiple businesses in one place.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const inviteForm = document.getElementById('inviteForm');
-    
-    inviteForm.addEventListener('submit', function(e) {
-        // Basic validation
-        const emailField = document.getElementById('emails');
-        const emails = emailField.value.split(',').map(email => email.trim());
-        
-        let valid = true;
-        const invalidEmails = [];
-        
-        // Simple email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
-        emails.forEach(function(email) {
-            if (email && !emailRegex.test(email)) {
-                valid = false;
-                invalidEmails.push(email);
-            }
-        });
-        
-        if (!valid) {
-            e.preventDefault();
-            alert('Please check the following email addresses:\n' + invalidEmails.join('\n'));
-        }
-    });
-});
-</script>
 {% endblock %}
