@@ -4,8 +4,9 @@ import base64
 import logging
 import time
 import traceback  # Added import
+import uuid
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file, g
 import google.generativeai as genai
 from PIL import Image
@@ -77,7 +78,7 @@ login_manager.login_message = 'Please log in to access this page.'
 @login_manager.user_loader
 def load_user(user_id):
     # Import here to avoid circular imports
-    from models import User
+    from models import User, FriendInvitation
     return User.query.get(int(user_id))
 
 # Setup OAuth
@@ -2077,6 +2078,47 @@ def send_invitations():
     return redirect(url_for('invite_friends'))
 
 # Email sending function for invitations
+@app.route('/accept-invitation/<token>')
+def accept_friend_invitation(token):
+    """Handle friend invitation acceptance via unique token."""
+    try:
+        # Find the invitation by token
+        invitation = FriendInvitation.query.filter_by(token=token).first()
+        
+        if not invitation:
+            flash("Invalid invitation link. The invitation may have been removed or the link is incorrect.", "danger")
+            return redirect(url_for('home'))
+            
+        # Check if invitation has expired
+        if invitation.expires_at < datetime.utcnow():
+            flash("This invitation has expired. Please ask your friend to send a new invitation.", "warning")
+            return redirect(url_for('home'))
+            
+        # Check if invitation has already been accepted
+        if invitation.accepted:
+            flash("You have already accepted this invitation. Please log in to continue.", "info")
+            return redirect(url_for('login'))
+            
+        # If user is logged in, mark as accepted
+        if current_user.is_authenticated:
+            invitation.accepted = True
+            invitation.accepted_at = datetime.utcnow()
+            invitation.accepted_by_user_id = current_user.id
+            db.session.commit()
+            
+            flash(f"You've successfully accepted the invitation from {invitation.sender.name}!", "success")
+            return redirect(url_for('profile'))
+        else:
+            # Store token in session for after registration/login
+            session['invitation_token'] = token
+            flash("Please sign up or log in to accept the invitation.", "info")
+            return redirect(url_for('register', invitation=token))
+    
+    except Exception as e:
+        logging.error(f"Error processing invitation acceptance: {str(e)}")
+        flash("An error occurred while processing the invitation. Please try again later.", "danger")
+        return redirect(url_for('home'))
+
 def send_invitation_email(to_email, from_user, personal_message='', token=None):
     """
     Send an invitation email to a friend using SendGrid.
