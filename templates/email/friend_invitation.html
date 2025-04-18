@@ -91,7 +91,11 @@
             {% endif %}
             
             <div style="text-align: center;">
+                {% if token %}
+                <a href="{{ app_url }}/accept-invitation/{{ token }}" class="button">Join Now</a>
+                {% else %}
                 <a href="{{ app_url }}/login" class="button">Join Now</a>
+                {% endif %}
             </div>
         </div>
         

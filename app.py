@@ -2020,8 +2020,38 @@ def send_invitations():
                 # Convert to normal form (lowercase, etc)
                 normalized_email = valid.email
                 
+                # Check for existing invitation
+                existing_invitation = FriendInvitation.query.filter_by(
+                    invited_by_user_id=current_user.id,
+                    email=normalized_email,
+                    accepted=False
+                ).first()
+                
+                if existing_invitation and not existing_invitation.is_expired():
+                    # Update the invitation rather than creating a new one
+                    expires_at = datetime.utcnow() + timedelta(days=7)
+                    existing_invitation.expires_at = expires_at
+                    existing_invitation.personal_message = personal_message
+                    db.session.commit()
+                    invitation = existing_invitation
+                else:
+                    # Create a new invitation with token
+                    token = str(uuid.uuid4())
+                    expires_at = datetime.utcnow() + timedelta(days=7)
+                    
+                    invitation = FriendInvitation(
+                        invited_by_user_id=current_user.id,
+                        email=normalized_email,
+                        token=token,
+                        expires_at=expires_at,
+                        personal_message=personal_message
+                    )
+                    
+                    db.session.add(invitation)
+                    db.session.commit()
+                
                 # Send invitation email
-                if send_invitation_email(normalized_email, current_user, personal_message):
+                if send_invitation_email(normalized_email, current_user, personal_message, invitation.token):
                     sent_count += 1
                     logging.info(f"Successfully sent invitation to {normalized_email}")
                 else:
@@ -2047,7 +2077,7 @@ def send_invitations():
     return redirect(url_for('invite_friends'))
 
 # Email sending function for invitations
-def send_invitation_email(to_email, from_user, personal_message=''):
+def send_invitation_email(to_email, from_user, personal_message='', token=None):
     """
     Send an invitation email to a friend using SendGrid.
     
@@ -2055,6 +2085,7 @@ def send_invitation_email(to_email, from_user, personal_message=''):
         to_email: Recipient's email address
         from_user: User object of the sender
         personal_message: Optional personal message
+        token: Optional invitation token for tracking acceptance
         
     Returns:
         Boolean indicating success or failure
@@ -2102,6 +2133,7 @@ def send_invitation_email(to_email, from_user, personal_message=''):
                                 sender=from_user,
                                 personal_message=personal_message,
                                 app_url=app_url,
+                                token=token,
                                 current_year=datetime.utcnow().year)
         
         # Use the verified sender email address from SendGrid account
