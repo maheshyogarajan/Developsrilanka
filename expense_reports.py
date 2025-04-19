@@ -868,98 +868,102 @@ def api_expense_summary():
         start_date_str = request.args.get('start_date')
         end_date_str = request.args.get('end_date')
         organization_id = request.args.get('organization_id', type=int)
-    
-    # Default date range (current month)
-    today = datetime.today()
-    start_of_month = datetime(today.year, today.month, 1)
-    end_of_month = start_of_month + relativedelta(months=1, days=-1)
-    
-    # Parse date parameters
-    try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
-    except ValueError:
-        # Handle invalid date format
-        start_date = start_of_month
-        end_date = end_of_month
-    
-    # Get organizations the user has access to
-    user_organizations = db.session.query(Organization)\
-        .join(OrganizationUser)\
-        .filter(OrganizationUser.user_id == current_user.id)\
-        .all()
-    
-    # Prepare the filter conditions
-    filters = []
-    
-    # Always filter by date range
-    filters.append(Receipt.date.between(start_date, end_date))
-    
-    # If organization is specified, filter by organization
-    if organization_id:
-        # Check if user has access to the organization
-        if any(org.id == organization_id for org in user_organizations):
-            filters.append(CompanyExpense.organization_id == organization_id)
-        else:
-            return jsonify({'error': 'Access denied to specified organization'}), 403
-    else:
-        # Filter for expenses in user's organizations
-        org_ids = [org.id for org in user_organizations]
-        filters.append(CompanyExpense.organization_id.in_(org_ids))
-    
-    # Fetch expenses based on filters
-    expenses = db.session.query(CompanyExpense)\
-        .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
-        .filter(*filters)\
-        .options(
-            joinedload(CompanyExpense.receipt)
-        )\
-        .all()
-    
-    # Calculate status breakdown
-    status_data = {}
-    for expense in expenses:
-        status = expense.status
-        if status in status_data:
-            status_data[status] += expense.receipt.total_amount if expense.receipt else 0
-        else:
-            status_data[status] = expense.receipt.total_amount if expense.receipt else 0
-    
-    # Calculate category breakdown
-    category_data = {}
-    for expense in expenses:
-        if expense.receipt and expense.receipt.expense_major_category:
-            category = expense.receipt.expense_major_category
-            if category in category_data:
-                category_data[category] += expense.receipt.total_amount
+        
+        # Default date range (current month)
+        today = datetime.today()
+        start_of_month = datetime(today.year, today.month, 1)
+        end_of_month = start_of_month + relativedelta(months=1, days=-1)
+        
+        # Parse date parameters
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
+        except ValueError:
+            # Handle invalid date format
+            start_date = start_of_month
+            end_date = end_of_month
+        
+        # Get organizations the user has access to
+        user_organizations = db.session.query(Organization)\
+            .join(OrganizationUser)\
+            .filter(OrganizationUser.user_id == current_user.id)\
+            .all()
+        
+        # Prepare the filter conditions
+        filters = []
+        
+        # Always filter by date range
+        filters.append(Receipt.date.between(start_date, end_date))
+        
+        # If organization is specified, filter by organization
+        if organization_id:
+            # Check if user has access to the organization
+            if any(org.id == organization_id for org in user_organizations):
+                filters.append(CompanyExpense.organization_id == organization_id)
             else:
-                category_data[category] = expense.receipt.total_amount
-    
-    # Monthly trend
-    monthly_data = {}
-    for expense in expenses:
-        if expense.receipt and expense.receipt.date:
-            month_key = expense.receipt.date.strftime('%Y-%m')
-            month_name = expense.receipt.date.strftime('%b %Y')
-            if month_key in monthly_data:
-                monthly_data[month_key]['amount'] += expense.receipt.total_amount
-                monthly_data[month_key]['count'] += 1
+                return jsonify({'error': 'Access denied to specified organization'}), 403
+        else:
+            # Filter for expenses in user's organizations
+            org_ids = [org.id for org in user_organizations]
+            filters.append(CompanyExpense.organization_id.in_(org_ids))
+        
+        # Fetch expenses based on filters
+        expenses = db.session.query(CompanyExpense)\
+            .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(*filters)\
+            .options(
+                joinedload(CompanyExpense.receipt)
+            )\
+            .all()
+        
+        # Calculate status breakdown
+        status_data = {}
+        for expense in expenses:
+            status = expense.status
+            if status in status_data:
+                status_data[status] += expense.receipt.total_amount if expense.receipt else 0
             else:
-                monthly_data[month_key] = {
-                    'label': month_name,
-                    'amount': expense.receipt.total_amount,
-                    'count': 1
-                }
-    
-    # Sort monthly data by date
-    sorted_monthly_data = dict(sorted(monthly_data.items()))
-    
-    # Return JSON data for charts
-    return jsonify({
-        'status_data': status_data,
-        'category_data': category_data,
-        'monthly_data': list(sorted_monthly_data.values())
-    })
+                status_data[status] = expense.receipt.total_amount if expense.receipt else 0
+        
+        # Calculate category breakdown
+        category_data = {}
+        for expense in expenses:
+            if expense.receipt and expense.receipt.expense_major_category:
+                category = expense.receipt.expense_major_category
+                if category in category_data:
+                    category_data[category] += expense.receipt.total_amount
+                else:
+                    category_data[category] = expense.receipt.total_amount
+        
+        # Monthly trend
+        monthly_data = {}
+        for expense in expenses:
+            if expense.receipt and expense.receipt.date:
+                month_key = expense.receipt.date.strftime('%Y-%m')
+                month_name = expense.receipt.date.strftime('%b %Y')
+                if month_key in monthly_data:
+                    monthly_data[month_key]['amount'] += expense.receipt.total_amount
+                    monthly_data[month_key]['count'] += 1
+                else:
+                    monthly_data[month_key] = {
+                        'label': month_name,
+                        'amount': expense.receipt.total_amount,
+                        'count': 1
+                    }
+        
+        # Sort monthly data by date
+        sorted_monthly_data = dict(sorted(monthly_data.items()))
+        
+        # Return JSON data for charts
+        return jsonify({
+            'status_data': status_data,
+            'category_data': category_data,
+            'monthly_data': list(sorted_monthly_data.values())
+        })
+    except Exception as e:
+        # Log the error and return a JSON error response
+        current_app.logger.error(f"Error generating expense summary API data: {str(e)}")
+        return jsonify({'error': 'An error occurred while generating expense data'}), 500
 
 def register_routes(app):
     """Register expense report routes with the app."""
