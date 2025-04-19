@@ -1138,7 +1138,8 @@ def print_expense_report():
             report_title=report_title,
             start_date=start_date.strftime('%Y-%m-%d'),
             end_date=end_date.strftime('%Y-%m-%d'),
-            user=current_user
+            user=current_user,
+            user_organizations=user_organizations
         )
     except Exception as e:
         # Log the error and return a friendly error page
