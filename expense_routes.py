@@ -537,6 +537,9 @@ def update_expense_ajax(expense_id):
         if 'notes' in data:
             expense.notes = data['notes']
             
+        if 'vendor_name' in data:
+            expense.vendor_name = data['vendor_name']
+            
         # Handle organization and client updates (with validation)
         if 'organization_id' in data:
             if data['organization_id']:
@@ -587,7 +590,8 @@ def update_expense_ajax(expense_id):
                 'client_id': expense.client_id,
                 'client_name': client_name,
                 'is_reimbursable': expense.is_reimbursable,
-                'notes': expense.notes
+                'notes': expense.notes,
+                'vendor_name': expense.vendor_name
             }
         })
     
