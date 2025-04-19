@@ -153,6 +153,14 @@ try:
 except Exception as e:
     logger.error(f"Error loading Getting Started wizard routes: {str(e)}")
 
+# Register Expense Reports routes
+try:
+    import expense_reports
+    expense_reports.register_routes(app)
+    logger.info("Expense Reporting routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading Expense Reporting routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
