@@ -220,13 +220,14 @@
             <div class="col-md-6 text-end">
                 <h5>Actions</h5>
                 <div class="action-buttons">
-                    <button id="toggleEditMode" class="btn btn-primary btn-sm">
-                        <i class="fas fa-edit"></i> Edit Receipt
-                    </button>
-                    
-                    {% if not is_company_expense and not is_client_expense and (user_org_role == 'owner' or user_org_role == 'admin' or user_org_role == 'member') %}
-                        <button id="toggleClassification" class="btn btn-success btn-sm">
-                            <i class="fas fa-briefcase"></i> Classify as Business Expense
+                    {% if is_company_expense and expense.status != 'submitted' %}
+                        <!-- Disable Edit Receipt button for approved expenses -->
+                        <button id="toggleEditMode" class="btn btn-primary btn-sm" disabled title="Approved expenses cannot be edited">
+                            <i class="fas fa-edit"></i> Edit Receipt
+                        </button>
+                    {% else %}
+                        <button id="toggleEditMode" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Edit Receipt
                         </button>
                     {% endif %}
                     
@@ -406,64 +407,7 @@
         </div>
     </div>
 
-    <!-- Receipt Classification Form (Initially Hidden) -->
-    <div id="classificationForm" class="receipt-classification-form">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="fas fa-briefcase"></i> Classify Receipt</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('expense.create_expense_from_receipt', receipt_id=receipt.id) }}" method="POST">
-                    <input type="hidden" name="receipt_id" value="{{ receipt.id }}">
-                    
-                    <div class="form-group">
-                        <label for="description">Description:</label>
-                        <textarea name="description" id="description" class="form-control" rows="2">{{ receipt.vendor_name }} - {{ receipt.receipt_number }}</textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="is_reimbursable" id="is_reimbursable" checked>
-                            <label class="form-check-label" for="is_reimbursable">
-                                Reimbursable expense
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="organization_id">Organization:</label>
-                        <select name="organization_id" id="organization_id" class="form-control">
-                            {% for org in organizations %}
-                            <option value="{{ org.id }}" {% if organization and organization.id == org.id %}selected{% endif %}>{{ org.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="client_id">Allocate to Client:</label>
-                        <select name="client_id" id="client_id" class="form-control">
-                            <option value="">-- None --</option>
-                            <!-- Client options will be populated by JavaScript -->
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="notes">Notes:</label>
-                        <textarea name="notes" id="notes" class="form-control" rows="2"></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save"></i> Save as Business Expense
-                        </button>
-                        <button type="button" id="cancelClassification" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    <!-- Removed classification section as per request -->
 </div>
 
 <!-- Receipt Image Modal -->
