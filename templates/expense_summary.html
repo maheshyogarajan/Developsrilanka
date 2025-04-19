@@ -13,6 +13,13 @@
   .report-card:hover {
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
   }
+  .datepicker {
+    background-color: #fff;
+    cursor: pointer;
+  }
+  .flatpickr-calendar {
+    z-index: 1000 !important;
+  }
   .filter-section {
     background-color: #f8f9fa;
     border-radius: 8px;
@@ -159,9 +166,9 @@
               <div class="mb-3">
                 <label class="filter-label" for="date-range">Date Range</label>
                 <div class="input-group">
-                  <input type="text" id="start_date" name="start_date" class="form-control" value="{{ start_date }}" placeholder="Start Date">
+                  <input type="text" id="start_date" name="start_date" class="form-control datepicker" value="{{ start_date }}" placeholder="Start Date">
                   <span class="input-group-text">to</span>
-                  <input type="text" id="end_date" name="end_date" class="form-control" value="{{ end_date }}" placeholder="End Date">
+                  <input type="text" id="end_date" name="end_date" class="form-control datepicker" value="{{ end_date }}" placeholder="End Date">
                 </div>
               </div>
             </div>
@@ -472,10 +479,34 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-  // Parse data from server
-  const categoryData = JSON.parse('{{ category_data|safe }}');
-  const statusData = JSON.parse('{{ status_data|safe }}');
-  const monthlyData = JSON.parse('{{ monthly_data|safe }}');
+  // Parse data from server with error handling
+  let categoryData = {};
+  let statusData = {};
+  let monthlyData = [];
+  
+  try {
+    categoryData = JSON.parse('{{ category_data|safe }}');
+    console.log("Category data loaded successfully");
+  } catch (e) {
+    console.error("Error parsing category data:", e);
+    categoryData = {}; 
+  }
+  
+  try {
+    statusData = JSON.parse('{{ status_data|safe }}');
+    console.log("Status data loaded successfully");
+  } catch (e) {
+    console.error("Error parsing status data:", e);
+    statusData = {};
+  }
+  
+  try {
+    monthlyData = JSON.parse('{{ monthly_data|safe }}');
+    console.log("Monthly data loaded successfully");
+  } catch (e) {
+    console.error("Error parsing monthly data:", e);
+    monthlyData = [];
+  }
 
   // Prepare chart colors
   const chartColors = [
@@ -484,15 +515,21 @@
   ];
 
   document.addEventListener('DOMContentLoaded', function() {
-    // Initialize date pickers
+    console.log("Initializing date pickers and charts");
+    
+    // Initialize date pickers with more configuration
     flatpickr("#start_date", {
       dateFormat: "Y-m-d",
-      allowInput: true
+      allowInput: true,
+      disableMobile: true,
+      defaultDate: "{{ start_date }}"
     });
     
     flatpickr("#end_date", {
       dateFormat: "Y-m-d",
-      allowInput: true
+      allowInput: true,
+      disableMobile: true,
+      defaultDate: "{{ end_date }}"
     });
 
     // Initialize category chart
