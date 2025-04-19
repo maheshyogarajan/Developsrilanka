@@ -14,7 +14,10 @@
     .receipt-image {
         max-width: 100%;
         border-radius: 5px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        border: 2px solid #dee2e6;
+        margin-bottom: 15px;
+        max-height: 350px;
     }
     .receipt-frame {
         padding: 10px;
@@ -25,6 +28,10 @@
         max-height: 600px;
         overflow: auto;
         text-align: center;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        background-color: #f8f9fa;
     }
     .no-receipt-image {
         padding: 30px;
@@ -372,7 +379,7 @@
                                     <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
                                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                                     <div class="mt-3">
-                                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#receiptImageModal" style="margin-top: 15px; padding: 8px 15px; font-size: 16px; display: block; width: 100%;">
                                             <i class="fas fa-search-plus me-1"></i> View Full Image
                                         </button>
                                     </div>
