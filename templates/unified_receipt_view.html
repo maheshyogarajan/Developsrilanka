@@ -220,11 +220,20 @@
             <div class="col-md-6 text-end">
                 <h5>Actions</h5>
                 <div class="action-buttons">
-                    {% if is_company_expense and expense.status != 'submitted' %}
-                        <!-- Disable Edit Receipt button for approved expenses -->
-                        <button id="toggleEditMode" class="btn btn-primary btn-sm" disabled title="Approved expenses cannot be edited">
-                            <i class="fas fa-edit"></i> Edit Receipt
-                        </button>
+                    {% if is_company_expense %}
+                        {% if expense.status != 'submitted' %}
+                            <!-- Disable Edit Receipt button for approved expenses -->
+                            <a href="{{ url_for('expense.view_expense', expense_id=expense.id) }}" 
+                               class="btn btn-primary btn-sm" title="View expense details">
+                                <i class="fas fa-eye"></i> View Expense
+                            </a>
+                        {% else %}
+                            <!-- Link to expense edit page -->
+                            <a href="{{ url_for('expense.view_expense', expense_id=expense.id) }}" 
+                               class="btn btn-primary btn-sm">
+                                <i class="fas fa-edit"></i> Edit Expense
+                            </a>
+                        {% endif %}
                     {% else %}
                         <button id="toggleEditMode" class="btn btn-primary btn-sm">
                             <i class="fas fa-edit"></i> Edit Receipt
