@@ -39,6 +39,14 @@ def expense_summary():
         client_id = request.args.get('client_id', type=int)
         status = request.args.get('status')
         category = request.args.get('category')
+        reimbursable_str = request.args.get('reimbursable')
+        
+        # Convert reimbursable string parameter to boolean if present
+        reimbursable = None
+        if reimbursable_str == '1':
+            reimbursable = True
+        elif reimbursable_str == '0':
+            reimbursable = False
         
         # Get current date and set default date range to current month if not provided
         today = datetime.today()
@@ -90,6 +98,10 @@ def expense_summary():
         # Filter by receipt category if specified
         if category:
             filters.append(Receipt.expense_major_category == category)
+            
+        # Filter by reimbursable status if specified
+        if reimbursable is not None:
+            filters.append(CompanyExpense.is_reimbursable == reimbursable)
         
         # Get all expense categories for filter dropdown
         expense_categories = db.session.query(Receipt.expense_major_category)\
