@@ -229,3 +229,27 @@ def can_view_organization_receipts(organization_id, user_id=None):
         
     # Owner and admin roles can view all receipts
     return org_user.role in ['owner', 'admin']
+
+def check_organization_permission(user_id, organization_id, required_roles):
+    """
+    Check if a user has the required role in an organization.
+    
+    Args:
+        user_id: The user ID to check
+        organization_id: The organization ID to check
+        required_roles: List of roles that have permission (e.g., ['owner', 'admin'])
+        
+    Returns:
+        Boolean indicating whether user has permission
+        
+    Example:
+        check_organization_permission(current_user.id, expense.organization_id, ['owner', 'admin'])
+    """
+    from models import OrganizationUser
+    
+    org_user = OrganizationUser.query.filter_by(
+        user_id=user_id,
+        organization_id=organization_id
+    ).first()
+    
+    return org_user is not None and org_user.role in required_roles

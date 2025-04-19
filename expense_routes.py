@@ -244,31 +244,16 @@ def submit_expense():
 @login_required
 def view_expense(expense_id):
     """View a specific expense."""
-    # Get user's default organization
-    default_org = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
-    
-    organization_id = default_org[0] if default_org else None
-    
-    # Get user's role in organization
-    role_result = db.session.execute(text("""
-        SELECT role FROM organization_user
-        WHERE user_id = :user_id AND organization_id = :org_id
-        LIMIT 1
-    """), {'user_id': current_user.id, 'org_id': organization_id}).first()
-    
-    user_org_role = role_result[0] if role_result else None
-    
-    # Get the expense with detailed information using ORM instead of raw SQL
+    # Get the expense first
     expense_obj = CompanyExpense.query.get_or_404(expense_id)
     
     # Check if user has permission to view this expense
-    # Allow if: user is the submitter, or user is owner/admin of the organization
-    if expense_obj.user_id != current_user.id and user_org_role not in ['owner', 'admin']:
-        abort(403)
+    # Allow if: user is the submitter, or user is owner/admin of the expense's organization
+    if expense_obj.user_id != current_user.id:
+        # Check role in the expense's organization
+        from utils import check_organization_permission
+        if not check_organization_permission(current_user.id, expense_obj.organization_id, ['owner', 'admin']):
+            abort(403)  # User doesn't have permission in this organization
     
     # Get the related receipt
     receipt = Receipt.query.get_or_404(expense_obj.receipt_id)
@@ -372,35 +357,17 @@ def view_expense(expense_id):
 @login_required
 def approve_expense(expense_id):
     """Approve an expense for reimbursement (admin/owner only)."""
-    # Get user's default organization
-    default_org = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
-    
-    organization_id = default_org[0] if default_org else None
-    
-    # Get user's role in organization
-    role_result = db.session.execute(text("""
-        SELECT role FROM organization_user
-        WHERE user_id = :user_id AND organization_id = :org_id
-        LIMIT 1
-    """), {'user_id': current_user.id, 'org_id': organization_id}).first()
-    
-    user_org_role = role_result[0] if role_result else None
-    
-    # Check if user has permission to approve expenses
-    if user_org_role not in ['owner', 'admin']:
-        abort(403)
-    
     try:
-        # Get the expense
+        # First get the expense
         expense = CompanyExpense.query.get_or_404(expense_id)
         
-        # Verify the expense belongs to user's organization
-        if expense.organization_id != organization_id:
-            abort(403)
+        # Get organization ID from the expense
+        organization_id = expense.organization_id
+        
+        # Use the helper function to check permission in the expense's organization
+        from utils import check_organization_permission
+        if not check_organization_permission(current_user.id, organization_id, ['owner', 'admin']):
+            abort(403)  # User doesn't have permission in this organization
         
         # Can only approve submitted expenses
         if expense.status != ExpenseStatus.SUBMITTED.value:
@@ -427,35 +394,17 @@ def approve_expense(expense_id):
 @login_required
 def reject_expense(expense_id):
     """Reject an expense (admin/owner only)."""
-    # Get user's default organization
-    default_org = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
-    
-    organization_id = default_org[0] if default_org else None
-    
-    # Get user's role in organization
-    role_result = db.session.execute(text("""
-        SELECT role FROM organization_user
-        WHERE user_id = :user_id AND organization_id = :org_id
-        LIMIT 1
-    """), {'user_id': current_user.id, 'org_id': organization_id}).first()
-    
-    user_org_role = role_result[0] if role_result else None
-    
-    # Check if user has permission to reject expenses
-    if user_org_role not in ['owner', 'admin']:
-        abort(403)
-    
     try:
-        # Get the expense
+        # First get the expense
         expense = CompanyExpense.query.get_or_404(expense_id)
         
-        # Verify the expense belongs to user's organization
-        if expense.organization_id != organization_id:
-            abort(403)
+        # Get organization ID from the expense
+        organization_id = expense.organization_id
+        
+        # Use the helper function to check permission in the expense's organization
+        from utils import check_organization_permission
+        if not check_organization_permission(current_user.id, organization_id, ['owner', 'admin']):
+            abort(403)  # User doesn't have permission in this organization
         
         # Can reject submitted or approved expenses
         if expense.status not in [ExpenseStatus.SUBMITTED.value, ExpenseStatus.APPROVED.value]:
@@ -517,35 +466,17 @@ def cancel_expense(expense_id):
 @login_required
 def mark_reimbursed(expense_id):
     """Mark an expense as reimbursed (admin/owner only)."""
-    # Get user's default organization
-    default_org = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
-    
-    organization_id = default_org[0] if default_org else None
-    
-    # Get user's role in organization
-    role_result = db.session.execute(text("""
-        SELECT role FROM organization_user
-        WHERE user_id = :user_id AND organization_id = :org_id
-        LIMIT 1
-    """), {'user_id': current_user.id, 'org_id': organization_id}).first()
-    
-    user_org_role = role_result[0] if role_result else None
-    
-    # Check if user has permission to mark expenses as reimbursed
-    if user_org_role not in ['owner', 'admin']:
-        abort(403)
-    
     try:
-        # Get the expense
+        # First get the expense
         expense = CompanyExpense.query.get_or_404(expense_id)
         
-        # Verify the expense belongs to user's organization
-        if expense.organization_id != organization_id:
-            abort(403)
+        # Get organization ID from the expense
+        organization_id = expense.organization_id
+        
+        # Use the helper function to check permission in the expense's organization
+        from utils import check_organization_permission
+        if not check_organization_permission(current_user.id, organization_id, ['owner', 'admin']):
+            abort(403)  # User doesn't have permission in this organization
         
         # Can only reimburse approved expenses
         if expense.status != ExpenseStatus.APPROVED.value:
