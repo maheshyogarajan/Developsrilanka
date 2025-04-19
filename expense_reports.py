@@ -188,7 +188,7 @@ def expense_summary():
                                     and expense.status == ExpenseStatus.APPROVED.value)
         
         return render_template(
-            'expense_summary.html',
+            'expense_report.html',
             expenses=expenses,
             total_amount=total_amount,
             reimbursable_amount=reimbursable_amount,
@@ -207,6 +207,7 @@ def expense_summary():
             selected_client_id=client_id,
             selected_status=status,
             selected_category=category,
+            selected_reimbursable=reimbursable,
             start_date=start_date.strftime('%Y-%m-%d'),
             end_date=end_date.strftime('%Y-%m-%d')
         )
