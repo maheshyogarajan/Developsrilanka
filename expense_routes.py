@@ -544,7 +544,13 @@ def update_expense_ajax(expense_id):
             expense.notes = data['notes']
             
         if 'vendor_name' in data:
-            expense.vendor_name = data['vendor_name']
+            # Get the associated receipt and update its vendor_name
+            receipt = Receipt.query.get(expense.receipt_id)
+            if receipt:
+                receipt.vendor_name = data['vendor_name']
+            else:
+                logging.error(f"Receipt not found for expense {expense_id}")
+                return jsonify({'success': False, 'error': 'Receipt not found'}), 404
             
         # Handle organization and client updates (with validation)
         if 'organization_id' in data:
@@ -585,6 +591,10 @@ def update_expense_ajax(expense_id):
         if expense.client_id:
             client = Client.query.get(expense.client_id)
             client_name = client.name if client else None
+            
+        # Get the receipt again to include its vendor_name in the response
+        receipt = Receipt.query.get(expense.receipt_id)
+        receipt_vendor_name = receipt.vendor_name if receipt else ""
         
         return jsonify({
             'success': True, 
@@ -597,7 +607,7 @@ def update_expense_ajax(expense_id):
                 'client_name': client_name,
                 'is_reimbursable': expense.is_reimbursable,
                 'notes': expense.notes,
-                'vendor_name': expense.vendor_name
+                'vendor_name': receipt_vendor_name  # Use the receipt's vendor_name
             }
         })
     
