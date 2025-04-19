@@ -607,6 +607,8 @@
                 if (fieldName === 'client') {
                     originalValues.client_id = data.expense.client_id;
                     originalValues.client_name = data.expense.client_name;
+                } else if (fieldName === 'reimbursable') {
+                    originalValues.reimbursable = data.expense.is_reimbursable;
                 } else {
                     originalValues[fieldName] = data.expense[fieldName];
                 }
@@ -619,7 +621,9 @@
         })
         .catch(error => {
             console.error('Error saving field:', error);
-            showToast('Error saving changes. Please try again.', 'danger');
+            console.error('Field name:', fieldName);
+            console.error('Data sent:', JSON.stringify(data));
+            showToast('Error saving changes. Please try again. See console for details.', 'danger');
         })
         .finally(() => {
             // Restore button

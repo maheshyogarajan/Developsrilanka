@@ -511,16 +511,22 @@ def mark_reimbursed(expense_id):
 @expense_bp.route('/expenses/<int:expense_id>/update-ajax', methods=['POST'])
 @login_required
 def update_expense_ajax(expense_id):
+    import logging
     """Update an expense via AJAX."""
     # Get the expense
     expense = CompanyExpense.query.get_or_404(expense_id)
     
+    # Log the received data for debugging
+    logging.info(f"Update expense {expense_id} request data: {request.json}")
+    
     # Verify the expense belongs to the current user or user has proper permissions
     if expense.user_id != current_user.id and not check_organization_permission(current_user.id, expense.organization_id, ['owner', 'admin']):
+        logging.warning(f"Permission denied for user {current_user.id} to update expense {expense_id}")
         return jsonify({'success': False, 'error': 'You do not have permission to edit this expense'}), 403
     
     # Verify expense is still in submitted status
     if expense.status != ExpenseStatus.SUBMITTED.value:
+        logging.warning(f"Cannot edit expense {expense_id} because it has status {expense.status}")
         return jsonify({'success': False, 'error': 'This expense cannot be edited because it has been processed'}), 400
     
     # Get JSON data
@@ -597,7 +603,14 @@ def update_expense_ajax(expense_id):
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logging.error(f"Error updating expense {expense_id}: {str(e)}")
+        logging.error(f"Request data: {data}")
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'request_data': data,  # Echo back the data for debugging
+            'field_names': list(data.keys()) if data else []
+        }), 500
 
 
 @expense_bp.route('/receipts/<int:receipt_id>/create-expense', methods=['GET', 'POST'])
