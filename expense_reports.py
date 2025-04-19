@@ -41,6 +41,11 @@ def expense_summary():
         category = request.args.get('category')
         reimbursable_str = request.args.get('reimbursable')
         
+        # Log received filter parameters for debugging
+        current_app.logger.debug(f"Received filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
+                               f"organization_id={organization_id}, client_id={client_id}, "
+                               f"status={status}, category={category}, reimbursable={reimbursable_str}")
+        
         # Convert reimbursable string parameter to boolean if present
         reimbursable = None
         if reimbursable_str == '1':
@@ -94,14 +99,17 @@ def expense_summary():
         # Filter by status if specified
         if status:
             filters.append(CompanyExpense.status == status)
+            current_app.logger.debug(f"Adding status filter: {status}")
         
         # Filter by receipt category if specified
         if category:
             filters.append(Receipt.expense_major_category == category)
+            current_app.logger.debug(f"Adding category filter: {category}")
             
         # Filter by reimbursable status if specified
         if reimbursable is not None:
             filters.append(CompanyExpense.is_reimbursable == reimbursable)
+            current_app.logger.debug(f"Adding reimbursable filter: {reimbursable}")
         
         # Get all expense categories for filter dropdown
         expense_categories = db.session.query(Receipt.expense_major_category)\
