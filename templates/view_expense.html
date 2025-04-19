@@ -547,7 +547,7 @@
         saveBtn.disabled = true;
         
         // Send update to server
-        fetch(`/expenses/expenses/${expenseId}/update-ajax`, {
+        fetch(`{{ url_for('expense.update_expense_ajax', expense_id=0) }}`.replace('0', expenseId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
