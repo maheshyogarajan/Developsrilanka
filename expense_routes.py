@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app import db
 from models import CompanyExpense, ExpenseStatus, Receipt, User, Organization, Client, OrganizationUser
 from decorators import role_required
+from utils import check_organization_permission
 
 expense_bp = Blueprint('expense', __name__)
 
