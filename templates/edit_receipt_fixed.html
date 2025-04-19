@@ -469,15 +469,30 @@
         if (receiptTypePersonal && receiptTypeBusiness && businessExpenseDetails) {
             receiptTypePersonal.addEventListener('change', function() {
                 if (this.checked) {
+                    console.log('Switching to personal receipt');
                     businessExpenseDetails.classList.add('d-none');
                 }
             });
             
             receiptTypeBusiness.addEventListener('change', function() {
                 if (this.checked) {
+                    console.log('Switching to business expense');
                     businessExpenseDetails.classList.remove('d-none');
+                    
+                    // If an organization is selected, load clients
+                    const orgSelect = document.getElementById('organization_id');
+                    if (orgSelect && orgSelect.value) {
+                        loadClientListForOrganization(orgSelect.value);
+                    }
                 }
             });
+            
+            // Ensure proper initial state
+            if (receiptTypeBusiness.checked) {
+                businessExpenseDetails.classList.remove('d-none');
+            } else {
+                businessExpenseDetails.classList.add('d-none');
+            }
         }
         
         // Setup client loading for organization dropdowns
@@ -487,6 +502,7 @@
         if (orgSelect && clientSelect) {
             // Add event listener for organization change
             orgSelect.addEventListener('change', function() {
+                console.log('Organization changed to:', this.value);
                 if (this.value) {
                     loadClientListForOrganization(this.value);
                 } else {
@@ -494,6 +510,12 @@
                     clientSelect.innerHTML = '<option value="">-- None --</option>';
                 }
             });
+            
+            // Initial load of clients if an organization is selected
+            if (orgSelect.value) {
+                console.log('Initial load of clients for organization:', orgSelect.value);
+                loadClientListForOrganization(orgSelect.value);
+            }
         }
         
         // Function to load clients for a specific organization
