@@ -200,7 +200,7 @@ def expense_summary():
                                     and expense.status == ExpenseStatus.APPROVED.value)
         
         return render_template(
-            'expense_report.html',
+            'expense_report_fixed.html',
             expenses=expenses,
             total_amount=total_amount,
             reimbursable_amount=reimbursable_amount,
