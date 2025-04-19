@@ -164,7 +164,8 @@ class OrganizationInvitation(db.Model):
     
     # Relationships
     organization = db.relationship('Organization')
-    invited_by = db.relationship('User', foreign_keys=[invited_by_user_id])
+    # Define relationship with User model without backreference (will use sent_invitations in User model)
+    invited_by = db.relationship('User', foreign_keys=[invited_by_user_id], overlaps="sender")
     
     def is_expired(self):
         """Check if the invitation is expired."""
@@ -209,7 +210,11 @@ class User(UserMixin, db.Model):
     clients = db.relationship('Client', backref='user', lazy=True)
     invoices = db.relationship('Invoice', backref='user', lazy=True)
     bank_accounts = db.relationship('BankAccount', backref='user', lazy=True)
-    sent_invitations = db.relationship('OrganizationInvitation', foreign_keys='OrganizationInvitation.invited_by_user_id', backref='sender', lazy=True)
+    sent_invitations = db.relationship('OrganizationInvitation', 
+                                 foreign_keys='OrganizationInvitation.invited_by_user_id', 
+                                 backref='sender', 
+                                 lazy=True,
+                                 overlaps="invited_by")
     # This relationship is defined in onboarding_models.py with backref
     
     def is_admin(self):
