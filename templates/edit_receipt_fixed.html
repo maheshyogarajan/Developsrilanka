@@ -19,6 +19,14 @@
         margin-bottom: 15px;
         max-height: 350px;
     }
+    .clickable-image {
+        cursor: pointer;
+        transition: transform 0.2s ease-in-out;
+    }
+    .clickable-image:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
     .receipt-frame {
         padding: 10px;
         background-color: #f8f9fa;
@@ -376,12 +384,11 @@
                         <div class="receipt-frame">
                             {% if receipt.image_url %}
                                 <div class="receipt-thumbnail-container">
-                                    <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
+                                    <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image clickable-image" 
+                                        data-bs-toggle="modal" data-bs-target="#receiptImageModal"
                                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
-                                    <div class="mt-3">
-                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#receiptImageModal" style="margin-top: 15px; padding: 8px 15px; font-size: 16px; display: block; width: 100%;">
-                                            <i class="fas fa-search-plus me-1"></i> View Full Image
-                                        </button>
+                                    <div class="text-center mt-2">
+                                        <small class="text-muted">Click image to enlarge</small>
                                     </div>
                                 </div>
                             {% else %}
