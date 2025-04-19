@@ -342,13 +342,6 @@
                     
                     <!-- Edit button for submitter -->
                     {% if expense.user_id == current_user.id and expense.status == 'submitted' %}
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <a href="{{ url_for('expense.edit_expense', expense_id=expense.id) }}" class="btn btn-secondary">
-                                <i class="fas fa-edit me-2"></i>Edit Expense
-                            </a>
-                        </div>
-                    </div>
                     {% endif %}
                 </div>
             </div>

@@ -509,67 +509,6 @@ def mark_reimbursed(expense_id):
         return redirect(url_for('expense.view_expense', expense_id=expense_id))
 
 @expense_bp.route('/expenses/<int:expense_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_expense(expense_id):
-    """Edit an expense (submitter only, and only if not approved/reimbursed yet)."""
-    # Get the expense
-    expense = CompanyExpense.query.get_or_404(expense_id)
-    
-    # Verify the expense belongs to the current user
-    if expense.user_id != current_user.id:
-        abort(403)
-    
-    # Can only edit submitted expenses
-    if expense.status != ExpenseStatus.SUBMITTED.value:
-        flash('Only submitted expenses can be edited', 'warning')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
-    
-    # Use the expense's organization instead of user's default
-    organization_id = expense.organization_id
-    
-    if request.method == 'POST':
-        try:
-            # Update expense description and notes
-            expense.description = request.form.get('description', '')
-            expense.notes = request.form.get('notes', '')
-            expense.is_reimbursable = request.form.get('is_reimbursable') == 'true'
-            client_id = request.form.get('client_id')
-            
-            # Convert client_id to int or None
-            if client_id and client_id.isdigit():
-                client_id = int(client_id)
-                
-                # If client_id is provided, verify it belongs to the organization
-                if client_id:
-                    client = Client.query.filter_by(id=client_id, organization_id=organization_id).first()
-                    if not client:
-                        flash('Selected client not found or does not belong to your organization', 'danger')
-                        return redirect(url_for('expense.edit_expense', expense_id=expense_id))
-            else:
-                client_id = None
-                
-            expense.client_id = client_id
-            expense.updated_at = datetime.utcnow()
-            
-            db.session.commit()
-            
-            flash('Expense updated successfully', 'success')
-            return redirect(url_for('expense.view_expense', expense_id=expense_id))
-            
-        except Exception as e:
-            db.session.rollback()
-            logging.error(f"Error updating expense: {str(e)}")
-            flash(f'Error updating expense: {str(e)}', 'danger')
-            return redirect(url_for('expense.edit_expense', expense_id=expense_id))
-    
-    # GET request - render form
-    # Get receipt details
-    receipt = Receipt.query.get_or_404(expense.receipt_id)
-    
-    # Get clients for the organization
-    clients = Client.query.filter_by(organization_id=organization_id).order_by(Client.name).all()
-    
-    return render_template('edit_expense.html', expense=expense, receipt=receipt, clients=clients)
 
 
 @expense_bp.route('/expenses/<int:expense_id>/update-ajax', methods=['POST'])
