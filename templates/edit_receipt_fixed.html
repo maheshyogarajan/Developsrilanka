@@ -81,6 +81,36 @@
             <i class="fas fa-arrow-left"></i> Back to Receipt
         </a>
     </div>
+    
+    <!-- Receipt Image Modal -->
+    <div class="modal fade" id="receiptImageModal" tabindex="-1" aria-labelledby="receiptImageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="receiptImageModalLabel">Receipt Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    {% if receipt.image_url %}
+                    <img src="{{ receipt.image_url }}" 
+                         alt="Receipt Image" class="img-fluid"
+                         style="max-height: 600px;"
+                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                    {% else %}
+                    <div class="text-muted">
+                        <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                             class="img-fluid" style="max-height: 400px;" 
+                             alt="No Receipt Image Available">
+                        <p class="mt-2">No receipt image available</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Edit Form -->
     <form action="{{ url_for('unified_view.process_receipt_update', receipt_id=receipt.id) }}" method="POST" class="edit-receipt-form">
@@ -390,8 +420,8 @@
                                     <div class="text-center mt-2">
                                         <small class="text-muted">Click image to enlarge</small>
                                     </div>
-                                    <button type="button" class="btn btn-primary btn-sm mt-2" onclick="openReceiptModal()">
-                                        View Full Image
+                                    <button type="button" class="btn btn-primary mt-2" onclick="openReceiptModal()" style="width: 100%">
+                                        <i class="fas fa-search-plus"></i> View Full Image
                                     </button>
                                 </div>
                             {% else %}
@@ -620,33 +650,3 @@
     });
 </script>
 {% endblock %}
-
-<!-- Receipt Image Modal -->
-<div class="modal fade" id="receiptImageModal" tabindex="-1" aria-labelledby="receiptImageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="receiptImageModalLabel">Receipt Image</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                {% if receipt.image_url %}
-                <img src="{{ receipt.image_url }}" 
-                     alt="Receipt Image" class="img-fluid"
-                     style="max-height: 600px;"
-                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
-                {% else %}
-                <div class="text-muted">
-                    <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
-                         class="img-fluid" style="max-height: 400px;" 
-                         alt="No Receipt Image Available">
-                    <p class="mt-2">No receipt image available</p>
-                </div>
-                {% endif %}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
