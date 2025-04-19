@@ -401,132 +401,139 @@ def user_expense_summary():
     This view provides insights into the user's expense patterns,
     reimbursement status, and historical expense data.
     """
-    # Get query parameters for filtering
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    organization_id = request.args.get('organization_id', type=int)
-    
-    # Get current date and set default date range to current month if not provided
-    today = datetime.today()
-    start_of_month = datetime(today.year, today.month, 1)
-    end_of_month = start_of_month + relativedelta(months=1, days=-1)
-    
-    # Parse date parameters
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
-    except ValueError:
-        # Handle invalid date format
-        start_date = start_of_month
-        end_date = end_of_month
-    
-    # Get organizations the user has access to
-    user_organizations = db.session.query(Organization)\
-        .join(OrganizationUser)\
-        .filter(OrganizationUser.user_id == current_user.id)\
-        .all()
-    
-    # Prepare the filter conditions
-    filters = []
-    
-    # Always filter by date range
-    filters.append(Receipt.date.between(start_date, end_date))
-    
-    # Always filter by current user
-    filters.append(CompanyExpense.user_id == current_user.id)
-    
-    # If organization is specified, filter by organization
-    if organization_id:
-        # Check if user has access to the organization
-        if any(org.id == organization_id for org in user_organizations):
-            filters.append(CompanyExpense.organization_id == organization_id)
-        else:
-            # Redirect to default view if user doesn't have access
-            return redirect(url_for('expense_reports.user_expense_summary'))
-    
-    # Fetch user's expenses based on filters
-    user_expenses = db.session.query(CompanyExpense)\
-        .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
-        .filter(*filters)\
-        .options(
-            joinedload(CompanyExpense.receipt),
-            joinedload(CompanyExpense.client)
-        )\
-        .order_by(desc(Receipt.date))\
-        .all()
-    
-    # Group expenses by status
-    status_summary = {}
-    for status in [s.value for s in ExpenseStatus]:
-        status_expenses = [e for e in user_expenses if e.status == status]
-        status_summary[status] = {
-            'count': len(status_expenses),
-            'amount': sum(e.receipt.total_amount for e in status_expenses if e.receipt)
-        }
-    
-    # Group expenses by category
-    category_summary = {}
-    for expense in user_expenses:
-        if expense.receipt and expense.receipt.expense_major_category:
-            category = expense.receipt.expense_major_category
-            if category in category_summary:
-                category_summary[category] += expense.receipt.total_amount
+        # Get query parameters for filtering
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        organization_id = request.args.get('organization_id', type=int)
+        
+        # Get current date and set default date range to current month if not provided
+        today = datetime.today()
+        start_of_month = datetime(today.year, today.month, 1)
+        end_of_month = start_of_month + relativedelta(months=1, days=-1)
+        
+        # Parse date parameters
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
+        except ValueError:
+            # Handle invalid date format
+            start_date = start_of_month
+            end_date = end_of_month
+        
+        # Get organizations the user has access to
+        user_organizations = db.session.query(Organization)\
+            .join(OrganizationUser)\
+            .filter(OrganizationUser.user_id == current_user.id)\
+            .all()
+        
+        # Prepare the filter conditions
+        filters = []
+        
+        # Always filter by date range
+        filters.append(Receipt.date.between(start_date, end_date))
+        
+        # Always filter by current user
+        filters.append(CompanyExpense.user_id == current_user.id)
+        
+        # If organization is specified, filter by organization
+        if organization_id:
+            # Check if user has access to the organization
+            if any(org.id == organization_id for org in user_organizations):
+                filters.append(CompanyExpense.organization_id == organization_id)
             else:
-                category_summary[category] = expense.receipt.total_amount
-    
-    # Group expenses by month for trend
-    monthly_trend = {}
-    for expense in user_expenses:
-        if expense.receipt and expense.receipt.date:
-            month_key = expense.receipt.date.strftime('%Y-%m')
-            month_name = expense.receipt.date.strftime('%b %Y')
-            if month_key in monthly_trend:
-                monthly_trend[month_key]['amount'] += expense.receipt.total_amount
-                monthly_trend[month_key]['count'] += 1
-            else:
-                monthly_trend[month_key] = {
-                    'label': month_name,
-                    'amount': expense.receipt.total_amount,
-                    'count': 1
-                }
-    
-    # Sort monthly data by date
-    sorted_monthly_trend = dict(sorted(monthly_trend.items()))
-    
-    # Calculate reimbursement statistics
-    reimbursable_expenses = [e for e in user_expenses if e.is_reimbursable]
-    non_reimbursable_expenses = [e for e in user_expenses if not e.is_reimbursable]
-    
-    total_reimbursable = sum(e.receipt.total_amount for e in reimbursable_expenses if e.receipt)
-    total_non_reimbursable = sum(e.receipt.total_amount for e in non_reimbursable_expenses if e.receipt)
-    
-    # Calculate amounts by status for reimbursable expenses
-    reimbursed_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
-                           if e.receipt and e.status == ExpenseStatus.REIMBURSED.value)
-    approved_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
-                         if e.receipt and e.status == ExpenseStatus.APPROVED.value)
-    pending_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
-                        if e.receipt and e.status == ExpenseStatus.SUBMITTED.value)
-    rejected_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
-                         if e.receipt and e.status == ExpenseStatus.REJECTED.value)
-    
-    return render_template(
-        'user_expense_summary.html',
-        user_expenses=user_expenses,
-        status_summary=status_summary,
-        category_summary=json.dumps(category_summary),
-        monthly_trend=json.dumps(list(sorted_monthly_trend.values())),
-        total_reimbursable=total_reimbursable,
-        total_non_reimbursable=total_non_reimbursable,
-        reimbursed_amount=reimbursed_amount,
-        approved_amount=approved_amount,
-        pending_amount=pending_amount,
-        rejected_amount=rejected_amount,
-        user_organizations=user_organizations,
-        selected_organization_id=organization_id,
-        start_date=start_date.strftime('%Y-%m-%d'),
-        end_date=end_date.strftime('%Y-%m-%d')
-    )
+                # Redirect to default view if user doesn't have access
+                return redirect(url_for('expense_reports.user_expense_summary'))
+        
+        # Fetch user's expenses based on filters
+        user_expenses = db.session.query(CompanyExpense)\
+            .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(*filters)\
+            .options(
+                joinedload(CompanyExpense.receipt),
+                joinedload(CompanyExpense.client)
+            )\
+            .order_by(desc(Receipt.date))\
+            .all()
+        
+        # Group expenses by status
+        status_summary = {}
+        for status in [s.value for s in ExpenseStatus]:
+            status_expenses = [e for e in user_expenses if e.status == status]
+            status_summary[status] = {
+                'count': len(status_expenses),
+                'amount': sum(e.receipt.total_amount for e in status_expenses if e.receipt)
+            }
+        
+        # Group expenses by category
+        category_summary = {}
+        for expense in user_expenses:
+            if expense.receipt and expense.receipt.expense_major_category:
+                category = expense.receipt.expense_major_category
+                if category in category_summary:
+                    category_summary[category] += expense.receipt.total_amount
+                else:
+                    category_summary[category] = expense.receipt.total_amount
+        
+        # Group expenses by month for trend
+        monthly_trend = {}
+        for expense in user_expenses:
+            if expense.receipt and expense.receipt.date:
+                month_key = expense.receipt.date.strftime('%Y-%m')
+                month_name = expense.receipt.date.strftime('%b %Y')
+                if month_key in monthly_trend:
+                    monthly_trend[month_key]['amount'] += expense.receipt.total_amount
+                    monthly_trend[month_key]['count'] += 1
+                else:
+                    monthly_trend[month_key] = {
+                        'label': month_name,
+                        'amount': expense.receipt.total_amount,
+                        'count': 1
+                    }
+        
+        # Sort monthly data by date
+        sorted_monthly_trend = dict(sorted(monthly_trend.items()))
+        
+        # Calculate reimbursement statistics
+        reimbursable_expenses = [e for e in user_expenses if e.is_reimbursable]
+        non_reimbursable_expenses = [e for e in user_expenses if not e.is_reimbursable]
+        
+        total_reimbursable = sum(e.receipt.total_amount for e in reimbursable_expenses if e.receipt)
+        total_non_reimbursable = sum(e.receipt.total_amount for e in non_reimbursable_expenses if e.receipt)
+        
+        # Calculate amounts by status for reimbursable expenses
+        reimbursed_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
+                               if e.receipt and e.status == ExpenseStatus.REIMBURSED.value)
+        approved_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
+                             if e.receipt and e.status == ExpenseStatus.APPROVED.value)
+        pending_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
+                            if e.receipt and e.status == ExpenseStatus.SUBMITTED.value)
+        rejected_amount = sum(e.receipt.total_amount for e in reimbursable_expenses 
+                             if e.receipt and e.status == ExpenseStatus.REJECTED.value)
+        
+        return render_template(
+            'user_expense_summary.html',
+            user_expenses=user_expenses,
+            status_summary=status_summary,
+            category_summary=json.dumps(category_summary),
+            monthly_trend=json.dumps(list(sorted_monthly_trend.values())),
+            total_reimbursable=total_reimbursable,
+            total_non_reimbursable=total_non_reimbursable,
+            reimbursed_amount=reimbursed_amount,
+            approved_amount=approved_amount,
+            pending_amount=pending_amount,
+            rejected_amount=rejected_amount,
+            user_organizations=user_organizations,
+            selected_organization_id=organization_id,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+    except Exception as e:
+        # Log the error and return a friendly error page
+        current_app.logger.error(f"Error rendering user expense summary: {str(e)}")
+        return render_template('error.html', 
+                               error_code=500, 
+                               error_message="An error occurred while generating the user expense report.")
 
 @expense_reports_bp.route('/expense-categories')
 @login_required
@@ -537,168 +544,175 @@ def expense_categories():
     This view helps understand spending patterns by expense category,
     with drill-down to subcategories and time-based analysis.
     """
-    # Get query parameters for filtering
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    organization_id = request.args.get('organization_id', type=int)
-    
-    # Get current date and set default date range to current month if not provided
-    today = datetime.today()
-    start_of_month = datetime(today.year, today.month, 1)
-    end_of_month = start_of_month + relativedelta(months=1, days=-1)
-    
-    # Parse date parameters
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
-    except ValueError:
-        # Handle invalid date format
-        start_date = start_of_month
-        end_date = end_of_month
-    
-    # Get organizations the user has access to
-    user_organizations = db.session.query(Organization)\
-        .join(OrganizationUser)\
-        .filter(OrganizationUser.user_id == current_user.id)\
-        .all()
-    
-    # Prepare the filter conditions
-    filters = []
-    
-    # Always filter by date range
-    filters.append(Receipt.date.between(start_date, end_date))
-    
-    # If organization is specified, filter by organization
-    if organization_id:
-        # Check if user has access to the organization
-        if any(org.id == organization_id for org in user_organizations):
-            filters.append(CompanyExpense.organization_id == organization_id)
+        # Get query parameters for filtering
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        organization_id = request.args.get('organization_id', type=int)
+        
+        # Get current date and set default date range to current month if not provided
+        today = datetime.today()
+        start_of_month = datetime(today.year, today.month, 1)
+        end_of_month = start_of_month + relativedelta(months=1, days=-1)
+        
+        # Parse date parameters
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
+        except ValueError:
+            # Handle invalid date format
+            start_date = start_of_month
+            end_date = end_of_month
+        
+        # Get organizations the user has access to
+        user_organizations = db.session.query(Organization)\
+            .join(OrganizationUser)\
+            .filter(OrganizationUser.user_id == current_user.id)\
+            .all()
+        
+        # Prepare the filter conditions
+        filters = []
+        
+        # Always filter by date range
+        filters.append(Receipt.date.between(start_date, end_date))
+        
+        # If organization is specified, filter by organization
+        if organization_id:
+            # Check if user has access to the organization
+            if any(org.id == organization_id for org in user_organizations):
+                filters.append(CompanyExpense.organization_id == organization_id)
+            else:
+                # Redirect to default view if user doesn't have access
+                return redirect(url_for('expense_reports.expense_categories'))
         else:
-            # Redirect to default view if user doesn't have access
-            return redirect(url_for('expense_reports.expense_categories'))
-    else:
-        # Filter for expenses in user's organizations
-        org_ids = [org.id for org in user_organizations]
-        filters.append(CompanyExpense.organization_id.in_(org_ids))
-    
-    # Fetch expenses with their receipt data
-    expenses = db.session.query(CompanyExpense)\
-        .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
-        .filter(*filters)\
-        .options(
-            joinedload(CompanyExpense.receipt),
-            joinedload(CompanyExpense.receipt).joinedload(Receipt.items)
-        )\
-        .all()
-    
-    # Analyze expenses by major category
-    major_categories = {}
-    for expense in expenses:
-        if expense.receipt and expense.receipt.expense_major_category:
-            category = expense.receipt.expense_major_category
-            if category in major_categories:
-                major_categories[category]['total'] += expense.receipt.total_amount
-                major_categories[category]['count'] += 1
-            else:
-                major_categories[category] = {
-                    'total': expense.receipt.total_amount,
-                    'count': 1,
-                    'subcategories': {},
-                    'tax_deductible': 0
-                }
-            
-            # Track tax deductible amounts by category
-            for item in expense.receipt.items:
-                if item.tax_deductible:
-                    deduct_amount = item.price * item.quantity
-                    major_categories[category]['tax_deductible'] += deduct_amount
-            
-            # Track minor categories
-            if expense.receipt.expense_minor_category:
-                subcategory = expense.receipt.expense_minor_category
-                if subcategory in major_categories[category]['subcategories']:
-                    major_categories[category]['subcategories'][subcategory]['total'] += expense.receipt.total_amount
-                    major_categories[category]['subcategories'][subcategory]['count'] += 1
+            # Filter for expenses in user's organizations
+            org_ids = [org.id for org in user_organizations]
+            filters.append(CompanyExpense.organization_id.in_(org_ids))
+        
+        # Fetch expenses with their receipt data
+        expenses = db.session.query(CompanyExpense)\
+            .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(*filters)\
+            .options(
+                joinedload(CompanyExpense.receipt),
+                joinedload(CompanyExpense.receipt).joinedload(Receipt.items)
+            )\
+            .all()
+        
+        # Analyze expenses by major category
+        major_categories = {}
+        for expense in expenses:
+            if expense.receipt and expense.receipt.expense_major_category:
+                category = expense.receipt.expense_major_category
+                if category in major_categories:
+                    major_categories[category]['total'] += expense.receipt.total_amount
+                    major_categories[category]['count'] += 1
                 else:
-                    major_categories[category]['subcategories'][subcategory] = {
+                    major_categories[category] = {
                         'total': expense.receipt.total_amount,
-                        'count': 1
+                        'count': 1,
+                        'subcategories': {},
+                        'tax_deductible': 0
                     }
-    
-    # Sort categories by total amount
-    sorted_categories = {k: v for k, v in sorted(
-        major_categories.items(), 
-        key=lambda item: item[1]['total'], 
-        reverse=True
-    )}
-    
-    # Calculate totals
-    total_amount = sum(cat['total'] for cat in major_categories.values())
-    total_tax_deductible = sum(cat['tax_deductible'] for cat in major_categories.values())
-    
-    # Prepare chart data
-    category_chart_data = [{
-        'category': category,
-        'total': data['total'],
-        'percentage': (data['total'] / total_amount * 100) if total_amount > 0 else 0
-    } for category, data in sorted_categories.items()]
-    
-    # Calculate month-by-month category data for trend analysis
-    monthly_category_data = {}
-    for expense in expenses:
-        if expense.receipt and expense.receipt.date and expense.receipt.expense_major_category:
-            month_key = expense.receipt.date.strftime('%Y-%m')
-            month_name = expense.receipt.date.strftime('%b %Y')
-            category = expense.receipt.expense_major_category
-            
-            if month_key not in monthly_category_data:
-                monthly_category_data[month_key] = {
-                    'label': month_name,
-                    'categories': {}
-                }
-            
-            if category in monthly_category_data[month_key]['categories']:
-                monthly_category_data[month_key]['categories'][category] += expense.receipt.total_amount
-            else:
-                monthly_category_data[month_key]['categories'][category] = expense.receipt.total_amount
-    
-    # Sort monthly data and prepare for chart
-    sorted_monthly_data = dict(sorted(monthly_category_data.items()))
-    
-    # Get all unique categories across all months
-    all_categories = set()
-    for month_data in sorted_monthly_data.values():
-        all_categories.update(month_data['categories'].keys())
-    
-    # Prepare data for stacked area chart
-    category_trend_data = {
-        'labels': [data['label'] for data in sorted_monthly_data.values()],
-        'datasets': []
-    }
-    
-    for category in all_categories:
-        dataset = {
-            'label': category,
-            'data': []
+                
+                # Track tax deductible amounts by category
+                for item in expense.receipt.items:
+                    if item.tax_deductible:
+                        deduct_amount = item.price * item.quantity
+                        major_categories[category]['tax_deductible'] += deduct_amount
+                
+                # Track minor categories
+                if expense.receipt.expense_minor_category:
+                    subcategory = expense.receipt.expense_minor_category
+                    if subcategory in major_categories[category]['subcategories']:
+                        major_categories[category]['subcategories'][subcategory]['total'] += expense.receipt.total_amount
+                        major_categories[category]['subcategories'][subcategory]['count'] += 1
+                    else:
+                        major_categories[category]['subcategories'][subcategory] = {
+                            'total': expense.receipt.total_amount,
+                            'count': 1
+                        }
+        
+        # Sort categories by total amount
+        sorted_categories = {k: v for k, v in sorted(
+            major_categories.items(), 
+            key=lambda item: item[1]['total'], 
+            reverse=True
+        )}
+        
+        # Calculate totals
+        total_amount = sum(cat['total'] for cat in major_categories.values())
+        total_tax_deductible = sum(cat['tax_deductible'] for cat in major_categories.values())
+        
+        # Prepare chart data
+        category_chart_data = [{
+            'category': category,
+            'total': data['total'],
+            'percentage': (data['total'] / total_amount * 100) if total_amount > 0 else 0
+        } for category, data in sorted_categories.items()]
+        
+        # Calculate month-by-month category data for trend analysis
+        monthly_category_data = {}
+        for expense in expenses:
+            if expense.receipt and expense.receipt.date and expense.receipt.expense_major_category:
+                month_key = expense.receipt.date.strftime('%Y-%m')
+                month_name = expense.receipt.date.strftime('%b %Y')
+                category = expense.receipt.expense_major_category
+                
+                if month_key not in monthly_category_data:
+                    monthly_category_data[month_key] = {
+                        'label': month_name,
+                        'categories': {}
+                    }
+                
+                if category in monthly_category_data[month_key]['categories']:
+                    monthly_category_data[month_key]['categories'][category] += expense.receipt.total_amount
+                else:
+                    monthly_category_data[month_key]['categories'][category] = expense.receipt.total_amount
+        
+        # Sort monthly data and prepare for chart
+        sorted_monthly_data = dict(sorted(monthly_category_data.items()))
+        
+        # Get all unique categories across all months
+        all_categories = set()
+        for month_data in sorted_monthly_data.values():
+            all_categories.update(month_data['categories'].keys())
+        
+        # Prepare data for stacked area chart
+        category_trend_data = {
+            'labels': [data['label'] for data in sorted_monthly_data.values()],
+            'datasets': []
         }
         
-        for month_key, month_data in sorted_monthly_data.items():
-            dataset['data'].append(month_data['categories'].get(category, 0))
+        for category in all_categories:
+            dataset = {
+                'label': category,
+                'data': []
+            }
+            
+            for month_key, month_data in sorted_monthly_data.items():
+                dataset['data'].append(month_data['categories'].get(category, 0))
+            
+            category_trend_data['datasets'].append(dataset)
         
-        category_trend_data['datasets'].append(dataset)
-    
-    return render_template(
-        'expense_categories.html',
-        major_categories=sorted_categories,
-        total_amount=total_amount,
-        total_tax_deductible=total_tax_deductible,
-        category_chart_data=json.dumps(category_chart_data),
-        category_trend_data=json.dumps(category_trend_data),
-        user_organizations=user_organizations,
-        selected_organization_id=organization_id,
-        start_date=start_date.strftime('%Y-%m-%d'),
-        end_date=end_date.strftime('%Y-%m-%d')
-    )
+        return render_template(
+            'expense_categories.html',
+            major_categories=sorted_categories,
+            total_amount=total_amount,
+            total_tax_deductible=total_tax_deductible,
+            category_chart_data=json.dumps(category_chart_data),
+            category_trend_data=json.dumps(category_trend_data),
+            user_organizations=user_organizations,
+            selected_organization_id=organization_id,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+    except Exception as e:
+        # Log the error and return a friendly error page
+        current_app.logger.error(f"Error rendering expense categories: {str(e)}")
+        return render_template('error.html', 
+                               error_code=500, 
+                               error_message="An error occurred while generating the expense categories report.")
 
 @expense_reports_bp.route('/tax-deductible')
 @login_required
@@ -709,132 +723,139 @@ def tax_deductible_summary():
     This view focuses on tracking tax deductible expenses and items,
     with appropriate filtering and summaries for tax season.
     """
-    # Get query parameters for filtering
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    organization_id = request.args.get('organization_id', type=int)
-    
-    # If no specific range is provided, default to current year
-    today = datetime.today()
-    start_of_year = datetime(today.year, 1, 1)
-    end_of_year = datetime(today.year, 12, 31)
-    
-    # Parse date parameters
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_year
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_year
-    except ValueError:
-        # Handle invalid date format
-        start_date = start_of_year
-        end_date = end_of_year
-    
-    # Get organizations the user has access to
-    user_organizations = db.session.query(Organization)\
-        .join(OrganizationUser)\
-        .filter(OrganizationUser.user_id == current_user.id)\
-        .all()
-    
-    # Prepare the filter conditions
-    filters = []
-    
-    # Always filter by date range
-    filters.append(Receipt.date.between(start_date, end_date))
-    
-    # If organization is specified, filter by organization
-    if organization_id:
-        # Check if user has access to the organization
-        if any(org.id == organization_id for org in user_organizations):
-            filters.append(CompanyExpense.organization_id == organization_id)
-        else:
-            # Redirect to default view if user doesn't have access
-            return redirect(url_for('expense_reports.tax_deductible_summary'))
-    else:
-        # Filter for expenses in user's organizations
-        org_ids = [org.id for org in user_organizations]
-        filters.append(CompanyExpense.organization_id.in_(org_ids))
-    
-    # Fetch expenses with their receipt data and receipt items
-    expenses = db.session.query(CompanyExpense)\
-        .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
-        .filter(*filters)\
-        .options(
-            joinedload(CompanyExpense.receipt),
-            joinedload(CompanyExpense.receipt).joinedload(Receipt.items)
-        )\
-        .order_by(Receipt.date)\
-        .all()
-    
-    # Collect tax deductible items and calculate totals
-    deductible_items = []
-    total_expense_amount = 0
-    total_deductible_amount = 0
-    
-    for expense in expenses:
-        if expense.receipt:
-            receipt = expense.receipt
-            total_expense_amount += receipt.total_amount
-            
-            # Process items for tax deductibility
-            for item in receipt.items:
-                if item.tax_deductible:
-                    item_amount = item.price * item.quantity
-                    total_deductible_amount += item_amount
-                    
-                    deductible_items.append({
-                        'expense_id': expense.id,
-                        'receipt_id': receipt.id,
-                        'date': receipt.date,
-                        'vendor': receipt.vendor_name,
-                        'description': item.name,
-                        'amount': item_amount,
-                        'category': receipt.expense_major_category,
-                        'subcategory': receipt.expense_minor_category
-                    })
-    
-    # Group by category for chart
-    category_deductible = {}
-    for item in deductible_items:
-        category = item['category'] or 'Uncategorized'
-        if category in category_deductible:
-            category_deductible[category] += item['amount']
-        else:
-            category_deductible[category] = item['amount']
-    
-    # Group by month for trend analysis
-    monthly_deductible = {}
-    for item in deductible_items:
-        if item['date']:
-            month_key = item['date'].strftime('%Y-%m')
-            month_name = item['date'].strftime('%b %Y')
-            if month_key in monthly_deductible:
-                monthly_deductible[month_key]['amount'] += item['amount']
-                monthly_deductible[month_key]['count'] += 1
+        # Get query parameters for filtering
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        organization_id = request.args.get('organization_id', type=int)
+        
+        # If no specific range is provided, default to current year
+        today = datetime.today()
+        start_of_year = datetime(today.year, 1, 1)
+        end_of_year = datetime(today.year, 12, 31)
+        
+        # Parse date parameters
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_year
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_year
+        except ValueError:
+            # Handle invalid date format
+            start_date = start_of_year
+            end_date = end_of_year
+        
+        # Get organizations the user has access to
+        user_organizations = db.session.query(Organization)\
+            .join(OrganizationUser)\
+            .filter(OrganizationUser.user_id == current_user.id)\
+            .all()
+        
+        # Prepare the filter conditions
+        filters = []
+        
+        # Always filter by date range
+        filters.append(Receipt.date.between(start_date, end_date))
+        
+        # If organization is specified, filter by organization
+        if organization_id:
+            # Check if user has access to the organization
+            if any(org.id == organization_id for org in user_organizations):
+                filters.append(CompanyExpense.organization_id == organization_id)
             else:
-                monthly_deductible[month_key] = {
-                    'label': month_name,
-                    'amount': item['amount'],
-                    'count': 1
-                }
-    
-    # Sort monthly data by date
-    sorted_monthly_deductible = dict(sorted(monthly_deductible.items()))
-    
-    # Calculate percentages
-    deductible_percentage = (total_deductible_amount / total_expense_amount * 100) if total_expense_amount > 0 else 0
-    
-    return render_template(
-        'tax_deductible_summary.html',
-        deductible_items=deductible_items,
-        total_expense_amount=total_expense_amount,
-        total_deductible_amount=total_deductible_amount,
-        deductible_percentage=deductible_percentage,
-        category_deductible=json.dumps(category_deductible),
-        monthly_deductible=json.dumps(list(sorted_monthly_deductible.values())),
-        user_organizations=user_organizations,
-        selected_organization_id=organization_id,
-        start_date=start_date.strftime('%Y-%m-%d'),
-        end_date=end_date.strftime('%Y-%m-%d')
-    )
+                # Redirect to default view if user doesn't have access
+                return redirect(url_for('expense_reports.tax_deductible_summary'))
+        else:
+            # Filter for expenses in user's organizations
+            org_ids = [org.id for org in user_organizations]
+            filters.append(CompanyExpense.organization_id.in_(org_ids))
+        
+        # Fetch expenses with their receipt data and receipt items
+        expenses = db.session.query(CompanyExpense)\
+            .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(*filters)\
+            .options(
+                joinedload(CompanyExpense.receipt),
+                joinedload(CompanyExpense.receipt).joinedload(Receipt.items)
+            )\
+            .order_by(Receipt.date)\
+            .all()
+        
+        # Collect tax deductible items and calculate totals
+        deductible_items = []
+        total_expense_amount = 0
+        total_deductible_amount = 0
+        
+        for expense in expenses:
+            if expense.receipt:
+                receipt = expense.receipt
+                total_expense_amount += receipt.total_amount
+                
+                # Process items for tax deductibility
+                for item in receipt.items:
+                    if item.tax_deductible:
+                        item_amount = item.price * item.quantity
+                        total_deductible_amount += item_amount
+                        
+                        deductible_items.append({
+                            'expense_id': expense.id,
+                            'receipt_id': receipt.id,
+                            'date': receipt.date,
+                            'vendor': receipt.vendor_name,
+                            'description': item.name,
+                            'amount': item_amount,
+                            'category': receipt.expense_major_category,
+                            'subcategory': receipt.expense_minor_category
+                        })
+        
+        # Group by category for chart
+        category_deductible = {}
+        for item in deductible_items:
+            category = item['category'] or 'Uncategorized'
+            if category in category_deductible:
+                category_deductible[category] += item['amount']
+            else:
+                category_deductible[category] = item['amount']
+        
+        # Group by month for trend analysis
+        monthly_deductible = {}
+        for item in deductible_items:
+            if item['date']:
+                month_key = item['date'].strftime('%Y-%m')
+                month_name = item['date'].strftime('%b %Y')
+                if month_key in monthly_deductible:
+                    monthly_deductible[month_key]['amount'] += item['amount']
+                    monthly_deductible[month_key]['count'] += 1
+                else:
+                    monthly_deductible[month_key] = {
+                        'label': month_name,
+                        'amount': item['amount'],
+                        'count': 1
+                    }
+        
+        # Sort monthly data by date
+        sorted_monthly_deductible = dict(sorted(monthly_deductible.items()))
+        
+        # Calculate percentages
+        deductible_percentage = (total_deductible_amount / total_expense_amount * 100) if total_expense_amount > 0 else 0
+        
+        return render_template(
+            'tax_deductible_summary.html',
+            deductible_items=deductible_items,
+            total_expense_amount=total_expense_amount,
+            total_deductible_amount=total_deductible_amount,
+            deductible_percentage=deductible_percentage,
+            category_deductible=json.dumps(category_deductible),
+            monthly_deductible=json.dumps(list(sorted_monthly_deductible.values())),
+            user_organizations=user_organizations,
+            selected_organization_id=organization_id,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+    except Exception as e:
+        # Log the error and return a friendly error page
+        current_app.logger.error(f"Error rendering tax deductible summary: {str(e)}")
+        return render_template('error.html', 
+                               error_code=500, 
+                               error_message="An error occurred while generating the tax deductible expense report.")
 
 # API endpoints for AJAX data retrieval
 
@@ -842,10 +863,11 @@ def tax_deductible_summary():
 @login_required
 def api_expense_summary():
     """API endpoint to get expense summary data for charts."""
-    # Similar filtering logic as the main page
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    organization_id = request.args.get('organization_id', type=int)
+    try:
+        # Similar filtering logic as the main page
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        organization_id = request.args.get('organization_id', type=int)
     
     # Default date range (current month)
     today = datetime.today()
