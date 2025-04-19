@@ -577,139 +577,159 @@ def process_receipt_update(receipt_id):
     This handles both receipt details and expense details simultaneously.
     Renamed from update_receipt to avoid function name conflict.
     """
-    # Get receipt
-    receipt = Receipt.query.get_or_404(receipt_id)
+    import traceback
     
-    # Ensure user has access to this receipt
-    if receipt.user_id != current_user.id:
-        if not receipt.organization_id:
-            abort(403)  # User doesn't own this receipt and it's not associated with an organization
+    try:
+        # Get receipt
+        receipt = Receipt.query.get_or_404(receipt_id)
         
-        # Check if user is part of this organization
-        user_org = OrganizationUser.query.filter_by(
-            user_id=current_user.id,
-            organization_id=receipt.organization_id
-        ).first()
-        
-        if not user_org or user_org.role not in ['owner', 'admin', 'member']:
-            abort(403)  # User doesn't have edit permission
-    
-    # Handle organization changes
-    new_org_id = request.form.get('organization_id', '')
-    if new_org_id and new_org_id.isdigit():
-        new_org_id = int(new_org_id)
-        
-        # Check if user has access to the target organization
-        if new_org_id != receipt.organization_id:
+        # Ensure user has access to this receipt
+        if receipt.user_id != current_user.id:
+            if not receipt.organization_id:
+                abort(403)  # User doesn't own this receipt and it's not associated with an organization
+            
+            # Check if user is part of this organization
             user_org = OrganizationUser.query.filter_by(
                 user_id=current_user.id,
-                organization_id=new_org_id
+                organization_id=receipt.organization_id
             ).first()
             
-            if not user_org:
-                abort(403)  # User doesn't have access to the target organization
-            
-            # Update organization ID
-            receipt.organization_id = new_org_id
-    elif new_org_id == '':
-        # Remove organization association (convert to personal receipt)
-        receipt.organization_id = None
-    
-    # Update receipt basic details
-    receipt.vendor_name = request.form.get('vendor_name', receipt.vendor_name)
-    receipt.vendor_address = request.form.get('vendor_address', receipt.vendor_address)
-    receipt.vendor_contact = request.form.get('vendor_contact', receipt.vendor_contact)
-    receipt.vat_registration_number = request.form.get('vat_registration_number', receipt.vat_registration_number)
-    receipt.receipt_number = request.form.get('receipt_number', receipt.receipt_number)
-    
-    try:
-        if request.form.get('date'):
-            receipt.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d')
-    except ValueError:
-        flash('Invalid date format', 'warning')
-    
-    try:
-        if request.form.get('total_amount'):
-            receipt.total_amount = float(request.form.get('total_amount'))
-    except ValueError:
-        flash('Invalid amount format', 'warning')
+            if not user_org or user_org.role not in ['owner', 'admin', 'member']:
+                abort(403)  # User doesn't have edit permission
         
-    try:
-        if request.form.get('service_charge'):
-            receipt.service_charge = float(request.form.get('service_charge'))
-    except ValueError:
-        flash('Invalid service charge format', 'warning')
-
-    try:
-        if request.form.get('vat_tax'):
-            receipt.vat_tax = float(request.form.get('vat_tax'))
-    except ValueError:
-        flash('Invalid VAT tax format', 'warning')
-
-    try:
-        if request.form.get('sscl_tax'):
-            receipt.sscl_tax = float(request.form.get('sscl_tax'))
-    except ValueError:
-        flash('Invalid SSCL tax format', 'warning')
-    
-    receipt.expense_major_category = request.form.get('expense_major_category', receipt.expense_major_category)
-    receipt.expense_minor_category = request.form.get('expense_minor_category', receipt.expense_minor_category)
-    
-    # Handle receipt type change
-    receipt_type = request.form.get('receipt_type')
-    
-    # Get existing expense records
-    company_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
-    client_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
-    
-    if receipt_type == 'personal':
-        # Convert to personal expense by removing business/client expense records
-        if company_expense:
-            db.session.delete(company_expense)
-        if client_expense:
-            db.session.delete(client_expense)
+        # Handle organization changes
+        new_org_id = request.form.get('organization_id', '')
+        if new_org_id and new_org_id.isdigit():
+            new_org_id = int(new_org_id)
             
-    elif receipt_type == 'business':
-        # Handle business expense details
-        if company_expense:
-            # Update existing business expense
-            company_expense.description = request.form.get('business_description', '')
-            company_expense.is_reimbursable = 'is_reimbursable' in request.form
-            
-            if request.form.get('client_id'):
-                company_expense.client_id = int(request.form.get('client_id'))
-            else:
-                company_expense.client_id = None
+            # Check if user has access to the target organization
+            if new_org_id != receipt.organization_id:
+                user_org = OrganizationUser.query.filter_by(
+                    user_id=current_user.id,
+                    organization_id=new_org_id
+                ).first()
                 
-            company_expense.notes = request.form.get('notes', '')
-            
-        else:
-            # Create new business expense
-            new_expense = CompanyExpense(
-                receipt_id=receipt_id,
-                user_id=current_user.id,
-                organization_id=receipt.organization_id,
-                description=request.form.get('business_description', ''),
-                is_reimbursable='is_reimbursable' in request.form,
-                notes=request.form.get('notes', ''),
-                status=ExpenseStatus.SUBMITTED.value
-            )
-            
-            if request.form.get('client_id'):
-                new_expense.client_id = int(request.form.get('client_id'))
+                if not user_org:
+                    abort(403)  # User doesn't have access to the target organization
                 
-            db.session.add(new_expense)
+                # Update organization ID
+                receipt.organization_id = new_org_id
+        elif new_org_id == '':
+            # Remove organization association (convert to personal receipt)
+            receipt.organization_id = None
+        
+        # Update receipt basic details
+        receipt.vendor_name = request.form.get('vendor_name', receipt.vendor_name)
+        receipt.vendor_address = request.form.get('vendor_address', receipt.vendor_address)
+        receipt.vendor_contact = request.form.get('vendor_contact', receipt.vendor_contact)
+        receipt.vat_registration_number = request.form.get('vat_registration_number', receipt.vat_registration_number)
+        receipt.receipt_number = request.form.get('receipt_number', receipt.receipt_number)
+        
+        try:
+            if request.form.get('date'):
+                receipt.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d')
+        except ValueError:
+            flash('Invalid date format', 'warning')
+        
+        try:
+            if request.form.get('total_amount'):
+                receipt.total_amount = float(request.form.get('total_amount'))
+        except ValueError:
+            flash('Invalid amount format', 'warning')
             
-            # Remove client expense if it exists
+        try:
+            if request.form.get('service_charge'):
+                receipt.service_charge = float(request.form.get('service_charge'))
+        except ValueError:
+            flash('Invalid service charge format', 'warning')
+
+        try:
+            if request.form.get('vat_tax'):
+                receipt.vat_tax = float(request.form.get('vat_tax'))
+        except ValueError:
+            flash('Invalid VAT tax format', 'warning')
+
+        try:
+            if request.form.get('sscl_tax'):
+                receipt.sscl_tax = float(request.form.get('sscl_tax'))
+        except ValueError:
+            flash('Invalid SSCL tax format', 'warning')
+        
+        receipt.expense_major_category = request.form.get('expense_major_category', receipt.expense_major_category)
+        receipt.expense_minor_category = request.form.get('expense_minor_category', receipt.expense_minor_category)
+        
+        # Handle receipt type change
+        receipt_type = request.form.get('receipt_type')
+        
+        # Get existing expense records
+        company_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
+        client_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
+        
+        if receipt_type == 'personal':
+            # Convert to personal expense by removing business/client expense records
+            if company_expense:
+                db.session.delete(company_expense)
             if client_expense:
                 db.session.delete(client_expense)
-    
-    # Calculate tax deductible amount based on receipt items
-    # Will be updated when items are saved
-    
-    db.session.commit()
-    flash('Receipt updated successfully', 'success')
-    return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
+                
+        elif receipt_type == 'business':
+            # Handle business expense details
+            if company_expense:
+                # Update existing business expense
+                company_expense.description = request.form.get('business_description', '')
+                company_expense.is_reimbursable = 'is_reimbursable' in request.form
+                
+                if request.form.get('client_id'):
+                    company_expense.client_id = int(request.form.get('client_id'))
+                else:
+                    company_expense.client_id = None
+                    
+                company_expense.notes = request.form.get('notes', '')
+                
+            else:
+                # Create new business expense
+                new_expense = CompanyExpense(
+                    receipt_id=receipt_id,
+                    user_id=current_user.id,
+                    organization_id=receipt.organization_id,
+                    description=request.form.get('business_description', ''),
+                    is_reimbursable='is_reimbursable' in request.form,
+                    notes=request.form.get('notes', ''),
+                    status=ExpenseStatus.SUBMITTED.value
+                )
+                
+                if request.form.get('client_id'):
+                    new_expense.client_id = int(request.form.get('client_id'))
+                    
+                db.session.add(new_expense)
+                
+                # Remove client expense if it exists
+                if client_expense:
+                    db.session.delete(client_expense)
+        
+        # Calculate tax deductible amount based on receipt items
+        # Will be updated when items are saved
+        
+        db.session.commit()
+        flash('Receipt updated successfully', 'success')
+        return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        # Log the error with full details
+        error_details = {
+            'receipt_id': receipt_id,
+            'user_id': current_user.id,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }
+        logging.error(f"Error in process_receipt_update: {error_details}")
+        
+        # Flash a message to the user
+        flash(f'Error updating receipt: {str(e)}', 'danger')
+        
+        # Return to the edit page
+        return redirect(url_for('unified_view.edit_receipt_page', receipt_id=receipt_id))
 
 @unified_view_bp.route('/update-items/<int:receipt_id>', methods=['POST'])
 @login_required
