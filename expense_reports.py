@@ -31,184 +31,191 @@ def expense_summary():
     This view provides visualizations and data tables for expense tracking
     with filtering by date range, organization, client, status, and category.
     """
-    # Get query parameters for filtering
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    organization_id = request.args.get('organization_id', type=int)
-    client_id = request.args.get('client_id', type=int)
-    status = request.args.get('status')
-    category = request.args.get('category')
-    
-    # Get current date and set default date range to current month if not provided
-    today = datetime.today()
-    start_of_month = datetime(today.year, today.month, 1)
-    end_of_month = start_of_month + relativedelta(months=1, days=-1)
-    
-    # Parse date parameters
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
-    except ValueError:
-        # Handle invalid date format
-        start_date = start_of_month
-        end_date = end_of_month
-    
-    # Get organizations the user has access to
-    user_organizations = db.session.query(Organization)\
-        .join(OrganizationUser)\
-        .filter(OrganizationUser.user_id == current_user.id)\
-        .all()
-    
-    # Prepare the filter conditions
-    filters = []
-    
-    # Always filter by date range
-    filters.append(Receipt.date.between(start_date, end_date))
-    
-    # If organization is specified, filter by organization
-    if organization_id:
-        # Check if user has access to the organization
-        if any(org.id == organization_id for org in user_organizations):
-            filters.append(CompanyExpense.organization_id == organization_id)
-        else:
-            # Redirect to default view if user doesn't have access
-            return redirect(url_for('expense_reports.expense_summary'))
-    else:
-        # Filter for expenses in user's organizations
-        org_ids = [org.id for org in user_organizations]
-        filters.append(CompanyExpense.organization_id.in_(org_ids))
-    
-    # Filter by client if specified
-    if client_id:
-        filters.append(CompanyExpense.client_id == client_id)
-    
-    # Filter by status if specified
-    if status:
-        filters.append(CompanyExpense.status == status)
-    
-    # Filter by receipt category if specified
-    if category:
-        filters.append(Receipt.expense_major_category == category)
-    
-    # Get all expense categories for filter dropdown
-    expense_categories = db.session.query(Receipt.expense_major_category)\
-        .filter(Receipt.expense_major_category.isnot(None))\
-        .distinct()\
-        .all()
-    expense_categories = [cat[0] for cat in expense_categories if cat[0]]
-    
-    # Get the expense statuses for filter dropdown
-    expense_statuses = [status.value for status in ExpenseStatus]
-    
-    # Get clients for filter dropdown (based on selected organization or all user's organizations)
-    if organization_id:
-        clients = db.session.query(Client)\
-            .filter(Client.organization_id == organization_id)\
+        # Get query parameters for filtering
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        organization_id = request.args.get('organization_id', type=int)
+        client_id = request.args.get('client_id', type=int)
+        status = request.args.get('status')
+        category = request.args.get('category')
+        
+        # Get current date and set default date range to current month if not provided
+        today = datetime.today()
+        start_of_month = datetime(today.year, today.month, 1)
+        end_of_month = start_of_month + relativedelta(months=1, days=-1)
+        
+        # Parse date parameters
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
+        except ValueError:
+            # Handle invalid date format
+            start_date = start_of_month
+            end_date = end_of_month
+        
+        # Get organizations the user has access to
+        user_organizations = db.session.query(Organization)\
+            .join(OrganizationUser)\
+            .filter(OrganizationUser.user_id == current_user.id)\
             .all()
-    else:
-        clients = db.session.query(Client)\
-            .filter(Client.organization_id.in_([org.id for org in user_organizations]))\
-            .all()
-    
-    # Fetch expenses based on filters
-    expenses = db.session.query(CompanyExpense)\
-        .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
-        .filter(*filters)\
-        .options(
-            joinedload(CompanyExpense.receipt),
-            joinedload(CompanyExpense.submitter),
-            joinedload(CompanyExpense.client)
-        )\
-        .order_by(desc(Receipt.date))\
-        .all()
-    
-    # Calculate totals and prepare data for charts
-    total_amount = sum(expense.receipt.total_amount for expense in expenses if expense.receipt)
-    
-    # Group by category for chart data
-    category_data = {}
-    for expense in expenses:
-        if expense.receipt and expense.receipt.expense_major_category:
-            category = expense.receipt.expense_major_category
-            if category in category_data:
-                category_data[category] += expense.receipt.total_amount
+        
+        # Prepare the filter conditions
+        filters = []
+        
+        # Always filter by date range
+        filters.append(Receipt.date.between(start_date, end_date))
+        
+        # If organization is specified, filter by organization
+        if organization_id:
+            # Check if user has access to the organization
+            if any(org.id == organization_id for org in user_organizations):
+                filters.append(CompanyExpense.organization_id == organization_id)
             else:
-                category_data[category] = expense.receipt.total_amount
-    
-    # Group by status for chart data
-    status_data = {}
-    for expense in expenses:
-        status = expense.status
-        if status in status_data:
-            status_data[status] += expense.receipt.total_amount if expense.receipt else 0
+                # Redirect to default view if user doesn't have access
+                return redirect(url_for('expense_reports.expense_summary'))
         else:
-            status_data[status] = expense.receipt.total_amount if expense.receipt else 0
-    
-    # Group by month for trend chart
-    monthly_data = {}
-    for expense in expenses:
-        if expense.receipt and expense.receipt.date:
-            month_key = expense.receipt.date.strftime('%Y-%m')
-            month_name = expense.receipt.date.strftime('%b %Y')
-            if month_key in monthly_data:
-                monthly_data[month_key]['amount'] += expense.receipt.total_amount
-                monthly_data[month_key]['count'] += 1
+            # Filter for expenses in user's organizations
+            org_ids = [org.id for org in user_organizations]
+            filters.append(CompanyExpense.organization_id.in_(org_ids))
+        
+        # Filter by client if specified
+        if client_id:
+            filters.append(CompanyExpense.client_id == client_id)
+        
+        # Filter by status if specified
+        if status:
+            filters.append(CompanyExpense.status == status)
+        
+        # Filter by receipt category if specified
+        if category:
+            filters.append(Receipt.expense_major_category == category)
+        
+        # Get all expense categories for filter dropdown
+        expense_categories = db.session.query(Receipt.expense_major_category)\
+            .filter(Receipt.expense_major_category.isnot(None))\
+            .distinct()\
+            .all()
+        expense_categories = [cat[0] for cat in expense_categories if cat[0]]
+        
+        # Get the expense statuses for filter dropdown
+        expense_statuses = [status.value for status in ExpenseStatus]
+        
+        # Get clients for filter dropdown (based on selected organization or all user's organizations)
+        if organization_id:
+            clients = db.session.query(Client)\
+                .filter(Client.organization_id == organization_id)\
+                .all()
+        else:
+            clients = db.session.query(Client)\
+                .filter(Client.organization_id.in_([org.id for org in user_organizations]))\
+                .all()
+        
+        # Fetch expenses based on filters
+        expenses = db.session.query(CompanyExpense)\
+            .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(*filters)\
+            .options(
+                joinedload(CompanyExpense.receipt),
+                joinedload(CompanyExpense.submitter),
+                joinedload(CompanyExpense.client)
+            )\
+            .order_by(desc(Receipt.date))\
+            .all()
+        
+        # Calculate totals and prepare data for charts
+        total_amount = sum(expense.receipt.total_amount for expense in expenses if expense.receipt)
+        
+        # Group by category for chart data
+        category_data = {}
+        for expense in expenses:
+            if expense.receipt and expense.receipt.expense_major_category:
+                category = expense.receipt.expense_major_category
+                if category in category_data:
+                    category_data[category] += expense.receipt.total_amount
+                else:
+                    category_data[category] = expense.receipt.total_amount
+        
+        # Group by status for chart data
+        status_data = {}
+        for expense in expenses:
+            status = expense.status
+            if status in status_data:
+                status_data[status] += expense.receipt.total_amount if expense.receipt else 0
             else:
-                monthly_data[month_key] = {
-                    'label': month_name,
-                    'amount': expense.receipt.total_amount,
-                    'count': 1
-                }
-    
-    # Sort monthly data by date
-    sorted_monthly_data = dict(sorted(monthly_data.items()))
-    
-    # Group by submitter for user comparison
-    submitter_data = {}
-    for expense in expenses:
-        if expense.submitter:
-            submitter_name = expense.submitter.name
-            if submitter_name in submitter_data:
-                submitter_data[submitter_name] += expense.receipt.total_amount if expense.receipt else 0
-            else:
-                submitter_data[submitter_name] = expense.receipt.total_amount if expense.receipt else 0
-    
-    # Calculate reimbursable vs. non-reimbursable amounts
-    reimbursable_amount = sum(expense.receipt.total_amount for expense in expenses 
-                              if expense.receipt and expense.is_reimbursable)
-    non_reimbursable_amount = total_amount - reimbursable_amount
-    
-    # Calculate average expense amount
-    avg_expense_amount = total_amount / len(expenses) if expenses else 0
-    
-    # Calculate pending reimbursement amount (approved but not reimbursed)
-    pending_reimbursement = sum(expense.receipt.total_amount for expense in expenses 
-                                if expense.receipt and expense.is_reimbursable 
-                                and expense.status == ExpenseStatus.APPROVED.value)
-    
-    return render_template(
-        'expense_summary.html',
-        expenses=expenses,
-        total_amount=total_amount,
-        reimbursable_amount=reimbursable_amount,
-        non_reimbursable_amount=non_reimbursable_amount,
-        avg_expense_amount=avg_expense_amount,
-        pending_reimbursement=pending_reimbursement,
-        category_data=json.dumps(category_data),
-        status_data=json.dumps(status_data),
-        monthly_data=json.dumps(list(sorted_monthly_data.values())),
-        submitter_data=json.dumps(submitter_data),
-        expense_categories=expense_categories,
-        expense_statuses=expense_statuses,
-        user_organizations=user_organizations,
-        selected_organization_id=organization_id,
-        clients=clients,
-        selected_client_id=client_id,
-        selected_status=status,
-        selected_category=category,
-        start_date=start_date.strftime('%Y-%m-%d'),
-        end_date=end_date.strftime('%Y-%m-%d')
-    )
+                status_data[status] = expense.receipt.total_amount if expense.receipt else 0
+        
+        # Group by month for trend chart
+        monthly_data = {}
+        for expense in expenses:
+            if expense.receipt and expense.receipt.date:
+                month_key = expense.receipt.date.strftime('%Y-%m')
+                month_name = expense.receipt.date.strftime('%b %Y')
+                if month_key in monthly_data:
+                    monthly_data[month_key]['amount'] += expense.receipt.total_amount
+                    monthly_data[month_key]['count'] += 1
+                else:
+                    monthly_data[month_key] = {
+                        'label': month_name,
+                        'amount': expense.receipt.total_amount,
+                        'count': 1
+                    }
+        
+        # Sort monthly data by date
+        sorted_monthly_data = dict(sorted(monthly_data.items()))
+        
+        # Group by submitter for user comparison
+        submitter_data = {}
+        for expense in expenses:
+            if expense.submitter:
+                submitter_name = expense.submitter.name
+                if submitter_name in submitter_data:
+                    submitter_data[submitter_name] += expense.receipt.total_amount if expense.receipt else 0
+                else:
+                    submitter_data[submitter_name] = expense.receipt.total_amount if expense.receipt else 0
+        
+        # Calculate reimbursable vs. non-reimbursable amounts
+        reimbursable_amount = sum(expense.receipt.total_amount for expense in expenses 
+                                  if expense.receipt and expense.is_reimbursable)
+        non_reimbursable_amount = total_amount - reimbursable_amount
+        
+        # Calculate average expense amount
+        avg_expense_amount = total_amount / len(expenses) if expenses else 0
+        
+        # Calculate pending reimbursement amount (approved but not reimbursed)
+        pending_reimbursement = sum(expense.receipt.total_amount for expense in expenses 
+                                    if expense.receipt and expense.is_reimbursable 
+                                    and expense.status == ExpenseStatus.APPROVED.value)
+        
+        return render_template(
+            'expense_summary.html',
+            expenses=expenses,
+            total_amount=total_amount,
+            reimbursable_amount=reimbursable_amount,
+            non_reimbursable_amount=non_reimbursable_amount,
+            avg_expense_amount=avg_expense_amount,
+            pending_reimbursement=pending_reimbursement,
+            category_data=json.dumps(category_data),
+            status_data=json.dumps(status_data),
+            monthly_data=json.dumps(list(sorted_monthly_data.values())),
+            submitter_data=json.dumps(submitter_data),
+            expense_categories=expense_categories,
+            expense_statuses=expense_statuses,
+            user_organizations=user_organizations,
+            selected_organization_id=organization_id,
+            clients=clients,
+            selected_client_id=client_id,
+            selected_status=status,
+            selected_category=category,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+    except Exception as e:
+        # Log the error and return a friendly error page
+        current_app.logger.error(f"Error rendering expense summary: {str(e)}")
+        return render_template('error.html', 
+                               error_code=500, 
+                               error_message="An error occurred while generating the expense report.")
 
 @expense_reports_bp.route('/reimbursements')
 @login_required
@@ -219,164 +226,171 @@ def reimbursement_summary():
     This view helps track outstanding reimbursements, approved amounts,
     and historical reimbursement data with filtering capabilities.
     """
-    # Get query parameters for filtering
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    organization_id = request.args.get('organization_id', type=int)
-    status = request.args.get('status')
-    
-    # Get current date and set default date range to current month if not provided
-    today = datetime.today()
-    start_of_month = datetime(today.year, today.month, 1)
-    end_of_month = start_of_month + relativedelta(months=1, days=-1)
-    
-    # Parse date parameters
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
-    except ValueError:
-        # Handle invalid date format
-        start_date = start_of_month
-        end_date = end_of_month
-    
-    # Get organizations the user has access to
-    user_organizations = db.session.query(Organization)\
-        .join(OrganizationUser)\
-        .filter(OrganizationUser.user_id == current_user.id)\
-        .all()
-    
-    # Prepare the filter conditions
-    filters = []
-    
-    # Always filter by date range
-    filters.append(Receipt.date.between(start_date, end_date))
-    
-    # Only include reimbursable expenses
-    filters.append(CompanyExpense.is_reimbursable == True)
-    
-    # If organization is specified, filter by organization
-    if organization_id:
-        # Check if user has access to the organization
-        if any(org.id == organization_id for org in user_organizations):
-            filters.append(CompanyExpense.organization_id == organization_id)
-        else:
-            # Redirect to default view if user doesn't have access
-            return redirect(url_for('expense_reports.reimbursement_summary'))
-    else:
-        # Filter for expenses in user's organizations
-        org_ids = [org.id for org in user_organizations]
-        filters.append(CompanyExpense.organization_id.in_(org_ids))
-    
-    # Filter by status if specified
-    if status:
-        filters.append(CompanyExpense.status == status)
-    
-    # Get the expense statuses for filter dropdown
-    expense_statuses = [status.value for status in ExpenseStatus]
-    
-    # Fetch reimbursable expenses based on filters
-    reimbursable_expenses = db.session.query(CompanyExpense)\
-        .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
-        .filter(*filters)\
-        .options(
-            joinedload(CompanyExpense.receipt),
-            joinedload(CompanyExpense.submitter),
-            joinedload(CompanyExpense.client),
-            joinedload(CompanyExpense.approver),
-            joinedload(CompanyExpense.reimburser)
-        )\
-        .order_by(desc(Receipt.date))\
-        .all()
-    
-    # Group expenses by status for summary
-    status_summary = {}
-    for status in expense_statuses:
-        status_expenses = [e for e in reimbursable_expenses if e.status == status]
-        status_summary[status] = {
-            'count': len(status_expenses),
-            'amount': sum(e.receipt.total_amount for e in status_expenses if e.receipt)
-        }
-    
-    # Group by submitter for user breakdown
-    submitter_summary = {}
-    for expense in reimbursable_expenses:
-        if expense.submitter:
-            submitter_id = expense.submitter.id
-            submitter_name = expense.submitter.name
-            if submitter_id not in submitter_summary:
-                submitter_summary[submitter_id] = {
-                    'name': submitter_name,
-                    'total': 0,
-                    'approved': 0,
-                    'reimbursed': 0,
-                    'pending': 0
-                }
-            
-            amount = expense.receipt.total_amount if expense.receipt else 0
-            submitter_summary[submitter_id]['total'] += amount
-            
-            if expense.status == ExpenseStatus.APPROVED.value:
-                submitter_summary[submitter_id]['approved'] += amount
-            elif expense.status == ExpenseStatus.REIMBURSED.value:
-                submitter_summary[submitter_id]['reimbursed'] += amount
-            elif expense.status == ExpenseStatus.SUBMITTED.value:
-                submitter_summary[submitter_id]['pending'] += amount
-    
-    # Get reimbursement timeline data (when expenses were reimbursed)
-    reimbursement_timeline = {}
-    for expense in reimbursable_expenses:
-        if expense.status == ExpenseStatus.REIMBURSED.value and expense.reimbursed_date:
-            month_key = expense.reimbursed_date.strftime('%Y-%m')
-            month_name = expense.reimbursed_date.strftime('%b %Y')
-            if month_key in reimbursement_timeline:
-                reimbursement_timeline[month_key]['amount'] += expense.receipt.total_amount if expense.receipt else 0
-                reimbursement_timeline[month_key]['count'] += 1
+        # Get query parameters for filtering
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        organization_id = request.args.get('organization_id', type=int)
+        status = request.args.get('status')
+        
+        # Get current date and set default date range to current month if not provided
+        today = datetime.today()
+        start_of_month = datetime(today.year, today.month, 1)
+        end_of_month = start_of_month + relativedelta(months=1, days=-1)
+        
+        # Parse date parameters
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
+        except ValueError:
+            # Handle invalid date format
+            start_date = start_of_month
+            end_date = end_of_month
+        
+        # Get organizations the user has access to
+        user_organizations = db.session.query(Organization)\
+            .join(OrganizationUser)\
+            .filter(OrganizationUser.user_id == current_user.id)\
+            .all()
+        
+        # Prepare the filter conditions
+        filters = []
+        
+        # Always filter by date range
+        filters.append(Receipt.date.between(start_date, end_date))
+        
+        # Only include reimbursable expenses
+        filters.append(CompanyExpense.is_reimbursable == True)
+        
+        # If organization is specified, filter by organization
+        if organization_id:
+            # Check if user has access to the organization
+            if any(org.id == organization_id for org in user_organizations):
+                filters.append(CompanyExpense.organization_id == organization_id)
             else:
-                reimbursement_timeline[month_key] = {
-                    'label': month_name,
-                    'amount': expense.receipt.total_amount if expense.receipt else 0,
-                    'count': 1
-                }
-    
-    # Sort timeline data by date
-    sorted_timeline = dict(sorted(reimbursement_timeline.items()))
-    
-    # Calculate totals
-    total_reimbursable = sum(e.receipt.total_amount for e in reimbursable_expenses if e.receipt)
-    total_reimbursed = sum(e.receipt.total_amount for e in reimbursable_expenses 
-                           if e.receipt and e.status == ExpenseStatus.REIMBURSED.value)
-    total_approved = sum(e.receipt.total_amount for e in reimbursable_expenses 
-                         if e.receipt and e.status == ExpenseStatus.APPROVED.value)
-    total_pending = sum(e.receipt.total_amount for e in reimbursable_expenses 
-                        if e.receipt and e.status == ExpenseStatus.SUBMITTED.value)
-    
-    # Calculate average reimbursement time (from submission to reimbursement)
-    reimbursement_times = []
-    for expense in reimbursable_expenses:
-        if expense.status == ExpenseStatus.REIMBURSED.value and expense.reimbursed_date and expense.submitted_date:
-            time_diff = (expense.reimbursed_date - expense.submitted_date).days
-            reimbursement_times.append(time_diff)
-    
-    avg_reimbursement_time = sum(reimbursement_times) / len(reimbursement_times) if reimbursement_times else 0
-    
-    return render_template(
-        'reimbursement_summary.html',
-        reimbursable_expenses=reimbursable_expenses,
-        total_reimbursable=total_reimbursable,
-        total_reimbursed=total_reimbursed,
-        total_approved=total_approved,
-        total_pending=total_pending,
-        avg_reimbursement_time=avg_reimbursement_time,
-        status_summary=status_summary,
-        submitter_summary=submitter_summary,
-        reimbursement_timeline=json.dumps(list(sorted_timeline.values())),
-        expense_statuses=expense_statuses,
-        user_organizations=user_organizations,
-        selected_organization_id=organization_id,
-        selected_status=status,
-        start_date=start_date.strftime('%Y-%m-%d'),
-        end_date=end_date.strftime('%Y-%m-%d')
-    )
+                # Redirect to default view if user doesn't have access
+                return redirect(url_for('expense_reports.reimbursement_summary'))
+        else:
+            # Filter for expenses in user's organizations
+            org_ids = [org.id for org in user_organizations]
+            filters.append(CompanyExpense.organization_id.in_(org_ids))
+        
+        # Filter by status if specified
+        if status:
+            filters.append(CompanyExpense.status == status)
+        
+        # Get the expense statuses for filter dropdown
+        expense_statuses = [status.value for status in ExpenseStatus]
+        
+        # Fetch reimbursable expenses based on filters
+        reimbursable_expenses = db.session.query(CompanyExpense)\
+            .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(*filters)\
+            .options(
+                joinedload(CompanyExpense.receipt),
+                joinedload(CompanyExpense.submitter),
+                joinedload(CompanyExpense.client),
+                joinedload(CompanyExpense.approver),
+                joinedload(CompanyExpense.reimburser)
+            )\
+            .order_by(desc(Receipt.date))\
+            .all()
+        
+        # Group expenses by status for summary
+        status_summary = {}
+        for status in expense_statuses:
+            status_expenses = [e for e in reimbursable_expenses if e.status == status]
+            status_summary[status] = {
+                'count': len(status_expenses),
+                'amount': sum(e.receipt.total_amount for e in status_expenses if e.receipt)
+            }
+        
+        # Group by submitter for user breakdown
+        submitter_summary = {}
+        for expense in reimbursable_expenses:
+            if expense.submitter:
+                submitter_id = expense.submitter.id
+                submitter_name = expense.submitter.name
+                if submitter_id not in submitter_summary:
+                    submitter_summary[submitter_id] = {
+                        'name': submitter_name,
+                        'total': 0,
+                        'approved': 0,
+                        'reimbursed': 0,
+                        'pending': 0
+                    }
+                
+                amount = expense.receipt.total_amount if expense.receipt else 0
+                submitter_summary[submitter_id]['total'] += amount
+                
+                if expense.status == ExpenseStatus.APPROVED.value:
+                    submitter_summary[submitter_id]['approved'] += amount
+                elif expense.status == ExpenseStatus.REIMBURSED.value:
+                    submitter_summary[submitter_id]['reimbursed'] += amount
+                elif expense.status == ExpenseStatus.SUBMITTED.value:
+                    submitter_summary[submitter_id]['pending'] += amount
+        
+        # Get reimbursement timeline data (when expenses were reimbursed)
+        reimbursement_timeline = {}
+        for expense in reimbursable_expenses:
+            if expense.status == ExpenseStatus.REIMBURSED.value and expense.reimbursed_date:
+                month_key = expense.reimbursed_date.strftime('%Y-%m')
+                month_name = expense.reimbursed_date.strftime('%b %Y')
+                if month_key in reimbursement_timeline:
+                    reimbursement_timeline[month_key]['amount'] += expense.receipt.total_amount if expense.receipt else 0
+                    reimbursement_timeline[month_key]['count'] += 1
+                else:
+                    reimbursement_timeline[month_key] = {
+                        'label': month_name,
+                        'amount': expense.receipt.total_amount if expense.receipt else 0,
+                        'count': 1
+                    }
+        
+        # Sort timeline data by date
+        sorted_timeline = dict(sorted(reimbursement_timeline.items()))
+        
+        # Calculate totals
+        total_reimbursable = sum(e.receipt.total_amount for e in reimbursable_expenses if e.receipt)
+        total_reimbursed = sum(e.receipt.total_amount for e in reimbursable_expenses 
+                               if e.receipt and e.status == ExpenseStatus.REIMBURSED.value)
+        total_approved = sum(e.receipt.total_amount for e in reimbursable_expenses 
+                             if e.receipt and e.status == ExpenseStatus.APPROVED.value)
+        total_pending = sum(e.receipt.total_amount for e in reimbursable_expenses 
+                            if e.receipt and e.status == ExpenseStatus.SUBMITTED.value)
+        
+        # Calculate average reimbursement time (from submission to reimbursement)
+        reimbursement_times = []
+        for expense in reimbursable_expenses:
+            if expense.status == ExpenseStatus.REIMBURSED.value and expense.reimbursed_date and expense.submitted_date:
+                time_diff = (expense.reimbursed_date - expense.submitted_date).days
+                reimbursement_times.append(time_diff)
+        
+        avg_reimbursement_time = sum(reimbursement_times) / len(reimbursement_times) if reimbursement_times else 0
+        
+        return render_template(
+            'reimbursement_summary.html',
+            reimbursable_expenses=reimbursable_expenses,
+            total_reimbursable=total_reimbursable,
+            total_reimbursed=total_reimbursed,
+            total_approved=total_approved,
+            total_pending=total_pending,
+            avg_reimbursement_time=avg_reimbursement_time,
+            status_summary=status_summary,
+            submitter_summary=submitter_summary,
+            reimbursement_timeline=json.dumps(list(sorted_timeline.values())),
+            expense_statuses=expense_statuses,
+            user_organizations=user_organizations,
+            selected_organization_id=organization_id,
+            selected_status=status,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+    except Exception as e:
+        # Log the error and return a friendly error page
+        current_app.logger.error(f"Error rendering reimbursement summary: {str(e)}")
+        return render_template('error.html', 
+                               error_code=500, 
+                               error_message="An error occurred while generating the reimbursement report.")
 
 @expense_reports_bp.route('/user-expenses')
 @login_required
