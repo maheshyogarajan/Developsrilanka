@@ -570,6 +570,95 @@ def edit_expense(expense_id):
     
     return render_template('edit_expense.html', expense=expense, receipt=receipt, clients=clients)
 
+
+@expense_bp.route('/expenses/<int:expense_id>/update-ajax', methods=['POST'])
+@login_required
+def update_expense_ajax(expense_id):
+    """Update an expense via AJAX."""
+    # Get the expense
+    expense = CompanyExpense.query.get_or_404(expense_id)
+    
+    # Verify the expense belongs to the current user or user has proper permissions
+    if expense.user_id != current_user.id and not check_organization_permission(expense.organization_id, ['owner', 'admin']):
+        return jsonify({'success': False, 'error': 'You do not have permission to edit this expense'}), 403
+    
+    # Verify expense is still in submitted status
+    if expense.status != ExpenseStatus.SUBMITTED.value:
+        return jsonify({'success': False, 'error': 'This expense cannot be edited because it has been processed'}), 400
+    
+    # Get JSON data
+    data = request.json
+    
+    try:
+        # Update the expense fields
+        if 'description' in data:
+            expense.description = data['description']
+        
+        if 'is_reimbursable' in data:
+            expense.is_reimbursable = data['is_reimbursable']
+            
+        if 'notes' in data:
+            expense.notes = data['notes']
+            
+        # Handle organization and client updates (with validation)
+        if 'organization_id' in data:
+            if data['organization_id']:
+                org_id = int(data['organization_id'])
+                org = Organization.query.get(org_id)
+                if not org:
+                    return jsonify({'success': False, 'error': 'Invalid organization selected'}), 400
+                expense.organization_id = org_id
+                
+                # Reset client if organization changed
+                if 'client_id' not in data:
+                    expense.client_id = None
+            else:
+                expense.organization_id = None
+                expense.client_id = None
+                
+        if 'client_id' in data:
+            if data['client_id']:
+                client_id = int(data['client_id'])
+                client = Client.query.get(client_id)
+                if not client or (expense.organization_id and client.organization_id != expense.organization_id):
+                    return jsonify({'success': False, 'error': 'Invalid client selected for this organization'}), 400
+                expense.client_id = client_id
+            else:
+                expense.client_id = None
+        
+        # Save changes
+        db.session.commit()
+        
+        # Get updated data for response
+        organization_name = None
+        if expense.organization_id:
+            org = Organization.query.get(expense.organization_id)
+            organization_name = org.name if org else None
+            
+        client_name = None
+        if expense.client_id:
+            client = Client.query.get(expense.client_id)
+            client_name = client.name if client else None
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Expense updated successfully',
+            'expense': {
+                'description': expense.description,
+                'organization_id': expense.organization_id,
+                'organization_name': organization_name,
+                'client_id': expense.client_id,
+                'client_name': client_name,
+                'is_reimbursable': expense.is_reimbursable,
+                'notes': expense.notes
+            }
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @expense_bp.route('/receipts/<int:receipt_id>/create-expense', methods=['GET', 'POST'])
 @login_required
 def create_expense_from_receipt(receipt_id):
