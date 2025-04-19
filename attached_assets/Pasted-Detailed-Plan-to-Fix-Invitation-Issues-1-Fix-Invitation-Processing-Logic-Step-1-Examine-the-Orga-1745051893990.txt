@@ -1,0 +1,29 @@
+Detailed Plan to Fix Invitation Issues
+1. Fix Invitation Processing Logic
+Step 1: Examine the Organization Invitation Accept Handler
+First, let's examine the organization invitation acceptance route to understand the current implementation
+Identify where the error occurs when trying to use sender attribute on a FriendInvitation object
+Review how the token is being processed in the accept invitation route
+Step 2: Add Better Type Checking and Error Handling
+Update the accept invitation route to clearly distinguish between friend and organization invitations
+Add proper validation of the invitation token before attempting to access any attributes
+Implement proper error handling with specific error messages for different failure scenarios
+Add comprehensive logging to capture the exact state of the invitation at the time of the error
+Step 3: Fix the Invitation Model Relationship Access
+Ensure the organization invitation model correctly accesses the sender through appropriate relationship paths
+Check if we're attempting to use the correct relationship field name when retrieving the sender name
+Ensure consistent relationship naming across both invitation types to avoid confusion
+Step 4: Update the Accept Invitation Flow
+Implement more robust state handling in the accept invitation process
+Add a transaction to ensure all database changes are atomic (either all succeed or all fail)
+Add verification steps to confirm the organization and role assignment was successful
+3. Improve Error Handling
+Step 1: Create a Comprehensive Error Handler
+Add a specialized error handler for invitation-related exceptions
+Implement friendly, actionable error messages for users instead of generic error messages
+Add clear instructions for users on what to do when an invitation fails
+Step 2: Enhance Logging System
+Add structured logging for invitation processing with detailed context
+Log the full invitation token (securely) and lookup result
+Add timestamps and user information to track the entire invitation flow
+Implement log correlation IDs to track a single invitation process across multiple requests

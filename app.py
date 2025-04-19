@@ -2393,7 +2393,8 @@ def accept_friend_invitation(token):
             invitation.accepted_by_user_id = current_user.id
             db.session.commit()
             
-            flash(f"You've successfully accepted the invitation from {invitation.sender.name}!", "success")
+            # Access invited_by relationship instead of sender (which doesn't exist)
+            flash(f"You've successfully accepted the invitation from {invitation.invited_by.name}!", "success")
             return redirect(url_for('profile'))
         else:
             # Store token in session for after registration/login
