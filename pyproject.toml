@@ -25,4 +25,5 @@ dependencies = [
     "botocore>=1.37.23",
     "sendgrid>=6.11.0",
     "markupsafe>=3.0.2",
+    "python-dateutil>=2.9.0.post0",
 ]
