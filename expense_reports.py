@@ -19,8 +19,8 @@ from models import (
 )
 from decorators import role_required, admin_required
 
-# Create the blueprint for expense reports
-expense_reports_bp = Blueprint('expense_reports', __name__, url_prefix='/reports')
+# Create the blueprint for expense reports - using simple prefix to avoid route conflicts
+expense_reports_bp = Blueprint('expense_reports', __name__)
 
 @expense_reports_bp.route('/expenses')
 @login_required
