@@ -2659,7 +2659,8 @@ def check_authentication():
     # Check for paths that start with these prefixes
     protected_prefixes = [
         '/receipts/',
-        '/view_receipt/'
+        '/view_receipt/',
+        '/reports/'
     ]
     
     # Check if the current path is protected and user is not authenticated
