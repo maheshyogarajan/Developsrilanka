@@ -655,7 +655,6 @@ class CompanyExpense(db.Model):
     description = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), nullable=False, default=ExpenseStatus.SUBMITTED.value)
     is_reimbursable = db.Column(db.Boolean, nullable=False, default=True)  # Flag to indicate if expense is reimbursable
-    vendor_name = db.Column(db.String(255), nullable=True)  # Vendor or merchant name
     
     submitted_date = db.Column(db.DateTime, default=datetime.utcnow)
     approval_date = db.Column(db.DateTime, nullable=True)
@@ -686,7 +685,6 @@ class CompanyExpense(db.Model):
             'description': self.description or '',
             'status': self.status,
             'is_reimbursable': self.is_reimbursable,
-            'vendor_name': self.vendor_name or '',
             'submitted_date': self.submitted_date.isoformat() if self.submitted_date else None,
             'approval_date': self.approval_date.isoformat() if self.approval_date else None,
             'reimbursed_date': self.reimbursed_date.isoformat() if self.reimbursed_date else None,
