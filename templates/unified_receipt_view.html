@@ -229,7 +229,7 @@
                             </a>
                         {% endif %}
                     {% else %}
-                        <button id="toggleEditMode" class="btn btn-primary btn-sm">
+                        <button id="toggleEditMode" class="btn btn-primary btn-sm" onclick="console.log('Edit button clicked via onclick'); window.editButtonClicked();">
                             <i class="fas fa-edit"></i> Edit Receipt
                         </button>
                     {% endif %}
@@ -569,8 +569,51 @@
 
 {% block scripts %}
 <script>
+    // Global debugging function for edit button
+    window.editButtonClicked = function() {
+        console.log('Global editButtonClicked function called');
+        
+        const editForm = document.getElementById('editForm');
+        const receiptDetailsCard = document.getElementById('receiptDetailsCard');
+        
+        console.log('Global function elements check:');
+        console.log('- editForm exists:', !!editForm);
+        console.log('- receiptDetailsCard exists:', !!receiptDetailsCard);
+        
+        if (editForm && receiptDetailsCard) {
+            console.log('Global function showing edit form...');
+            editForm.style.display = 'block';
+            receiptDetailsCard.style.display = 'none';
+            console.log('Global function display styles set');
+            
+            // Force browser to repaint
+            void editForm.offsetWidth;
+            console.log('Global function forced repaint');
+            
+            // Double-check visibility after small delay
+            setTimeout(function() {
+                console.log('Edit form display after timeout:', editForm.style.display);
+                console.log('Receipt details display after timeout:', receiptDetailsCard.style.display);
+            }, 100);
+        } else {
+            console.error('Global function cannot find required elements');
+        }
+    };
+    
+    // Global event listener for all clicks
+    document.addEventListener('click', function(event) {
+        console.log('Click detected on:', event.target.tagName, event.target.id || event.target.className);
+    });
+    
     // Initialize Bootstrap popovers and tooltips
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOMContentLoaded detailed setup beginning');
+        
+        // Log all button IDs for debugging
+        document.querySelectorAll('button').forEach(button => {
+            console.log('Found button:', button.id || '[no id]', 'Text:', button.innerText.trim());
+        });
+        
         // Initialize any Bootstrap components if needed
         if (typeof bootstrap !== 'undefined') {
             // Enable tooltips
