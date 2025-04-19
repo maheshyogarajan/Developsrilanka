@@ -569,12 +569,13 @@ def edit_organization_receipt_page(org_id, receipt_id):
     # Redirect to the standard edit route
     return redirect(url_for('unified_view.edit_receipt_page', receipt_id=receipt_id))
 
-@unified_view_bp.route('/update/<int:receipt_id>', methods=['POST'])
+@unified_view_bp.route('/process-update/<int:receipt_id>', methods=['POST'])
 @login_required
-def update_receipt(receipt_id):
+def process_receipt_update(receipt_id):
     """
-    Update receipt details and expense classification in a single form.
+    Process the update for receipt details from the dedicated edit page.
     This handles both receipt details and expense details simultaneously.
+    Renamed from update_receipt to avoid function name conflict.
     """
     # Get receipt
     receipt = Receipt.query.get_or_404(receipt_id)

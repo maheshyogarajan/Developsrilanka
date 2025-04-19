@@ -27,7 +27,7 @@
     </div>
 
     <!-- Main Edit Form -->
-    <form action="{{ url_for('unified_view.update_receipt', receipt_id=receipt.id) }}" method="POST" class="edit-receipt-form">
+    <form action="{{ url_for('unified_view.process_receipt_update', receipt_id=receipt.id) }}" method="POST" class="edit-receipt-form">
         <!-- CSRF Protection -->
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
