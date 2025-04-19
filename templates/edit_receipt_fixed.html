@@ -385,11 +385,14 @@
                             {% if receipt.image_url %}
                                 <div class="receipt-thumbnail-container">
                                     <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image clickable-image" 
-                                        data-bs-toggle="modal" data-bs-target="#receiptImageModal"
+                                        onclick="openReceiptModal()"
                                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                                     <div class="text-center mt-2">
                                         <small class="text-muted">Click image to enlarge</small>
                                     </div>
+                                    <button type="button" class="btn btn-primary btn-sm mt-2" onclick="openReceiptModal()">
+                                        View Full Image
+                                    </button>
                                 </div>
                             {% else %}
                                 <div class="no-receipt-image">
@@ -420,21 +423,48 @@
 
 {% block scripts %}
 <script>
+    // Global function to open the receipt modal - can be called from inline onclick handlers
+    function openReceiptModal() {
+        console.log('openReceiptModal function called');
+        const receiptImageModal = document.getElementById('receiptImageModal');
+        if (receiptImageModal && typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(receiptImageModal);
+            modal.show();
+            console.log('Modal shown successfully');
+        } else {
+            console.error('Cannot open modal: ', 
+                         receiptImageModal ? 'Modal element found' : 'Modal element NOT found',
+                         typeof bootstrap !== 'undefined' ? 'Bootstrap loaded' : 'Bootstrap NOT loaded');
+        }
+    }
+    
     // Initialize Bootstrap components
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Edit Receipt page loaded');
         
         // Initialize the receipt image modal
         const receiptImageModal = document.getElementById('receiptImageModal');
+        console.log('Found receipt image modal:', receiptImageModal ? 'yes' : 'no');
+        
         if (receiptImageModal) {
-            const modal = new bootstrap.Modal(receiptImageModal);
-            
-            // Add click event to the image
-            const receiptImage = document.querySelector('.receipt-image');
-            if (receiptImage) {
-                receiptImage.addEventListener('click', function() {
-                    modal.show();
-                });
+            // Make sure bootstrap is loaded
+            if (typeof bootstrap !== 'undefined') {
+                console.log('Bootstrap is loaded, initializing modal');
+                const modal = new bootstrap.Modal(receiptImageModal);
+                
+                // Add click event to the image
+                const receiptImage = document.querySelector('.receipt-image');
+                console.log('Found receipt image:', receiptImage ? 'yes' : 'no');
+                
+                if (receiptImage) {
+                    receiptImage.addEventListener('click', function(e) {
+                        console.log('Click detected on:', e.target.tagName, e.target.className);
+                        console.log('Showing modal');
+                        modal.show();
+                    });
+                }
+            } else {
+                console.error('Bootstrap is not defined! Modal functionality will not work.');
             }
         }
         
