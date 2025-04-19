@@ -469,6 +469,113 @@ def update_receipt(receipt_id):
     Update receipt details and expense classification in a single form.
     This handles both receipt details and expense details simultaneously.
     """
+    # Implementation continues below
+
+@unified_view_bp.route('/edit/<int:receipt_id>', methods=['GET'])
+@login_required
+def edit_receipt_page(receipt_id):
+    """
+    Display a dedicated page for editing receipt details.
+    """
+    # Get receipt with its items
+    receipt = Receipt.query.get_or_404(receipt_id)
+    items = ReceiptItem.query.filter_by(receipt_id=receipt_id).all()
+    
+    # Security check - ensure user has permission to edit this receipt
+    if receipt.user_id != current_user.id:
+        if not receipt.organization_id:
+            abort(403)  # User doesn't own this receipt and it's not associated with an organization
+        
+        # Check if user is part of this organization
+        user_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=receipt.organization_id
+        ).first()
+        
+        if not user_org or user_org.role not in ['owner', 'admin', 'member']:
+            abort(403)  # User doesn't have edit permission
+    
+    # Get company expense if it exists
+    company_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
+    
+    # Get client expense if it exists
+    client_expense = ClientExpense.query.filter_by(receipt_id=receipt_id).first()
+    
+    # Get client list if there's an organization
+    clients = []
+    if receipt.organization_id:
+        clients = Client.query.filter_by(organization_id=receipt.organization_id).all()
+    
+    # Determine if this is a company expense
+    is_company_expense = company_expense is not None
+    
+    # Get organization data if part of organization
+    organization = None
+    if receipt.organization_id:
+        organization = Organization.query.get(receipt.organization_id)
+    
+    # Get the user's role in the organization
+    user_org_role = None
+    if receipt.organization_id:
+        org_user = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=receipt.organization_id
+        ).first()
+        if org_user:
+            user_org_role = org_user.role
+    
+    # Get all organizations the user belongs to for the dropdown
+    user_organizations = Organization.query.join(OrganizationUser).filter(
+        OrganizationUser.user_id == current_user.id
+    ).all()
+    
+    # Render the edit template with all necessary data
+    return render_template(
+        'edit_receipt.html',
+        receipt=receipt,
+        items=items,
+        expense=company_expense,
+        client_expense=client_expense,
+        clients=clients,
+        is_company_expense=is_company_expense,
+        user_org_role=user_org_role,
+        organization=organization,
+        user_organizations=user_organizations
+    )
+
+@unified_view_bp.route('/organizations/<int:org_id>/receipts/edit/<int:receipt_id>', methods=['GET'])
+@login_required
+def edit_organization_receipt_page(org_id, receipt_id):
+    """
+    Organization-aware route for editing receipt details.
+    This maintains URL structure consistency with other organization routes.
+    """
+    # Verify user has access to this organization
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=org_id
+    ).first()
+    
+    if not org_user or org_user.role not in ['owner', 'admin', 'member']:
+        abort(403)  # User doesn't have access to this organization
+    
+    # Get receipt
+    receipt = Receipt.query.get_or_404(receipt_id)
+    
+    # Verify receipt belongs to requested organization
+    if receipt.organization_id != org_id:
+        abort(404)  # Receipt doesn't belong to this organization
+    
+    # Redirect to the standard edit route
+    return redirect(url_for('unified_view.edit_receipt_page', receipt_id=receipt_id))
+
+@unified_view_bp.route('/update/<int:receipt_id>', methods=['POST'])
+@login_required
+def update_receipt(receipt_id):
+    """
+    Update receipt details and expense classification in a single form.
+    This handles both receipt details and expense details simultaneously.
+    """
     # Get receipt
     receipt = Receipt.query.get_or_404(receipt_id)
     
@@ -486,8 +593,32 @@ def update_receipt(receipt_id):
         if not user_org or user_org.role not in ['owner', 'admin', 'member']:
             abort(403)  # User doesn't have edit permission
     
+    # Handle organization changes
+    new_org_id = request.form.get('organization_id', '')
+    if new_org_id and new_org_id.isdigit():
+        new_org_id = int(new_org_id)
+        
+        # Check if user has access to the target organization
+        if new_org_id != receipt.organization_id:
+            user_org = OrganizationUser.query.filter_by(
+                user_id=current_user.id,
+                organization_id=new_org_id
+            ).first()
+            
+            if not user_org:
+                abort(403)  # User doesn't have access to the target organization
+            
+            # Update organization ID
+            receipt.organization_id = new_org_id
+    elif new_org_id == '':
+        # Remove organization association (convert to personal receipt)
+        receipt.organization_id = None
+    
     # Update receipt basic details
     receipt.vendor_name = request.form.get('vendor_name', receipt.vendor_name)
+    receipt.vendor_address = request.form.get('vendor_address', receipt.vendor_address)
+    receipt.vendor_contact = request.form.get('vendor_contact', receipt.vendor_contact)
+    receipt.vat_registration_number = request.form.get('vat_registration_number', receipt.vat_registration_number)
     receipt.receipt_number = request.form.get('receipt_number', receipt.receipt_number)
     
     try:
@@ -501,6 +632,24 @@ def update_receipt(receipt_id):
             receipt.total_amount = float(request.form.get('total_amount'))
     except ValueError:
         flash('Invalid amount format', 'warning')
+        
+    try:
+        if request.form.get('service_charge'):
+            receipt.service_charge = float(request.form.get('service_charge'))
+    except ValueError:
+        flash('Invalid service charge format', 'warning')
+
+    try:
+        if request.form.get('vat_tax'):
+            receipt.vat_tax = float(request.form.get('vat_tax'))
+    except ValueError:
+        flash('Invalid VAT tax format', 'warning')
+
+    try:
+        if request.form.get('sscl_tax'):
+            receipt.sscl_tax = float(request.form.get('sscl_tax'))
+    except ValueError:
+        flash('Invalid SSCL tax format', 'warning')
     
     receipt.expense_major_category = request.form.get('expense_major_category', receipt.expense_major_category)
     receipt.expense_minor_category = request.form.get('expense_minor_category', receipt.expense_minor_category)

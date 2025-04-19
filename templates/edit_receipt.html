@@ -1,0 +1,457 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Receipt{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            {% if organization %}
+            <li class="breadcrumb-item"><a href="{{ url_for('organization.dashboard', org_id=organization.id) }}">{{ organization.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('list_receipts', org_id=organization.id) }}">Receipts</a></li>
+            {% else %}
+            <li class="breadcrumb-item"><a href="{{ url_for('list_receipts') }}">Receipt History</a></li>
+            {% endif %}
+            <li class="breadcrumb-item"><a href="{{ url_for('unified_view.view_unified_receipt', receipt_id=receipt.id) }}">View Receipt</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit Receipt</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Edit Receipt</h1>
+        <a href="{{ url_for('unified_view.view_unified_receipt', receipt_id=receipt.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Receipt
+        </a>
+    </div>
+
+    <!-- Main Edit Form -->
+    <form action="{{ url_for('unified_view.update_receipt', receipt_id=receipt.id) }}" method="POST" class="edit-receipt-form">
+        <!-- CSRF Protection -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+            <!-- Receipt Details -->
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-edit"></i> Edit Receipt Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Organization Selection (if applicable) -->
+                        {% if user_organizations and current_user.is_authenticated %}
+                        <div class="form-group mb-4">
+                            <label for="organization_id" class="form-label">Organization</label>
+                            <select class="form-select" id="organization_id" name="organization_id">
+                                <option value="">-- Personal Receipt --</option>
+                                {% for org in user_organizations %}
+                                <option value="{{ org.id }}" {% if receipt.organization_id == org.id %}selected{% endif %}>
+                                    {{ org.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text text-muted">
+                                Assigning to an organization makes this receipt visible to your team.
+                            </div>
+                        </div>
+                        {% endif %}
+                    
+                        <div class="row">
+                            <!-- Vendor Information -->
+                            <div class="col-md-6">
+                                <h5>Vendor Information</h5>
+                                <div class="form-group mb-3">
+                                    <label for="vendor_name" class="form-label">Vendor Name</label>
+                                    <input type="text" class="form-control" id="vendor_name" name="vendor_name" 
+                                           value="{{ receipt.vendor_name }}" required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="vendor_address" class="form-label">Vendor Address</label>
+                                    <input type="text" class="form-control" id="vendor_address" name="vendor_address" 
+                                           value="{{ receipt.vendor_address or '' }}">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="vendor_contact" class="form-label">Vendor Contact</label>
+                                    <input type="text" class="form-control" id="vendor_contact" name="vendor_contact" 
+                                           value="{{ receipt.vendor_contact or '' }}">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="vat_registration_number" class="form-label">VAT Registration Number</label>
+                                    <input type="text" class="form-control" id="vat_registration_number" name="vat_registration_number" 
+                                           value="{{ receipt.vat_registration_number or '' }}">
+                                </div>
+                            </div>
+                            
+                            <!-- Receipt Information -->
+                            <div class="col-md-6">
+                                <h5>Receipt Information</h5>
+                                <div class="form-group mb-3">
+                                    <label for="date" class="form-label">Receipt Date</label>
+                                    <input type="date" class="form-control" id="date" name="date" 
+                                           value="{{ receipt.date.strftime('%Y-%m-%d') if receipt.date else '' }}" required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="receipt_number" class="form-label">Receipt Number</label>
+                                    <input type="text" class="form-control" id="receipt_number" name="receipt_number" 
+                                           value="{{ receipt.receipt_number or '' }}">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="total_amount" class="form-label">Total Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Rs</span>
+                                        <input type="number" step="0.01" class="form-control" id="total_amount" name="total_amount" 
+                                               value="{{ receipt.total_amount }}" required>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="service_charge" class="form-label">Service Charge</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Rs</span>
+                                        <input type="number" step="0.01" class="form-control" id="service_charge" name="service_charge" 
+                                               value="{{ receipt.service_charge or 0 }}">
+                                    </div>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="vat_tax" class="form-label">VAT</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Rs</span>
+                                        <input type="number" step="0.01" class="form-control" id="vat_tax" name="vat_tax" 
+                                               value="{{ receipt.vat_tax or 0 }}">
+                                    </div>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="sscl_tax" class="form-label">SSCL Tax</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Rs</span>
+                                        <input type="number" step="0.01" class="form-control" id="sscl_tax" name="sscl_tax" 
+                                               value="{{ receipt.sscl_tax or 0 }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Category Information -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5>Category Information</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="expense_major_category" class="form-label">Major Category</label>
+                                            <select class="form-select" id="expense_major_category" name="expense_major_category">
+                                                <option value="">-- Select Category --</option>
+                                                <option value="Food and Beverage" {% if receipt.expense_major_category == 'Food and Beverage' %}selected{% endif %}>Food and Beverage</option>
+                                                <option value="Transport" {% if receipt.expense_major_category == 'Transport' %}selected{% endif %}>Transport</option>
+                                                <option value="Accommodation" {% if receipt.expense_major_category == 'Accommodation' %}selected{% endif %}>Accommodation</option>
+                                                <option value="Office Supplies" {% if receipt.expense_major_category == 'Office Supplies' %}selected{% endif %}>Office Supplies</option>
+                                                <option value="Administrative Expenses" {% if receipt.expense_major_category == 'Administrative Expenses' %}selected{% endif %}>Administrative Expenses</option>
+                                                <option value="Marketing" {% if receipt.expense_major_category == 'Marketing' %}selected{% endif %}>Marketing</option>
+                                                <option value="Utilities" {% if receipt.expense_major_category == 'Utilities' %}selected{% endif %}>Utilities</option>
+                                                <option value="Other" {% if receipt.expense_major_category == 'Other' %}selected{% endif %}>Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="expense_minor_category" class="form-label">Minor Category</label>
+                                            <select class="form-select" id="expense_minor_category" name="expense_minor_category">
+                                                <option value="">-- Select Sub-category --</option>
+                                                <!-- Will be populated by JavaScript -->
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Business Expense Information (if applicable) -->
+                        {% if is_company_expense or receipt.organization_id %}
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5>Business Expense Information</h5>
+                                
+                                <!-- Receipt type for proper handling in the backend -->
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Receipt Type</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="receipt_type" id="receipt_type_personal" value="personal" {% if not is_company_expense %}checked{% endif %}>
+                                        <label class="form-check-label" for="receipt_type_personal">
+                                            Personal Receipt
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="receipt_type" id="receipt_type_business" value="business" {% if is_company_expense %}checked{% endif %}>
+                                        <label class="form-check-label" for="receipt_type_business">
+                                            Business Expense
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div id="business-expense-details" class="{% if not is_company_expense %}d-none{% endif %}">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-3">
+                                                <label for="client_id" class="form-label">Client</label>
+                                                <select class="form-select" id="client_id" name="client_id">
+                                                    <option value="">-- None --</option>
+                                                    {% for client in clients %}
+                                                    <option value="{{ client.id }}" {% if expense and expense.client_id == client.id %}selected{% endif %}>
+                                                        {{ client.name }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="form-group mb-3">
+                                                <label for="business_description" class="form-label">Description</label>
+                                                <input type="text" class="form-control" id="business_description" name="business_description" 
+                                                      value="{{ expense.description if expense else '' }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-3">
+                                                <div class="form-check mt-4">
+                                                    <input class="form-check-input" type="checkbox" id="is_reimbursable" name="is_reimbursable" 
+                                                          {% if expense and expense.is_reimbursable %}checked{% endif %}>
+                                                    <label class="form-check-label" for="is_reimbursable">
+                                                        Reimbursable Expense
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="form-group mb-3">
+                                                <label for="notes" class="form-label">Notes</label>
+                                                <textarea class="form-control" id="notes" name="notes" rows="3">{{ expense.notes if expense else '' }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Hidden field for non-business receipts -->
+                        <input type="hidden" name="receipt_type" value="personal">
+                        {% endif %}
+                    </div>
+                </div>
+            
+                <!-- Receipt Items Section (read-only) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-list"></i> Receipt Items</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Quantity</th>
+                                        <th>Price</th>
+                                        <th>Total</th>
+                                        <th>Tax Deductible</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>{{ item.name }}</td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>{{ item.price|currency }}</td>
+                                        <td>{{ (item.price * item.quantity)|currency }}</td>
+                                        <td>
+                                            {% if item.tax_deductible %}
+                                            <span class="tax-deductible"><i class="fas fa-check"></i> Yes</span>
+                                            {% else %}
+                                            <span class="not-tax-deductible"><i class="fas fa-times"></i> No</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center">No items found</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="3" class="text-end">Total Amount:</th>
+                                        <th>{{ receipt.total_amount|currency }}</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Receipt Image -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0"><i class="fas fa-image"></i> Receipt Image</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="receipt-frame">
+                            {% if receipt.image_url %}
+                                <div class="receipt-thumbnail-container">
+                                    <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
+                                        onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
+                                </div>
+                            {% else %}
+                                <div class="no-receipt-image">
+                                    <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" alt="No Receipt Image" class="no-image-placeholder">
+                                    <span class="placeholder-text">No image available</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="row mt-4 mb-5">
+            <div class="col-12 d-flex justify-content-between">
+                <a href="{{ url_for('unified_view.view_unified_receipt', receipt_id=receipt.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize Bootstrap components
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Edit Receipt page loaded');
+        
+        // Mapping for major and minor categories
+        const categoryMappings = {
+            'Food and Beverage': ['Restaurant', 'Cafe', 'Groceries', 'Fast Food', 'Bar'],
+            'Transport': ['Taxi', 'Public Transport', 'Fuel', 'Parking', 'Vehicle Maintenance'],
+            'Accommodation': ['Hotel', 'Rental', 'Service Apartment', 'AirBnB', 'Motel'],
+            'Office Supplies': ['Stationery', 'Furniture', 'Equipment', 'Software', 'Books'],
+            'Administrative Expenses': ['Registration Fees', 'Legal Fees', 'Accounting Fees', 'Bank Charges', 'Insurance'],
+            'Marketing': ['Advertising', 'Promotional Materials', 'Events', 'Sponsorship', 'Public Relations'],
+            'Utilities': ['Electricity', 'Water', 'Internet', 'Phone', 'Gas'],
+            'Other': ['Miscellaneous']
+        };
+        
+        // Handle major category change to update minor categories
+        const majorCategorySelect = document.getElementById('expense_major_category');
+        const minorCategorySelect = document.getElementById('expense_minor_category');
+        
+        if (majorCategorySelect && minorCategorySelect) {
+            // Set initial value based on receipt data
+            const currentMajorCategory = majorCategorySelect.value;
+            const currentMinorCategory = "{{ receipt.expense_minor_category }}";
+            
+            console.log('Initial categories:', currentMajorCategory, currentMinorCategory);
+            
+            // Initialize minor categories on page load
+            if (currentMajorCategory) {
+                populateMinorCategories(currentMajorCategory, currentMinorCategory);
+            }
+            
+            // Update minor categories when major category changes
+            majorCategorySelect.addEventListener('change', function() {
+                populateMinorCategories(this.value, '');
+            });
+        }
+        
+        // Function to populate minor categories based on selected major category
+        function populateMinorCategories(majorCategory, selectedMinorCategory) {
+            if (!minorCategorySelect) return;
+            
+            // Clear existing options
+            minorCategorySelect.innerHTML = '<option value="">-- Select Sub-category --</option>';
+            
+            // Get minor categories for selected major category
+            const minorCategories = categoryMappings[majorCategory] || [];
+            
+            // Add options
+            minorCategories.forEach(function(category) {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                if (category === selectedMinorCategory) {
+                    option.selected = true;
+                }
+                minorCategorySelect.appendChild(option);
+            });
+        }
+        
+        // Toggle business expense form based on receipt type
+        const receiptTypePersonal = document.getElementById('receipt_type_personal');
+        const receiptTypeBusiness = document.getElementById('receipt_type_business');
+        const businessExpenseDetails = document.getElementById('business-expense-details');
+        
+        if (receiptTypePersonal && receiptTypeBusiness && businessExpenseDetails) {
+            receiptTypePersonal.addEventListener('change', function() {
+                if (this.checked) {
+                    businessExpenseDetails.classList.add('d-none');
+                }
+            });
+            
+            receiptTypeBusiness.addEventListener('change', function() {
+                if (this.checked) {
+                    businessExpenseDetails.classList.remove('d-none');
+                }
+            });
+        }
+        
+        // Setup client loading for organization dropdowns
+        const orgSelect = document.getElementById('organization_id');
+        const clientSelect = document.getElementById('client_id');
+        
+        if (orgSelect && clientSelect) {
+            // Add event listener for organization change
+            orgSelect.addEventListener('change', function() {
+                if (this.value) {
+                    loadClientListForOrganization(this.value);
+                } else {
+                    // Clear client dropdown if no organization selected
+                    clientSelect.innerHTML = '<option value="">-- None --</option>';
+                }
+            });
+        }
+        
+        // Function to load clients for a specific organization
+        function loadClientListForOrganization(organizationId) {
+            if (!organizationId) return;
+            
+            fetch(`/api/organizations/${organizationId}/clients`)
+                .then(response => response.json())
+                .then(data => {
+                    // Clear existing options
+                    clientSelect.innerHTML = '<option value="">-- None --</option>';
+                    
+                    // Add client options
+                    data.forEach(client => {
+                        const option = document.createElement('option');
+                        option.value = client.id;
+                        option.text = client.name;
+                        
+                        // Set as selected if it matches current client_id
+                        {% if expense and expense.client_id %}
+                        if (client.id == {{ expense.client_id }}) {
+                            option.selected = true;
+                        }
+                        {% endif %}
+                        
+                        clientSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading clients:', error);
+                });
+        }
+    });
+</script>
+{% endblock %}
