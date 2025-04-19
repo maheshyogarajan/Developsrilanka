@@ -1000,6 +1000,153 @@ def api_expense_summary():
         current_app.logger.error(f"Error generating expense summary API data: {str(e)}")
         return jsonify({'error': 'An error occurred while generating expense data'}), 500
 
+@expense_reports_bp.route('/expenses/print')
+@login_required
+def print_expense_report():
+    """
+    Display a printable version of the expense report with receipt images.
+    
+    This view provides a clean, print-friendly report that shows each expense
+    with its receipt image, designed for printing reimbursement requests.
+    """
+    try:
+        # Get query parameters for filtering - same as in expense_summary
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        organization_id = request.args.get('organization_id', type=int)
+        client_id = request.args.get('client_id', type=int)
+        status = request.args.get('status', '')
+        category = request.args.get('category', '')
+        reimbursable_str = request.args.get('reimbursable')
+        
+        # Log received filter parameters for debugging
+        current_app.logger.info(f"Print report - Received filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
+                               f"organization_id={organization_id}, client_id={client_id}, "
+                               f"status=[{status}], category=[{category}], reimbursable={reimbursable_str}")
+        
+        # Convert reimbursable string parameter to boolean if present
+        reimbursable = None
+        if reimbursable_str == '1':
+            reimbursable = True
+        elif reimbursable_str == '0':
+            reimbursable = False
+        
+        # Get current date and set default date range to current month if not provided
+        today = datetime.today()
+        start_of_month = datetime(today.year, today.month, 1)
+        end_of_month = start_of_month + relativedelta(months=1, days=-1)
+        
+        # Parse date parameters
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else start_of_month
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else end_of_month
+        except ValueError:
+            # Handle invalid date format
+            start_date = start_of_month
+            end_date = end_of_month
+        
+        # Get organizations the user has access to
+        user_organizations = db.session.query(Organization)\
+            .join(OrganizationUser)\
+            .filter(OrganizationUser.user_id == current_user.id)\
+            .all()
+        
+        # Prepare the filter conditions
+        filters = []
+        
+        # Always filter by date range
+        filters.append(Receipt.date.between(start_date, end_date))
+        
+        # If organization is specified, filter by organization
+        if organization_id:
+            # Check if user has access to the organization
+            if any(org.id == organization_id for org in user_organizations):
+                filters.append(CompanyExpense.organization_id == organization_id)
+            else:
+                # Redirect to default view if user doesn't have access
+                return redirect(url_for('expense_reports.expense_summary'))
+        else:
+            # Filter for expenses in user's organizations
+            org_ids = [org.id for org in user_organizations]
+            filters.append(CompanyExpense.organization_id.in_(org_ids))
+        
+        # Filter by client if specified
+        if client_id:
+            filters.append(CompanyExpense.client_id == client_id)
+        
+        # Filter by status if specified
+        if status:
+            # Normalize status to lowercase for case-insensitive comparison
+            status_lower = status.lower()
+            filters.append(func.lower(CompanyExpense.status) == status_lower)
+        
+        # Filter by receipt category if specified
+        if category:
+            # Normalize category to lowercase for case-insensitive comparison
+            category_lower = category.lower()
+            filters.append(func.lower(Receipt.expense_major_category) == category_lower)
+            
+        # Filter by reimbursable status if specified
+        if reimbursable is not None:
+            filters.append(CompanyExpense.is_reimbursable == reimbursable)
+        
+        # Fetch expenses with full details including receipt images
+        expenses = db.session.query(CompanyExpense)\
+            .join(Receipt, CompanyExpense.receipt_id == Receipt.id)\
+            .filter(*filters)\
+            .options(
+                joinedload(CompanyExpense.receipt).joinedload(Receipt.items),
+                joinedload(CompanyExpense.submitter),
+                joinedload(CompanyExpense.client),
+                joinedload(CompanyExpense.organization)
+            )\
+            .order_by(desc(Receipt.date))\
+            .all()
+        
+        # Calculate totals
+        total_amount = sum(expense.receipt.total_amount for expense in expenses if expense.receipt)
+        reimbursable_amount = sum(expense.receipt.total_amount for expense in expenses 
+                              if expense.receipt and expense.is_reimbursable)
+        
+        # Set the report title based on filters
+        report_title = "Expense Report"
+        if organization_id:
+            org_name = next((org.name for org in user_organizations if org.id == organization_id), None)
+            if org_name:
+                report_title += f" - {org_name}"
+        
+        if client_id:
+            client = next((expense.client.name for expense in expenses if expense.client and expense.client.id == client_id), None)
+            if client:
+                report_title += f" - {client}"
+                
+        if status:
+            report_title += f" - {status.title()} Expenses"
+            
+        if reimbursable is True:
+            report_title += " - Reimbursable Only"
+        elif reimbursable is False:
+            report_title += " - Non-Reimbursable Only"
+        
+        report_title += f" ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})"
+        
+        return render_template(
+            'expense_report_print.html',
+            expenses=expenses,
+            total_amount=total_amount,
+            reimbursable_amount=reimbursable_amount,
+            report_title=report_title,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d'),
+            user=current_user
+        )
+    except Exception as e:
+        # Log the error and return a friendly error page
+        current_app.logger.error(f"Error rendering print expense report: {str(e)}")
+        return render_template('error.html', 
+                               error_code=500, 
+                               error_message="An error occurred while generating the print-friendly expense report.")
+
 def register_routes(app):
     """Register expense report routes with the app."""
     app.register_blueprint(expense_reports_bp)

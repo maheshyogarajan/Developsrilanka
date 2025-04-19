@@ -257,6 +257,9 @@
                 <div class="d-grid gap-2 d-md-flex">
                   <button type="submit" class="btn btn-primary">Apply Filters</button>
                   <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">Reset</button>
+                  <button type="button" class="btn btn-success" onclick="printDetailedReport()">
+                    <i class="fas fa-print"></i> Print Report
+                  </button>
                 </div>
               </div>
             </div>
@@ -757,6 +760,18 @@
     document.getElementById('reimbursable_all').checked = true;
     updateDateRange();
     document.getElementById('reportFilterForm').submit();
+  }
+  
+  function printDetailedReport() {
+    // Get current filter values
+    const form = document.getElementById('reportFilterForm');
+    const formData = new FormData(form);
+    
+    // Build query string from current filters
+    const params = new URLSearchParams(formData).toString();
+    
+    // Open the print-friendly report in a new tab/window
+    window.open(`/reports/expenses/print?${params}`, '_blank');
   }
 
   // Excel export function
