@@ -529,9 +529,9 @@ def edit_receipt_page(receipt_id):
         OrganizationUser.user_id == current_user.id
     ).all()
     
-    # Render the edit template with all necessary data
+    # Render the minimal edit template to debug the issue
     return render_template(
-        'edit_receipt.html',
+        'edit_receipt_minimal.html',
         receipt=receipt,
         items=items,
         expense=company_expense,
