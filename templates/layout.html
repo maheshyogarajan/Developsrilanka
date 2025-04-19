@@ -417,8 +417,8 @@
                 </li>
                 
                 <!-- Cash Out group -->
-                <li class="menu-item {% if '/classify' in request.path or '/expenses' in request.path or '/history' in request.path %}open{% endif %}">
-                    <a href="#" class="menu-link has-submenu {% if '/classify' in request.path or '/expenses' in request.path or '/history' in request.path %}active{% endif %}">
+                <li class="menu-item {% if '/classify' in request.path or '/expenses' in request.path or '/history' in request.path or '/reports' in request.path %}open{% endif %}">
+                    <a href="#" class="menu-link has-submenu {% if '/classify' in request.path or '/expenses' in request.path or '/history' in request.path or '/reports' in request.path %}active{% endif %}">
                         <i class="fas fa-money-bill-wave menu-icon"></i>
                         <span class="menu-text">Cash Out</span>
                     </a>
@@ -430,7 +430,7 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{{ url_for('expense.expenses') }}" class="submenu-link {% if '/expenses' in request.path %}active{% endif %}">
+                            <a href="{{ url_for('expense.expenses') }}" class="submenu-link {% if '/expenses' in request.path and not '/reports' in request.path %}active{% endif %}">
                                 <i class="fas fa-clipboard-list submenu-icon"></i>
                                 <span>Expenses</span>
                             </a>
@@ -439,6 +439,12 @@
                             <a href="{{ url_for('receipt_history') }}" class="submenu-link {% if request.path == '/history' %}active{% endif %}">
                                 <i class="fas fa-history submenu-icon"></i>
                                 <span>History</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('expense_reports.expense_summary') }}" class="submenu-link {% if '/reports' in request.path %}active{% endif %}">
+                                <i class="fas fa-chart-bar submenu-icon"></i>
+                                <span>Reporting</span>
                             </a>
                         </li>
                     </ul>
@@ -552,6 +558,8 @@
                     Expenses
                 {% elif '/classify' in request.path %}
                     Classify Receipts
+                {% elif '/reports' in request.path %}
+                    Expense Report
                 {% elif request.path == '/profile' %}
                     Profile
                 {% elif request.path == '/login' %}

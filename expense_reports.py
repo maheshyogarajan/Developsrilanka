@@ -17,7 +17,7 @@ from models import (
     Receipt, ReceiptItem, CompanyExpense, ExpenseStatus, 
     Organization, OrganizationUser, User, Client, UserRole
 )
-from decorators import check_organization_access, organization_required
+from decorators import role_required, admin_required
 
 # Create the blueprint for expense reports
 expense_reports_bp = Blueprint('expense_reports', __name__, url_prefix='/reports')
