@@ -1131,15 +1131,14 @@ def print_expense_report():
         report_title += f" ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})"
         
         return render_template(
-            'expense_report_print.html',
+            'print_expense_report.html',
             expenses=expenses,
             total_amount=total_amount,
             reimbursable_amount=reimbursable_amount,
             report_title=report_title,
             start_date=start_date.strftime('%Y-%m-%d'),
             end_date=end_date.strftime('%Y-%m-%d'),
-            user=current_user,
-            user_organizations=user_organizations
+            user=current_user
         )
     except Exception as e:
         # Log the error and return a friendly error page

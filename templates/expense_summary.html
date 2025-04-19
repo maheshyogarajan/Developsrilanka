@@ -133,9 +133,9 @@
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h1>Expense Report</h1>
         <div class="btn-group">
-          <button class="btn btn-outline-primary" onclick="window.print()">
+          <a class="btn btn-outline-primary" href="{{ url_for('expense_reports.print_expense_report') }}{{ '?' + request.query_string.decode() if request.query_string else '' }}" target="_blank">
             <i class="fas fa-print"></i> Print Report
-          </button>
+          </a>
           <button class="btn btn-outline-success" onclick="exportToExcel()">
             <i class="fas fa-file-excel"></i> Export Excel
           </button>
