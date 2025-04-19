@@ -274,12 +274,17 @@
         <ul>
           <li>ID: {{ first_expense.id }}</li>
           <li>Organization ID: {{ first_expense.organization_id }}</li>
+          <li>Has Organization: {{ first_expense.organization is not none }}</li>
+          {% if first_expense.organization %}
+            <li>Organization Name: {{ first_expense.organization.name }}</li>
+          {% endif %}
           <li>Status: {{ first_expense.status }}</li>
           <li>Reimbursable: {{ first_expense.is_reimbursable }}</li>
           <li>Has Receipt: {{ first_expense.receipt is not none }}</li>
           <li>Has Client: {{ first_expense.client is not none }}</li>
           <li>Has Submitter: {{ first_expense.submitter is not none }}</li>
         </ul>
+        <p>To_dict(): <pre>{{ first_expense.to_dict()|tojson(indent=2) }}</pre></p>
       {% else %}
         <p>No expenses to display</p>
       {% endif %}
@@ -351,10 +356,11 @@
         
         <div class="expense-meta-item">
           <span class="meta-label">Organization:</span>
-          {% set org_id = expense.organization_id %}
-          {% if org_id %}
+          {% if expense.organization %}
+            {{ expense.organization.name }}
+          {% elif expense.organization_id %}
             {% for org in user_organizations %}
-                {% if org.id == org_id %}
+                {% if org.id == expense.organization_id %}
                     {{ org.name }}
                 {% endif %}
             {% endfor %}

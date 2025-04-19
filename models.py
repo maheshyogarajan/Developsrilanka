@@ -673,6 +673,7 @@ class CompanyExpense(db.Model):
     approver = db.relationship('User', foreign_keys=[approved_by_user_id], backref='approved_expenses', lazy=True)
     reimburser = db.relationship('User', foreign_keys=[reimbursed_by_user_id], backref='reimbursed_expenses', lazy=True)
     client = db.relationship('Client', backref='company_expenses', lazy=True)
+    organization = db.relationship('Organization', backref='company_expenses', lazy=True)
     
     def to_dict(self):
         """Convert the company expense to a dictionary."""
@@ -697,7 +698,8 @@ class CompanyExpense(db.Model):
             'submitter_name': self.submitter.name if self.submitter else '',
             'approver_name': self.approver.name if self.approver else '',
             'reimburser_name': self.reimburser.name if self.reimburser else '',
-            'client_name': self.client.name if self.client else ''
+            'client_name': self.client.name if self.client else '',
+            'organization_name': self.organization.name if self.organization else ''
         }
 
 class ClientExpense(db.Model):
