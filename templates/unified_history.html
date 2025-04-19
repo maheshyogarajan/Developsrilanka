@@ -3,6 +3,14 @@
 {% block title %}Receipt & Expense History{% endblock %}
 
 {% block styles %}
+<!-- Role-based visibility notification -->
+{% for org in organizations %}
+    {% if selected_org_id == org.id and org.user_role not in ['owner', 'admin'] %}
+    <div class="alert alert-info mt-3">
+        <i class="fa fa-info-circle"></i> As a {{ org.user_role }}, you can only see receipts you've created in the {{ org.name }} organization.
+    </div>
+    {% endif %}
+{% endfor %}
 <style>
     /* View controls styling */
     .view-controls {
@@ -190,7 +198,12 @@
                         <select name="organization" id="organization" class="form-control" onchange="this.form.submit()">
                             <option value="">All Organizations</option>
                             {% for org in organizations %}
-                                <option value="{{ org.id }}" {% if selected_org_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                                <option value="{{ org.id }}" {% if selected_org_id == org.id %}selected{% endif %}>
+                                    {{ org.name }}
+                                    {% if org.user_role not in ['owner', 'admin'] %}
+                                    (only your receipts)
+                                    {% endif %}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>

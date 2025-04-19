@@ -1129,11 +1129,12 @@ def save_receipt():
 @app.route('/list_receipts', methods=['GET'])  # Add alias route for legacy frontend compatibility
 @login_required
 def list_receipts():
-    """Get a list of all saved receipts for the current user, with organization-aware filtering."""
+    """Get a list of all saved receipts for the current user, with organization-aware filtering and role-based visibility."""
     from models import Receipt, OrganizationUser
     import traceback
     from sqlalchemy import or_, and_
     from error_logger import log_receipt_history_error, log_database_error, handle_and_log_exception, ErrorTypes
+    from utils import can_view_organization_receipts
     
     try:
         # Add detailed logging to troubleshoot
@@ -1176,12 +1177,18 @@ def list_receipts():
         # Get all user's organizations for the filter dropdown
         user_organizations = OrganizationUser.query.filter_by(user_id=user_id).all()
         organizations = []
+        
+        # Create a dictionary mapping org_id to role for quick lookup
+        org_roles = {}
+        
         for org_user in user_organizations:
             organizations.append({
                 'id': org_user.organization_id,
                 'name': org_user.organization.name,
-                'is_default': org_user.is_default
+                'is_default': org_user.is_default,
+                'role': org_user.role  # Include role for UI indication
             })
+            org_roles[org_user.organization_id] = org_user.role
         
         # Default organization for filtering if not showing all and no specific org selected
         default_org = None
@@ -1193,47 +1200,80 @@ def list_receipts():
         # Prepare the query based on organization filtering
         try:
             if show_all_organizations:
-                # Show all receipts across all user's organizations and user's personal receipts
+                # Show all receipts across all user's organizations with role-based filtering
                 logging.debug(f"list_receipts: Showing receipts from all organizations for user_id={user_id}")
                 
-                org_ids = [org['id'] for org in organizations]
+                # We'll create multiple queries and union them together
+                queries = []
                 
-                receipts = Receipt.query.filter(
-                    or_(
-                        Receipt.organization_id.in_(org_ids) if org_ids else False,  # All organization receipts
-                        and_(                                                       # Legacy/personal receipts
-                            Receipt.user_id == user_id,
-                            or_(
-                                Receipt.organization_id.is_(None),
-                                Receipt.organization_id == 0
-                            )
+                # Always add personal receipts (not belonging to any organization)
+                personal_query = Receipt.query.filter(
+                    and_(
+                        Receipt.user_id == user_id,
+                        or_(
+                            Receipt.organization_id.is_(None),
+                            Receipt.organization_id == 0
                         )
                     )
-                ).order_by(Receipt.date.desc()).all()
+                )
+                queries.append(personal_query)
+                
+                # Add organization receipts with role-based filtering
+                for org in organizations:
+                    org_id = org['id']
+                    role = org_roles.get(org_id)
+                    
+                    # Owners and admins see all organization receipts
+                    if role in ['owner', 'admin']:
+                        org_query = Receipt.query.filter(Receipt.organization_id == org_id)
+                    # Members and viewers only see their own receipts
+                    else:
+                        org_query = Receipt.query.filter(
+                            and_(
+                                Receipt.organization_id == org_id,
+                                Receipt.user_id == user_id
+                            )
+                        )
+                    queries.append(org_query)
+                
+                # Combine all queries with union
+                if queries:
+                    query = queries[0]
+                    for q in queries[1:]:
+                        query = query.union(q)
+                    
+                    # Apply ordering
+                    receipts = query.order_by(Receipt.date.desc()).all()
+                else:
+                    receipts = []
                 
                 logging.debug(f"list_receipts: Found {len(receipts)} receipts across all organizations for user_id={user_id}")
                 
             elif selected_org_id:
-                # Filter by specific organization
+                # Filter by specific organization with role-based access
                 org_id = int(selected_org_id)
-                logging.debug(f"list_receipts: Filtering by organization_id={org_id} for user_id={user_id}")
+                role = org_roles.get(org_id)
                 
-                receipts = Receipt.query.filter(
-                    or_(
-                        Receipt.organization_id == org_id,  # Organization receipts
-                        and_(                              # Legacy receipts that match selected org
-                            Receipt.user_id == user_id,
-                            or_(
-                                Receipt.organization_id.is_(None),
-                                Receipt.organization_id == 0
-                            )
+                logging.debug(f"list_receipts: Filtering by organization_id={org_id} for user_id={user_id} with role={role}")
+                
+                # Different query based on role
+                if role in ['owner', 'admin']:
+                    # Owners and admins see all organization receipts
+                    receipts = Receipt.query.filter(
+                        Receipt.organization_id == org_id
+                    ).order_by(Receipt.date.desc()).all()
+                else:
+                    # Members and viewers only see their own receipts
+                    receipts = Receipt.query.filter(
+                        and_(
+                            Receipt.organization_id == org_id,
+                            Receipt.user_id == user_id
                         )
-                    )
-                ).order_by(Receipt.date.desc()).all()
+                    ).order_by(Receipt.date.desc()).all()
                 
                 logging.debug(f"list_receipts: Found {len(receipts)} receipts for organization_id={org_id} and user_id={user_id}")
             else:
-                # No organization filtering - fall back to user's receipts
+                # No organization filtering - fall back to user's receipts (unchanged)
                 logging.debug(f"list_receipts: No organization filter, using user_id filter")
                 receipts = Receipt.query.filter_by(user_id=user_id).order_by(Receipt.date.desc()).all()
                 logging.debug(f"list_receipts: Found {len(receipts)} receipts for user_id={user_id}")

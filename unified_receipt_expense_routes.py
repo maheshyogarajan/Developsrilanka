@@ -22,7 +22,7 @@ unified_view_bp = Blueprint('unified_view', __name__, template_folder='templates
 @login_required
 def view_unified_receipt(receipt_id):
     """
-    Unified view for receipt and any associated expenses.
+    Unified view for receipt and any associated expenses with role-based access control.
     
     This view combines:
     - Receipt details
@@ -37,17 +37,27 @@ def view_unified_receipt(receipt_id):
     receipt = Receipt.query.filter_by(id=receipt_id).first_or_404()
     
     # Check if user has access to this receipt
-    if receipt.user_id != current_user.id:
-        # If receipt belongs to organization, check if user is a member of that organization
-        if receipt.organization_id:
-            org_user = OrganizationUser.query.filter_by(
-                user_id=current_user.id,
-                organization_id=receipt.organization_id
-            ).first()
-            if not org_user:
-                abort(403)  # Forbidden access
-        else:
+    # First check: user is the creator of the receipt
+    if receipt.user_id == current_user.id:
+        # Creator always has access
+        pass
+    # Second check: receipt belongs to an organization
+    elif receipt.organization_id:
+        # Check user's role in this organization
+        org_user = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=receipt.organization_id
+        ).first()
+        
+        if not org_user:
+            # Not a member of this organization
             abort(403)  # Forbidden access
+        elif org_user.role not in ['owner', 'admin'] and receipt.user_id != current_user.id:
+            # Members/viewers can only see their own receipts
+            abort(403)  # Forbidden access
+    else:
+        # Not the creator and not an organization receipt
+        abort(403)  # Forbidden access
             
     # Get image URL using the standardized helper function
     from utils import get_receipt_image_url
@@ -137,12 +147,17 @@ def history():
     - Bulk actions
     """
     try:
-        # Get user's organizations
+        # Get user's organizations with roles
         user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
         user_org_ids = [org.organization_id for org in user_orgs]
+        org_roles = {org.organization_id: org.role for org in user_orgs}
         
         # Get all organizations the user is a member of
         organizations = Organization.query.filter(Organization.id.in_(user_org_ids)).all()
+        
+        # Add roles to organizations for template
+        for org in organizations:
+            org.user_role = org_roles.get(org.id)
         
         # Get default organization
         default_org = None
@@ -175,18 +190,39 @@ def history():
         tax_deductible = request.args.get('tax_deductible', '')
         sort_by = request.args.get('sort_by', 'date_desc')
         
-        # Initialize query using text() to handle schema variations
-        # This approach allows for more flexible column selection when schema might vary
+        # Initialize query with role-based visibility
         try:
-            # Try to use the standard ORM approach first
-            query = Receipt.query.filter(
-                or_(
+            # Personal receipts (always visible)
+            personal_query = Receipt.query.filter(
+                and_(
                     Receipt.user_id == current_user.id,
-                    and_(
-                        Receipt.organization_id.in_(user_org_ids)
+                    or_(
+                        Receipt.organization_id.is_(None),
+                        Receipt.organization_id == 0
                     )
                 )
             )
+            
+            # Add organization receipts with role-based filtering
+            org_queries = []
+            for org_id, role in org_roles.items():
+                if role in ['owner', 'admin']:
+                    # Owners and admins see all organization receipts
+                    org_query = Receipt.query.filter(Receipt.organization_id == org_id)
+                else:
+                    # Members and viewers only see their own receipts
+                    org_query = Receipt.query.filter(
+                        and_(
+                            Receipt.organization_id == org_id,
+                            Receipt.user_id == current_user.id
+                        )
+                    )
+                org_queries.append(org_query)
+            
+            # Combine all queries
+            query = personal_query
+            for q in org_queries:
+                query = query.union(q)
         except Exception as orm_error:
             logging.error(f"ORM query error, falling back to core SQL: {str(orm_error)}")
             
@@ -212,7 +248,18 @@ def history():
         
         # Add organization filter if selected
         if selected_org_id:
-            query = query.filter(Receipt.organization_id == selected_org_id)
+            role = org_roles.get(selected_org_id)
+            if role in ['owner', 'admin']:
+                # Owners and admins see all organization receipts
+                query = query.filter(Receipt.organization_id == selected_org_id)
+            else:
+                # Members and viewers only see their own receipts in this organization
+                query = query.filter(
+                    and_(
+                        Receipt.organization_id == selected_org_id,
+                        Receipt.user_id == current_user.id
+                    )
+                )
         
         # Add type filter
         if selected_type == 'business':
