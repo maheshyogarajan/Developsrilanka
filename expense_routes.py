@@ -508,9 +508,6 @@ def mark_reimbursed(expense_id):
         flash(f'Error reimbursing expense: {str(e)}', 'danger')
         return redirect(url_for('expense.view_expense', expense_id=expense_id))
 
-@expense_bp.route('/expenses/<int:expense_id>/edit', methods=['GET', 'POST'])
-
-
 @expense_bp.route('/expenses/<int:expense_id>/update-ajax', methods=['POST'])
 @login_required
 def update_expense_ajax(expense_id):

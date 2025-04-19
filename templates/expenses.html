@@ -157,11 +157,7 @@
                                         <a href="{{ url_for('expense.view_expense', expense_id=expense.id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        {% if expense.status == 'submitted' and expense.user_id == current_user.id %}
-                                            <a href="{{ url_for('expense.edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                        {% endif %}
+
                                     </td>
                                 </tr>
                             {% endfor %}
