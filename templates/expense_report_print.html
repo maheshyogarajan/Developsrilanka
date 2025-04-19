@@ -299,13 +299,16 @@
         
         <div class="expense-meta-item">
           <span class="meta-label">Organization:</span>
-          {% set org_name = None %}
-          {% for org in user_organizations %}
-              {% if org.id == expense.organization_id %}
-                  {% set org_name = org.name %}
-              {% endif %}
-          {% endfor %}
-          {{ org_name or 'N/A' }}
+          {% set org_id = expense.organization_id %}
+          {% if org_id %}
+            {% for org in user_organizations %}
+                {% if org.id == org_id %}
+                    {{ org.name }}
+                {% endif %}
+            {% endfor %}
+          {% else %}
+            N/A
+          {% endif %}
         </div>
         
         <div class="expense-meta-item">
