@@ -442,7 +442,7 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{{ url_for('expense_reports.expense_summary') }}" class="submenu-link {% if '/expenses' in request.path and 'expense_reports' in request.endpoint %}active{% endif %}">
+                            <a href="{{ url_for('expense_reports.expense_summary') }}" class="submenu-link {% if '/reports' in request.path %}active{% endif %}">
                                 <i class="fas fa-chart-bar submenu-icon"></i>
                                 <span>Reporting</span>
                             </a>
