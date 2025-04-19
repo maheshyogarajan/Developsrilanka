@@ -212,7 +212,7 @@
                 <select id="status" name="status" class="form-select">
                   <option value="">All Statuses</option>
                   {% for status in expense_statuses %}
-                  <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status.title() }}</option>
+                  <option value="{{ status }}" {% if selected_status and selected_status|string|lower == status|string|lower %}selected{% endif %}>{{ status.title() }}</option>
                   {% endfor %}
                 </select>
               </div>
@@ -224,7 +224,7 @@
                 <select id="category" name="category" class="form-select">
                   <option value="">All Categories</option>
                   {% for category in expense_categories %}
-                  <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+                  <option value="{{ category }}" {% if selected_category and selected_category|string|lower == category|string|lower %}selected{% endif %}>{{ category }}</option>
                   {% endfor %}
                 </select>
               </div>

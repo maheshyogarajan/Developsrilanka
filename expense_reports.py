@@ -98,13 +98,17 @@ def expense_summary():
         
         # Filter by status if specified
         if status:
-            filters.append(CompanyExpense.status == status)
-            current_app.logger.debug(f"Adding status filter: {status}")
+            # Normalize status to lowercase for case-insensitive comparison
+            status_lower = status.lower()
+            filters.append(func.lower(CompanyExpense.status) == status_lower)
+            current_app.logger.debug(f"Adding normalized status filter: {status_lower}")
         
         # Filter by receipt category if specified
         if category:
-            filters.append(Receipt.expense_major_category == category)
-            current_app.logger.debug(f"Adding category filter: {category}")
+            # Normalize category to lowercase for case-insensitive comparison
+            category_lower = category.lower()
+            filters.append(func.lower(Receipt.expense_major_category) == category_lower)
+            current_app.logger.debug(f"Adding normalized category filter: {category_lower}")
             
         # Filter by reimbursable status if specified
         if reimbursable is not None:
@@ -120,6 +124,12 @@ def expense_summary():
         
         # Get the expense statuses for filter dropdown
         expense_statuses = [status.value for status in ExpenseStatus]
+        
+        # Log selected status and available options for debugging
+        current_app.logger.debug(f"Selected status value: '{status}', type: {type(status).__name__}")
+        current_app.logger.debug(f"Status options: {expense_statuses}")
+        current_app.logger.debug(f"Selected category value: '{category}', type: {type(category).__name__}")
+        current_app.logger.debug(f"Category options: {expense_categories}")
         
         # Get clients for filter dropdown (based on selected organization or all user's organizations)
         if organization_id:
