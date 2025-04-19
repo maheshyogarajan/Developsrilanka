@@ -529,6 +529,10 @@ def edit_receipt_page(receipt_id):
         OrganizationUser.user_id == current_user.id
     ).all()
     
+    # Get the receipt image URL (same as in view_unified_receipt)
+    from utils import get_receipt_image_url
+    receipt.image_url = get_receipt_image_url(receipt, prefer_s3=True)
+    
     # Render the fixed edit template
     return render_template(
         'edit_receipt_fixed.html',
