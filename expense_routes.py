@@ -335,7 +335,8 @@ def view_expense(expense_id):
     
     expense['receipt_items'] = receipt_items
     
-    # Get organization info
+    # Get organization info using the expense's organization_id
+    organization_id = expense_obj.organization_id
     org_result = db.session.execute(text("""
         SELECT id, name, logo_path FROM organization
         WHERE id = :org_id
@@ -347,6 +348,13 @@ def view_expense(expense_id):
         'name': org_result[1],
         'logo_path': org_result[2]
     } if org_result else None
+    
+    # Get user's role in this organization
+    org_user = OrganizationUser.query.filter_by(
+        user_id=current_user.id,
+        organization_id=organization_id
+    ).first()
+    user_org_role = org_user.role if org_user else None
     
     return render_template('view_expense.html', 
                            expense=expense, 
@@ -515,14 +523,8 @@ def edit_expense(expense_id):
         flash('Only submitted expenses can be edited', 'warning')
         return redirect(url_for('expense.view_expense', expense_id=expense_id))
     
-    # Get the user's default organization
-    default_org = db.session.execute(text("""
-        SELECT organization_id FROM organization_user
-        WHERE user_id = :user_id AND is_default = true
-        LIMIT 1
-    """), {'user_id': current_user.id}).first()
-    
-    organization_id = default_org[0] if default_org else None
+    # Use the expense's organization instead of user's default
+    organization_id = expense.organization_id
     
     if request.method == 'POST':
         try:
