@@ -1143,7 +1143,10 @@ def print_expense_report():
         )
     except Exception as e:
         # Log the error and return a friendly error page
+        import traceback
+        error_traceback = traceback.format_exc()
         current_app.logger.error(f"Error rendering print expense report: {str(e)}")
+        current_app.logger.error(f"Traceback: {error_traceback}")
         return render_template('error.html', 
                                error_code=500, 
                                error_message="An error occurred while generating the print-friendly expense report.")

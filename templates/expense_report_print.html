@@ -3,7 +3,21 @@
 {% block title %}Printable Expense Report{% endblock %}
 
 {% block head %}
+{{ super() }}
 <style>
+  .debug-info {
+    background-color: #f8f9fc;
+    border: 1px solid #e3e6f0;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 20px;
+    font-family: monospace;
+    font-size: 12px;
+    max-height: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+  
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
@@ -234,6 +248,44 @@
 
 {% block content %}
 <div class="container mt-4">
+  <!-- Debug Information - Only visible in development -->
+  <div class="debug-info no-print">
+    <h5>Debug Information</h5>
+    <p><strong>User Organizations:</strong> {{ user_organizations|length }} organizations</p>
+    <p><strong>Expenses:</strong> {{ expenses|length }} items</p>
+    <p><strong>Report Title:</strong> {{ report_title }}</p>
+    <p><strong>Date Range:</strong> {{ start_date }} to {{ end_date }}</p>
+    <p><strong>Total Amount:</strong> {{ total_amount }}</p>
+    <p><strong>Reimbursable Amount:</strong> {{ reimbursable_amount }}</p>
+    
+    <details>
+      <summary>User Organizations Details</summary>
+      <ul>
+      {% for org in user_organizations %}
+        <li>ID: {{ org.id }}, Name: {{ org.name }}</li>
+      {% endfor %}
+      </ul>
+    </details>
+    
+    <details>
+      <summary>First Expense Details (if any)</summary>
+      {% if expenses|length > 0 %}
+        {% set first_expense = expenses[0] %}
+        <ul>
+          <li>ID: {{ first_expense.id }}</li>
+          <li>Organization ID: {{ first_expense.organization_id }}</li>
+          <li>Status: {{ first_expense.status }}</li>
+          <li>Reimbursable: {{ first_expense.is_reimbursable }}</li>
+          <li>Has Receipt: {{ first_expense.receipt is not none }}</li>
+          <li>Has Client: {{ first_expense.client is not none }}</li>
+          <li>Has Submitter: {{ first_expense.submitter is not none }}</li>
+        </ul>
+      {% else %}
+        <p>No expenses to display</p>
+      {% endif %}
+    </details>
+  </div>
+  
   <div class="print-actions no-print">
     <button class="btn-print" onclick="window.print()">
       <i class="fas fa-print"></i> Print Report
