@@ -37,14 +37,18 @@ def expense_summary():
         end_date_str = request.args.get('end_date')
         organization_id = request.args.get('organization_id', type=int)
         client_id = request.args.get('client_id', type=int)
-        status = request.args.get('status')
-        category = request.args.get('category')
+        status = request.args.get('status', '')  # Ensure empty string instead of None
+        category = request.args.get('category', '')  # Ensure empty string instead of None
         reimbursable_str = request.args.get('reimbursable')
         
         # Log received filter parameters for debugging
-        current_app.logger.debug(f"Received filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
+        current_app.logger.info(f"Received raw filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
                                f"organization_id={organization_id}, client_id={client_id}, "
-                               f"status={status}, category={category}, reimbursable={reimbursable_str}")
+                               f"status=[{status}], category=[{category}], reimbursable={reimbursable_str}")
+        
+        # Print request args and form data for debugging
+        current_app.logger.info(f"Request args: {request.args}")
+        current_app.logger.info(f"Request form: {request.form}")
         
         # Convert reimbursable string parameter to boolean if present
         reimbursable = None
