@@ -1844,7 +1844,8 @@ def email_login():
                         # Clear the token from session
                         session.pop('invitation_token', None)
                         
-                        flash(f"You've successfully accepted the invitation from {friend_invitation.sender.name}!", "success")
+                        # Access invited_by relationship instead of sender (which doesn't exist)
+                        flash(f"You've successfully accepted the invitation from {friend_invitation.invited_by.name}!", "success")
                         logging.info(f"User {user.id} accepted friend invitation with token {invitation_token}")
                         
                         # Redirect to profile page to show the accepted invitation
@@ -1921,7 +1922,8 @@ def email_login():
                         # Clear the token from session
                         session.pop('invitation_token', None)
                         
-                        flash(f"You've successfully accepted the invitation from {friend_invitation.sender.name}!", "success")
+                        # Access invited_by relationship instead of sender (which doesn't exist)
+                        flash(f"You've successfully accepted the invitation from {friend_invitation.invited_by.name}!", "success")
                         logging.info(f"New user {new_user.id} accepted friend invitation with token {invitation_token}")
                         
                         # Redirect to profile page to show the accepted invitation
@@ -2022,7 +2024,8 @@ def google_callback():
                     # Clear the token from session
                     session.pop('invitation_token', None)
                     
-                    flash(f"You've successfully accepted the invitation from {friend_invitation.sender.name}!", "success")
+                    # Access invited_by relationship instead of sender (which doesn't exist)
+                    flash(f"You've successfully accepted the invitation from {friend_invitation.invited_by.name}!", "success")
                     logging.info(f"User {user.id} accepted friend invitation with token {invitation_token} after Google login")
                     
                     # Redirect to profile page to show the accepted invitation
@@ -2122,7 +2125,8 @@ def facebook_callback():
                     # Clear the token from session
                     session.pop('invitation_token', None)
                     
-                    flash(f"You've successfully accepted the invitation from {friend_invitation.sender.name}!", "success")
+                    # Access invited_by relationship instead of sender (which doesn't exist)
+                    flash(f"You've successfully accepted the invitation from {friend_invitation.invited_by.name}!", "success")
                     logging.info(f"User {user.id} accepted friend invitation with token {invitation_token} after Facebook login")
                     
                     # Redirect to profile page to show the accepted invitation
@@ -2459,8 +2463,9 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
             return False
         
         # Create HTML email with branding
+        # Note: keeping variable name as 'sender' in template for compatibility
         html_content = render_template('email/friend_invitation.html',
-                                sender=from_user,
+                                sender=from_user,  # Template uses 'sender', though model uses 'invited_by'
                                 personal_message=personal_message,
                                 app_url=app_url,
                                 token=token,
