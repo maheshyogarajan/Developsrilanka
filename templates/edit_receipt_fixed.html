@@ -424,6 +424,20 @@
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Edit Receipt page loaded');
         
+        // Initialize the receipt image modal
+        const receiptImageModal = document.getElementById('receiptImageModal');
+        if (receiptImageModal) {
+            const modal = new bootstrap.Modal(receiptImageModal);
+            
+            // Add click event to the image
+            const receiptImage = document.querySelector('.receipt-image');
+            if (receiptImage) {
+                receiptImage.addEventListener('click', function() {
+                    modal.show();
+                });
+            }
+        }
+        
         // Mapping for major and minor categories
         const categoryMappings = {
             'Food and Beverage': ['Restaurant', 'Cafe', 'Groceries', 'Fast Food', 'Bar'],
