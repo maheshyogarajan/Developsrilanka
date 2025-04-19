@@ -102,23 +102,9 @@
         background-color: #f8d7da;
         color: #842029;
     }
-    #editForm .form-group,
+    /* Edit form styles moved to edit_receipt.html template */
     #itemsForm .form-group {
         margin-bottom: 1rem;
-    }
-    .edit-actions {
-        margin-top: 1rem;
-    }
-    .receipt-type-toggle {
-        margin-bottom: 1rem;
-    }
-    .receipt-classification-form {
-        margin-top: 1.5rem;
-        display: none;
-    }
-    .client-selection {
-        margin-top: 1rem;
-        display: none;
     }
     #itemsTable td {
         vertical-align: middle;
@@ -229,9 +215,15 @@
                             </a>
                         {% endif %}
                     {% else %}
-                        <button id="toggleEditMode" class="btn btn-primary btn-sm" onclick="console.log('Edit button clicked via onclick'); window.editButtonClicked();">
+                        {% if receipt.organization_id %}
+                        <a href="{{ url_for('unified_view.edit_organization_receipt_page', org_id=receipt.organization_id, receipt_id=receipt.id) }}" class="btn btn-primary btn-sm">
                             <i class="fas fa-edit"></i> Edit Receipt
-                        </button>
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('unified_view.edit_receipt_page', receipt_id=receipt.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Edit Receipt
+                        </a>
+                        {% endif %}
                     {% endif %}
                     
                     {% if is_company_expense %}
@@ -323,15 +315,7 @@
                 </div>
             </div>
             
-            <!-- Edit Receipt Form -->
-            <div id="editForm" style="display: none;" class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-edit"></i> Edit Receipt Details</h5>
-                </div>
-                <div class="card-body">
-                    <form action="{{ url_for('unified_view.update_receipt', receipt_id=receipt.id) }}" method="POST" class="row g-3">
-                        <!-- CSRF Protection -->
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <!-- Edit functionality moved to dedicated edit_receipt.html page -->
                         
                         <!-- Vendor Information -->
                         <div class="col-md-6">
@@ -569,36 +553,7 @@
 
 {% block scripts %}
 <script>
-    // Global debugging function for edit button
-    window.editButtonClicked = function() {
-        console.log('Global editButtonClicked function called');
-        
-        const editForm = document.getElementById('editForm');
-        const receiptDetailsCard = document.getElementById('receiptDetailsCard');
-        
-        console.log('Global function elements check:');
-        console.log('- editForm exists:', !!editForm);
-        console.log('- receiptDetailsCard exists:', !!receiptDetailsCard);
-        
-        if (editForm && receiptDetailsCard) {
-            console.log('Global function showing edit form...');
-            editForm.style.display = 'block';
-            receiptDetailsCard.style.display = 'none';
-            console.log('Global function display styles set');
-            
-            // Force browser to repaint
-            void editForm.offsetWidth;
-            console.log('Global function forced repaint');
-            
-            // Double-check visibility after small delay
-            setTimeout(function() {
-                console.log('Edit form display after timeout:', editForm.style.display);
-                console.log('Receipt details display after timeout:', receiptDetailsCard.style.display);
-            }, 100);
-        } else {
-            console.error('Global function cannot find required elements');
-        }
-    };
+    // Receipt editing is now done via dedicated edit page
     
     // Global event listener for all clicks
     document.addEventListener('click', function(event) {
@@ -623,43 +578,8 @@
             });
         }
         
-        // Toggle edit mode for receipt details
+        // Receipt editing is now handled via dedicated edit page
         console.log('DOMContentLoaded event fired');
-
-        const toggleEditButton = document.getElementById('toggleEditMode');
-        const editForm = document.getElementById('editForm');
-        const receiptDetailsCard = document.getElementById('receiptDetailsCard');
-        const cancelEditButton = document.getElementById('cancelEdit');
-        
-        console.log('Edit button and related elements found:');
-        console.log('- toggleEditButton:', !!toggleEditButton);
-        console.log('- editForm:', !!editForm);
-        console.log('- receiptDetailsCard:', !!receiptDetailsCard);
-        console.log('- cancelEditButton:', !!cancelEditButton);
-        
-        if (toggleEditButton && editForm && receiptDetailsCard) {
-            console.log('Edit button and related elements found, attaching listener');
-            toggleEditButton.addEventListener('click', function() {
-                console.log('Toggle edit button clicked');
-                console.log('Setting editForm display to block');
-                editForm.style.display = 'block';
-                console.log('Setting receiptDetailsCard display to none');
-                receiptDetailsCard.style.display = 'none';
-            });
-        } else {
-            console.log('Missing elements for toggle edit functionality');
-        }
-        
-        if (cancelEditButton) {
-            console.log('Cancel button found, attaching listener');
-            cancelEditButton.addEventListener('click', function() {
-                console.log('Cancel edit button clicked');
-                editForm.style.display = 'none';
-                receiptDetailsCard.style.display = 'block';
-            });
-        } else {
-            console.log('Cancel button not found');
-        }
         
         // Mapping for major and minor categories
         const categoryMappings = {
