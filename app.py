@@ -1827,28 +1827,48 @@ def email_login():
             # Check if there's a pending invitation token in the session
             invitation_token = session.get('invitation_token')
             if invitation_token:
-                # Process the invitation
+                # Import required models
+                from models import FriendInvitation, OrganizationInvitation
+                
+                # Process friend invitation
                 try:
-                    invitation = FriendInvitation.query.filter_by(token=invitation_token).first()
-                    if invitation and not invitation.accepted and invitation.expires_at > datetime.utcnow():
+                    # Check for friend invitation first
+                    friend_invitation = FriendInvitation.query.filter_by(token=invitation_token).first()
+                    if friend_invitation and not friend_invitation.accepted and friend_invitation.expires_at > datetime.utcnow():
                         # Mark invitation as accepted
-                        invitation.accepted = True
-                        invitation.accepted_at = datetime.utcnow()
-                        invitation.accepted_by_user_id = user.id
+                        friend_invitation.accepted = True
+                        friend_invitation.accepted_at = datetime.utcnow()
+                        friend_invitation.accepted_by_user_id = user.id
                         db.session.commit()
                         
                         # Clear the token from session
                         session.pop('invitation_token', None)
                         
-                        flash(f"You've successfully accepted the invitation from {invitation.sender.name}!", "success")
-                        logging.info(f"User {user.id} accepted invitation with token {invitation_token}")
+                        flash(f"You've successfully accepted the invitation from {friend_invitation.sender.name}!", "success")
+                        logging.info(f"User {user.id} accepted friend invitation with token {invitation_token}")
                         
                         # Redirect to profile page to show the accepted invitation
                         return redirect(url_for('profile'))
-                    else:
-                        logging.warning(f"Invalid or expired invitation token in session: {invitation_token}")
+                    
+                    # Check for organization invitation
+                    org_invitation = OrganizationInvitation.query.filter_by(token=invitation_token).first()
+                    if org_invitation and not org_invitation.accepted and not org_invitation.is_expired():
+                        logging.info(f"Processing organization invitation for user {user.id} with token {invitation_token}")
+                        
+                        # Redirect to the organization invitation acceptance route
+                        # Clear the token from session as it will be processed by the organization route
+                        session.pop('invitation_token', None)
+                        
+                        # Redirect to the organization invitation acceptance route
+                        return redirect(url_for('organizations.accept_invitation', token=invitation_token))
+                    
+                    # If we get here, neither invitation was valid
+                    logging.warning(f"Invalid or expired invitation token in session: {invitation_token}")
+                    session.pop('invitation_token', None)
+                    
                 except Exception as e:
                     logging.error(f"Error processing invitation after login: {str(e)}")
+                    logging.error(traceback.format_exc())
             
             # Redirect directly to scan page for better user experience
             return redirect(url_for('index'))

@@ -376,23 +376,33 @@ def invite_team_member(org_id):
 @organizations_bp.route('/invitation/<token>')
 def accept_invitation(token):
     """Accept an organization invitation."""
+    # Import the OrganizationInvitation model
+    from models import OrganizationInvitation, OrganizationUser
+    
+    # Log the invitation acceptance attempt
+    logger.info(f"Organization invitation acceptance attempt for token: {token}")
+    
     invitation = OrganizationInvitation.query.filter_by(token=token).first_or_404()
     
     # Check if invitation is expired
     if invitation.is_expired():
+        logger.warning(f"Expired organization invitation: {token}")
         flash('This invitation has expired.', 'danger')
         return redirect(url_for('home'))
     
     # Check if invitation is already accepted
     if invitation.accepted:
+        logger.info(f"Already accepted organization invitation: {token}")
         flash('This invitation has already been accepted.', 'warning')
         return redirect(url_for('home'))
     
     # If user is not logged in, redirect to login
     if not current_user.is_authenticated:
+        logger.info(f"User not authenticated for organization invitation: {token}, storing in session")
         flash('Please log in or create an account to accept this invitation.', 'info')
         # Store invitation token in session to redirect back after login
-        session = {}
+        # FIXED: Use Flask's session object instead of creating a new dictionary
+        from flask import session
         session['invitation_token'] = token
         return redirect(url_for('login'))
     
