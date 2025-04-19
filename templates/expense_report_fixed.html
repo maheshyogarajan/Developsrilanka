@@ -3,6 +3,8 @@
 {% block title %}Expense Report{% endblock %}
 
 {% block styles %}
+<!-- Required for proper calendar navigation -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
   .report-card {
@@ -19,6 +21,33 @@
   }
   .flatpickr-calendar {
     z-index: 1000 !important;
+  }
+  /* Fix for the arrow symbols issue */
+  .flatpickr-prev-month, .flatpickr-next-month {
+    padding: 0 10px !important;
+    height: 34px !important;
+  }
+  .flatpickr-month {
+    height: 40px !important;
+  }
+  .flatpickr-prev-month svg, .flatpickr-next-month svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  /* Hide any icons that might be causing the arrow symbols */
+  .flatpickr-calendar:after, .flatpickr-calendar:before {
+    display: none !important;
+  }
+  
+  /* Fix for the large chevron arrow characters at the bottom of the page */
+  body:after {
+    display: none !important;
+    content: none !important;
+  }
+  
+  /* Hide any stray elements with arrow characters */
+  .arw-right, .arw-left, .flatpickr-prev-month:after, .flatpickr-next-month:after {
+    display: none !important;
   }
   .filter-section {
     background-color: #f8f9fa;
@@ -520,7 +549,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     console.log("Initializing date pickers and charts");
     
-    // Initialize date pickers with more configuration
+    // Initialize date pickers with more configuration and fix for the arrows issue
     flatpickr("#start_date", {
       dateFormat: "Y-m-d",
       allowInput: true,
@@ -528,7 +557,10 @@
       defaultDate: "{{ start_date }}",
       enableTime: false,
       clickOpens: true,
-      static: true
+      static: true,
+      prevArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+      nextArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
+      positionElement: document.getElementById('start_date')
     });
     
     flatpickr("#end_date", {
@@ -538,7 +570,10 @@
       defaultDate: "{{ end_date }}",
       enableTime: false,
       clickOpens: true,
-      static: true
+      static: true,
+      prevArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+      nextArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
+      positionElement: document.getElementById('end_date')
     });
 
     try {
