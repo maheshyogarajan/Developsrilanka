@@ -315,53 +315,85 @@
                     </div>
                 </div>
             
-                <!-- Receipt Items Section (read-only) -->
+                <!-- Receipt Items Section (editable) -->
                 <div class="card mb-4">
                     <div class="card-header bg-info text-white">
                         <h5 class="mb-0"><i class="fas fa-list"></i> Receipt Items</h5>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Quantity</th>
-                                        <th>Price</th>
-                                        <th>Total</th>
-                                        <th>Tax Deductible</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in items %}
-                                    <tr>
-                                        <td>{{ item.name }}</td>
-                                        <td>{{ item.quantity }}</td>
-                                        <td>{{ item.price|currency }}</td>
-                                        <td>{{ (item.price * item.quantity)|currency }}</td>
-                                        <td>
-                                            {% if item.tax_deductible %}
-                                            <span class="tax-deductible"><i class="fas fa-check"></i> Yes</span>
-                                            {% else %}
-                                            <span class="not-tax-deductible"><i class="fas fa-times"></i> No</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% else %}
-                                    <tr>
-                                        <td colspan="5" class="text-center">No items found</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <th colspan="3" class="text-end">Total Amount:</th>
-                                        <th>{{ receipt.total_amount|currency }}</th>
-                                        <th></th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
+                        <form id="itemsForm" action="{{ url_for('unified_view.update_receipt_items', receipt_id=receipt.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="itemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">Item Description</th>
+                                            <th>Quantity</th>
+                                            <th>Price</th>
+                                            <th>Total</th>
+                                            <th>Tax Deductible</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in items %}
+                                        <tr>
+                                            <td>
+                                                <input type="hidden" name="item_ids[]" value="{{ item.id }}">
+                                                <input type="text" class="form-control" name="descriptions[]" value="{{ item.name }}" required>
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control item-quantity" name="quantities[]" value="{{ item.quantity }}" min="0.01" step="0.01" required>
+                                            </td>
+                                            <td>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">Rs</span>
+                                                    <input type="number" class="form-control item-price" name="prices[]" value="{{ item.price }}" min="0.01" step="0.01" required>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="item-total">{{ (item.price * item.quantity)|currency }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="tax_deductible[]" value="{{ item.id }}" {% if item.tax_deductible %}checked{% endif %}>
+                                                    <label class="form-check-label">
+                                                        {% if item.tax_deductible %}
+                                                        <span class="tax-status tax-deductible">Yes</span>
+                                                        {% else %}
+                                                        <span class="tax-status not-tax-deductible">No</span>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="5" class="text-center">No items found</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <th colspan="3" class="text-end">Total Amount:</th>
+                                            <th>{{ receipt.total_amount|currency }}</th>
+                                            <th></th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> Save Items
+                                </button>
+                                <div class="form-text text-muted mt-2">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Edit item details and mark them as tax deductible as needed.
+                                    Click Save Items to update the receipt items separately from the main form.
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -514,7 +546,13 @@
                     clientSelect.innerHTML = '<option value="">-- None --</option>';
                     
                     // Add client options
-                    data.forEach(client => {
+                    let clients = data;
+                    // Handle both response formats (data or data.clients)
+                    if (data.clients) {
+                        clients = data.clients;
+                    }
+                    
+                    clients.forEach(client => {
                         const option = document.createElement('option');
                         option.value = client.id;
                         option.text = client.name;
