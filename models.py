@@ -126,9 +126,13 @@ class FriendInvitation(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
     personal_message = db.Column(db.Text, nullable=True)
+    # Track who accepted the invitation and when
+    accepted_at = db.Column(db.DateTime, nullable=True)
+    accepted_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
     # Relationships
     invited_by = db.relationship('User', foreign_keys=[invited_by_user_id], backref='sent_friend_invitations')
+    accepted_by = db.relationship('User', foreign_keys=[accepted_by_user_id], backref='accepted_friend_invitations')
     
     def is_expired(self):
         """Check if the invitation is expired."""
@@ -136,7 +140,7 @@ class FriendInvitation(db.Model):
     
     def to_dict(self):
         """Convert the invitation to a dictionary."""
-        return {
+        result = {
             'id': self.id,
             'invited_by_user_id': self.invited_by_user_id,
             'invited_by_name': self.invited_by.name,
@@ -148,6 +152,15 @@ class FriendInvitation(db.Model):
             'is_expired': self.is_expired(),
             'personal_message': self.personal_message
         }
+        
+        if self.accepted_at:
+            result['accepted_at'] = self.accepted_at.isoformat()
+        
+        if self.accepted_by_user_id and self.accepted_by:
+            result['accepted_by_user_id'] = self.accepted_by_user_id
+            result['accepted_by_name'] = self.accepted_by.name
+            
+        return result
 
 
 class OrganizationInvitation(db.Model):
