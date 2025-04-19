@@ -199,3 +199,33 @@ def get_receipt_thumbnail_url(receipt):
     """
     # Use the main function with thumbnail preference
     return get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=True)
+
+def can_view_organization_receipts(organization_id, user_id=None):
+    """
+    Check if a user can view all receipts in an organization based on their role.
+    
+    Args:
+        organization_id: ID of the organization
+        user_id: ID of the user (defaults to current_user.id)
+        
+    Returns:
+        Boolean indicating if the user can view all organization receipts
+    """
+    from flask_login import current_user
+    from models import OrganizationUser
+    
+    if user_id is None:
+        if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
+            return False
+        user_id = current_user.id
+    
+    org_user = OrganizationUser.query.filter_by(
+        user_id=user_id,
+        organization_id=organization_id
+    ).first()
+    
+    if not org_user:
+        return False
+        
+    # Owner and admin roles can view all receipts
+    return org_user.role in ['owner', 'admin']
