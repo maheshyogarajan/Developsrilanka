@@ -420,4 +420,263 @@
         </div>
     </div>
 </div>
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Store original values for cancel operation
+    const originalValues = {
+        description: '{{ expense.description or "" }}',
+        notes: '{{ expense.notes or "" }}',
+        reimbursable: {{ 'true' if expense.is_reimbursable else 'false' }},
+        client_id: '{{ expense.client_id or "" }}',
+        client_name: '{{ expense.client_name or "" }}',
+        organization_id: '{{ expense.organization_id or "" }}'
+    };
+
+    // Cache of clients by organization
+    const clientsByOrg = {};
+    
+    // Toggle edit mode for a field
+    function toggleEditMode(fieldName) {
+        const displayElem = document.getElementById(`${fieldName}-display`);
+        const editElem = document.getElementById(`${fieldName}-edit`);
+        
+        // Hide display mode, show edit mode
+        displayElem.classList.add('d-none');
+        editElem.classList.remove('d-none');
+        
+        // If this is the client field, populate the dropdown
+        if (fieldName === 'client') {
+            loadClientOptions();
+        }
+        
+        // Focus on the input field
+        const inputElem = document.getElementById(`${fieldName}-input`);
+        if (inputElem) {
+            inputElem.focus();
+        }
+    }
+    
+    // Load client options from API
+    function loadClientOptions() {
+        const organizationId = '{{ expense.organization_id }}';
+        if (!organizationId) return;
+        
+        if (clientsByOrg[organizationId]) {
+            // Use cached clients
+            populateClientDropdown(clientsByOrg[organizationId]);
+            return;
+        }
+        
+        // Fetch clients for this organization
+        fetch(`/api/organizations/${organizationId}/clients`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.clients) {
+                    clientsByOrg[organizationId] = data.clients;
+                    populateClientDropdown(data.clients);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading clients:', error);
+                showToast('Error loading clients. Please try again.', 'danger');
+            });
+    }
+    
+    // Populate the client dropdown
+    function populateClientDropdown(clients) {
+        const select = document.getElementById('client-input');
+        select.innerHTML = '<option value="">-- Select Client --</option>';
+        
+        clients.forEach(client => {
+            const option = document.createElement('option');
+            option.value = client.id;
+            option.textContent = client.name;
+            
+            // Set selected if this is the current client
+            if (client.id == originalValues.client_id) {
+                option.selected = true;
+            }
+            
+            select.appendChild(option);
+        });
+    }
+    
+    // Cancel editing and restore original value
+    function cancelEdit(fieldName) {
+        const displayElem = document.getElementById(`${fieldName}-display`);
+        const editElem = document.getElementById(`${fieldName}-edit`);
+        
+        // If this is a simple input field, reset its value
+        const inputElem = document.getElementById(`${fieldName}-input`);
+        if (inputElem) {
+            if (fieldName === 'reimbursable') {
+                inputElem.checked = originalValues.reimbursable;
+            } else {
+                inputElem.value = originalValues[fieldName];
+            }
+        }
+        
+        // Hide edit mode, show display mode
+        editElem.classList.add('d-none');
+        displayElem.classList.remove('d-none');
+    }
+    
+    // Save field changes
+    function saveField(fieldName) {
+        const expenseId = {{ expense.id }};
+        const inputElem = document.getElementById(`${fieldName}-input`);
+        let value;
+        
+        // Get value based on input type
+        if (fieldName === 'reimbursable') {
+            value = inputElem.checked;
+        } else {
+            value = inputElem.value;
+        }
+        
+        // Prepare data for API call
+        const data = {};
+        data[fieldName === 'client' ? 'client_id' : fieldName] = value;
+        
+        // Show loading indicator
+        const saveBtn = document.querySelector(`#${fieldName}-edit .save-btn`);
+        const originalBtnHtml = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        saveBtn.disabled = true;
+        
+        // Send update to server
+        fetch(`/expenses/expenses/${expenseId}/update-ajax`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Update the display element
+                updateDisplayValue(fieldName, data.expense);
+                
+                // Hide edit mode, show display mode
+                const displayElem = document.getElementById(`${fieldName}-display`);
+                const editElem = document.getElementById(`${fieldName}-edit`);
+                editElem.classList.add('d-none');
+                displayElem.classList.remove('d-none');
+                
+                // Update original value
+                if (fieldName === 'client') {
+                    originalValues.client_id = data.expense.client_id;
+                    originalValues.client_name = data.expense.client_name;
+                } else {
+                    originalValues[fieldName] = data.expense[fieldName];
+                }
+                
+                // Show success message
+                showToast('Update successful', 'success');
+            } else {
+                showToast(`Error: ${data.error}`, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving field:', error);
+            showToast('Error saving changes. Please try again.', 'danger');
+        })
+        .finally(() => {
+            // Restore button
+            saveBtn.innerHTML = originalBtnHtml;
+            saveBtn.disabled = false;
+        });
+    }
+    
+    // Update the display value after a successful save
+    function updateDisplayValue(fieldName, expenseData) {
+        let displayContent;
+        const displayContentElem = document.querySelector(`#${fieldName}-display p`);
+        
+        switch (fieldName) {
+            case 'description':
+                displayContent = expenseData.description || 'No description provided';
+                displayContentElem.textContent = displayContent;
+                break;
+                
+            case 'notes':
+                displayContent = expenseData.notes || 'No notes provided';
+                // Use innerHTML to support line breaks
+                displayContentElem.innerHTML = displayContent.replace(/\n/g, '<br>');
+                break;
+                
+            case 'reimbursable':
+                if (expenseData.is_reimbursable) {
+                    displayContent = '<span class="badge bg-success"><i class="fas fa-check me-1"></i> Reimbursable</span>';
+                } else {
+                    displayContent = '<span class="badge bg-secondary"><i class="fas fa-times me-1"></i> Not Reimbursable</span>';
+                }
+                displayContentElem.innerHTML = displayContent;
+                break;
+                
+            case 'client':
+                if (expenseData.client_name) {
+                    displayContent = `<span class="badge bg-info text-dark"><i class="fas fa-user-tie me-1"></i> ${expenseData.client_name}</span>`;
+                } else {
+                    displayContent = '<span class="text-muted">Not Assigned</span>';
+                }
+                displayContentElem.innerHTML = displayContent;
+                break;
+        }
+    }
+    
+    // Show a toast notification
+    function showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '1050';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toastId = `toast-${Date.now()}`;
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.id = toastId;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Initialize and show the toast
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 3000
+        });
+        
+        bsToast.show();
+        
+        // Remove from DOM after hidden
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+    }
+</script>
 {% endblock %}

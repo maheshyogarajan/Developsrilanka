@@ -580,7 +580,7 @@ def update_expense_ajax(expense_id):
     expense = CompanyExpense.query.get_or_404(expense_id)
     
     # Verify the expense belongs to the current user or user has proper permissions
-    if expense.user_id != current_user.id and not check_organization_permission(expense.organization_id, ['owner', 'admin']):
+    if expense.user_id != current_user.id and not check_organization_permission(current_user.id, expense.organization_id, ['owner', 'admin']):
         return jsonify({'success': False, 'error': 'You do not have permission to edit this expense'}), 403
     
     # Verify expense is still in submitted status
