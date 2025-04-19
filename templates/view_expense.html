@@ -454,7 +454,8 @@
         reimbursable: {{ 'true' if expense.is_reimbursable else 'false' }},
         client_id: '{{ expense.client_id or "" }}',
         client_name: '{{ expense.client_name or "" }}',
-        organization_id: '{{ expense.organization_id or "" }}'
+        organization_id: '{{ expense.organization_id or "" }}',
+        vendor_name: '{{ expense.vendor_name or "" }}'
     };
 
     // Cache of clients by organization
@@ -561,7 +562,15 @@
         
         // Prepare data for API call
         const data = {};
-        data[fieldName === 'client' ? 'client_id' : fieldName] = value;
+        
+        // Map field names to their backend equivalents
+        if (fieldName === 'client') {
+            data['client_id'] = value;
+        } else if (fieldName === 'reimbursable') {
+            data['is_reimbursable'] = value;
+        } else {
+            data[fieldName] = value;
+        }
         
         // Show loading indicator
         const saveBtn = document.querySelector(`#${fieldName}-edit .save-btn`);
@@ -642,6 +651,11 @@
                 } else {
                     displayContent = '<span class="badge bg-secondary"><i class="fas fa-times me-1"></i> Not Reimbursable</span>';
                 }
+                displayContentElem.innerHTML = displayContent;
+                break;
+                
+            case 'vendor_name':
+                displayContent = expenseData.vendor_name || '<span class="text-muted">Not Available</span>';
                 displayContentElem.innerHTML = displayContent;
                 break;
                 
