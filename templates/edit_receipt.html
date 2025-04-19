@@ -89,8 +89,8 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             {% if organization %}
-            <li class="breadcrumb-item"><a href="{{ url_for('organization.dashboard', org_id=organization.id) }}">{{ organization.name }}</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('list_receipts', org_id=organization.id) }}">Receipts</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('organizations.view_organization', org_id=organization.id) }}">{{ organization.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('list_receipts') }}{% if organization %}?org_id={{ organization.id }}{% endif %}">Receipts</a></li>
             {% else %}
             <li class="breadcrumb-item"><a href="{{ url_for('list_receipts') }}">Receipt History</a></li>
             {% endif %}
