@@ -4,6 +4,7 @@ Custom template filters for the Flask application.
 
 from app import app
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,23 @@ def register_remaining_template_filters(app):
     
     return (percent_filter, datetime_filter, date_filter, truncate_text_filter, nl2br_filter)
 
+# Add global functions to the Jinja environment
+def add_template_globals(app):
+    """Add global functions to the Jinja environment"""
+    logger.info("Adding template global functions")
+    
+    def now():
+        """Get the current datetime"""
+        return datetime.now()
+    
+    # Register the global functions
+    app.jinja_env.globals['now'] = now
+    
+    return now
+
 # Register remaining filters
 filters = register_remaining_template_filters(app)
 # No need to unpack the tuple if we're not using the individual filters elsewhere
+
+# Add global functions
+now_func = add_template_globals(app)
