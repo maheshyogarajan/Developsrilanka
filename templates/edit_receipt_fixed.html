@@ -371,6 +371,11 @@
                                 <div class="receipt-thumbnail-container">
                                     <img src="{{ receipt.image_url }}" alt="Receipt" class="receipt-image"
                                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
+                                    <div class="mt-3">
+                                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
+                                            <i class="fas fa-search-plus me-1"></i> View Full Image
+                                        </button>
+                                    </div>
                                 </div>
                             {% else %}
                                 <div class="no-receipt-image">
@@ -557,3 +562,33 @@
     });
 </script>
 {% endblock %}
+
+<!-- Receipt Image Modal -->
+<div class="modal fade" id="receiptImageModal" tabindex="-1" aria-labelledby="receiptImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="receiptImageModalLabel">Receipt Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                {% if receipt.image_url %}
+                <img src="{{ receipt.image_url }}" 
+                     alt="Receipt Image" class="img-fluid"
+                     style="max-height: 600px;"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                {% else %}
+                <div class="text-muted">
+                    <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
+                         class="img-fluid" style="max-height: 400px;" 
+                         alt="No Receipt Image Available">
+                    <p class="mt-2">No receipt image available</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
