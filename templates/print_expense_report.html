@@ -171,24 +171,52 @@
     border-top: 1px solid #ddd;
   }
   
-  /* Receipt image */
+  /* Receipt image with enhanced frame */
   .receipt-container {
     text-align: center;
-    margin-top: 15px;
+    margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid #eee;
   }
   
   .receipt-frame {
-    border: 1px solid #ccc;
-    padding: 8px;
+    border: 1px solid #aaa;
+    padding: 10px;
     display: inline-block;
     background-color: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    position: relative;
+    max-width: 90%;
+  }
+  
+  .receipt-frame:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid #e8e8e8;
+    margin: 3px;
+    pointer-events: none;
+  }
+  
+  .receipt-frame:after {
+    content: 'Receipt Image';
+    position: absolute;
+    bottom: -8px;
+    right: 15px;
+    background: white;
+    padding: 0 6px;
+    font-size: 11px;
+    color: #666;
   }
   
   .receipt-image {
     max-width: 100%;
     max-height: 200px;
+    display: block;
+    margin: 0 auto;
   }
   
   /* Styling indicators */
@@ -238,10 +266,37 @@
     .expense-print-report {
       max-width: 100%;
       padding: 0;
+      font-size: 12px;
     }
     
     .action-buttons {
       display: none;
+    }
+    
+    .receipt-frame {
+      box-shadow: none;
+      border: 2px solid #999;
+      max-width: 100%;
+    }
+    
+    .receipt-frame:before {
+      border: 1px solid #ccc;
+    }
+    
+    .receipt-image {
+      max-height: 180px; /* Slightly smaller for print */
+    }
+    
+    .expense-heading {
+      background-color: #e6e6e6 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
+    .items-table th {
+      background-color: #e6e6e6 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
   }
 </style>
