@@ -54,9 +54,10 @@
   .receipt-entry {
     border: 1px solid #ddd;
     border-radius: 5px;
-    margin-bottom: 15px;
+    margin-bottom: 25px;
     page-break-inside: avoid;
     background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
   
   .receipt-title {
@@ -91,6 +92,7 @@
   .receipt-image-container {
     flex: 2;
     text-align: center;
+    align-self: center;
   }
   
   .receipt-detail-row {
@@ -120,11 +122,12 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     display: inline-block;
     margin: 0 auto;
+    width: 90%;
   }
   
   .receipt-img {
     max-width: 100%;
-    max-height: 250px;
+    max-height: 280px;
     object-fit: contain;
   }
   
@@ -311,6 +314,7 @@
     </button>
   </div>
   
+  <!-- Organization header -->
   <div class="org-header">
     <div>
       {% if user.organizations and user.organizations[0].logo_s3_key %}
@@ -322,44 +326,26 @@
     <div class="org-info">
       <div class="org-name">{{ user.organizations[0].name if user.organizations else 'Personal Finances' }}</div>
       <div>{{ user.email }}</div>
-      <div>Generated: {{ now().strftime('%Y-%m-%d') }}</div>
+      <div>Printed on: {{ now().strftime('%d/%m/%Y %H:%M:%S') }}</div>
     </div>
   </div>
   
-  <div class="report-title">{{ report_title }}</div>
+  <!-- Report title -->
+  <h2 style="text-align: center; margin: 15px 0; color: #333;">{{ report_title }}</h2>
   
-  <div class="report-metadata">
-    <div class="metadata-group">
-      <div class="metadata-label">DATE RANGE</div>
-      <div class="metadata-value">{{ start_date }} - {{ end_date }}</div>
+  <!-- Report summary -->
+  <div class="report-summary">
+    <div class="summary-row">
+      <div class="summary-label">Date Range:</div>
+      <div>{{ start_date }} - {{ end_date }}</div>
     </div>
-    <div class="metadata-group">
-      <div class="metadata-label">PREPARED BY</div>
-      <div class="metadata-value">{{ user.name }}</div>
+    <div class="summary-row">
+      <div class="summary-label">Prepared By:</div>
+      <div>{{ user.name }}</div>
     </div>
-    <div class="metadata-group">
-      <div class="metadata-label">REPORT ID</div>
-      <div class="metadata-value">EXP-{{ now().strftime('%Y%m%d-%H%M') }}</div>
-    </div>
-  </div>
-  
-  <div class="summary-section">
-    <div class="summary-box">
-      <div class="summary-label">TOTAL EXPENSES</div>
-      <div class="summary-value primary">{{ "%.2f"|format(total_amount) }}</div>
-      <div class="summary-subtext">{{ expenses|length }} expense items</div>
-    </div>
-    
-    <div class="summary-box reimbursable">
-      <div class="summary-label">REIMBURSABLE</div>
-      <div class="summary-value success">{{ "%.2f"|format(reimbursable_amount) }}</div>
-      <div class="summary-subtext">{{ "%.1f"|format((reimbursable_amount / total_amount * 100) if total_amount else 0) }}% of total</div>
-    </div>
-    
-    <div class="summary-box non-reimbursable">
-      <div class="summary-label">NON-REIMBURSABLE</div>
-      <div class="summary-value danger">{{ "%.2f"|format(total_amount - reimbursable_amount) }}</div>
-      <div class="summary-subtext">{{ "%.1f"|format(((total_amount - reimbursable_amount) / total_amount * 100) if total_amount else 0) }}% of total</div>
+    <div class="summary-row">
+      <div class="summary-label">Total Expenses:</div>
+      <div class="summary-total">{{ "%.2f"|format(total_amount) }} ({{ expenses|length }} items)</div>
     </div>
   </div>
   
@@ -370,46 +356,37 @@
     </div>
   {% endif %}
   
-  <div class="expense-list">
-    {% for expense in expenses %}
-    <div class="expense-item">
-      <div class="expense-header">
-        <div class="expense-title">
-          {% if expense.receipt %}
-            {{ expense.receipt.vendor_name or 'Unknown Vendor' }}
-          {% else %}
-            Expense #{{ expense.id }}
-          {% endif %}
-        </div>
-        <div class="expense-amount">
-          {{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}
-        </div>
-      </div>
-      
-      <div class="expense-details">
-        <div class="detail-item">
-          <div class="detail-label">DATE</div>
-          <div class="detail-value">{{ expense.receipt.date.strftime('%Y-%m-%d') if expense.receipt and expense.receipt.date else 'N/A' }}</div>
+  <!-- Expense entries with layout similar to bank references -->
+  {% for expense in expenses %}
+  <div class="receipt-entry">
+    <!-- Receipt title bar -->
+    <div class="receipt-title">
+      <div>{{ expense.receipt.vendor_name or 'Unknown Vendor' if expense.receipt else 'Expense #' ~ expense.id }}</div>
+      <div>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt and expense.receipt.total_amount else '0.00' }}</div>
+    </div>
+    
+    <!-- Receipt content -->
+    <div class="receipt-content">
+      <!-- Left side - receipt details -->
+      <div class="receipt-details">
+        <div class="receipt-detail-row">
+          <div class="receipt-label">Date:</div>
+          <div class="receipt-value">{{ expense.receipt.date.strftime('%d/%m/%Y') if expense.receipt and expense.receipt.date else 'N/A' }}</div>
         </div>
         
-        <div class="detail-item">
-          <div class="detail-label">CATEGORY</div>
-          <div class="detail-value">{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</div>
+        <div class="receipt-detail-row">
+          <div class="receipt-label">Category:</div>
+          <div class="receipt-value">{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</div>
         </div>
         
-        <div class="detail-item">
-          <div class="detail-label">CLIENT</div>
-          <div class="detail-value">{{ expense.client.name if expense.client else 'N/A' }}</div>
+        <div class="receipt-detail-row">
+          <div class="receipt-label">Client:</div>
+          <div class="receipt-value">{{ expense.client.name if expense.client else 'N/A' }}</div>
         </div>
         
-        <div class="detail-item">
-          <div class="detail-label">ORGANIZATION</div>
-          <div class="detail-value">{{ expense.organization.name if expense.organization else 'N/A' }}</div>
-        </div>
-        
-        <div class="detail-item">
-          <div class="detail-label">STATUS</div>
-          <div class="detail-value">
+        <div class="receipt-detail-row">
+          <div class="receipt-label">Status:</div>
+          <div class="receipt-value">
             {% if expense.status == 'submitted' %}
               <span class="status-badge status-submitted">Submitted</span>
             {% elif expense.status == 'approved' %}
@@ -424,130 +401,107 @@
           </div>
         </div>
         
-        <div class="detail-item">
-          <div class="detail-label">REIMBURSABLE</div>
-          <div class="detail-value">{{ 'Yes' if expense.is_reimbursable else 'No' }}</div>
-        </div>
-      </div>
-      
-      <div class="items-container">
-        <div class="items-section">
-          {% if expense.receipt and expense.receipt.description %}
-            <div style="margin-bottom: 15px;">
-              <strong>Description:</strong>
-              <p style="margin-top: 5px; color: #555;">{{ expense.receipt.description }}</p>
-            </div>
-          {% endif %}
-          
-          {% if expense.receipt and expense.receipt.items %}
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th style="width: 40%;">Item</th>
-                  <th style="width: 12%;">Quantity</th>
-                  <th style="width: 15%;">Unit Price</th>
-                  <th style="width: 18%;">Tax Deductible</th>
-                  <th style="width: 15%;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in expense.receipt.items %}
-                  <tr>
-                    <td>{{ item.name or 'Item ' ~ loop.index }}</td>
-                    <td>{{ item.quantity or 1 }}</td>
-                    <td>{{ "%.2f"|format(item.price) if item.price else 'N/A' }}</td>
-                    <td class="{% if item.tax_deductible %}tax-deductible-yes{% else %}tax-deductible-no{% endif %}">
-                      {{ 'Yes' if item.tax_deductible else 'No' }}
-                    </td>
-                    <td>{{ "%.2f"|format(item.price * (item.quantity or 1)) if item.price else 'N/A' }}</td>
-                  </tr>
-                {% endfor %}
-                
-                {% if expense.receipt.tax_amount or expense.receipt.total_amount %}
-                  <tr class="subtotal-row">
-                    <td colspan="4" style="text-align: right;">Subtotal</td>
-                    <td>{{ "%.2f"|format(expense.receipt.total_amount - (expense.receipt.tax_amount or 0)) }}</td>
-                  </tr>
-                {% endif %}
-                
-                {% if expense.receipt.tax_amount %}
-                  <tr class="subtotal-row">
-                    <td colspan="4" style="text-align: right;">Tax</td>
-                    <td>{{ "%.2f"|format(expense.receipt.tax_amount) }}</td>
-                  </tr>
-                {% endif %}
-                
-                <tr class="total-row">
-                  <td colspan="4" style="text-align: right;">Total</td>
-                  <td>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          {% else %}
-            <div style="padding: 20px; background-color: #f8f9fc; border-radius: 5px; text-align: center;">
-              <p>No item details available</p>
-            </div>
-          {% endif %}
+        <div class="receipt-detail-row">
+          <div class="receipt-label">Reimbursable:</div>
+          <div class="receipt-value" style="color: {{ '#1cc88a' if expense.is_reimbursable else '#e74a3b' }}; font-weight: 500;">
+            {{ 'Yes' if expense.is_reimbursable else 'No' }}
+          </div>
         </div>
         
-        <div class="receipt-section">
-          {% if expense.receipt and expense.receipt.s3_key %}
-            <div class="receipt-image">
-              <img src="{{ expense.receipt.s3_direct_url }}" alt="Receipt Image" class="receipt-img">
-            </div>
-          {% else %}
-            <div style="padding: 50px; background-color: #f8f9fc; border: 1px dashed #d1d3e2; border-radius: 5px; text-align: center;">
-              <p>No receipt image available</p>
-            </div>
-          {% endif %}
+        {% if expense.receipt and expense.receipt.description %}
+        <div class="receipt-detail-row">
+          <div class="receipt-label">Description:</div>
+          <div class="receipt-value">{{ expense.receipt.description }}</div>
         </div>
+        {% endif %}
+        
+        <!-- Receipt items table -->
+        {% if expense.receipt and expense.receipt.items %}
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 40%;">Item</th>
+              <th style="width: 10%;">Qty</th>
+              <th style="width: 15%;">Unit Price</th>
+              <th style="width: 20%;">Tax Deductible</th>
+              <th style="width: 15%;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in expense.receipt.items %}
+            <tr>
+              <td>{{ item.name or 'Item ' ~ loop.index }}</td>
+              <td>{{ item.quantity or 1 }}</td>
+              <td>{{ "%.2f"|format(item.price) if item.price else 'N/A' }}</td>
+              <td class="{% if item.tax_deductible %}tax-deductible-yes{% else %}tax-deductible-no{% endif %}">
+                {{ 'Yes' if item.tax_deductible else 'No' }}
+              </td>
+              <td>{{ "%.2f"|format(item.price * (item.quantity or 1)) if item.price else 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+            
+            {% if expense.receipt.tax_amount or expense.receipt.total_amount %}
+            <tr class="subtotal-row">
+              <td colspan="4" style="text-align: right; font-weight: bold;">Subtotal:</td>
+              <td>{{ "%.2f"|format(expense.receipt.total_amount - (expense.receipt.tax_amount or 0)) }}</td>
+            </tr>
+            {% endif %}
+            
+            {% if expense.receipt.tax_amount %}
+            <tr class="subtotal-row">
+              <td colspan="4" style="text-align: right; font-weight: bold;">Tax:</td>
+              <td>{{ "%.2f"|format(expense.receipt.tax_amount) }}</td>
+            </tr>
+            {% endif %}
+            
+            <tr class="total-row">
+              <td colspan="4" style="text-align: right; font-weight: bold;">Total:</td>
+              <td>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        {% elif expense.receipt %}
+        <div style="font-style: italic; color: #666; margin-top: 10px;">
+          No line items available for this receipt
+        </div>
+        {% endif %}
+      </div>
+      
+      <!-- Right side - receipt image in frame -->
+      <div class="receipt-image-container">
+        {% if expense.receipt and expense.receipt.s3_key %}
+          <div class="receipt-image-frame">
+            <img src="{{ expense.receipt.s3_direct_url }}" alt="Receipt Image" class="receipt-img">
+          </div>
+        {% else %}
+          <div class="receipt-image-frame" style="display: flex; align-items: center; justify-content: center; height: 200px; width: 100%;">
+            <p style="color: #999;">No receipt image available</p>
+          </div>
+        {% endif %}
       </div>
     </div>
-    {% endfor %}
   </div>
+  {% endfor %}
   
-  <div class="final-summary">
-    <h3>Final Summary</h3>
-    <table class="summary-table">
-      <tr>
-        <td class="summary-table-label">Total Expenses:</td>
-        <td class="summary-table-value value-total">{{ "%.2f"|format(total_amount) }}</td>
-      </tr>
-      <tr>
-        <td class="summary-table-label">Reimbursable Amount:</td>
-        <td class="summary-table-value value-reimbursable">{{ "%.2f"|format(reimbursable_amount) }}</td>
-      </tr>
-      <tr>
-        <td class="summary-table-label">Non-Reimbursable Amount:</td>
-        <td class="summary-table-value value-non-reimbursable">{{ "%.2f"|format(total_amount - reimbursable_amount) }}</td>
-      </tr>
-    </table>
-    
-    <div style="margin-top: 15px; font-style: italic; color: #666; border-top: 1px solid #e3e6f0; padding-top: 15px; font-size: 12px;">
-      This expense report was generated on {{ now().strftime('%Y-%m-%d at %H:%M') }}
-    </div>
-  </div>
-  
+  <!-- Signature section -->
+  {% if expenses|length > 0 %}
   <div class="signature-section">
     <div class="signature-box">
       <div class="signature-line"></div>
-      <div class="signature-name">{{ user.name }}</div>
-      <div>Submitter</div>
-      <div class="signature-date">
-        <span class="signature-date-label">Date:</span>
-        <span class="signature-date-line"></span>
+      <div class="signature-label">Submitted By: {{ user.name }}</div>
+      <div style="margin-top: 15px;">
+        <span style="font-weight: bold;">Date:</span> _________________
       </div>
     </div>
     
     <div class="signature-box">
       <div class="signature-line"></div>
-      <div class="signature-name">_________________________</div>
-      <div>Approver</div>
-      <div class="signature-date">
-        <span class="signature-date-label">Date:</span>
-        <span class="signature-date-line"></span>
+      <div class="signature-label">Supervisor</div>
+      <div style="margin-top: 15px;">
+        <span style="font-weight: bold;">Date:</span> _________________
       </div>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endblock %}
