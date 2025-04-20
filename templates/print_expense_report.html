@@ -165,21 +165,32 @@
     font-weight: bold;
   }
   
-  /* Receipt image styling - with border frame */
+  /* Receipt image styling - with enhanced border frame like bank reference */
   .receipt-image-frame {
     border: 1px solid #ccc;
-    padding: 8px;
+    padding: 10px;
     background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
     display: inline-block;
     margin: 0 auto;
     width: 90%;
+    border-radius: 6px;
+    position: relative;
   }
   
   .receipt-img {
     max-width: 100%;
     max-height: 280px;
     object-fit: contain;
+    border-radius: 4px;
+  }
+  
+  .receipt-image-label {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
   }
   
   /* Items table styling - modernized */
@@ -455,10 +466,12 @@
     </div>
   </div>
   
-  <!-- Report title -->
-  <h2 style="text-align: center; margin: 15px 0; color: #333;">{{ report_title }}</h2>
+  <!-- Report title - enhanced style -->
+  <div style="text-align: center; margin: 15px 0 25px; padding-bottom: 15px; border-bottom: 1px solid #e3e6f0;">
+    <h2 style="color: #2e59d9; margin: 0; font-size: 24px; font-weight: 600;">{{ report_title }}</h2>
+  </div>
   
-  <!-- Report summary -->
+  <!-- Report summary with all key information -->
   <div class="report-summary">
     <div class="summary-row">
       <div class="summary-label">Date Range:</div>
@@ -471,6 +484,11 @@
     <div class="summary-row">
       <div class="summary-label">Total Expenses:</div>
       <div class="summary-total">{{ "%.2f"|format(total_amount) }} ({{ expenses|length }} items)</div>
+    </div>
+    <div class="summary-row">
+      <div class="summary-label">Reimbursable:</div>
+      <div class="summary-total" style="color: #1cc88a;">{{ "%.2f"|format(reimbursable_amount) }} 
+        ({{ "%.1f"|format(reimbursable_amount / total_amount * 100 if total_amount else 0) }}% of total)</div>
     </div>
   </div>
   
@@ -606,11 +624,12 @@
         {% endif %}
       </div>
       
-      <!-- Right side - receipt image in frame -->
+      <!-- Right side - receipt image in frame similar to bank reference -->
       <div class="receipt-image-container">
         {% if expense.receipt and expense.receipt.s3_key %}
           <div class="receipt-image-frame">
             <img src="{{ expense.receipt.s3_direct_url }}" alt="Receipt Image" class="receipt-img">
+            <div class="receipt-image-label">Receipt Image</div>
           </div>
         {% else %}
           <div class="receipt-image-frame" style="display: flex; align-items: center; justify-content: center; height: 200px; width: 100%;">
