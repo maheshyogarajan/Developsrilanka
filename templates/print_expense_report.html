@@ -163,22 +163,23 @@
     flex: 0 0 300px;
   }
   
-  .receipt-image img {
+  .receipt-image img,
+  .receipt-image-display {
     max-width: 100%;
     max-height: 350px;
     border: 1px solid #e3e6f0;
     border-radius: 6px;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    transition: transform 0.2s;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
   }
   
-  .receipt-image img:hover {
-    transform: scale(1.02);
-    cursor: pointer;
-  }
-  
-  .clickable-image {
-    cursor: pointer;
+  @media print {
+    .receipt-image-display {
+      page-break-inside: avoid;
+      max-height: 300px;
+    }
   }
   
   .items-table {
@@ -279,14 +280,29 @@
     background-color: #2e59d9;
   }
   
+  .only-screen {
+    display: block;
+  }
+  
   @media print {
     .print-actions {
+      display: none !important;
+    }
+    
+    .only-screen {
       display: none !important;
     }
     
     body {
       padding: 0;
       margin: 0;
+      background-color: white;
+    }
+    
+    .print-container {
+      box-shadow: none;
+      max-width: 100%;
+      padding: 10px;
     }
     
     a {
@@ -296,6 +312,48 @@
     
     .expense-item {
       break-inside: avoid;
+      margin-bottom: 15px;
+      page-break-after: auto;
+    }
+    
+    .receipt-image-display {
+      max-height: 250px;
+      width: auto;
+      cursor: default !important;
+    }
+    
+    .expense-body {
+      flex-direction: column-reverse;
+    }
+    
+    .expense-details {
+      padding-right: 0;
+      margin-top: 15px;
+    }
+    
+    .receipt-image {
+      flex: none;
+      margin-bottom: 10px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .items-table {
+      font-size: 10px;
+      margin-top: 10px;
+    }
+    
+    .items-table th, 
+    .items-table td {
+      padding: 4px 6px;
+    }
+    
+    .total-row td {
+      font-size: 12px;
+    }
+    
+    .meta-item {
+      font-size: 11px;
     }
   }
 </style>
@@ -462,7 +520,14 @@
         {% if expense.receipt and expense.receipt.s3_key %}
           <div style="position: relative;">
             <img src="{{ expense.receipt.s3_direct_url }}" 
-                 alt="Receipt Image" class="receipt-image-display">
+                 alt="Receipt Image" class="receipt-image-display"
+                 onclick="openReceiptModal({{ expense.receipt.id }})">
+            <div class="only-screen" style="margin-top: 8px; text-align: center;">
+              <button class="btn btn-sm btn-primary" 
+                      onclick="openReceiptModal({{ expense.receipt.id }})">
+                <i class="fas fa-search-plus"></i> View Full Image
+              </button>
+            </div>
           </div>
         {% else %}
           <div style="padding: 50px; background-color: #f8f9fc; border: 1px dashed #d1d3e2; border-radius: 4px; text-align: center;">
