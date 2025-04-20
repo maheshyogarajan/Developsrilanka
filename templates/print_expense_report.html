@@ -8,95 +8,155 @@
   body {
     font-family: 'Segoe UI', Arial, sans-serif;
     line-height: 1.5;
+    color: #333;
+    background-color: #f9fbfd;
   }
   
   .print-container {
-    max-width: 1000px;
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 25px;
+    background-color: white;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
   }
   
   .report-header {
     text-align: center;
-    margin-bottom: 30px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #4e73df;
+    margin-bottom: 35px;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #4e73df;
+    position: relative;
+  }
+  
+  .report-header:after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: #e3e6f0;
   }
   
   .report-title {
-    font-size: 24px;
+    font-size: 28px;
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    color: #2e59d9;
   }
   
   .report-subtitle {
     font-size: 16px;
     color: #666;
+    font-style: italic;
   }
   
   .report-summary {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 30px;
+    margin-bottom: 35px;
     background-color: #f8f9fc;
-    padding: 15px;
-    border-radius: 5px;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 5px solid #4e73df;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   }
   
   .summary-box {
     text-align: center;
+    padding: 10px;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  
+  .summary-box:hover {
+    background-color: rgba(78, 115, 223, 0.05);
   }
   
   .summary-value {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: bold;
     color: #4e73df;
+    margin: 8px 0;
   }
   
   .expense-item {
-    margin-bottom: 30px;
+    margin-bottom: 40px;
     border: 1px solid #e3e6f0;
-    border-radius: 5px;
+    border-radius: 8px;
     overflow: hidden;
     page-break-inside: avoid;
+    box-shadow: 0 0.15rem 0.5rem rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .expense-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.09);
   }
   
   .expense-header {
     background-color: #f8f9fc;
-    padding: 10px 15px;
+    padding: 15px 20px;
     border-bottom: 1px solid #e3e6f0;
+    position: relative;
+  }
+  
+  .expense-header:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(to right, #4e73df, #36b9cc);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+    transform-origin: left;
+  }
+  
+  .expense-item:hover .expense-header:after {
+    transform: scaleX(1);
   }
   
   .expense-title {
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 20px;
+    font-weight: 600;
+    color: #2e59d9;
+    margin-bottom: 8px;
   }
   
   .expense-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
-    margin-top: 5px;
+    margin-top: 8px;
     font-size: 14px;
   }
   
   .meta-item {
     display: flex;
+    background-color: rgba(78, 115, 223, 0.05);
+    padding: 3px 8px;
+    border-radius: 4px;
   }
   
   .meta-label {
     font-weight: bold;
-    margin-right: 5px;
+    margin-right: 8px;
+    color: #555;
   }
   
   .expense-body {
     display: flex;
-    padding: 15px;
+    padding: 20px;
+    background-color: white;
   }
   
   .expense-details {
     flex: 1;
-    padding-right: 20px;
+    padding-right: 25px;
   }
   
   .receipt-image {
@@ -107,29 +167,64 @@
     max-width: 100%;
     max-height: 350px;
     border: 1px solid #e3e6f0;
-    border-radius: 4px;
+    border-radius: 6px;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s;
+  }
+  
+  .receipt-image img:hover {
+    transform: scale(1.02);
+    cursor: pointer;
+  }
+  
+  .clickable-image {
+    cursor: pointer;
   }
   
   .items-table {
     width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 20px;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);
+    border-radius: 6px;
+    overflow: hidden;
   }
   
   .items-table th {
-    background-color: #f8f9fc;
+    background-color: #4e73df;
+    color: white;
     text-align: left;
-    padding: 8px;
-    border-bottom: 1px solid #e3e6f0;
+    padding: 10px 12px;
+    font-weight: 600;
   }
   
   .items-table td {
-    padding: 8px;
+    padding: 10px 12px;
     border-bottom: 1px solid #e3e6f0;
+    background-color: white;
+  }
+  
+  .items-table tr:nth-child(even) td {
+    background-color: #f8f9fc;
+  }
+  
+  .items-table tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .items-table tr:hover td {
+    background-color: rgba(78, 115, 223, 0.05);
   }
   
   .total-row {
     font-weight: bold;
+    background-color: #f8f9fc !important;
+  }
+  
+  .total-row td {
+    border-top: 2px solid #4e73df;
+    font-size: 16px;
   }
   
   .status-badge {
@@ -365,7 +460,17 @@
       
       <div class="receipt-image">
         {% if expense.receipt and expense.receipt.s3_key %}
-          <img src="{{ url_for('unified_view.direct_receipt_image', receipt_id=expense.receipt.id) }}" alt="Receipt Image">
+          <div style="position: relative;">
+            <img src="{{ url_for('unified_view.direct_receipt_image', receipt_id=expense.receipt.id) }}" 
+                 alt="Receipt Image" class="clickable-image"
+                 onclick="openReceiptModal({{ expense.receipt.id }})">
+            <div style="margin-top: 8px; text-align: center;">
+              <button class="btn btn-sm btn-primary" 
+                      onclick="openReceiptModal({{ expense.receipt.id }})">
+                <i class="fas fa-search-plus"></i> View Full Image
+              </button>
+            </div>
+          </div>
         {% else %}
           <div style="padding: 50px; background-color: #f8f9fc; border: 1px dashed #d1d3e2; border-radius: 4px; text-align: center;">
             <p>No receipt image available</p>
@@ -376,33 +481,58 @@
   </div>
   {% endfor %}
   
-  <div style="margin-top: 30px;">
-    <h3>Summary</h3>
+  <div style="margin-top: 40px; background-color: #f8f9fc; padding: 25px; border-radius: 8px; border-left: 5px solid #4e73df; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);">
+    <h3 style="margin-top: 0; color: #2e59d9; margin-bottom: 20px; font-size: 22px;">Final Summary</h3>
     <table style="width: 100%; border-collapse: collapse;">
       <tr>
-        <td style="width: 70%; padding: 10px 0;"><strong>Total Expenses:</strong></td>
-        <td style="padding: 10px 0;">{{ "%.2f"|format(total_amount) }}</td>
+        <td style="width: 70%; padding: 12px 0; font-size: 16px; border-bottom: 1px solid #e3e6f0;"><strong>Total Expenses:</strong></td>
+        <td style="padding: 12px 0; font-size: 16px; font-weight: bold; color: #4e73df; border-bottom: 1px solid #e3e6f0;">{{ "%.2f"|format(total_amount) }}</td>
       </tr>
       <tr>
-        <td style="padding: 10px 0;"><strong>Reimbursable Amount:</strong></td>
-        <td style="padding: 10px 0;">{{ "%.2f"|format(reimbursable_amount) }}</td>
+        <td style="padding: 12px 0; font-size: 16px; border-bottom: 1px solid #e3e6f0;"><strong>Reimbursable Amount:</strong></td>
+        <td style="padding: 12px 0; font-size: 16px; font-weight: bold; color: #1cc88a; border-bottom: 1px solid #e3e6f0;">{{ "%.2f"|format(reimbursable_amount) }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 0; font-size: 16px;"><strong>Non-Reimbursable Amount:</strong></td>
+        <td style="padding: 12px 0; font-size: 16px; font-weight: bold; color: #e74a3b;">{{ "%.2f"|format(total_amount - reimbursable_amount) }}</td>
       </tr>
     </table>
+    
+    <div style="margin-top: 15px; font-style: italic; color: #666; border-top: 1px solid #e3e6f0; padding-top: 15px;">
+      This expense report was generated on {{ now().strftime('%Y-%m-%d at %H:%M') }}
+    </div>
   </div>
   
-  <div class="signature-section">
-    <div class="signature-box">
+  <div class="signature-section" style="margin-top: 60px; margin-bottom: 40px;">
+    <div class="signature-box" style="background-color: #f8f9fc; padding: 20px; border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);">
       <div class="signature-line"></div>
-      <div>Submitter Signature</div>
-      <div>{{ user.name }}</div>
-      <div>Date: _________________</div>
+      <div style="margin-top: 5px; font-weight: bold; color: #4e73df;">Submitter Signature</div>
+      <div style="margin-top: 5px;">{{ user.name }}</div>
+      <div style="margin-top: 10px;">Date: _________________</div>
     </div>
     
-    <div class="signature-box">
+    <div class="signature-box" style="background-color: #f8f9fc; padding: 20px; border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);">
       <div class="signature-line"></div>
-      <div>Approver Signature</div>
-      <div>Name: _________________</div>
-      <div>Date: _________________</div>
+      <div style="margin-top: 5px; font-weight: bold; color: #4e73df;">Approver Signature</div>
+      <div style="margin-top: 5px;">Name: _________________</div>
+      <div style="margin-top: 10px;">Date: _________________</div>
+    </div>
+  </div>
+</div>
+<!-- Receipt Image Modal -->
+<div class="modal fade" id="receiptImageModal" tabindex="-1" aria-labelledby="receiptImageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="receiptImageModalLabel">Receipt Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalReceiptImage" src="" alt="Receipt Image" class="img-fluid" style="max-height: 600px;">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -412,6 +542,43 @@
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     console.log("Print report loaded");
+    
+    // Check if Bootstrap is loaded
+    if (typeof bootstrap !== 'undefined') {
+      console.log("Bootstrap is loaded, initializing modal");
+      // Initialize the modal if it's not already
+      var receiptModal = new bootstrap.Modal(document.getElementById('receiptImageModal'));
+    } else {
+      console.warn("Bootstrap is not loaded, modal functionality may not work");
+    }
   });
+  
+  // Function to open receipt image modal
+  function openReceiptModal(receiptId) {
+    console.log("Opening modal for receipt ID:", receiptId);
+    
+    // Get the direct image URL
+    var imageUrl = '/receipts/direct_image/' + receiptId;
+    
+    // Set the modal image source
+    var modalImg = document.getElementById('modalReceiptImage');
+    if (modalImg) {
+      modalImg.src = imageUrl;
+    }
+    
+    // Show the modal
+    if (typeof bootstrap !== 'undefined') {
+      var receiptModal = bootstrap.Modal.getInstance(document.getElementById('receiptImageModal'));
+      if (!receiptModal) {
+        receiptModal = new bootstrap.Modal(document.getElementById('receiptImageModal'));
+      }
+      receiptModal.show();
+    } else {
+      // Fallback if Bootstrap isn't available
+      var modalElement = document.getElementById('receiptImageModal');
+      modalElement.style.display = 'block';
+      modalElement.classList.add('show');
+    }
+  }
 </script>
 {% endblock %}
