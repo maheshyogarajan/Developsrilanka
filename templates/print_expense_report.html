@@ -24,14 +24,16 @@
     position: relative;
   }
   
-  /* Organization header styling */
+  /* Organization header styling - updated to match example */
   .org-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #4e73df;
-    padding-bottom: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fc;
+    border-radius: 5px; 
+    border: 1px solid #e3e6f0;
   }
   
   .org-logo {
@@ -303,26 +305,35 @@
   /* Report summary section */
   .report-summary {
     background-color: #f8f9fc;
-    border: 1px solid #ddd;
-    padding: 10px 15px;
-    margin-bottom: 15px;
+    border: 1px solid #e3e6f0;
+    border-left: 5px solid #4e73df;
+    padding: 15px;
+    margin-bottom: 20px;
     border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   }
   
   .summary-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 5px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  
+  .summary-row:last-child {
+    margin-bottom: 0;
   }
   
   .summary-label {
     font-weight: bold;
     color: #555;
+    width: 150px;
   }
   
   .summary-total {
     color: #4e73df;
     font-weight: bold;
+    font-size: 16px;
   }
   
   /* Print actions button */
