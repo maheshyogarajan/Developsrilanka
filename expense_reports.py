@@ -1130,6 +1130,9 @@ def print_expense_report():
         
         report_title += f" ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})"
         
+        # Add a debug message to verify template usage
+        current_app.logger.info(f"DEBUG: Using print_expense_report.html - Redesigned Template V2")
+        
         return render_template(
             'print_expense_report.html',
             expenses=expenses,

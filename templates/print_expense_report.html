@@ -1,6 +1,8 @@
 {% extends "layout.html" %}
 
 {% block head %}
+<!-- DEBUG MARKER: NEW TEMPLATE V2 - MODERN DESIGN -->
+<!-- This comment helps identify when this template is being used -->
 <title>Expense Report</title>
 <style>
 /* Main container */
@@ -280,6 +282,9 @@
 
   <!-- Report header -->
   <div class="report-header">
+    <div style="background-color: #ffeb3b; color: #333; padding: 5px; margin-bottom: 10px; text-align: center; font-size: 14px; border-radius: 4px;">
+      DEBUG: Using Modern Design Template V2
+    </div>
     <h1 class="report-title">{{ report_title }}</h1>
     <div class="report-meta">
       Generated on {{ now().strftime('%d %B %Y, %H:%M') }}<br>
