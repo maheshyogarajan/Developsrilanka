@@ -300,13 +300,29 @@
     </button>
   </div>
 
-  <div class="print-header">
+  <!-- New Header Section with Clear Summary Box -->
+  <div class="header-section">
     <div class="report-title">{{ report_title }}</div>
-    <div class="print-meta">
-      Prepared by: {{ user.name }} | Generated on: {{ now().strftime('%Y-%m-%d') }}
+    
+    <div class="report-summary-box">
+      <div class="summary-section">
+        <div class="summary-header">Date Range:</div>
+        <div class="summary-value">{{ start_date }} - {{ end_date }}</div>
+      </div>
+      
+      <div class="summary-section">
+        <div class="summary-header">Prepared By:</div>
+        <div class="summary-value">{{ user.name }}</div>
+      </div>
+      
+      <div class="summary-section">
+        <div class="summary-header">Total Expenses:</div>
+        <div class="summary-value highlight">{{ "%.2f"|format(total_amount) }} ({{ expenses|length }} items)</div>
+      </div>
     </div>
   </div>
 
+  <!-- Print summary (now will be displayed only as supporting information) -->
   <div class="print-summary">
     <div class="summary-box">
       <div class="summary-label">Total Expenses</div>
