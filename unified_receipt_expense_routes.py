@@ -3,8 +3,10 @@ Routes for unified receipt and expense views.
 This module combines the functionality of receipt_views and expense_views.
 """
 import logging
+import os
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort, send_file
+from app import app
 from flask_login import login_required, current_user
 from sqlalchemy import text, or_, and_, func
 from sqlalchemy.orm import joinedload
@@ -1140,6 +1142,61 @@ def api_receipt_image(receipt_id):
         "image_url": image_url,
         "receipt_id": receipt_id
     })
+    
+@unified_view_bp.route('/receipt/image/<int:receipt_id>')
+@login_required
+def direct_receipt_image(receipt_id):
+    """Direct endpoint that returns the receipt image file for display in img tags."""
+    receipt = Receipt.query.get_or_404(receipt_id)
+    
+    # Check if the receipt belongs to the current user or their organization
+    if receipt.user_id != current_user.id:
+        # If receipt belongs to an organization, check user's permissions
+        if receipt.organization_id:
+            org_user = OrganizationUser.query.filter_by(
+                user_id=current_user.id,
+                organization_id=receipt.organization_id
+            ).first()
+            
+            if not org_user:
+                abort(403)
+        else:
+            abort(403)
+    
+    # Get image file path or S3 key
+    from utils import get_receipt_image_path
+    
+    # Use S3 for storage when available
+    if receipt.s3_key:
+        try:
+            from s3_storage import s3_download_file_to_memory
+            file_content = s3_download_file_to_memory(receipt.s3_key)
+            if file_content:
+                return send_file(
+                    file_content,
+                    mimetype='image/jpeg',
+                    as_attachment=False
+                )
+        except Exception as e:
+            logging.error(f"Error fetching S3 image for receipt {receipt_id}: {e}")
+    
+    # Fall back to local file path if S3 unavailable or failed
+    if receipt.image_path:
+        file_path = get_receipt_image_path(receipt)
+        if file_path and os.path.exists(file_path):
+            return send_file(
+                file_path,
+                mimetype='image/jpeg',
+                as_attachment=False
+            )
+    
+    # If no image found, return a placeholder
+    placeholder_path = os.path.join(app.static_folder, 'img', 'receipt-placeholder.svg')
+    return send_file(
+        placeholder_path,
+        mimetype='image/svg+xml',
+        as_attachment=False
+    )
 
 @unified_view_bp.route('/api/expense-image/<int:expense_id>')
 @login_required
