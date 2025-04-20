@@ -365,7 +365,7 @@
       
       <div class="receipt-image">
         {% if expense.receipt and expense.receipt.s3_key %}
-          <img src="{{ url_for('expense.get_receipt_image', receipt_id=expense.receipt.id) }}" alt="Receipt Image">
+          <img src="{{ url_for('unified_view.api_receipt_image', receipt_id=expense.receipt.id) }}" alt="Receipt Image">
         {% else %}
           <div style="padding: 50px; background-color: #f8f9fc; border: 1px dashed #d1d3e2; border-radius: 4px; text-align: center;">
             <p>No receipt image available</p>
