@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
 
-{% block title %}Print Expense Report{% endblock %}
+{% block title %}Expense Report{% endblock %}
 
 {% block head %}
 {{ super() }}
 <style>
+  /* Base styles */
   body {
     font-family: 'Segoe UI', Arial, sans-serif;
     line-height: 1.5;
@@ -12,184 +13,235 @@
     background-color: #f9fbfd;
   }
   
-  .print-container {
-    max-width: 1100px;
+  /* Document container */
+  .report-document {
+    max-width: 210mm;
     margin: 0 auto;
-    padding: 25px;
+    padding: 20px;
     background-color: white;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
-    border-radius: 8px;
-  }
-  
-  .report-header {
-    text-align: center;
-    margin-bottom: 35px;
-    padding-bottom: 15px;
-    border-bottom: 3px solid #4e73df;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    color: #333;
     position: relative;
   }
   
-  .report-header:after {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background-color: #e3e6f0;
+  /* Organization header styling */
+  .org-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #4e73df;
+    padding-bottom: 15px;
   }
   
+  .org-logo {
+    max-width: 160px;
+    max-height: 80px;
+  }
+  
+  .org-info {
+    text-align: right;
+  }
+  
+  .org-name {
+    font-size: 22px;
+    font-weight: bold;
+    color: #4e73df;
+    margin-bottom: 5px;
+  }
+  
+  /* Report title and metadata */
   .report-title {
     font-size: 28px;
     font-weight: bold;
-    margin-bottom: 8px;
-    color: #2e59d9;
+    text-align: center;
+    margin: 20px 0;
+    color: #333;
   }
   
-  .report-subtitle {
-    font-size: 16px;
-    color: #666;
-    font-style: italic;
-  }
-  
-  .report-summary {
+  .report-metadata {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 35px;
     background-color: #f8f9fc;
-    padding: 20px;
-    border-radius: 8px;
-    border-left: 5px solid #4e73df;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 25px;
+  }
+  
+  .metadata-group {
+    flex: 1;
+  }
+  
+  .metadata-label {
+    font-weight: bold;
+    color: #666;
+    font-size: 12px;
+  }
+  
+  .metadata-value {
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  
+  /* Summary section styling */
+  .summary-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
   }
   
   .summary-box {
+    flex: 1;
+    padding: 15px;
+    margin: 0 5px;
+    background-color: #f8f9fc;
+    border-radius: 5px;
+    border-left: 3px solid #4e73df;
     text-align: center;
-    padding: 10px;
-    border-radius: 6px;
-    transition: all 0.2s;
   }
   
-  .summary-box:hover {
-    background-color: rgba(78, 115, 223, 0.05);
+  .summary-box.reimbursable {
+    border-left-color: #1cc88a;
+  }
+  
+  .summary-box.non-reimbursable {
+    border-left-color: #e74a3b;
+  }
+  
+  .summary-label {
+    font-size: 14px;
+    color: #666;
   }
   
   .summary-value {
     font-size: 22px;
     font-weight: bold;
+    margin: 10px 0 5px;
+  }
+  
+  .summary-value.primary {
     color: #4e73df;
-    margin: 8px 0;
+  }
+  
+  .summary-value.success {
+    color: #1cc88a;
+  }
+  
+  .summary-value.danger {
+    color: #e74a3b;
+  }
+  
+  .summary-subtext {
+    font-size: 12px;
+    color: #888;
+  }
+  
+  /* Expense items styling */
+  .expense-list {
+    margin-top: 40px;
   }
   
   .expense-item {
     margin-bottom: 40px;
-    border: 1px solid #e3e6f0;
-    border-radius: 8px;
-    overflow: hidden;
     page-break-inside: avoid;
-    box-shadow: 0 0.15rem 0.5rem rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  
-  .expense-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.09);
   }
   
   .expense-header {
     background-color: #f8f9fc;
-    padding: 15px 20px;
-    border-bottom: 1px solid #e3e6f0;
-    position: relative;
-  }
-  
-  .expense-header:after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: linear-gradient(to right, #4e73df, #36b9cc);
-    transform: scaleX(0);
-    transition: transform 0.3s;
-    transform-origin: left;
-  }
-  
-  .expense-item:hover .expense-header:after {
-    transform: scaleX(1);
+    border-left: 4px solid #4e73df;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
   
   .expense-title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
-    color: #2e59d9;
-    margin-bottom: 8px;
   }
   
-  .expense-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    margin-top: 8px;
-    font-size: 14px;
-  }
-  
-  .meta-item {
-    display: flex;
-    background-color: rgba(78, 115, 223, 0.05);
-    padding: 3px 8px;
-    border-radius: 4px;
-  }
-  
-  .meta-label {
-    font-weight: bold;
-    margin-right: 8px;
-    color: #555;
-  }
-  
-  .expense-body {
-    display: flex;
-    padding: 20px;
-    background-color: white;
+  .expense-amount {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4e73df;
   }
   
   .expense-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .detail-item {
+    background-color: #f8f9fc;
+    padding: 8px 12px;
+    border-radius: 4px;
+  }
+  
+  .detail-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  
+  .detail-value {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  /* Status badges */
+  .status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  
+  .status-submitted {
+    background-color: #ffeeba;
+    color: #856404;
+  }
+  
+  .status-approved {
+    background-color: #c3e6cb;
+    color: #155724;
+  }
+  
+  .status-rejected {
+    background-color: #f5c6cb;
+    color: #721c24;
+  }
+  
+  .status-reimbursed {
+    background-color: #bee5eb;
+    color: #0c5460;
+  }
+  
+  /* Items table styling */
+  .items-container {
+    display: flex;
+    margin-bottom: 15px;
+  }
+  
+  .items-section {
     flex: 1;
-    padding-right: 25px;
+    margin-right: 20px;
   }
   
-  .receipt-image {
-    flex: 0 0 300px;
-  }
-  
-  .receipt-image img,
-  .receipt-image-display {
-    max-width: 100%;
-    max-height: 350px;
-    border: 1px solid #e3e6f0;
-    border-radius: 6px;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    object-fit: contain;
-    display: block;
-    margin: 0 auto;
-  }
-  
-  @media print {
-    .receipt-image-display {
-      page-break-inside: avoid;
-      max-height: 300px;
-    }
+  .receipt-section {
+    width: 250px;
   }
   
   .items-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    margin-top: 20px;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);
-    border-radius: 6px;
+    border: 1px solid #e3e6f0;
+    border-radius: 5px;
     overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
   
   .items-table th {
@@ -197,112 +249,190 @@
     color: white;
     text-align: left;
     padding: 10px 12px;
-    font-weight: 600;
+    font-weight: 500;
+    font-size: 13px;
   }
   
   .items-table td {
-    padding: 10px 12px;
+    padding: 8px 12px;
     border-bottom: 1px solid #e3e6f0;
-    background-color: white;
-  }
-  
-  .items-table tr:nth-child(even) td {
-    background-color: #f8f9fc;
+    font-size: 13px;
   }
   
   .items-table tr:last-child td {
     border-bottom: none;
   }
   
-  .items-table tr:hover td {
-    background-color: rgba(78, 115, 223, 0.05);
+  .tax-deductible-yes {
+    color: #1cc88a;
+    font-weight: 500;
   }
   
-  .total-row {
-    font-weight: bold;
-    background-color: #f8f9fc !important;
+  .tax-deductible-no {
+    color: #e74a3b;
+  }
+  
+  .subtotal-row td {
+    border-top: 1px solid #e3e6f0;
+    background-color: #f8f9fc;
+    color: #666;
   }
   
   .total-row td {
-    border-top: 2px solid #4e73df;
-    font-size: 16px;
-  }
-  
-  .status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-size: 12px;
     font-weight: bold;
+    font-size: 14px;
+    background-color: #f8f9fc;
+    border-top: 2px solid #4e73df;
   }
   
-  .status-submitted { background-color: #ffeeba; color: #856404; }
-  .status-approved { background-color: #c3e6cb; color: #155724; }
-  .status-rejected { background-color: #f5c6cb; color: #721c24; }
-  .status-reimbursed { background-color: #bee5eb; color: #0c5460; }
+  /* Receipt image styling */
+  .receipt-image {
+    border: 1px solid #e3e6f0;
+    border-radius: 5px;
+    padding: 10px;
+    text-align: center;
+    height: fit-content;
+  }
   
-  .signature-section {
-    display: flex;
-    justify-content: space-between;
+  .receipt-img {
+    max-width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+  }
+  
+  /* Final summary styling */
+  .final-summary {
     margin-top: 50px;
+    padding: 20px;
+    background-color: #f8f9fc;
+    border-radius: 8px;
+    border-left: 5px solid #4e73df;
   }
   
-  .signature-box {
-    flex: 0 0 45%;
+  .final-summary h3 {
+    color: #4e73df;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 20px;
   }
   
-  .signature-line {
-    height: 0;
-    border-top: 1px solid #333;
-    margin-top: 50px;
-    margin-bottom: 10px;
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
   }
   
-  .print-actions {
-    margin-bottom: 20px;
+  .summary-table td {
+    padding: 10px 0;
+    border-bottom: 1px solid #e3e6f0;
+  }
+  
+  .summary-table tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .summary-table-label {
+    font-weight: bold;
+    width: 70%;
+  }
+  
+  .summary-table-value {
+    font-weight: bold;
     text-align: right;
   }
   
+  .value-total {
+    color: #4e73df;
+  }
+  
+  .value-reimbursable {
+    color: #1cc88a;
+  }
+  
+  .value-non-reimbursable {
+    color: #e74a3b;
+  }
+  
+  /* Signature section styling */
+  .signature-section {
+    margin-top: 50px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .signature-box {
+    width: 45%;
+    text-align: center;
+  }
+  
+  .signature-line {
+    margin: 0 auto;
+    border-bottom: 1px solid #333;
+    width: 80%;
+    margin-bottom: 10px;
+  }
+  
+  .signature-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .signature-date {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .signature-date-label {
+    margin-right: 5px;
+  }
+  
+  .signature-date-line {
+    border-bottom: 1px solid #333;
+    width: 100px;
+    height: 1px;
+  }
+  
+  /* Print actions button */
+  .print-actions {
+    text-align: right;
+    margin-bottom: 20px;
+  }
+  
   .btn-print {
-    display: inline-block;
     background-color: #4e73df;
     color: white;
     border: none;
     padding: 8px 16px;
     border-radius: 4px;
-    cursor: pointer;
     font-weight: bold;
+    cursor: pointer;
+    display: inline-block;
     text-decoration: none;
     margin-left: 10px;
   }
   
   .btn-print:hover {
-    background-color: #2e59d9;
+    background-color: #375bd2;
   }
   
-  .only-screen {
-    display: block;
-  }
-  
+  /* Print media styles */
   @media print {
-    .print-actions {
-      display: none !important;
-    }
-    
-    .only-screen {
-      display: none !important;
-    }
-    
     body {
       padding: 0;
       margin: 0;
       background-color: white;
     }
     
-    .print-container {
+    .report-document {
       box-shadow: none;
       max-width: 100%;
       padding: 10px;
+    }
+    
+    .print-actions {
+      display: none !important;
     }
     
     a {
@@ -311,131 +441,155 @@
     }
     
     .expense-item {
-      break-inside: avoid;
-      margin-bottom: 15px;
       page-break-after: auto;
     }
     
-    .receipt-image-display {
-      max-height: 250px;
-      width: auto;
-      cursor: default !important;
+    .items-container {
+      flex-direction: column;
     }
     
-    .expense-body {
-      flex-direction: column-reverse;
+    .items-section {
+      margin-right: 0;
+      margin-bottom: 20px;
+      width: 100%;
     }
     
-    .expense-details {
-      padding-right: 0;
-      margin-top: 15px;
-    }
-    
-    .receipt-image {
-      flex: none;
-      margin-bottom: 10px;
+    .receipt-section {
       width: 100%;
       text-align: center;
     }
     
+    .receipt-img {
+      max-height: 200px;
+    }
+    
+    .items-table th {
+      background-color: #e9ecef !important;
+      color: #333 !important;
+    }
+    
     .items-table {
       font-size: 10px;
-      margin-top: 10px;
     }
     
     .items-table th, 
     .items-table td {
-      padding: 4px 6px;
-    }
-    
-    .total-row td {
-      font-size: 12px;
-    }
-    
-    .meta-item {
-      font-size: 11px;
+      padding: 5px 8px;
     }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="print-container">
+<div class="report-document">
   <div class="print-actions">
     <button class="btn-print" onclick="window.print()">
-      <i class="fas fa-print"></i> Print
+      <i class="fas fa-print"></i> Print Report
     </button>
     <button class="btn-print" style="background-color: #1cc88a;" onclick="window.history.back()">
       <i class="fas fa-arrow-left"></i> Back
     </button>
   </div>
   
-  <div class="report-header">
-    <div class="report-title">{{ report_title }}</div>
-    <div class="report-subtitle">Prepared by: {{ user.name }} | Date: {{ now().strftime('%Y-%m-%d') }}</div>
+  <div class="org-header">
+    <div>
+      {% if user.organizations and user.organizations[0].logo_s3_key %}
+        <img src="{{ user.organizations[0].logo_url }}" alt="{{ user.organizations[0].name }} Logo" class="org-logo">
+      {% else %}
+        <div class="org-name">{{ user.organizations[0].name if user.organizations else 'Personal Finances' }}</div>
+      {% endif %}
+    </div>
+    <div class="org-info">
+      <div class="org-name">{{ user.organizations[0].name if user.organizations else 'Personal Finances' }}</div>
+      <div>{{ user.email }}</div>
+      <div>Generated: {{ now().strftime('%Y-%m-%d') }}</div>
+    </div>
   </div>
   
-  <div class="report-summary">
+  <div class="report-title">{{ report_title }}</div>
+  
+  <div class="report-metadata">
+    <div class="metadata-group">
+      <div class="metadata-label">DATE RANGE</div>
+      <div class="metadata-value">{{ start_date }} - {{ end_date }}</div>
+    </div>
+    <div class="metadata-group">
+      <div class="metadata-label">PREPARED BY</div>
+      <div class="metadata-value">{{ user.name }}</div>
+    </div>
+    <div class="metadata-group">
+      <div class="metadata-label">REPORT ID</div>
+      <div class="metadata-value">EXP-{{ now().strftime('%Y%m%d-%H%M') }}</div>
+    </div>
+  </div>
+  
+  <div class="summary-section">
     <div class="summary-box">
-      <div>Total Expenses</div>
-      <div class="summary-value">{{ "%.2f"|format(total_amount) }}</div>
-      <div>{{ expenses|length }} items</div>
+      <div class="summary-label">TOTAL EXPENSES</div>
+      <div class="summary-value primary">{{ "%.2f"|format(total_amount) }}</div>
+      <div class="summary-subtext">{{ expenses|length }} expense items</div>
     </div>
     
-    <div class="summary-box">
-      <div>Reimbursable Amount</div>
-      <div class="summary-value">{{ "%.2f"|format(reimbursable_amount) }}</div>
-      <div>{{ "%.1f"|format((reimbursable_amount / total_amount * 100) if total_amount else 0) }}% of total</div>
+    <div class="summary-box reimbursable">
+      <div class="summary-label">REIMBURSABLE</div>
+      <div class="summary-value success">{{ "%.2f"|format(reimbursable_amount) }}</div>
+      <div class="summary-subtext">{{ "%.1f"|format((reimbursable_amount / total_amount * 100) if total_amount else 0) }}% of total</div>
     </div>
     
-    <div class="summary-box">
-      <div>Date Range</div>
-      <div class="summary-value">{{ start_date }} to {{ end_date }}</div>
+    <div class="summary-box non-reimbursable">
+      <div class="summary-label">NON-REIMBURSABLE</div>
+      <div class="summary-value danger">{{ "%.2f"|format(total_amount - reimbursable_amount) }}</div>
+      <div class="summary-subtext">{{ "%.1f"|format(((total_amount - reimbursable_amount) / total_amount * 100) if total_amount else 0) }}% of total</div>
     </div>
   </div>
   
   {% if expenses|length == 0 %}
-    <div style="text-align: center; padding: 50px; background-color: #f8f9fc; border-radius: 5px;">
+    <div style="text-align: center; padding: 50px; background-color: #f8f9fc; border-radius: 5px; margin-top: 30px;">
       <h3>No expenses match the selected filters</h3>
       <p>Try changing your search criteria or date range</p>
     </div>
   {% endif %}
   
-  {% for expense in expenses %}
-  <div class="expense-item">
-    <div class="expense-header">
-      <div class="expense-title">
-        {% if expense.receipt %}
-          {{ expense.receipt.vendor_name or 'Unknown Vendor' }} - {{ "%.2f"|format(expense.receipt.total_amount) }}
-        {% else %}
-          Expense #{{ expense.id }}
-        {% endif %}
+  <div class="expense-list">
+    {% for expense in expenses %}
+    <div class="expense-item">
+      <div class="expense-header">
+        <div class="expense-title">
+          {% if expense.receipt %}
+            {{ expense.receipt.vendor_name or 'Unknown Vendor' }}
+          {% else %}
+            Expense #{{ expense.id }}
+          {% endif %}
+        </div>
+        <div class="expense-amount">
+          {{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}
+        </div>
       </div>
       
-      <div class="expense-meta">
-        <div class="meta-item">
-          <div class="meta-label">Date:</div>
-          <div>{{ expense.receipt.date.strftime('%Y-%m-%d') if expense.receipt and expense.receipt.date else 'N/A' }}</div>
+      <div class="expense-details">
+        <div class="detail-item">
+          <div class="detail-label">DATE</div>
+          <div class="detail-value">{{ expense.receipt.date.strftime('%Y-%m-%d') if expense.receipt and expense.receipt.date else 'N/A' }}</div>
         </div>
         
-        <div class="meta-item">
-          <div class="meta-label">Category:</div>
-          <div>{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</div>
+        <div class="detail-item">
+          <div class="detail-label">CATEGORY</div>
+          <div class="detail-value">{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</div>
         </div>
         
-        <div class="meta-item">
-          <div class="meta-label">Client:</div>
-          <div>{{ expense.client.name if expense.client else 'N/A' }}</div>
+        <div class="detail-item">
+          <div class="detail-label">CLIENT</div>
+          <div class="detail-value">{{ expense.client.name if expense.client else 'N/A' }}</div>
         </div>
         
-        <div class="meta-item">
-          <div class="meta-label">Organization:</div>
-          <div>{{ expense.organization.name if expense.organization else 'N/A' }}</div>
+        <div class="detail-item">
+          <div class="detail-label">ORGANIZATION</div>
+          <div class="detail-value">{{ expense.organization.name if expense.organization else 'N/A' }}</div>
         </div>
         
-        <div class="meta-item">
-          <div class="meta-label">Status:</div>
-          <div>
+        <div class="detail-item">
+          <div class="detail-label">STATUS</div>
+          <div class="detail-value">
             {% if expense.status == 'submitted' %}
               <span class="status-badge status-submitted">Submitted</span>
             {% elif expense.status == 'approved' %}
@@ -450,193 +604,130 @@
           </div>
         </div>
         
-        <div class="meta-item">
-          <div class="meta-label">Reimbursable:</div>
-          <div>{{ 'Yes' if expense.is_reimbursable else 'No' }}</div>
+        <div class="detail-item">
+          <div class="detail-label">REIMBURSABLE</div>
+          <div class="detail-value">{{ 'Yes' if expense.is_reimbursable else 'No' }}</div>
         </div>
-        
-        <div class="meta-item">
-          <div class="meta-label">Submitted by:</div>
-          <div>{{ expense.submitter.name if expense.submitter else 'N/A' }}</div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="expense-body">
-      <div class="expense-details">
-        {% if expense.receipt and expense.receipt.description %}
-          <div>
-            <strong>Description:</strong>
-            <p>{{ expense.receipt.description }}</p>
-          </div>
-        {% endif %}
-        
-        {% if expense.receipt and expense.receipt.items %}
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Quantity</th>
-                <th>Price</th>
-                <th>Tax Deductible</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in expense.receipt.items %}
-                <tr>
-                  <td>{{ item.description or 'Item ' ~ loop.index }}</td>
-                  <td>{{ item.quantity or 1 }}</td>
-                  <td>{{ "%.2f"|format(item.unit_price) if item.unit_price else 'N/A' }}</td>
-                  <td>{{ 'Yes' if item.tax_deductible else 'No' }}</td>
-                  <td>{{ "%.2f"|format(item.amount) if item.amount else 'N/A' }}</td>
-                </tr>
-              {% endfor %}
-              
-              {% if expense.receipt.tax_amount or expense.receipt.total_amount %}
-                <tr>
-                  <td colspan="4" style="text-align: right;">Subtotal</td>
-                  <td>{{ "%.2f"|format(expense.receipt.total_amount - (expense.receipt.tax_amount or 0)) }}</td>
-                </tr>
-              {% endif %}
-              
-              {% if expense.receipt.tax_amount %}
-                <tr>
-                  <td colspan="4" style="text-align: right;">Tax</td>
-                  <td>{{ "%.2f"|format(expense.receipt.tax_amount) }}</td>
-                </tr>
-              {% endif %}
-              
-              <tr class="total-row">
-                <td colspan="4" style="text-align: right;">Total</td>
-                <td>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        {% endif %}
       </div>
       
-      <div class="receipt-image">
-        {% if expense.receipt and expense.receipt.s3_key %}
-          <div style="position: relative;">
-            <img src="{{ expense.receipt.s3_direct_url }}" 
-                 alt="Receipt Image" class="receipt-image-display"
-                 onclick="openReceiptModal({{ expense.receipt.id }})">
-            <div class="only-screen" style="margin-top: 8px; text-align: center;">
-              <button class="btn btn-sm btn-primary" 
-                      onclick="openReceiptModal({{ expense.receipt.id }})">
-                <i class="fas fa-search-plus"></i> View Full Image
-              </button>
+      <div class="items-container">
+        <div class="items-section">
+          {% if expense.receipt and expense.receipt.description %}
+            <div style="margin-bottom: 15px;">
+              <strong>Description:</strong>
+              <p style="margin-top: 5px; color: #555;">{{ expense.receipt.description }}</p>
             </div>
-          </div>
-        {% else %}
-          <div style="padding: 50px; background-color: #f8f9fc; border: 1px dashed #d1d3e2; border-radius: 4px; text-align: center;">
-            <p>No receipt image available</p>
-          </div>
-        {% endif %}
+          {% endif %}
+          
+          {% if expense.receipt and expense.receipt.items %}
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th style="width: 40%;">Item</th>
+                  <th style="width: 12%;">Quantity</th>
+                  <th style="width: 15%;">Unit Price</th>
+                  <th style="width: 18%;">Tax Deductible</th>
+                  <th style="width: 15%;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in expense.receipt.items %}
+                  <tr>
+                    <td>{{ item.name or 'Item ' ~ loop.index }}</td>
+                    <td>{{ item.quantity or 1 }}</td>
+                    <td>{{ "%.2f"|format(item.price) if item.price else 'N/A' }}</td>
+                    <td class="{% if item.tax_deductible %}tax-deductible-yes{% else %}tax-deductible-no{% endif %}">
+                      {{ 'Yes' if item.tax_deductible else 'No' }}
+                    </td>
+                    <td>{{ "%.2f"|format(item.price * (item.quantity or 1)) if item.price else 'N/A' }}</td>
+                  </tr>
+                {% endfor %}
+                
+                {% if expense.receipt.tax_amount or expense.receipt.total_amount %}
+                  <tr class="subtotal-row">
+                    <td colspan="4" style="text-align: right;">Subtotal</td>
+                    <td>{{ "%.2f"|format(expense.receipt.total_amount - (expense.receipt.tax_amount or 0)) }}</td>
+                  </tr>
+                {% endif %}
+                
+                {% if expense.receipt.tax_amount %}
+                  <tr class="subtotal-row">
+                    <td colspan="4" style="text-align: right;">Tax</td>
+                    <td>{{ "%.2f"|format(expense.receipt.tax_amount) }}</td>
+                  </tr>
+                {% endif %}
+                
+                <tr class="total-row">
+                  <td colspan="4" style="text-align: right;">Total</td>
+                  <td>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          {% else %}
+            <div style="padding: 20px; background-color: #f8f9fc; border-radius: 5px; text-align: center;">
+              <p>No item details available</p>
+            </div>
+          {% endif %}
+        </div>
+        
+        <div class="receipt-section">
+          {% if expense.receipt and expense.receipt.s3_key %}
+            <div class="receipt-image">
+              <img src="{{ expense.receipt.s3_direct_url }}" alt="Receipt Image" class="receipt-img">
+            </div>
+          {% else %}
+            <div style="padding: 50px; background-color: #f8f9fc; border: 1px dashed #d1d3e2; border-radius: 5px; text-align: center;">
+              <p>No receipt image available</p>
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
+    {% endfor %}
   </div>
-  {% endfor %}
   
-  <div style="margin-top: 40px; background-color: #f8f9fc; padding: 25px; border-radius: 8px; border-left: 5px solid #4e73df; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);">
-    <h3 style="margin-top: 0; color: #2e59d9; margin-bottom: 20px; font-size: 22px;">Final Summary</h3>
-    <table style="width: 100%; border-collapse: collapse;">
+  <div class="final-summary">
+    <h3>Final Summary</h3>
+    <table class="summary-table">
       <tr>
-        <td style="width: 70%; padding: 12px 0; font-size: 16px; border-bottom: 1px solid #e3e6f0;"><strong>Total Expenses:</strong></td>
-        <td style="padding: 12px 0; font-size: 16px; font-weight: bold; color: #4e73df; border-bottom: 1px solid #e3e6f0;">{{ "%.2f"|format(total_amount) }}</td>
+        <td class="summary-table-label">Total Expenses:</td>
+        <td class="summary-table-value value-total">{{ "%.2f"|format(total_amount) }}</td>
       </tr>
       <tr>
-        <td style="padding: 12px 0; font-size: 16px; border-bottom: 1px solid #e3e6f0;"><strong>Reimbursable Amount:</strong></td>
-        <td style="padding: 12px 0; font-size: 16px; font-weight: bold; color: #1cc88a; border-bottom: 1px solid #e3e6f0;">{{ "%.2f"|format(reimbursable_amount) }}</td>
+        <td class="summary-table-label">Reimbursable Amount:</td>
+        <td class="summary-table-value value-reimbursable">{{ "%.2f"|format(reimbursable_amount) }}</td>
       </tr>
       <tr>
-        <td style="padding: 12px 0; font-size: 16px;"><strong>Non-Reimbursable Amount:</strong></td>
-        <td style="padding: 12px 0; font-size: 16px; font-weight: bold; color: #e74a3b;">{{ "%.2f"|format(total_amount - reimbursable_amount) }}</td>
+        <td class="summary-table-label">Non-Reimbursable Amount:</td>
+        <td class="summary-table-value value-non-reimbursable">{{ "%.2f"|format(total_amount - reimbursable_amount) }}</td>
       </tr>
     </table>
     
-    <div style="margin-top: 15px; font-style: italic; color: #666; border-top: 1px solid #e3e6f0; padding-top: 15px;">
+    <div style="margin-top: 15px; font-style: italic; color: #666; border-top: 1px solid #e3e6f0; padding-top: 15px; font-size: 12px;">
       This expense report was generated on {{ now().strftime('%Y-%m-%d at %H:%M') }}
     </div>
   </div>
   
-  <div class="signature-section" style="margin-top: 60px; margin-bottom: 40px;">
-    <div class="signature-box" style="background-color: #f8f9fc; padding: 20px; border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);">
+  <div class="signature-section">
+    <div class="signature-box">
       <div class="signature-line"></div>
-      <div style="margin-top: 5px; font-weight: bold; color: #4e73df;">Submitter Signature</div>
-      <div style="margin-top: 5px;">{{ user.name }}</div>
-      <div style="margin-top: 10px;">Date: _________________</div>
+      <div class="signature-name">{{ user.name }}</div>
+      <div>Submitter</div>
+      <div class="signature-date">
+        <span class="signature-date-label">Date:</span>
+        <span class="signature-date-line"></span>
+      </div>
     </div>
     
-    <div class="signature-box" style="background-color: #f8f9fc; padding: 20px; border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);">
+    <div class="signature-box">
       <div class="signature-line"></div>
-      <div style="margin-top: 5px; font-weight: bold; color: #4e73df;">Approver Signature</div>
-      <div style="margin-top: 5px;">Name: _________________</div>
-      <div style="margin-top: 10px;">Date: _________________</div>
-    </div>
-  </div>
-</div>
-<!-- Receipt Image Modal -->
-<div class="modal fade" id="receiptImageModal" tabindex="-1" aria-labelledby="receiptImageModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="receiptImageModalLabel">Receipt Image</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img id="modalReceiptImage" src="" alt="Receipt Image" class="img-fluid" style="max-height: 600px;">
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      <div class="signature-name">_________________________</div>
+      <div>Approver</div>
+      <div class="signature-date">
+        <span class="signature-date-label">Date:</span>
+        <span class="signature-date-line"></span>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log("Print report loaded");
-    
-    // Check if Bootstrap is loaded
-    if (typeof bootstrap !== 'undefined') {
-      console.log("Bootstrap is loaded, initializing modal");
-      // Initialize the modal if it's not already
-      var receiptModal = new bootstrap.Modal(document.getElementById('receiptImageModal'));
-    } else {
-      console.warn("Bootstrap is not loaded, modal functionality may not work");
-    }
-  });
-  
-  // Function to open receipt image modal
-  function openReceiptModal(receiptId) {
-    console.log("Opening modal for receipt ID:", receiptId);
-    
-    // Get the direct image URL
-    var imageUrl = '/receipts/direct_image/' + receiptId;
-    
-    // Set the modal image source
-    var modalImg = document.getElementById('modalReceiptImage');
-    if (modalImg) {
-      modalImg.src = imageUrl;
-    }
-    
-    // Show the modal
-    if (typeof bootstrap !== 'undefined') {
-      var receiptModal = bootstrap.Modal.getInstance(document.getElementById('receiptImageModal'));
-      if (!receiptModal) {
-        receiptModal = new bootstrap.Modal(document.getElementById('receiptImageModal'));
-      }
-      receiptModal.show();
-    } else {
-      // Fallback if Bootstrap isn't available
-      var modalElement = document.getElementById('receiptImageModal');
-      modalElement.style.display = 'block';
-      modalElement.classList.add('show');
-    }
-  }
-</script>
 {% endblock %}

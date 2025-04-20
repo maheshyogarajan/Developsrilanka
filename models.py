@@ -322,8 +322,8 @@ class Receipt(db.Model):
         import logging
         
         try:
-            # Generate a longer-lived URL for print reports (12 hours)
-            url = generate_presigned_url(self.s3_key, expiration=43200)
+            # Generate a longer-lived URL for print reports (2 hours)
+            url = generate_presigned_url(self.s3_key, expiration=7200)
             if not url:
                 logging.warning(f"Failed to generate direct S3 URL for key: {self.s3_key} (object may not exist)")
                 return None
