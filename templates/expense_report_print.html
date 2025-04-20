@@ -25,8 +25,7 @@
   }
   
   .print-header {
-    text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     padding-bottom: 15px;
     border-bottom: 2px solid #4e73df;
   }
@@ -34,12 +33,56 @@
   .report-title {
     font-size: 24px;
     font-weight: 600;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    text-align: center;
   }
   
   .print-meta {
     font-size: 14px;
     color: #666;
+    margin-top: 10px;
+  }
+  
+  /* New header summary box styles */
+  .header-summary-box {
+    border: 1px solid #ddd;
+    border-left: 5px solid #4e73df;
+    background-color: #f8f9fc;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 20px 0;
+  }
+  
+  .header-summary-row {
+    display: flex;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  
+  .header-summary-row:last-child {
+    margin-bottom: 0;
+  }
+  
+  .header-summary-label {
+    font-weight: bold;
+    width: 120px;
+    color: #555;
+  }
+  
+  .header-summary-value {
+    flex: 1;
+  }
+  
+  .header-summary-value.highlight {
+    color: #4e73df;
+    font-weight: bold;
+  }
+  
+  /* Section separator */
+  .section-separator {
+    height: 15px;
+    border-bottom: 1px solid #e3e6f0;
+    margin-bottom: 20px;
   }
   
   .print-summary {
@@ -177,10 +220,27 @@
     font-weight: 600;
   }
   
+  /* Footer styling */
+  .footer-section {
+    margin-bottom: 30px;
+  }
+  
+  .footer-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #4e73df;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e3e6f0;
+  }
+  
+  /* Signature section styling */
   .signature-section {
-    margin-top: 50px;
+    margin-top: 40px;
     display: flex;
     justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px dashed #e3e6f0;
   }
   
   .signature-box {
@@ -301,26 +361,32 @@
   </div>
 
   <!-- New Header Section with Clear Summary Box -->
-  <div class="header-section">
+  <div class="print-header">
     <div class="report-title">{{ report_title }}</div>
     
-    <div class="report-summary-box">
-      <div class="summary-section">
-        <div class="summary-header">Date Range:</div>
-        <div class="summary-value">{{ start_date }} - {{ end_date }}</div>
+    <div class="header-summary-box">
+      <div class="header-summary-row">
+        <div class="header-summary-label">Date Range:</div>
+        <div class="header-summary-value">{{ start_date }} - {{ end_date }}</div>
       </div>
       
-      <div class="summary-section">
-        <div class="summary-header">Prepared By:</div>
-        <div class="summary-value">{{ user.name }}</div>
+      <div class="header-summary-row">
+        <div class="header-summary-label">Prepared By:</div>
+        <div class="header-summary-value">{{ user.name }}</div>
       </div>
       
-      <div class="summary-section">
-        <div class="summary-header">Total Expenses:</div>
-        <div class="summary-value highlight">{{ "%.2f"|format(total_amount) }} ({{ expenses|length }} items)</div>
+      <div class="header-summary-row">
+        <div class="header-summary-label">Total Expenses:</div>
+        <div class="header-summary-value highlight">{{ "%.2f"|format(total_amount) }} ({{ expenses|length }} items)</div>
       </div>
     </div>
+    
+    <div class="print-meta">
+      Generated on: {{ now().strftime('%d/%m/%Y %H:%M:%S') }} | {{ user.email }}
+    </div>
   </div>
+  
+  <div class="section-separator"></div>
 
   <!-- Print summary (now will be displayed only as supporting information) -->
   <div class="print-summary">
@@ -479,24 +545,39 @@
   </div>
   {% endfor %}
   
-  <!-- Totals and Signature Section -->
-  <div class="row mt-4">
-    <div class="col-12">
-      <hr>
-      <h4 class="mb-3">Summary</h4>
-      <table class="table">
-        <tr>
-          <td style="width: 70%"><strong>Total Expenses:</strong></td>
-          <td>{{ "%.2f"|format(total_amount) }}</td>
-        </tr>
-        <tr>
-          <td><strong>Reimbursable Amount:</strong></td>
-          <td>{{ "%.2f"|format(reimbursable_amount) }}</td>
-        </tr>
-      </table>
+  <!-- Clear section separator before footer -->
+  <div class="section-separator" style="margin-top: 40px;"></div>
+
+  <!-- Footer Summary Section -->
+  <div class="footer-section">
+    <h4 class="footer-title">Report Summary</h4>
+    
+    <!-- Repeat the header summary box in the footer for clarity -->
+    <div class="header-summary-box">
+      <div class="header-summary-row">
+        <div class="header-summary-label">Date Range:</div>
+        <div class="header-summary-value">{{ start_date }} - {{ end_date }}</div>
+      </div>
+      
+      <div class="header-summary-row">
+        <div class="header-summary-label">Prepared By:</div>
+        <div class="header-summary-value">{{ user.name }}</div>
+      </div>
+      
+      <div class="header-summary-row">
+        <div class="header-summary-label">Total Expenses:</div>
+        <div class="header-summary-value highlight">{{ "%.2f"|format(total_amount) }} ({{ expenses|length }} items)</div>
+      </div>
+      
+      <div class="header-summary-row">
+        <div class="header-summary-label">Reimbursable:</div>
+        <div class="header-summary-value">{{ "%.2f"|format(reimbursable_amount) }} 
+          ({{ "%.1f"|format(reimbursable_amount / total_amount * 100 if total_amount else 0) }}% of total)</div>
+      </div>
     </div>
   </div>
   
+  <!-- Signature Section with clearer separation -->
   <div class="signature-section">
     <div class="signature-box">
       <div class="signature-line"></div>
