@@ -312,6 +312,28 @@ class Receipt(db.Model):
             return None
     
     @property
+    def s3_direct_url(self):
+        """Generate a direct URL to the S3 image suitable for printed reports."""
+        if not self.s3_key:
+            return None
+            
+        # Import here to avoid circular imports
+        from s3_storage import generate_presigned_url
+        import logging
+        
+        try:
+            # Generate a longer-lived URL for print reports (12 hours)
+            url = generate_presigned_url(self.s3_key, expiration=43200)
+            if not url:
+                logging.warning(f"Failed to generate direct S3 URL for key: {self.s3_key} (object may not exist)")
+                return None
+            logging.info(f"Successfully generated S3 URL for receipt {self.id}: {url}")
+            return url
+        except Exception as e:
+            logging.error(f"Error generating direct S3 URL for key {self.s3_key}: {str(e)}")
+            return None
+    
+    @property
     def thumbnail_url(self):
         """Generate a presigned URL for the thumbnail image in S3 if available."""
         # If we have a stored thumbnail key, use it directly

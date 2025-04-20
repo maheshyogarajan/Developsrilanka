@@ -461,15 +461,8 @@
       <div class="receipt-image">
         {% if expense.receipt and expense.receipt.s3_key %}
           <div style="position: relative;">
-            <img src="{{ url_for('unified_view.direct_receipt_image', receipt_id=expense.receipt.id) }}" 
-                 alt="Receipt Image" class="clickable-image"
-                 onclick="openReceiptModal({{ expense.receipt.id }})">
-            <div style="margin-top: 8px; text-align: center;">
-              <button class="btn btn-sm btn-primary" 
-                      onclick="openReceiptModal({{ expense.receipt.id }})">
-                <i class="fas fa-search-plus"></i> View Full Image
-              </button>
-            </div>
+            <img src="{{ expense.receipt.s3_direct_url }}" 
+                 alt="Receipt Image" class="receipt-image-display">
           </div>
         {% else %}
           <div style="padding: 50px; background-color: #f8f9fc; border: 1px dashed #d1d3e2; border-radius: 4px; text-align: center;">
