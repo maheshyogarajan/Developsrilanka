@@ -3,470 +3,423 @@
 {% block head %}
 <title>Expense Report</title>
 <style>
-  /* Main container */
-  .expense-print-report {
-    font-family: Arial, sans-serif;
-    background-color: white;
-    color: #333;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    font-size: 13px;
+#expense-report {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #333;
+  background-color: #fff;
+  line-height: 1.4;
+  font-size: 13px;
+}
+
+/* Container */
+.report-container {
+  max-width: 800px;
+  margin: 20px auto;
+}
+
+/* Bank header */
+.bank-header {
+  text-align: center;
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.bank-logo {
+  max-width: 120px;
+  margin: 0 auto 5px;
+}
+
+.report-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.printed-by {
+  position: absolute;
+  right: 0;
+  top: 0;
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Main summary box */
+.summary-box {
+  border: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.reference-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.reference-table tr {
+  border-bottom: 1px dotted #ddd;
+}
+
+.reference-table tr:last-child {
+  border-bottom: none;
+}
+
+.reference-table td {
+  padding: 7px 10px;
+}
+
+.reference-table td:first-child {
+  width: 180px;
+  font-weight: bold;
+  position: relative;
+}
+
+.reference-table td:first-child:after {
+  content: ':';
+  position: absolute;
+  right: 5px;
+}
+
+/* Expense entry */
+.expense-entry {
+  border: 1px solid #ccc;
+  margin-bottom: 20px;
+}
+
+.expense-header {
+  background-color: #f1f1f1;
+  padding: 8px 10px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #ddd;
+}
+
+.expense-body {
+  padding: 12px;
+}
+
+/* Details table */
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+}
+
+.details-table tr {
+  border-bottom: 1px dotted #eee;
+}
+
+.details-table tr:last-child {
+  border-bottom: none;
+}
+
+.details-table td {
+  padding: 6px 5px;
+}
+
+.details-table td:first-child {
+  width: 120px;
+  font-weight: bold;
+}
+
+/* Items table */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+}
+
+.items-table th {
+  background-color: #f1f1f1;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+}
+
+.items-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.items-table tr:last-child td {
+  border-bottom: none;
+}
+
+.items-table .total-row {
+  border-top: 1px solid #ddd;
+  font-weight: bold;
+}
+
+/* Receipt image */
+.receipt-container {
+  text-align: center;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 15px;
+}
+
+.receipt-image {
+  border: 2px solid #aaa;
+  padding: 6px;
+  max-width: 90%;
+  max-height: 200px;
+}
+
+/* Status indicators */
+.positive-value {
+  color: #006600;
+  font-weight: bold;
+}
+
+.negative-value {
+  color: #cc0000;
+}
+
+.checkmark:before {
+  content: '✓';
+  margin-right: 3px;
+}
+
+/* Separator line */
+.separator {
+  height: 1px;
+  background-color: #999;
+  margin: 25px 0;
+  border: none;
+}
+
+/* Empty message */
+.empty-message {
+  text-align: center;
+  padding: 30px;
+  border: 1px dashed #ddd;
+  margin: 20px 0;
+}
+
+/* Notes section */
+.notes-section {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  font-size: 12px;
+}
+
+.note-item {
+  margin: 3px 0;
+}
+
+/* Button controls */
+.controls {
+  text-align: right;
+  margin-bottom: 15px;
+}
+
+.btn {
+  background-color: #2c5aa0;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-left: 10px;
+  font-size: 13px;
+}
+
+.btn-green {
+  background-color: #2e8b57;
+}
+
+/* Print adjustments */
+@media print {
+  body {
+    background-color: white !important;
   }
   
-  /* Header area */
-  .print-header {
-    text-align: center;
-    margin-bottom: 20px;
+  #expense-report {
+    max-width: 100%;
+    font-size: 11pt;
   }
   
-  .logo-container {
-    margin-bottom: 10px;
+  .report-container {
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
   }
   
-  .logo-container img {
-    max-width: 150px;
-    height: auto;
-  }
-  
-  .print-title {
-    font-size: 16px;
-    font-weight: bold;
-    margin: 10px 0;
-  }
-  
-  .print-subtitle {
-    font-size: 14px;
-    margin-top: 10px;
-  }
-  
-  .print-meta {
-    text-align: right;
-    margin-top: 5px;
-    font-size: 12px;
-  }
-  
-  /* Buttons */
-  .action-buttons {
-    text-align: right;
-    margin-bottom: 15px;
-  }
-  
-  .action-button {
-    background-color: #0066cc;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    margin-left: 10px;
-    cursor: pointer;
-    border-radius: 4px;
-  }
-  
-  .action-button.back {
-    background-color: #218838;
-  }
-  
-  /* Report info */
-  .report-info {
-    border: 1px solid #ddd;
-    margin-bottom: 20px;
-  }
-  
-  .info-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .info-table tr {
-    border-bottom: 1px dotted #ddd;
-  }
-  
-  .info-table tr:last-child {
-    border-bottom: none;
-  }
-  
-  .info-table td {
-    padding: 7px 10px;
-  }
-  
-  .info-table td:first-child {
-    width: 180px;
-    font-weight: bold;
-  }
-  
-  .info-table td:first-child:after {
-    content: ":";
-    margin-left: 2px;
-  }
-  
-  /* Expense entry */
-  .expense {
-    border: 1px solid #ccc;
-    margin-bottom: 20px;
-  }
-  
-  .expense-heading {
-    background-color: #f0f0f0;
-    padding: 8px 10px;
-    font-weight: bold;
-    border-bottom: 1px solid #ccc;
-    display: flex;
-    justify-content: space-between;
-  }
-  
-  .expense-body {
-    padding: 15px;
-  }
-  
-  /* Expense details */
-  .detail-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 15px;
-  }
-  
-  .detail-table tr {
-    border-bottom: 1px dotted #eee;
-  }
-  
-  .detail-table tr:last-child {
-    border-bottom: none;
-  }
-  
-  .detail-table td {
-    padding: 6px 5px;
-  }
-  
-  .detail-table td:first-child {
-    width: 130px;
-    font-weight: bold;
-  }
-  
-  /* Items table */
-  .items-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 15px;
-  }
-  
-  .items-table th {
-    background-color: #f0f0f0;
-    padding: 7px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-    font-weight: bold;
-  }
-  
-  .items-table td {
-    padding: 7px;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .items-table tr:last-child td {
-    border-bottom: none;
-  }
-  
-  .items-table tr.total-row {
-    font-weight: bold;
-    border-top: 1px solid #ddd;
-  }
-  
-  /* Receipt image with enhanced frame */
-  .receipt-container {
-    text-align: center;
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-  }
-  
-  .receipt-frame {
-    border: 1px solid #aaa;
-    padding: 10px;
-    display: inline-block;
-    background-color: white;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    position: relative;
-    max-width: 90%;
-  }
-  
-  .receipt-frame:before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 1px solid #e8e8e8;
-    margin: 3px;
-    pointer-events: none;
-  }
-  
-  .receipt-frame:after {
-    content: 'Receipt Image';
-    position: absolute;
-    bottom: -8px;
-    right: 15px;
-    background: white;
-    padding: 0 6px;
-    font-size: 11px;
-    color: #666;
+  .controls {
+    display: none !important;
   }
   
   .receipt-image {
-    max-width: 100%;
-    max-height: 200px;
-    display: block;
-    margin: 0 auto;
+    max-height: 180px;
   }
   
-  /* Styling indicators */
-  .positive {
-    color: #007700;
-    font-weight: bold;
+  .expense-header, .items-table th {
+    background-color: #f1f1f1 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  
-  .negative {
-    color: #cc0000;
-  }
-  
-  .checkmark {
-    margin-right: 3px;
-  }
-  
-  /* Separator */
-  .divider {
-    height: 1px;
-    background-color: #999;
-    margin: 25px 0;
-    border: none;
-  }
-  
-  /* Empty state */
-  .empty-message {
-    text-align: center;
-    padding: 30px;
-    border: 1px dashed #ddd;
-    margin: 20px 0;
-  }
-  
-  /* Footer notes */
-  .footer-notes {
-    margin-top: 25px;
-    padding-top: 10px;
-    border-top: 1px solid #ddd;
-    font-size: 12px;
-  }
-  
-  .note-item {
-    margin: 5px 0;
-  }
-  
-  /* Print-only adjustments */
-  @media print {
-    .expense-print-report {
-      max-width: 100%;
-      padding: 0;
-      font-size: 12px;
-    }
-    
-    .action-buttons {
-      display: none;
-    }
-    
-    .receipt-frame {
-      box-shadow: none;
-      border: 2px solid #999;
-      max-width: 100%;
-    }
-    
-    .receipt-frame:before {
-      border: 1px solid #ccc;
-    }
-    
-    .receipt-image {
-      max-height: 180px; /* Slightly smaller for print */
-    }
-    
-    .expense-heading {
-      background-color: #e6e6e6 !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    .items-table th {
-      background-color: #e6e6e6 !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-  }
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="expense-print-report">
-  <div class="action-buttons">
-    <button class="action-button" onclick="window.print()">
-      <i class="fas fa-print"></i> Print Report
-    </button>
-    <button class="action-button back" onclick="window.history.back()">
-      <i class="fas fa-arrow-left"></i> Back
-    </button>
-  </div>
-  
-  <!-- Header -->
-  <div class="print-header">
-    <div class="logo-container">
-      <img src="https://i.imgur.com/C6gJDTb.png" alt="Bank Style Logo">
-    </div>
-    <div class="print-title">{{ report_title }}</div>
-  </div>
-  
-  <div class="print-meta">
-    <div>Printed on: {{ now().strftime('%d/%m/%Y %H:%M:%S') }}</div>
-    <div>{{ user.name }}</div>
-  </div>
-  
-  <!-- Report Information -->
-  <div class="report-info">
-    <table class="info-table">
-      <tr>
-        <td>Organization</td>
-        <td>{{ user.organizations[0].name if user.organizations else 'Personal Finances' }}</td>
-      </tr>
-      <tr>
-        <td>Date Range</td>
-        <td>{{ start_date }} to {{ end_date }}</td>
-      </tr>
-      <tr>
-        <td>Total Expenses</td>
-        <td>{{ "%.2f"|format(total_amount) }}</td>
-      </tr>
-      <tr>
-        <td>Reimbursable Amount</td>
-        <td class="positive">{{ "%.2f"|format(reimbursable_amount) }}</td>
-      </tr>
-      <tr>
-        <td>Number of Expenses</td>
-        <td>{{ expenses|length }}</td>
-      </tr>
-    </table>
-  </div>
-  
-  {% if expenses|length == 0 %}
-  <div class="empty-message">
-    <h3>No expenses match the selected filters</h3>
-    <p>Try changing your search criteria or date range</p>
-  </div>
-  {% endif %}
-  
-  <!-- Expense Entries -->
-  {% for expense in expenses %}
-  <div class="expense">
-    <div class="expense-heading">
-      <div>{{ expense.receipt.vendor_name or 'Unknown Vendor' if expense.receipt else 'Expense #' ~ expense.id }}</div>
-      <div>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt and expense.receipt.total_amount else '0.00' }}</div>
+<div id="expense-report">
+  <div class="report-container">
+    <!-- Print controls -->
+    <div class="controls">
+      <button class="btn" onclick="window.print()">
+        <i class="fas fa-print"></i> Print Report
+      </button>
+      <button class="btn btn-green" onclick="window.history.back()">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
     </div>
     
-    <div class="expense-body">
-      <table class="detail-table">
-        <tr>
-          <td>Date</td>
-          <td>{{ expense.receipt.date.strftime('%d/%m/%Y') if expense.receipt and expense.receipt.date else 'N/A' }}</td>
-        </tr>
-        <tr>
-          <td>Category</td>
-          <td>{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</td>
-        </tr>
-        <tr>
-          <td>Client</td>
-          <td>{{ expense.client.name if expense.client else 'N/A' }}</td>
-        </tr>
-        <tr>
-          <td>Status</td>
-          <td>{{ expense.status|title if expense.status else 'N/A' }}</td>
-        </tr>
-        <tr>
-          <td>Reimbursable</td>
-          <td class="{% if expense.is_reimbursable %}positive{% else %}negative{% endif %}">
-            {% if expense.is_reimbursable %}
-              <span class="checkmark">✓</span> Yes
-            {% else %}
-              No
-            {% endif %}
-          </td>
-        </tr>
-        {% if expense.receipt and expense.receipt.description %}
-        <tr>
-          <td>Description</td>
-          <td>{{ expense.receipt.description }}</td>
-        </tr>
-        {% endif %}
-      </table>
-      
-      <!-- Items Table -->
-      {% if expense.receipt and expense.receipt.items %}
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th style="width: 40%;">Item</th>
-            <th style="width: 10%;">Qty</th>
-            <th style="width: 15%;">Unit Price</th>
-            <th style="width: 20%;">Tax Deductible</th>
-            <th style="width: 15%;">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in expense.receipt.items %}
-          <tr>
-            <td>{{ item.name or 'Item ' ~ loop.index }}</td>
-            <td>{{ item.quantity or 1 }}</td>
-            <td>{{ "%.2f"|format(item.price) if item.price else 'N/A' }}</td>
-            <td class="{% if item.tax_deductible %}positive{% else %}negative{% endif %}">
-              {% if item.tax_deductible %}
-                <span class="checkmark">✓</span> Yes
-              {% else %}
-                No
-              {% endif %}
-            </td>
-            <td>{{ "%.2f"|format(item.price * (item.quantity or 1)) if item.price else 'N/A' }}</td>
-          </tr>
-          {% endfor %}
-          
-          <tr class="total-row">
-            <td colspan="4" style="text-align: right;">Total:</td>
-            <td>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}</td>
-          </tr>
-        </tbody>
-      </table>
-      {% elif expense.receipt %}
-      <div style="font-style: italic; color: #666; margin: 10px 0;">
-        No line items available for this receipt
+    <!-- Bank-style header -->
+    <div class="bank-header">
+      <img src="https://i.imgur.com/C6gJDTb.png" alt="Logo" class="bank-logo">
+      <div class="report-title">{{ report_title }}</div>
+      <div class="printed-by">
+        Printed on: {{ now().strftime('%d/%m/%Y %H:%M:%S') }}<br>
+        {{ user.name }}
       </div>
-      {% endif %}
+    </div>
+    
+    <!-- Summary information -->
+    <div class="summary-box">
+      <table class="reference-table">
+        <tr>
+          <td>Organization</td>
+          <td>{{ user.organizations[0].name if user.organizations else 'Personal Finances' }}</td>
+        </tr>
+        <tr>
+          <td>Date Range</td>
+          <td>{{ start_date }} to {{ end_date }}</td>
+        </tr>
+        <tr>
+          <td>Total Expenses</td>
+          <td>{{ "%.2f"|format(total_amount) }}</td>
+        </tr>
+        <tr>
+          <td>Reimbursable Amount</td>
+          <td class="positive-value">{{ "%.2f"|format(reimbursable_amount) }}</td>
+        </tr>
+        <tr>
+          <td>Number of Expenses</td>
+          <td>{{ expenses|length }}</td>
+        </tr>
+      </table>
+    </div>
+    
+    <!-- No expenses message -->
+    {% if expenses|length == 0 %}
+    <div class="empty-message">
+      <h3>No expenses match the selected filters</h3>
+      <p>Try changing your search criteria or date range</p>
+    </div>
+    {% endif %}
+    
+    <!-- Expense entries -->
+    {% for expense in expenses %}
+    <div class="expense-entry">
+      <div class="expense-header">
+        <div>{{ expense.receipt.vendor_name or 'Unknown Vendor' if expense.receipt else 'Expense #' ~ expense.id }}</div>
+        <div>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt and expense.receipt.total_amount else '0.00' }}</div>
+      </div>
       
-      <!-- Receipt Image -->
-      {% if expense.receipt and expense.receipt.s3_key %}
-      <div class="receipt-container">
-        <div class="receipt-frame">
+      <div class="expense-body">
+        <table class="details-table">
+          <tr>
+            <td>Date</td>
+            <td>{{ expense.receipt.date.strftime('%d/%m/%Y') if expense.receipt and expense.receipt.date else 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td>Category</td>
+            <td>{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td>Client</td>
+            <td>{{ expense.client.name if expense.client else 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td>Status</td>
+            <td>{{ expense.status|title if expense.status else 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td>Reimbursable</td>
+            <td class="{% if expense.is_reimbursable %}positive-value checkmark{% else %}negative-value{% endif %}">
+              {% if expense.is_reimbursable %}Yes{% else %}No{% endif %}
+            </td>
+          </tr>
+          {% if expense.receipt and expense.receipt.description %}
+          <tr>
+            <td>Description</td>
+            <td>{{ expense.receipt.description }}</td>
+          </tr>
+          {% endif %}
+        </table>
+        
+        <!-- Items Table -->
+        {% if expense.receipt and expense.receipt.items %}
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 40%;">Item</th>
+              <th style="width: 10%;">Qty</th>
+              <th style="width: 15%;">Unit Price</th>
+              <th style="width: 20%;">Tax Deductible</th>
+              <th style="width: 15%;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in expense.receipt.items %}
+            <tr>
+              <td>{{ item.name or 'Item ' ~ loop.index }}</td>
+              <td>{{ item.quantity or 1 }}</td>
+              <td>{{ "%.2f"|format(item.price) if item.price else 'N/A' }}</td>
+              <td class="{% if item.tax_deductible %}positive-value checkmark{% else %}negative-value{% endif %}">
+                {% if item.tax_deductible %}Yes{% else %}No{% endif %}
+              </td>
+              <td>{{ "%.2f"|format(item.price * (item.quantity or 1)) if item.price else 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+            
+            <tr class="total-row">
+              <td colspan="4" style="text-align: right;">Total:</td>
+              <td>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt else '0.00' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        {% elif expense.receipt %}
+        <div style="font-style: italic; color: #666; margin: 10px 0;">
+          No line items available for this receipt
+        </div>
+        {% endif %}
+        
+        <!-- Receipt Image -->
+        {% if expense.receipt and expense.receipt.s3_key %}
+        <div class="receipt-container">
           <img src="{{ expense.receipt.s3_direct_url }}" alt="Receipt Image" class="receipt-image">
         </div>
+        {% endif %}
       </div>
-      {% endif %}
     </div>
+    
+    {% if not loop.last %}
+    <hr class="separator">
+    {% endif %}
+    {% endfor %}
+    
+    <!-- Notes Section -->
+    {% if expenses|length > 0 %}
+    <div class="notes-section">
+      <div style="font-weight: bold; margin-bottom: 6px;">Note:</div>
+      <div class="note-item">01. This is an official expense report and may be used for accounting purposes.</div>
+      <div class="note-item">02. All reimbursable expenses should be submitted to the finance department with proper documentation.</div>
+    </div>
+    {% endif %}
   </div>
-  
-  {% if not loop.last %}
-  <hr class="divider">
-  {% endif %}
-  {% endfor %}
-  
-  <!-- Footer Notes -->
-  {% if expenses|length > 0 %}
-  <div class="footer-notes">
-    <div style="font-weight: bold; margin-bottom: 5px;">Note:</div>
-    <div class="note-item">01. This is an official expense report and may be used for accounting purposes.</div>
-    <div class="note-item">02. All reimbursable expenses should be submitted to the finance department with proper documentation.</div>
-  </div>
-  {% endif %}
 </div>
 {% endblock %}
