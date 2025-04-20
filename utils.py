@@ -253,3 +253,41 @@ def check_organization_permission(user_id, organization_id, required_roles):
     ).first()
     
     return org_user is not None and org_user.role in required_roles
+
+def get_receipt_image_path(receipt):
+    """
+    Get the filesystem path to a receipt image.
+    
+    Args:
+        receipt: The Receipt model object
+        
+    Returns:
+        String path to the image file or None if not available
+    """
+    import os
+    from app import app
+    
+    if not receipt or not receipt.image_path:
+        return None
+    
+    # Normalize the path to ensure consistent forward slashes
+    image_path = receipt.image_path.replace('\\', '/')
+    
+    # Check if it's already an absolute path
+    if os.path.isabs(image_path):
+        return image_path
+    
+    # Check if it's relative to the uploads folder
+    uploads_path = os.path.join(app.root_path, 'static', 'uploads')
+    full_path = os.path.join(uploads_path, image_path)
+    
+    # Check if it's relative to the static folder
+    if not os.path.exists(full_path):
+        static_path = os.path.join(app.root_path, 'static')
+        full_path = os.path.join(static_path, image_path)
+    
+    # Check if it's a direct path relative to the application root
+    if not os.path.exists(full_path):
+        full_path = os.path.join(app.root_path, image_path)
+        
+    return full_path if os.path.exists(full_path) else None

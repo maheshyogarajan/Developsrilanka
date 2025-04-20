@@ -537,3 +537,51 @@ def delete_image_from_s3(s3_key):
     except Exception as e:
         logger.error(f"Unexpected error deleting image from S3: {str(e)}")
         return False
+        
+def s3_download_file_to_memory(s3_key):
+    """
+    Download a file from S3 to memory.
+    
+    Args:
+        s3_key: S3 key of the file to download
+        
+    Returns:
+        io.BytesIO: File content in memory
+    """
+    try:
+        if not s3_key or s3_key == "":
+            logger.warning("Empty S3 key provided, cannot download file")
+            return None
+            
+        # Handle string-represented tuples
+        if isinstance(s3_key, str) and s3_key.startswith('(') and s3_key.endswith(')'):
+            try:
+                parsed_tuple = eval(s3_key)
+                if isinstance(parsed_tuple, tuple) and len(parsed_tuple) > 0:
+                    s3_key = parsed_tuple[0]
+                    logger.info(f"Parsed string tuple to use key: {s3_key}")
+            except Exception as parse_error:
+                logger.error(f"Error parsing string as tuple: {str(parse_error)}")
+                # Continue with original key if parsing failed
+        
+        logger.info(f"Downloading file from S3 with key: {s3_key}")
+        
+        s3_client = get_s3_client()
+        bucket_name = os.environ.get('AWS_S3_BUCKET_NAME')
+        
+        # Create a byte stream to store the downloaded file
+        file_data = io.BytesIO()
+        
+        # Download the file to the byte stream
+        s3_client.download_fileobj(bucket_name, s3_key, file_data)
+        file_data.seek(0)  # Reset file pointer to the beginning
+        
+        logger.info(f"Successfully downloaded file from S3: {s3_key}")
+        return file_data
+        
+    except ClientError as e:
+        logger.error(f"Error downloading file from S3: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error downloading file from S3: {str(e)}")
+        return None
