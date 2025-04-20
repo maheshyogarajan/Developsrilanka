@@ -95,23 +95,72 @@
     align-self: center;
   }
   
-  .receipt-detail-row {
-    display: flex;
-    margin-bottom: 10px;
-    border-bottom: 1px dotted #eee;
-    padding-bottom: 5px;
+  /* New snazzy details table styles */
+  .snazzy-details-container {
+    margin-bottom: 20px;
   }
   
-  .receipt-label {
+  .snazzy-details-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 16px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  
+  .snazzy-details-table tr:first-child {
+    background-color: #4e73df;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  
+  .snazzy-details-table tr:first-child td {
+    padding: 12px 15px;
+  }
+  
+  .snazzy-details-table tr {
+    border-bottom: 1px solid #f2f2f2;
+  }
+
+  .snazzy-details-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .snazzy-label {
     width: 140px;
+    padding: 10px 15px;
     font-weight: 600;
-    color: #555;
-    font-size: 14px;
+    color: #444;
   }
   
-  .receipt-value {
-    flex: 1;
-    font-size: 14px;
+  .snazzy-value {
+    padding: 10px 15px;
+    color: #333;
+  }
+  
+  .reimbursable-yes {
+    color: #1cc88a;
+    font-weight: 600;
+  }
+  
+  .reimbursable-no {
+    color: #e74a3b;
+  }
+  
+  .checkmark {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    background-color: #1cc88a;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 22px;
+    margin-right: 6px;
+    font-weight: bold;
   }
   
   /* Receipt image styling - with border frame */
@@ -131,39 +180,73 @@
     object-fit: contain;
   }
   
-  /* Items table styling */
+  /* Items table styling - modernized */
   .items-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 13px;
+    margin-top: 20px;
+    font-size: 14px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+    border-radius: 8px;
+    overflow: hidden;
   }
   
   .items-table th {
-    background-color: #f8f9fc;
-    border: 1px solid #ddd;
-    padding: 8px;
+    background-color: #4e73df;
+    color: white;
+    padding: 12px 10px;
     text-align: left;
     font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   
   .items-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 10px;
+    color: #444;
+  }
+
+  .items-table tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .items-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .items-table tr:hover {
+    background-color: #f3f8ff;
   }
   
   .tax-deductible-yes {
     color: #1cc88a;
-    font-weight: 500;
+    font-weight: 600;
   }
   
   .tax-deductible-no {
     color: #e74a3b;
   }
   
+  .subtotal-row {
+    background-color: #f8f9fc !important;
+  }
+  
+  .subtotal-row td {
+    color: #555;
+    font-weight: 600;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  
   .total-row td {
+    background-color: #eef2ff !important;
+    color: #333;
     font-weight: bold;
-    border-top: 2px solid #4e73df;
+    font-size: 15px;
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
   
   /* Status badges */
@@ -287,6 +370,13 @@
       break-inside: avoid;
     }
     
+    .receipt-entry {
+      page-break-inside: avoid;
+      margin-bottom: 30px;
+      box-shadow: none;
+      border: 1px solid #ccc;
+    }
+    
     .receipt-image-frame {
       box-shadow: none;
       border: 1px solid #999;
@@ -296,8 +386,32 @@
       max-height: 200px;
     }
     
+    .snazzy-details-table {
+      box-shadow: none;
+    }
+    
+    .snazzy-details-table tr:first-child {
+      background-color: #e5e9f5 !important;
+      color: black;
+    }
+    
+    .items-table {
+      box-shadow: none;
+    }
+    
     .items-table th {
-      background-color: #f1f1f1 !important;
+      background-color: #e5e9f5 !important;
+      color: black;
+    }
+    
+    .checkmark {
+      border: 1px solid #1cc88a;
+      background-color: transparent !important;
+      color: #1cc88a;
+    }
+    
+    .total-row td {
+      background-color: #f5f7ff !important;
     }
   }
 </style>
@@ -369,51 +483,61 @@
     <div class="receipt-content">
       <!-- Left side - receipt details -->
       <div class="receipt-details">
-        <div class="receipt-detail-row">
-          <div class="receipt-label">Date:</div>
-          <div class="receipt-value">{{ expense.receipt.date.strftime('%d/%m/%Y') if expense.receipt and expense.receipt.date else 'N/A' }}</div>
+        <!-- New snazzy details table -->
+        <div class="snazzy-details-container">
+          <table class="snazzy-details-table">
+            <tbody>
+              <tr>
+                <td class="snazzy-label">{{ expense.receipt.vendor_name or 'Unknown Vendor' if expense.receipt else 'Expense #' ~ expense.id }}</td>
+                <td class="snazzy-value">{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt and expense.receipt.total_amount else '0.00' }}</td>
+              </tr>
+              <tr>
+                <td class="snazzy-label">Date:</td>
+                <td class="snazzy-value">{{ expense.receipt.date.strftime('%d/%m/%Y') if expense.receipt and expense.receipt.date else 'N/A' }}</td>
+              </tr>
+              <tr>
+                <td class="snazzy-label">Category:</td>
+                <td class="snazzy-value">{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</td>
+              </tr>
+              <tr>
+                <td class="snazzy-label">Client:</td>
+                <td class="snazzy-value">{{ expense.client.name if expense.client else 'N/A' }}</td>
+              </tr>
+              <tr>
+                <td class="snazzy-label">Status:</td>
+                <td class="snazzy-value">
+                  {% if expense.status == 'submitted' %}
+                    <span class="status-badge status-submitted">Submitted</span>
+                  {% elif expense.status == 'approved' %}
+                    <span class="status-badge status-approved">Approved</span>
+                  {% elif expense.status == 'rejected' %}
+                    <span class="status-badge status-rejected">Rejected</span>
+                  {% elif expense.status == 'reimbursed' %}
+                    <span class="status-badge status-reimbursed">Reimbursed</span>
+                  {% else %}
+                    <span class="status-badge">{{ expense.status }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="snazzy-label">Reimbursable:</td>
+                <td class="snazzy-value {% if expense.is_reimbursable %}reimbursable-yes{% else %}reimbursable-no{% endif %}">
+                  {% if expense.is_reimbursable %}
+                    <span class="checkmark">✓</span> Yes
+                  {% else %}
+                    No
+                  {% endif %}
+                </td>
+              </tr>
+              {% if expense.receipt and expense.receipt.description %}
+              <tr>
+                <td class="snazzy-label">Description:</td>
+                <td class="snazzy-value">{{ expense.receipt.description }}</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
         </div>
-        
-        <div class="receipt-detail-row">
-          <div class="receipt-label">Category:</div>
-          <div class="receipt-value">{{ expense.receipt.expense_major_category if expense.receipt else 'N/A' }}</div>
-        </div>
-        
-        <div class="receipt-detail-row">
-          <div class="receipt-label">Client:</div>
-          <div class="receipt-value">{{ expense.client.name if expense.client else 'N/A' }}</div>
-        </div>
-        
-        <div class="receipt-detail-row">
-          <div class="receipt-label">Status:</div>
-          <div class="receipt-value">
-            {% if expense.status == 'submitted' %}
-              <span class="status-badge status-submitted">Submitted</span>
-            {% elif expense.status == 'approved' %}
-              <span class="status-badge status-approved">Approved</span>
-            {% elif expense.status == 'rejected' %}
-              <span class="status-badge status-rejected">Rejected</span>
-            {% elif expense.status == 'reimbursed' %}
-              <span class="status-badge status-reimbursed">Reimbursed</span>
-            {% else %}
-              <span class="status-badge">{{ expense.status }}</span>
-            {% endif %}
-          </div>
-        </div>
-        
-        <div class="receipt-detail-row">
-          <div class="receipt-label">Reimbursable:</div>
-          <div class="receipt-value" style="color: {{ '#1cc88a' if expense.is_reimbursable else '#e74a3b' }}; font-weight: 500;">
-            {{ 'Yes' if expense.is_reimbursable else 'No' }}
-          </div>
-        </div>
-        
-        {% if expense.receipt and expense.receipt.description %}
-        <div class="receipt-detail-row">
-          <div class="receipt-label">Description:</div>
-          <div class="receipt-value">{{ expense.receipt.description }}</div>
-        </div>
-        {% endif %}
         
         <!-- Receipt items table -->
         {% if expense.receipt and expense.receipt.items %}
@@ -434,7 +558,11 @@
               <td>{{ item.quantity or 1 }}</td>
               <td>{{ "%.2f"|format(item.price) if item.price else 'N/A' }}</td>
               <td class="{% if item.tax_deductible %}tax-deductible-yes{% else %}tax-deductible-no{% endif %}">
-                {{ 'Yes' if item.tax_deductible else 'No' }}
+                {% if item.tax_deductible %}
+                  <span class="checkmark">✓</span> Yes
+                {% else %}
+                  No
+                {% endif %}
               </td>
               <td>{{ "%.2f"|format(item.price * (item.quantity or 1)) if item.price else 'N/A' }}</td>
             </tr>
