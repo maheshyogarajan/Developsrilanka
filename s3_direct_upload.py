@@ -5,6 +5,7 @@ This module provides a simple API for directly uploading images to S3
 without any dependencies on other parts of the application.
 
 It also handles thumbnail generation and uploads thumbnails to S3.
+This module has been enhanced to properly separate full images and thumbnails.
 """
 
 import os
@@ -282,6 +283,45 @@ def test_s3_connection():
         logger.error(f"❌ Error testing S3 connection: {str(e)}")
         logger.error(traceback.format_exc())
         return False
+
+def process_receipt_image_upload(image, organization_id=None, receipt_id=None):
+    """
+    Upload an image to S3 and create a thumbnail, returning separate keys.
+    
+    This function wraps upload_receipt_to_s3 but returns a dictionary instead of a tuple,
+    making it easier to access the individual keys and avoid tuple representation issues.
+    
+    Args:
+        image: PIL Image or file object
+        organization_id: Organization ID for path structure
+        receipt_id: Receipt ID for path structure
+        
+    Returns:
+        dict: {'s3_key': main_key, 'thumbnail_s3_key': thumbnail_key}
+    """
+    try:
+        result = upload_receipt_to_s3(image, organization_id, receipt_id)
+        if not result:
+            return {'s3_key': None, 'thumbnail_s3_key': None}
+            
+        # Check if result is a tuple and extract the values
+        if isinstance(result, tuple) and len(result) >= 2:
+            main_key, thumbnail_key = result
+            
+            # Handle the case where main_key is None but thumbnail_key has a value
+            if not main_key and thumbnail_key:
+                logger.warning("Received thumbnail key but no main key")
+                return {'s3_key': None, 'thumbnail_s3_key': None}
+                
+            return {'s3_key': main_key, 'thumbnail_s3_key': thumbnail_key}
+        else:
+            logger.warning(f"Unexpected result format from upload_receipt_to_s3: {result}")
+            return {'s3_key': str(result) if result else None, 'thumbnail_s3_key': None}
+            
+    except Exception as e:
+        logger.error(f"Error in image upload processing: {str(e)}")
+        logger.error(traceback.format_exc())
+        return {'s3_key': None, 'thumbnail_s3_key': None}
 
 # If this file is run directly, test the S3 connection
 if __name__ == "__main__":
