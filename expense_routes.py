@@ -600,6 +600,53 @@ def update_expense_ajax(expense_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@expense_bp.route('/receipts/<int:receipt_id>/image')
+@login_required
+def get_receipt_image(receipt_id):
+    """
+    Get the receipt image. Will try to use thumbnail for better performance.
+    This route is used specifically by the expense report print template.
+    """
+    receipt = Receipt.query.get_or_404(receipt_id)
+    
+    # Check if the user has permission to view this receipt
+    if receipt.user_id != current_user.id:
+        # If not the owner, check if user has organization permission
+        if receipt.organization_id:
+            if not check_organization_permission(
+                current_user.id, 
+                receipt.organization_id, 
+                ['owner', 'admin', 'member']
+            ):
+                abort(403, "You don't have permission to view this receipt's image")
+        else:
+            abort(403, "You don't have permission to view this receipt's image")
+    
+    # Determine whether to use thumbnail or full image
+    use_thumbnail = request.args.get('thumbnail', 'true').lower() in ('true', '1', 'yes')
+    
+    # Use the centralized image URL generator from utils
+    from utils import get_receipt_image_url
+    image_url = get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=use_thumbnail)
+    
+    # If we got a URL, redirect to it
+    if image_url and image_url.startswith(('http://', 'https://')):
+        return redirect(image_url)
+    
+    # For local files, use Flask's send_file
+    if image_url and image_url.startswith('/static/'):
+        import os
+        from flask import send_file
+        file_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            image_url.lstrip('/')
+        )
+        if os.path.exists(file_path):
+            return send_file(file_path)
+    
+    # Fall back to a placeholder image
+    return redirect('/static/img/receipt-placeholder.svg')
+
 @expense_bp.route('/receipts/<int:receipt_id>/create-expense', methods=['GET', 'POST'])
 @login_required
 def create_expense_from_receipt(receipt_id):

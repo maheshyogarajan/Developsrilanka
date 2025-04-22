@@ -638,7 +638,7 @@
       <div class="receipt-image">
         {% if expense.receipt and expense.receipt.s3_key %}
           <div class="receipt-frame">
-            <img src="{{ url_for('expense.get_receipt_image', receipt_id=expense.receipt.id) }}" alt="Receipt Image">
+            <img src="{{ url_for('expense.get_receipt_image', receipt_id=expense.receipt.id, thumbnail='true') }}" alt="Receipt Image">
             <div style="text-align: center; margin-top: 5px; font-size: 12px; color: #666;">
               Receipt Image
             </div>
