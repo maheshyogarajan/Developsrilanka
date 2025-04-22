@@ -421,6 +421,8 @@
                      alt="Receipt Image" class="img-fluid"
                      style="max-height: 600px;"
                      onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                <!-- Note: We're intentionally using the full image_url here, not the thumbnail, 
+                     since this is a modal for showing the full-size image -->
                 {% else %}
                 <div class="text-muted">
                     <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
