@@ -436,3 +436,34 @@ def ensure_thumbnail_exists(original_s3_key):
         
     # Generate the thumbnail
     return generate_thumbnail_for_s3(original_s3_key) is not None
+
+
+def get_best_thumbnail_url(original_s3_key, thumbnail_s3_key=None):
+    """
+    Get the best thumbnail URL, prioritizing the dedicated thumbnail_s3_key.
+    
+    Args:
+        original_s3_key: Main image S3 key
+        thumbnail_s3_key: Dedicated thumbnail S3 key if available
+        
+    Returns:
+        str: URL for the thumbnail, or None if no valid thumbnail found
+    """
+    logger.info(f"Getting best thumbnail URL. Original: {original_s3_key}, Thumbnail: {thumbnail_s3_key}")
+    
+    # First try using the dedicated thumbnail key if provided
+    if thumbnail_s3_key:
+        if check_file_exists(thumbnail_s3_key):
+            url = generate_presigned_url(thumbnail_s3_key)
+            if url:
+                logger.info(f"Using dedicated thumbnail key: {thumbnail_s3_key}")
+                return url
+        else:
+            logger.warning(f"Dedicated thumbnail key not found in S3: {thumbnail_s3_key}")
+            
+    # Fall back to the original key-based thumbnail generation
+    if original_s3_key:
+        return get_thumbnail_url(original_s3_key)
+    
+    logger.warning("No valid keys provided for generating thumbnail URL")
+    return None

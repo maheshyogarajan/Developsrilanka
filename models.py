@@ -336,38 +336,23 @@ class Receipt(db.Model):
     @property
     def thumbnail_url(self):
         """Generate a presigned URL for the thumbnail image in S3 if available."""
-        # If we have a stored thumbnail key, use it directly
-        if self.thumbnail_s3_key:
-            # Import here to avoid circular imports
-            from s3_storage import generate_presigned_url
-            import logging
-            
-            try:
-                # Generate and return the presigned URL for the thumbnail
-                url = generate_presigned_url(self.thumbnail_s3_key)
-                if url:
-                    return url
-                logging.warning(f"Failed to generate thumbnail URL for key: {self.thumbnail_s3_key} (object may not exist)")
-            except Exception as e:
-                logging.error(f"Error generating thumbnail URL for key {self.thumbnail_s3_key}: {str(e)}")
+        import logging
         
-        # If no thumbnail is stored or there was an error, try generating one on-the-fly
-        if self.s3_key:
+        try:
             # Import here to avoid circular imports
-            from thumbnail_manager import get_thumbnail_url
-            import logging
+            from thumbnail_manager import get_best_thumbnail_url
             
-            try:
-                # Generate a thumbnail URL from the original image
-                url = get_thumbnail_url(self.s3_key)
-                if url:
-                    return url
-                logging.warning(f"Failed to generate thumbnail URL for original image: {self.s3_key}")
-            except Exception as e:
-                logging.error(f"Error generating thumbnail URL from original image {self.s3_key}: {str(e)}")
-        
-        # Fallback to the full-sized image URL
-        return self.s3_url
+            # Use the dedicated thumbnail_s3_key if available, otherwise generate from main image
+            url = get_best_thumbnail_url(self.s3_key, self.thumbnail_s3_key)
+            if not url:
+                logging.warning(f"Failed to generate thumbnail URL for receipt {self.id}")
+                # Fallback to the main image URL
+                return self.s3_url
+            return url
+        except Exception as e:
+            logging.error(f"Error generating thumbnail URL for receipt {self.id}: {str(e)}")
+            # Fallback to the main image URL
+            return self.s3_url
 
     def get_tax_deductible_amount(self):
         """Calculate the total amount for tax deductible items.
