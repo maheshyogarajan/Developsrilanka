@@ -197,7 +197,7 @@
                 {% if receipt.s3_key %}
                     <!-- Use S3 URL if available -->
                     <a href="{{ receipt.s3_url }}" target="_blank">
-                        <img src="{{ receipt.s3_url }}" 
+                        <img src="{{ receipt.thumbnail_url or receipt.s3_url }}" 
                              class="img-fluid border" 
                              style="max-height: 400px;" 
                              alt="Receipt Image"
