@@ -640,12 +640,15 @@ def scan_receipt():
         # IMMEDIATE S3 UPLOAD: Upload the image to S3 FIRST, before any processing
         # This ensures we don't lose the image even if processing fails
         try:
-            from s3_direct_upload import upload_receipt_to_s3
-            direct_s3_key = upload_receipt_to_s3(img_for_s3, organization_id)
-            if direct_s3_key:
-                logging.info(f"✅ IMMEDIATE S3 UPLOAD SUCCESSFUL: {direct_s3_key}")
-                # Store in session for database update later
-                session['receipt_s3_key'] = direct_s3_key
+            from s3_direct_upload import process_receipt_image_upload
+            upload_result = process_receipt_image_upload(img_for_s3, organization_id)
+            
+            if upload_result and upload_result['s3_key']:
+                logging.info(f"✅ IMMEDIATE S3 UPLOAD SUCCESSFUL: {upload_result['s3_key']}")
+                # Store both keys in session for database update later
+                session['receipt_s3_key'] = upload_result['s3_key']
+                session['receipt_thumbnail_s3_key'] = upload_result['thumbnail_s3_key']
+                logging.info(f"Stored s3_key={upload_result['s3_key']} and thumbnail_s3_key={upload_result['thumbnail_s3_key']} in session")
             else:
                 logging.error("❌ IMMEDIATE S3 UPLOAD FAILED, but continuing with processing")
         except Exception as s3_error:
@@ -955,14 +958,22 @@ def save_receipt():
         
         receipt_data = session['receipt_data']
         
-        # Check if we have a directly uploaded S3 key from the scan process
-        # If yes, use it instead of the one in receipt_data
+        # Check if we have directly uploaded S3 keys from the scan process
+        # If yes, use them instead of the ones in receipt_data
         if 'receipt_s3_key' in session and session['receipt_s3_key']:
             direct_s3_key = session['receipt_s3_key']
             logging.info(f"Found direct S3 key in session: {direct_s3_key}")
             # Update the receipt data with this key
             receipt_data['s3_key'] = direct_s3_key
             logging.info(f"Updated receipt_data with direct S3 key: {direct_s3_key}")
+        
+        # Also check for a thumbnail S3 key in the session
+        if 'receipt_thumbnail_s3_key' in session and session['receipt_thumbnail_s3_key']:
+            thumbnail_s3_key = session['receipt_thumbnail_s3_key']
+            logging.info(f"Found thumbnail S3 key in session: {thumbnail_s3_key}")
+            # Add the thumbnail key to the receipt data
+            receipt_data['thumbnail_s3_key'] = thumbnail_s3_key
+            logging.info(f"Updated receipt_data with thumbnail S3 key: {thumbnail_s3_key}")
         
         # Add additional debug logging
         logging.debug(f"Receipt data keys: {receipt_data.keys() if receipt_data else 'None'}")
@@ -1036,6 +1047,10 @@ def save_receipt():
         logging.info(f"Number of items: {len(receipt_data.get('items', []))}")
         logging.info("=============================================")
         
+        # Get thumbnail S3 key if available
+        thumbnail_s3_key = receipt_data.get('thumbnail_s3_key', '')
+        logging.info(f"Thumbnail S3 key: '{thumbnail_s3_key}'")
+        
         # Create a new receipt and associate it with the current user
         new_receipt = Receipt(
             user_id=current_user.id,  # Set the user_id from the logged in user
@@ -1052,9 +1067,10 @@ def save_receipt():
             expense_major_category=receipt_data.get('expense_major_category'),
             expense_minor_category=receipt_data.get('expense_minor_category'),
             s3_key=s3_key,
+            thumbnail_s3_key=thumbnail_s3_key,
             image_path=image_path
         )
-        logging.info(f"Creating new receipt with s3_key='{s3_key}' and image_path='{image_path}'")
+        logging.info(f"Creating new receipt with s3_key='{s3_key}', thumbnail_s3_key='{thumbnail_s3_key}', and image_path='{image_path}'")
         
         # Add the receipt to the database session
         db.session.add(new_receipt)
