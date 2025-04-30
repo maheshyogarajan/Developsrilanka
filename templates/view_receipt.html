@@ -194,24 +194,23 @@
             
             <div class="text-center mb-3">
                 <h5 class="card-title">Receipt Image</h5>
-                {% if receipt.s3_key %}
-                    <!-- Use S3 URL if available -->
-                    <a href="{{ receipt.s3_url }}" target="_blank">
-                        <img src="{{ receipt.thumbnail_url or receipt.s3_url }}" 
+                {% if receipt.s3_key or receipt.image_path %}
+                    <!-- Use secure server-side proxied URL for all images -->
+                    {% set image_url = url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false') %}
+                    {% set thumbnail_url = url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='true') %}
+                    
+                    <a href="{{ image_url }}" target="_blank">
+                        <img src="{{ thumbnail_url }}" 
                              class="img-fluid border" 
                              style="max-height: 400px;" 
                              alt="Receipt Image"
                              onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.parentElement.href='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
                     </a>
-                {% elif receipt.image_path %}
-                    <!-- Fallback to local storage if S3 not available -->
-                    <a href="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" target="_blank">
-                        <img src="{{ url_for('static', filename=receipt.image_path.replace('static/', '')) }}" 
-                             class="img-fluid border" 
-                             style="max-height: 400px;" 
-                             alt="Receipt Image"
-                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.parentElement.href='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
-                    </a>
+                    <div class="mt-2">
+                        <a href="{{ image_url }}?format=jpg" class="btn btn-sm btn-outline-primary me-1" target="_blank">JPG</a>
+                        <a href="{{ image_url }}?format=png" class="btn btn-sm btn-outline-primary me-1" target="_blank">PNG</a>
+                        <a href="{{ image_url }}?format=webp" class="btn btn-sm btn-outline-primary" target="_blank">WebP</a>
+                    </div>
                 {% else %}
                     <!-- No image available -->
                     <div class="text-muted">

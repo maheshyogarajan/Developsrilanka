@@ -353,6 +353,33 @@ class Receipt(db.Model):
             logging.error(f"Error generating thumbnail URL for receipt {self.id}: {str(e)}")
             # Fallback to the main image URL
             return self.s3_url
+    
+    def get_secure_image_url(self, thumbnail=True):
+        """
+        Get a secure URL for this receipt's image through server-side proxy.
+        
+        This method returns a URL that goes through the application's authentication 
+        system, ensuring only authorized users can access the image.
+        
+        Args:
+            thumbnail (bool): Whether to request the thumbnail version (default: True)
+            
+        Returns:
+            str: The secure URL for the receipt image
+        """
+        try:
+            # Import here to avoid circular imports
+            from flask import url_for
+            
+            # Generate the URL through the secure route
+            return url_for('expense.get_receipt_image', 
+                           receipt_id=self.id, 
+                           thumbnail='true' if thumbnail else 'false',
+                           _external=False)  # Relative URL to avoid domain issues
+        except Exception as e:
+            import logging
+            logging.error(f"Error generating secure image URL for receipt {self.id}: {str(e)}")
+            return None
 
     def get_tax_deductible_amount(self):
         """Calculate the total amount for tax deductible items.
@@ -377,6 +404,10 @@ class Receipt(db.Model):
         
         # For backward compatibility, still include s3_url separately
         s3_url = self.s3_url if self.s3_key else None
+        
+        # Generate secure URLs that go through server-side proxying
+        secure_url = self.get_secure_image_url(thumbnail=False)
+        secure_thumbnail_url = self.get_secure_image_url(thumbnail=True)
             
         return {
             'id': self.id,
@@ -395,9 +426,11 @@ class Receipt(db.Model):
             'image_path': self.image_path or '',
             's3_key': self.s3_key or '',
             'thumbnail_s3_key': self.thumbnail_s3_key or '',
-            'image_url': image_url,
-            's3_url': s3_url,
-            'thumbnail_url': self.thumbnail_url if hasattr(self, 'thumbnail_url') else None,
+            'image_url': secure_url or image_url,  # Prioritize secure URL
+            's3_url': s3_url,  # Keep for backward compatibility
+            'thumbnail_url': secure_thumbnail_url or self.thumbnail_url,  # Prioritize secure thumbnail
+            'secure_image_url': secure_url,  # Add dedicated secure URL property
+            'secure_thumbnail_url': secure_thumbnail_url,  # Add dedicated secure thumbnail URL property
             'expense_major_category': self.expense_major_category or '',
             'expense_minor_category': self.expense_minor_category or '',
             'tax_deductible_amount': self.get_tax_deductible_amount(),
