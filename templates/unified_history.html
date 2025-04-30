@@ -651,6 +651,9 @@
                                 modal.tabIndex = '-1';
                                 modal.setAttribute('aria-hidden', 'true');
                                 
+                                // Use fullsize_url for modal if available, otherwise fall back to thumbnail
+                                const fullImageUrl = data.fullsize_url || data.image_url;
+                                
                                 modal.innerHTML = `
                                     <div class="modal-dialog modal-lg modal-dialog-centered">
                                         <div class="modal-content">
@@ -659,10 +662,15 @@
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body text-center">
-                                                <img src="${data.image_url}" alt="Receipt Image" style="max-width: 100%;" />
+                                                <img src="${fullImageUrl}" alt="Receipt Image" style="max-width: 100%;" />
                                             </div>
                                             <div class="modal-footer">
-                                                <a href="${data.image_url}" class="btn btn-primary" target="_blank">Open In New Tab</a>
+                                                <a href="${fullImageUrl}" class="btn btn-primary" target="_blank">Open In New Tab</a>
+                                                <div class="btn-group">
+                                                    <a href="${fullImageUrl}&format=jpg" class="btn btn-outline-secondary" target="_blank">JPG</a>
+                                                    <a href="${fullImageUrl}&format=png" class="btn btn-outline-secondary" target="_blank">PNG</a>
+                                                    <a href="${fullImageUrl}&format=webp" class="btn btn-outline-secondary" target="_blank">WebP</a>
+                                                </div>
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                                             </div>
                                         </div>
@@ -742,6 +750,9 @@
                                 modal.tabIndex = '-1';
                                 modal.setAttribute('aria-hidden', 'true');
                                 
+                                // Use fullsize_url for modal if available, otherwise fall back to thumbnail
+                                const fullImageUrl = data.fullsize_url || data.image_url;
+                                
                                 modal.innerHTML = `
                                     <div class="modal-dialog modal-lg modal-dialog-centered">
                                         <div class="modal-content">
@@ -750,10 +761,15 @@
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body text-center">
-                                                <img src="${data.image_url}" alt="Expense Receipt" style="max-width: 100%;" />
+                                                <img src="${fullImageUrl}" alt="Expense Receipt" style="max-width: 100%;" />
                                             </div>
                                             <div class="modal-footer">
-                                                <a href="${data.image_url}" class="btn btn-primary" target="_blank">Open In New Tab</a>
+                                                <a href="${fullImageUrl}" class="btn btn-primary" target="_blank">Open In New Tab</a>
+                                                <div class="btn-group">
+                                                    <a href="${fullImageUrl}&format=jpg" class="btn btn-outline-secondary" target="_blank">JPG</a>
+                                                    <a href="${fullImageUrl}&format=png" class="btn btn-outline-secondary" target="_blank">PNG</a>
+                                                    <a href="${fullImageUrl}&format=webp" class="btn btn-outline-secondary" target="_blank">WebP</a>
+                                                </div>
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                                             </div>
                                         </div>

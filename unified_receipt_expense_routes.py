@@ -1115,31 +1115,15 @@ def api_receipt_image(receipt_id):
         else:
             return jsonify({"error": "Access denied", "status": 403}), 403
     
-    # Always prioritize and use thumbnail images for the history view
-    from utils import get_receipt_image_url
-    image_url = None
+    # Generate secure URLs for both thumbnail and full-size images using our server-side proxy
+    thumbnail_url = url_for('expense.get_receipt_image', receipt_id=receipt_id, thumbnail='true', _external=True)
+    fullsize_url = url_for('expense.get_receipt_image', receipt_id=receipt_id, thumbnail='false', _external=True)
     
-    # First try to get thumbnail from the thumbnail_s3_key
-    if receipt.thumbnail_s3_key:
-        try:
-            from thumbnail_manager import get_thumbnail_url
-            image_url = get_thumbnail_url(receipt.thumbnail_s3_key)
-            logging.info(f"Using thumbnail URL from thumbnail_s3_key for receipt {receipt_id}")
-        except Exception as e:
-            logging.error(f"Error getting thumbnail URL from thumbnail_s3_key: {e}")
-    
-    # If no thumbnail available from the dedicated key, try to get a thumbnail version of the main image
-    if not image_url:
-        image_url = get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=True)
-        logging.info(f"Using thumbnail URL from get_receipt_image_url for receipt {receipt_id}")
-    
-    # As a last resort, fall back to original image if no thumbnail is available
-    if not image_url:
-        image_url = get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=False)
-        logging.info(f"Falling back to original image URL for receipt {receipt_id}")
+    logging.info(f"Using secure proxied URLs for receipt {receipt_id}")
     
     return jsonify({
-        "image_url": image_url,
+        "image_url": thumbnail_url,
+        "fullsize_url": fullsize_url,
         "receipt_id": receipt_id
     })
     
@@ -1227,31 +1211,15 @@ def api_expense_image(expense_id):
     if not receipt:
         return jsonify({"error": "No receipt found", "status": 404}), 404
     
-    # Always prioritize thumbnails for expense images in the UI
-    from utils import get_receipt_image_url
-    image_url = None
+    # Generate secure URLs for both thumbnail and full-size images using our server-side proxy
+    thumbnail_url = url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='true', _external=True)
+    fullsize_url = url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false', _external=True)
     
-    # First try to get thumbnail from the thumbnail_s3_key
-    if receipt.thumbnail_s3_key:
-        try:
-            from thumbnail_manager import get_thumbnail_url
-            image_url = get_thumbnail_url(receipt.thumbnail_s3_key)
-            logging.info(f"Using thumbnail URL from thumbnail_s3_key for expense {expense_id}")
-        except Exception as e:
-            logging.error(f"Error getting thumbnail URL from thumbnail_s3_key: {e}")
-    
-    # If no thumbnail available from the dedicated key, try to get a thumbnail version of the main image
-    if not image_url:
-        image_url = get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=True)
-        logging.info(f"Using thumbnail URL from get_receipt_image_url for expense {expense_id}")
-    
-    # As a last resort, fall back to original image if no thumbnail is available
-    if not image_url:
-        image_url = get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=False)
-        logging.info(f"Falling back to original image URL for expense {expense_id}")
+    logging.info(f"Using secure proxied URLs for expense {expense_id} with receipt {receipt.id}")
     
     return jsonify({
-        "image_url": image_url,
+        "image_url": thumbnail_url,
+        "fullsize_url": fullsize_url,
         "expense_id": expense_id
     })
 
