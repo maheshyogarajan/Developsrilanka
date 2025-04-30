@@ -3,10 +3,75 @@ Routes for company expense management and reimbursement.
 """
 from datetime import datetime
 import logging
+import io
+from PIL import Image, ImageDraw, ImageFont
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import text
+
+def add_watermark(image, text):
+    """
+    Add a watermark to an image with the specified text.
+    
+    Args:
+        image (PIL.Image): The image to watermark
+        text (str): The text to use as watermark
+        
+    Returns:
+        PIL.Image: The watermarked image
+    """
+    # Create a copy of the image to avoid modifying the original
+    watermarked = image.copy()
+    
+    # Ensure the image is in RGB mode for drawing
+    if watermarked.mode != 'RGB':
+        watermarked = watermarked.convert('RGB')
+    
+    # Get image dimensions
+    width, height = watermarked.size
+    
+    # Create a drawing context
+    draw = ImageDraw.Draw(watermarked)
+    
+    # Try to use a proper font, or fallback to default
+    try:
+        # Try to load Arial or a similar font if available
+        font = ImageFont.truetype("Arial", size=int(width * 0.05))
+    except IOError:
+        # Fallback to default font
+        font = ImageFont.load_default()
+    
+    # Calculate text size
+    try:
+        textwidth, textheight = draw.textsize(text, font=font)
+    except AttributeError:
+        # For newer Pillow versions
+        textwidth, textheight = draw.textbbox((0, 0), text, font=font)[2:4]
+    
+    # Position for center bottom of the image
+    x = (width - textwidth) / 2
+    y = height - textheight - 10  # 10 pixels from the bottom
+    
+    # Semi-transparent white background for the text
+    try:
+        # For PIL with RGBA support
+        draw.rectangle(
+            [(x-5, y-5), (x + textwidth + 5, y + textheight + 5)],
+            fill=(255, 255, 255, 128)
+        )
+    except TypeError:
+        # For older PIL versions that don't support alpha in RGB mode
+        draw.rectangle(
+            [(x-5, y-5), (x + textwidth + 5, y + textheight + 5)],
+            fill=(255, 255, 255)
+        )
+    
+    # Draw the text in a dark color
+    draw.text((x, y), text, fill=(50, 50, 50, 255), font=font)
+    
+    # Return the watermarked image
+    return watermarked
 
 from app import db
 from models import CompanyExpense, ExpenseStatus, Receipt, User, Organization, Client, OrganizationUser
@@ -654,6 +719,9 @@ def get_receipt_image(receipt_id):
                 image = s3.get_image(s3_key)
                 
                 if image:
+                    # Add watermark to the image
+                    image = add_watermark(image, "www.developsrilanka.com")
+                    
                     # Convert to requested format if needed
                     if format_requested != 'original' and format_requested in content_types:
                         img_io = io.BytesIO()
@@ -663,7 +731,7 @@ def get_receipt_image(receipt_id):
                     else:
                         # Use original format
                         img_io = io.BytesIO()
-                        image.save(img_io, format=image.format)
+                        image.save(img_io, format=image.format or "JPEG")
                         img_io.seek(0)
                         image_data = img_io.getvalue()
                     
