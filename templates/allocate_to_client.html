@@ -65,12 +65,8 @@
                         <a href="{{ url_for('view_receipt', receipt_id=receipt.id) }}" class="btn btn-outline-secondary btn-sm" target="_blank">
                             <i class="fas fa-external-link-alt me-1"></i>View Full Receipt Details
                         </a>
-                        {% if receipt.s3_key %}
-                        <a href="{{ receipt.s3_url }}" class="btn btn-outline-primary btn-sm ms-2" target="_blank">
-                            <i class="fas fa-image me-1"></i>View Receipt Image
-                        </a>
-                        {% elif receipt.image_url %}
-                        <a href="{{ receipt.image_url }}" class="btn btn-outline-primary btn-sm ms-2" target="_blank">
+                        {% if receipt.id %}
+                        <a href="{{ url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false') }}" class="btn btn-outline-primary btn-sm ms-2" target="_blank">
                             <i class="fas fa-image me-1"></i>View Receipt Image
                         </a>
                         {% elif receipt.image_path %}
