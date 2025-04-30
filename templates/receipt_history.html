@@ -1018,9 +1018,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="card mb-3">
                                 <div class="card-body text-center p-2">
                                     <div class="receipt-frame">
-                                        ${receipt.image_url ? 
-                                            `<a href="${receipt.image_url}" target="_blank" title="View full-size image">
-                                                <img src="${receipt.thumbnail_url || receipt.image_url}" alt="Receipt" class="receipt-image" 
+                                        ${receipt.id ? 
+                                            `<a href="/receipts/${receipt.id}/image?thumbnail=false" target="_blank" title="View full-size image">
+                                                <img src="/receipts/${receipt.id}/image?thumbnail=true" alt="Receipt" class="receipt-image" 
                                                      onerror="this.onerror=null; this.src='/static/img/receipt-placeholder.svg'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                                             </a>`
                                         :
@@ -1030,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>`
                                         }
                                     </div>
-                                    ${receipt.image_url ? 
+                                    ${receipt.id ? 
                                         `<div class="text-center">
                                             <small class="text-muted">Click image to view full size</small>
                                         </div>` 
