@@ -171,7 +171,7 @@
                 {% endif %}
                 
                 <li class="page-item {% if page == pages %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin_v2.view_audit_logs', page=page+1, **request.args) }}" aria-label="Next">
+                    <a class="page-link" href="{{ url_for('view_audit_logs', page=page+1, **request.args) }}" aria-label="Next">
                         <span aria-hidden="true">&raquo;</span>
                     </a>
                 </li>
