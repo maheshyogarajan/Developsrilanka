@@ -604,48 +604,113 @@ def update_expense_ajax(expense_id):
 @login_required
 def get_receipt_image(receipt_id):
     """
-    Get the receipt image. Will try to use thumbnail for better performance.
-    This route is used specifically by the expense report print template.
+    Get the receipt image with security and performance optimizations.
+    Supports parameters:
+    - thumbnail: Whether to use thumbnail (true/false)
+    - format: Output format (jpg, png, webp)
     """
     receipt = Receipt.query.get_or_404(receipt_id)
     
-    # Check if the user has permission to view this receipt
+    # Enhanced permission check
     if receipt.user_id != current_user.id:
         # If not the owner, check if user has organization permission
         if receipt.organization_id:
             if not check_organization_permission(
                 current_user.id, 
                 receipt.organization_id, 
-                ['owner', 'admin', 'member']
+                ['owner', 'admin', 'member', 'viewer']  # Added viewer role for read-only access
             ):
                 abort(403, "You don't have permission to view this receipt's image")
         else:
             abort(403, "You don't have permission to view this receipt's image")
     
-    # Determine whether to use thumbnail or full image
+    # Log the access for auditing
+    logging.info(f"User {current_user.id} accessed image for receipt {receipt_id}")
+    
+    # Parse parameters
     use_thumbnail = request.args.get('thumbnail', 'true').lower() in ('true', '1', 'yes')
+    format_requested = request.args.get('format', 'original').lower()
     
-    # Use the centralized image URL generator from utils
-    from utils import get_receipt_image_url
-    image_url = get_receipt_image_url(receipt, prefer_s3=True, prefer_thumbnail=use_thumbnail)
+    # Decide on content type based on format
+    content_types = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp'
+    }
     
-    # If we got a URL, redirect to it
-    if image_url and image_url.startswith(('http://', 'https://')):
-        return redirect(image_url)
-    
-    # For local files, use Flask's send_file
-    if image_url and image_url.startswith('/static/'):
-        import os
-        from flask import send_file
-        file_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            image_url.lstrip('/')
-        )
-        if os.path.exists(file_path):
-            return send_file(file_path)
-    
-    # Fall back to a placeholder image
-    return redirect('/static/img/receipt-placeholder.svg')
+    try:
+        # Try S3 first if available
+        if receipt.s3_key:
+            # Determine which S3 key to use (thumbnail or original)
+            s3_key = receipt.thumbnail_s3_key if (use_thumbnail and receipt.thumbnail_s3_key) else receipt.s3_key
+            
+            try:
+                # Get image from S3
+                import io
+                from s3_storage import S3Storage
+                
+                s3 = S3Storage()
+                image = s3.get_image(s3_key)
+                
+                if image:
+                    # Convert to requested format if needed
+                    if format_requested != 'original' and format_requested in content_types:
+                        img_io = io.BytesIO()
+                        image.save(img_io, format=format_requested.upper())
+                        img_io.seek(0)
+                        image_data = img_io.getvalue()
+                    else:
+                        # Use original format
+                        img_io = io.BytesIO()
+                        image.save(img_io, format=image.format)
+                        img_io.seek(0)
+                        image_data = img_io.getvalue()
+                    
+                    # Prepare the response with the image data
+                    from flask import make_response
+                    response = make_response(image_data)
+                    
+                    # Set appropriate content type
+                    if format_requested != 'original' and format_requested in content_types:
+                        content_type = content_types[format_requested]
+                    else:
+                        ext = s3_key.rsplit('.', 1)[-1].lower() if '.' in s3_key else 'jpg'
+                        content_type = content_types.get(ext, 'image/jpeg')
+                    
+                    response.headers['Content-Type'] = content_type
+                    
+                    # Add caching headers for better performance
+                    response.headers['Cache-Control'] = 'public, max-age=86400'  # 1 day
+                    return response
+            except Exception as s3_error:
+                logging.error(f"Error retrieving S3 image for receipt {receipt_id}: {str(s3_error)}")
+                # Continue to try local file if S3 fails
+        
+        # Next try local file if available
+        if receipt.image_path:
+            import os
+            from flask import send_file
+            
+            # Handle the case where image_path might be a full path or relative
+            if receipt.image_path.startswith('/'):
+                file_path = receipt.image_path
+            else:
+                file_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    'static/uploads',
+                    receipt.image_path
+                )
+            
+            if os.path.exists(file_path):
+                return send_file(file_path, mimetype='image/jpeg', cache_timeout=86400)
+        
+        # If we got here, return a placeholder
+        return redirect('/static/img/receipt-placeholder.svg')
+        
+    except Exception as e:
+        logging.error(f"Error serving receipt image {receipt_id}: {str(e)}")
+        return redirect('/static/img/receipt-placeholder.svg')
 
 @expense_bp.route('/receipts/<int:receipt_id>/create-expense', methods=['GET', 'POST'])
 @login_required
