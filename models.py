@@ -1,9 +1,46 @@
 from app import db
 from datetime import datetime
 import json
+import logging
 from flask_login import UserMixin
 from enum import Enum
 from onboarding_models import OnboardingProgress
+
+
+class AuditLog(db.Model):
+    """Model for tracking data changes."""
+    id = db.Column(db.Integer, primary_key=True)
+    entity_type = db.Column(db.String(50), nullable=False)  # 'receipt', 'receipt_item', etc.
+    entity_id = db.Column(db.Integer, nullable=False)       # ID of the entity being modified
+    action = db.Column(db.String(20), nullable=False)       # 'INSERT', 'UPDATE', 'DELETE'
+    changed_fields = db.Column(db.JSON, nullable=False)     # JSON object of field_name: {old_value, new_value}
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    ip_address = db.Column(db.String(50), nullable=True)
+    user_agent = db.Column(db.Text, nullable=True)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('audit_logs', lazy=True))
+    
+    def to_dict(self):
+        """Convert the audit log to a dictionary."""
+        result = {
+            'id': self.id,
+            'entity_type': self.entity_type,
+            'entity_id': self.entity_id,
+            'action': self.action,
+            'changed_fields': self.changed_fields,
+            'timestamp': self.timestamp.isoformat(),
+            'ip_address': self.ip_address or '',
+            'user_agent': self.user_agent or ''
+        }
+        
+        if self.user_id and self.user:
+            result['user_id'] = self.user_id
+            result['user_name'] = self.user.name
+            result['user_email'] = self.user.email
+            
+        return result
 
 class InvoiceStatus(Enum):
     DRAFT = "draft"
@@ -289,7 +326,49 @@ class Receipt(db.Model):
     thumbnail_s3_key = db.Column(db.String(255), nullable=True)  # S3 object key for receipt thumbnail
     expense_major_category = db.Column(db.String(100), nullable=True)
     expense_minor_category = db.Column(db.String(100), nullable=True)
+    
+    # New fields for tracking original extraction data
+    original_extracted_text = db.Column(db.Text, nullable=True)  # Raw extracted text from the AI model
+    extraction_confidence = db.Column(db.Float, nullable=True)  # Confidence score of the extraction
+    extraction_model = db.Column(db.String(100), nullable=True)  # Model used for extraction
+    correction_count = db.Column(db.Integer, default=0)  # Number of corrections made by users
+    
     items = db.relationship('ReceiptItem', backref='receipt', lazy=True, cascade='all, delete-orphan')
+    
+    def record_edit(self, user_id, changed_fields, ip_address=None, user_agent=None):
+        """
+        Record edits to a receipt in the audit log.
+        
+        Args:
+            user_id: ID of the user making the edit
+            changed_fields: Dictionary of {field_name: {'old': old_value, 'new': new_value}}
+            ip_address: IP address of the user (optional)
+            user_agent: User agent string (optional)
+            
+        Returns:
+            The created AuditLog instance
+        """
+        try:
+            audit = AuditLog(
+                entity_type='receipt',
+                entity_id=self.id,
+                action='UPDATE',
+                changed_fields=changed_fields,
+                user_id=user_id,
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+            db.session.add(audit)
+            
+            # Increment correction count
+            self.correction_count += 1
+            
+            # Don't commit here - let the caller handle the transaction
+            
+            return audit
+        except Exception as e:
+            logging.error(f"Error recording receipt edit: {str(e)}")
+            return None
     
     @property
     def s3_url(self):
