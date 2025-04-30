@@ -96,6 +96,12 @@
                     <span>System Logs</span>
                 </a>
             </li>
+            <li class="nav-item">
+                <a href="{{ url_for('view_audit_logs') }}" class="nav-link {% if request.path == '/admin/v2/audit-logs' %}active{% endif %}">
+                    <i class="fas fa-history"></i>
+                    <span>Audit Logs</span>
+                </a>
+            </li>
         </ul>
         
         <div class="admin-sidebar-section">Actions</div>
