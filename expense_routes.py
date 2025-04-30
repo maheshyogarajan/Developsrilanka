@@ -44,28 +44,34 @@ def add_watermark(image, text):
     
     # Calculate text size
     try:
-        textwidth, textheight = draw.textsize(text, font=font)
-    except AttributeError:
         # For newer Pillow versions
-        textwidth, textheight = draw.textbbox((0, 0), text, font=font)[2:4]
+        left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+        textwidth = right - left
+        textheight = bottom - top
+    except AttributeError:
+        # For older Pillow versions
+        try:
+            textwidth, textheight = draw.textsize(text, font=font)
+        except:
+            # Fallback measurements
+            textwidth = width * 0.5  # Estimate width as 50% of image
+            textheight = width * 0.05  # Estimate height as 5% of image width
     
     # Position for center bottom of the image
     x = (width - textwidth) / 2
     y = height - textheight - 10  # 10 pixels from the bottom
     
-    # Semi-transparent white background for the text
-    try:
-        # For PIL with RGBA support
-        draw.rectangle(
-            [(x-5, y-5), (x + textwidth + 5, y + textheight + 5)],
-            fill=(255, 255, 255, 128)
-        )
-    except TypeError:
-        # For older PIL versions that don't support alpha in RGB mode
-        draw.rectangle(
-            [(x-5, y-5), (x + textwidth + 5, y + textheight + 5)],
-            fill=(255, 255, 255)
-        )
+    # Create a white background for the text (simplifying to avoid PIL version issues)
+    left = int(x - 5)
+    top = int(y - 5)
+    right = int(x + textwidth + 5)
+    bottom = int(y + textheight + 5)
+    
+    # Use a simple fill with white color
+    draw.rectangle(
+        (left, top, right, bottom),
+        fill=(255, 255, 255)
+    )
     
     # Draw the text in a dark color
     draw.text((x, y), text, fill=(50, 50, 50, 255), font=font)
@@ -771,7 +777,25 @@ def get_receipt_image(receipt_id):
                 )
             
             if os.path.exists(file_path):
-                return send_file(file_path, mimetype='image/jpeg', cache_timeout=86400)
+                # Read the image, add watermark, then send
+                try:
+                    # Open the image with PIL
+                    local_image = Image.open(file_path)
+                    
+                    # Add watermark
+                    watermarked_image = add_watermark(local_image, "www.developsrilanka.com")
+                    
+                    # Save to a BytesIO object
+                    img_io = io.BytesIO()
+                    watermarked_image.save(img_io, format=watermarked_image.format or 'JPEG')
+                    img_io.seek(0)
+                    
+                    # Return the image with correct headers
+                    return send_file(img_io, mimetype='image/jpeg', cache_timeout=86400)
+                except Exception as local_error:
+                    logging.error(f"Error adding watermark to local image: {str(local_error)}")
+                    # Fallback to original image if watermarking fails
+                    return send_file(file_path, mimetype='image/jpeg', cache_timeout=86400)
         
         # If we got here, return a placeholder
         return redirect('/static/img/receipt-placeholder.svg')
