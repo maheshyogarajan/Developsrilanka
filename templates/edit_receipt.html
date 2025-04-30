@@ -403,9 +403,9 @@
                     </div>
                     <div class="card-body text-center">
                         <div class="receipt-frame">
-                            {% if receipt.image_url %}
+                            {% if receipt.id %}
                                 <div class="receipt-thumbnail-container">
-                                    <img src="{{ receipt.thumbnail_url or receipt.image_url }}" alt="Receipt" class="receipt-image"
+                                    <img src="{{ url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='true') }}" alt="Receipt" class="receipt-image"
                                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');">
                                 </div>
                             {% else %}
