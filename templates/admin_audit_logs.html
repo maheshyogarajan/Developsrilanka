@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "admin_v2/layout.html" %}
 
 {% block title %}Admin: Audit Logs{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="container">
     <h1 class="mb-4">Audit Logs</h1>
     
@@ -11,7 +11,7 @@
             <h5 class="mb-0">Filters</h5>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ url_for('admin_v2.view_audit_logs') }}">
+            <form method="GET" action="{{ url_for('view_audit_logs') }}">
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <label for="entity_type">Entity Type</label>
@@ -134,7 +134,7 @@
         <nav aria-label="Page navigation">
             <ul class="pagination">
                 <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin_v2.view_audit_logs', page=page-1, **request.args) }}" aria-label="Previous">
+                    <a class="page-link" href="{{ url_for('view_audit_logs', page=page-1, **request.args) }}" aria-label="Previous">
                         <span aria-hidden="true">&laquo;</span>
                     </a>
                 </li>
@@ -144,7 +144,7 @@
                 
                 {% if start_page > 1 %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin_v2.view_audit_logs', page=1, **request.args) }}">1</a>
+                    <a class="page-link" href="{{ url_for('view_audit_logs', page=1, **request.args) }}">1</a>
                 </li>
                 {% if start_page > 2 %}
                 <li class="page-item disabled">
@@ -155,7 +155,7 @@
                 
                 {% for p in range(start_page, end_page + 1) %}
                 <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin_v2.view_audit_logs', page=p, **request.args) }}">{{ p }}</a>
+                    <a class="page-link" href="{{ url_for('view_audit_logs', page=p, **request.args) }}">{{ p }}</a>
                 </li>
                 {% endfor %}
                 
@@ -166,7 +166,7 @@
                 </li>
                 {% endif %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin_v2.view_audit_logs', page=pages, **request.args) }}">{{ pages }}</a>
+                    <a class="page-link" href="{{ url_for('view_audit_logs', page=pages, **request.args) }}">{{ pages }}</a>
                 </li>
                 {% endif %}
                 
