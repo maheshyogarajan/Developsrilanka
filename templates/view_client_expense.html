@@ -135,9 +135,9 @@
                     <div class="mt-4">
                         <h6 class="text-center">Receipt Image</h6>
                         <div class="receipt-frame">
-                            {% if receipt.image_url %}
-                            <a href="{{ receipt.image_url }}" target="_blank">
-                                <img src="{{ receipt.image_url }}" 
+                            {% if receipt.id %}
+                            <a href="{{ url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false') }}" target="_blank">
+                                <img src="{{ url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='true') }}" 
                                      class="receipt-image" 
                                      alt="Receipt Image"
                                      onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}'; this.classList.add('no-image-placeholder'); this.parentNode.insertAdjacentHTML('afterend', '<span class=\'placeholder-text\'>Image failed to load</span>');"
@@ -151,9 +151,17 @@
                             </div>
                             {% endif %}
                         </div>
-                        {% if receipt.image_url %}
+                        {% if receipt.id %}
                         <div class="text-center mt-2">
                             <small class="text-muted">Click image to view full size</small>
+                            <div class="btn-group btn-group-sm mt-2">
+                                <a href="{{ url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false', format='jpg') }}" 
+                                   class="btn btn-outline-secondary" target="_blank">JPG</a>
+                                <a href="{{ url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false', format='png') }}" 
+                                   class="btn btn-outline-secondary" target="_blank">PNG</a>
+                                <a href="{{ url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false', format='webp') }}" 
+                                   class="btn btn-outline-secondary" target="_blank">WebP</a>
+                            </div>
                         </div>
                         {% endif %}
                     </div>
