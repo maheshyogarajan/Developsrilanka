@@ -12,7 +12,7 @@ from sqlalchemy import text, or_, and_, func
 from sqlalchemy.orm import joinedload
 from models import (
     Receipt, ReceiptItem, CompanyExpense, ClientExpense, Client, 
-    ExpenseStatus, Organization, User, OrganizationUser
+    ExpenseStatus, Organization, User, OrganizationUser, AuditLog
 )
 from app import db
 from utils import format_currency
@@ -621,45 +621,94 @@ def process_receipt_update(receipt_id):
         # Remove organization association (convert to personal receipt)
         receipt.organization_id = None
     
-    # Update receipt basic details
-    receipt.vendor_name = request.form.get('vendor_name', receipt.vendor_name)
-    receipt.vendor_address = request.form.get('vendor_address', receipt.vendor_address)
-    receipt.vendor_contact = request.form.get('vendor_contact', receipt.vendor_contact)
-    receipt.vat_registration_number = request.form.get('vat_registration_number', receipt.vat_registration_number)
-    receipt.receipt_number = request.form.get('receipt_number', receipt.receipt_number)
+    # Track changes for audit log
+    changed_fields = {}
     
+    # Update receipt basic details and track changes
+    new_vendor_name = request.form.get('vendor_name', receipt.vendor_name)
+    if new_vendor_name != receipt.vendor_name:
+        changed_fields['vendor_name'] = {'old': receipt.vendor_name, 'new': new_vendor_name}
+        receipt.vendor_name = new_vendor_name
+    
+    new_vendor_address = request.form.get('vendor_address', receipt.vendor_address)
+    if new_vendor_address != receipt.vendor_address:
+        changed_fields['vendor_address'] = {'old': receipt.vendor_address, 'new': new_vendor_address}
+        receipt.vendor_address = new_vendor_address
+    
+    new_vendor_contact = request.form.get('vendor_contact', receipt.vendor_contact)
+    if new_vendor_contact != receipt.vendor_contact:
+        changed_fields['vendor_contact'] = {'old': receipt.vendor_contact, 'new': new_vendor_contact}
+        receipt.vendor_contact = new_vendor_contact
+    
+    new_vat_registration_number = request.form.get('vat_registration_number', receipt.vat_registration_number)
+    if new_vat_registration_number != receipt.vat_registration_number:
+        changed_fields['vat_registration_number'] = {'old': receipt.vat_registration_number, 'new': new_vat_registration_number}
+        receipt.vat_registration_number = new_vat_registration_number
+    
+    new_receipt_number = request.form.get('receipt_number', receipt.receipt_number)
+    if new_receipt_number != receipt.receipt_number:
+        changed_fields['receipt_number'] = {'old': receipt.receipt_number, 'new': new_receipt_number}
+        receipt.receipt_number = new_receipt_number
+    
+    # Handle date with special formatting
     try:
         if request.form.get('date'):
-            receipt.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d')
+            new_date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+            if new_date != receipt.date:
+                changed_fields['date'] = {
+                    'old': receipt.date.strftime('%Y-%m-%d') if receipt.date else None, 
+                    'new': new_date.strftime('%Y-%m-%d')
+                }
+                receipt.date = new_date
     except ValueError:
         flash('Invalid date format', 'warning')
     
+    # Handle numeric fields with proper type checking
     try:
         if request.form.get('total_amount'):
-            receipt.total_amount = float(request.form.get('total_amount'))
+            new_total_amount = float(request.form.get('total_amount'))
+            if new_total_amount != receipt.total_amount:
+                changed_fields['total_amount'] = {'old': receipt.total_amount, 'new': new_total_amount}
+                receipt.total_amount = new_total_amount
     except ValueError:
         flash('Invalid amount format', 'warning')
         
     try:
         if request.form.get('service_charge'):
-            receipt.service_charge = float(request.form.get('service_charge'))
+            new_service_charge = float(request.form.get('service_charge'))
+            if new_service_charge != receipt.service_charge:
+                changed_fields['service_charge'] = {'old': receipt.service_charge, 'new': new_service_charge}
+                receipt.service_charge = new_service_charge
     except ValueError:
         flash('Invalid service charge format', 'warning')
 
     try:
         if request.form.get('vat_tax'):
-            receipt.vat_tax = float(request.form.get('vat_tax'))
+            new_vat_tax = float(request.form.get('vat_tax'))
+            if new_vat_tax != receipt.vat_tax:
+                changed_fields['vat_tax'] = {'old': receipt.vat_tax, 'new': new_vat_tax}
+                receipt.vat_tax = new_vat_tax
     except ValueError:
         flash('Invalid VAT tax format', 'warning')
 
     try:
         if request.form.get('sscl_tax'):
-            receipt.sscl_tax = float(request.form.get('sscl_tax'))
+            new_sscl_tax = float(request.form.get('sscl_tax'))
+            if new_sscl_tax != receipt.sscl_tax:
+                changed_fields['sscl_tax'] = {'old': receipt.sscl_tax, 'new': new_sscl_tax}
+                receipt.sscl_tax = new_sscl_tax
     except ValueError:
         flash('Invalid SSCL tax format', 'warning')
     
-    receipt.expense_major_category = request.form.get('expense_major_category', receipt.expense_major_category)
-    receipt.expense_minor_category = request.form.get('expense_minor_category', receipt.expense_minor_category)
+    new_expense_major_category = request.form.get('expense_major_category', receipt.expense_major_category)
+    if new_expense_major_category != receipt.expense_major_category:
+        changed_fields['expense_major_category'] = {'old': receipt.expense_major_category, 'new': new_expense_major_category}
+        receipt.expense_major_category = new_expense_major_category
+    
+    new_expense_minor_category = request.form.get('expense_minor_category', receipt.expense_minor_category)
+    if new_expense_minor_category != receipt.expense_minor_category:
+        changed_fields['expense_minor_category'] = {'old': receipt.expense_minor_category, 'new': new_expense_minor_category}
+        receipt.expense_minor_category = new_expense_minor_category
     
     # Handle receipt type change
     receipt_type = request.form.get('receipt_type')
@@ -713,6 +762,19 @@ def process_receipt_update(receipt_id):
     # Calculate tax deductible amount based on receipt items
     # Will be updated when items are saved
     
+    # Create audit log entry if there were changes
+    if changed_fields:
+        # Record the edit with the current user's information
+        receipt.record_edit(
+            user_id=current_user.id,
+            changed_fields=changed_fields,
+            ip_address=request.remote_addr,
+            user_agent=request.user_agent.string if request.user_agent else None
+        )
+        
+        # Increment the correction count
+        receipt.correction_count += 1
+    
     db.session.commit()
     flash('Receipt updated successfully', 'success')
     return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
@@ -751,6 +813,7 @@ def update_receipt_items(receipt_id):
     
     # Update items
     total_tax_deductible = 0
+    changed_items = {}
     
     for i in range(len(item_ids)):
         if i < len(descriptions) and i < len(quantities) and i < len(unit_prices) and i < len(amounts):
@@ -758,25 +821,73 @@ def update_receipt_items(receipt_id):
             item = ReceiptItem.query.get(item_id)
             
             if item and item.receipt_id == receipt_id:
-                item.description = descriptions[i]
+                # Track changes for each item
+                item_changes = {}
+                
+                # Check for description changes
+                if item.description != descriptions[i]:
+                    item_changes['description'] = {'old': item.description, 'new': descriptions[i]}
+                    item.description = descriptions[i]
                 
                 try:
-                    item.quantity = float(quantities[i]) if quantities[i] else None
-                    item.unit_price = float(unit_prices[i]) if unit_prices[i] else None
-                    item.amount = float(amounts[i]) if amounts[i] else None
+                    # Check for quantity changes
+                    new_quantity = float(quantities[i]) if quantities[i] else None
+                    if item.quantity != new_quantity:
+                        item_changes['quantity'] = {'old': item.quantity, 'new': new_quantity}
+                        item.quantity = new_quantity
+                    
+                    # Check for unit price changes
+                    new_unit_price = float(unit_prices[i]) if unit_prices[i] else None
+                    if item.unit_price != new_unit_price:
+                        item_changes['unit_price'] = {'old': item.unit_price, 'new': new_unit_price}
+                        item.unit_price = new_unit_price
+                    
+                    # Check for amount changes
+                    new_amount = float(amounts[i]) if amounts[i] else None
+                    if item.amount != new_amount:
+                        item_changes['amount'] = {'old': item.amount, 'new': new_amount}
+                        item.amount = new_amount
                 except ValueError:
                     flash(f'Invalid number format for item: {descriptions[i]}', 'warning')
                     continue
                 
-                # Set tax deductible status
-                item.tax_deductible = str(item_id) in tax_deductible_ids
+                # Check for tax deductible status changes
+                new_tax_deductible = str(item_id) in tax_deductible_ids
+                if item.tax_deductible != new_tax_deductible:
+                    item_changes['tax_deductible'] = {'old': item.tax_deductible, 'new': new_tax_deductible}
+                    item.tax_deductible = new_tax_deductible
+                
+                # If this item had changes, add to the changed_items dictionary
+                if item_changes:
+                    changed_items[f'item_{item_id}'] = item_changes
                 
                 # Calculate tax deductible amount
                 if item.tax_deductible and item.amount:
                     total_tax_deductible += item.amount
     
     # Update receipt with total tax deductible amount
+    old_tax_deductible_amount = receipt.tax_deductible_amount
     receipt.tax_deductible_amount = total_tax_deductible
+    
+    # If tax deductible amount changed, add to the changed_items
+    if old_tax_deductible_amount != total_tax_deductible:
+        changed_items['tax_deductible_amount'] = {
+            'old': old_tax_deductible_amount, 
+            'new': total_tax_deductible
+        }
+    
+    # Create audit log entry if there were changes
+    if changed_items:
+        # Record the edit with the current user's information
+        receipt.record_edit(
+            user_id=current_user.id,
+            changed_fields=changed_items,
+            ip_address=request.remote_addr,
+            user_agent=request.user_agent.string if request.user_agent else None
+        )
+        
+        # Increment the correction count
+        receipt.correction_count += 1
     
     db.session.commit()
     flash('Receipt items updated successfully', 'success')
