@@ -15,7 +15,7 @@ from io import BytesIO
 import random
 
 from app import app, db
-from models import User, Receipt, ReceiptItem, UserIncome
+from models import User, Receipt, ReceiptItem, UserIncome, AuditLog
 from decorators import admin_required
 from image_processor import cleanup_temp_files
 
@@ -956,3 +956,65 @@ def admin_panel_update_categories():
         flash(f'Error updating categories: {str(e)}', 'danger')
         app.logger.error(f'Admin update categories error: {str(e)}')
         return redirect(url_for('admin_panel_settings'))
+
+# Audit Logs
+@app.route('/admin/v2/audit-logs')
+@admin_required
+def view_audit_logs():
+    """View the audit logs with filtering."""
+    try:
+        # Get filtering and pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 20  # Show more audit logs per page
+        
+        # Build query with filters
+        query = AuditLog.query
+        
+        # Apply entity type filter
+        entity_type = request.args.get('entity_type')
+        if entity_type:
+            query = query.filter(AuditLog.entity_type == entity_type)
+        
+        # Apply entity ID filter
+        entity_id = request.args.get('entity_id')
+        if entity_id:
+            query = query.filter(AuditLog.entity_id == entity_id)
+        
+        # Apply user ID filter
+        user_id = request.args.get('user_id')
+        if user_id:
+            query = query.filter(AuditLog.user_id == user_id)
+        
+        # Apply action filter
+        action = request.args.get('action')
+        if action:
+            query = query.filter(AuditLog.action == action)
+        
+        # Apply date range filters
+        start_date = request.args.get('start_date')
+        if start_date:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= start_datetime)
+            
+        end_date = request.args.get('end_date')
+        if end_date:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            # Add a day to include the entire end day
+            end_datetime = end_datetime + timedelta(days=1)
+            query = query.filter(AuditLog.timestamp < end_datetime)
+        
+        # Get paginated results with latest logs first
+        logs_pagination = query.order_by(AuditLog.timestamp.desc()).paginate(
+            page=page, per_page=per_page, error_out=False)
+            
+        return render_template(
+            'admin_audit_logs.html',
+            logs=logs_pagination.items,
+            page=page,
+            pages=logs_pagination.pages,
+            total=logs_pagination.total
+        )
+    except Exception as e:
+        flash(f'Error viewing audit logs: {str(e)}', 'danger')
+        app.logger.error(f'Admin audit logs error: {str(e)}')
+        return redirect(url_for('admin_panel_home'))
