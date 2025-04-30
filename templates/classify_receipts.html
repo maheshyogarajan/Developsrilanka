@@ -163,14 +163,9 @@
                                 <div class="card-body p-3 text-center">
                                     <!-- Thumbnail preview that opens the modal when clicked -->
                                     <div class="receipt-thumbnail-container" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#receiptImageModal">
-                                        {% if current_receipt.thumbnail_url %}
-                                        <img src="{{ current_receipt.thumbnail_url }}" 
+                                        {% if current_receipt.id %}
+                                        <img src="{{ url_for('expense.get_receipt_image', receipt_id=current_receipt.id, thumbnail='true') }}" 
                                              alt="Receipt Thumbnail" class="img-fluid thumbnail-preview"
-                                             style="max-height: 150px; border-radius: 5px;"
-                                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
-                                        {% elif current_receipt.image_url %}
-                                        <img src="{{ current_receipt.image_url }}" 
-                                             alt="Receipt Image" class="img-fluid thumbnail-preview"
                                              style="max-height: 150px; border-radius: 5px;"
                                              onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
                                         {% else %}
@@ -207,12 +202,20 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body text-center">
-                                <!-- Always use the centralized image_url property for consistency -->
-                                {% if current_receipt.image_url %}
-                                <img src="{{ current_receipt.image_url }}" 
+                                <!-- Use secure server-side proxied URLs -->
+                                {% if current_receipt.id %}
+                                <img src="{{ url_for('expense.get_receipt_image', receipt_id=current_receipt.id, thumbnail='false') }}" 
                                      alt="Receipt Image" class="img-fluid"
                                      style="max-height: 600px;"
                                      onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/receipt-placeholder.svg') }}';">
+                                <div class="btn-group btn-group-sm mt-3">
+                                    <a href="{{ url_for('expense.get_receipt_image', receipt_id=current_receipt.id, thumbnail='false', format='jpg') }}" 
+                                       class="btn btn-outline-secondary" target="_blank">JPG</a>
+                                    <a href="{{ url_for('expense.get_receipt_image', receipt_id=current_receipt.id, thumbnail='false', format='png') }}" 
+                                       class="btn btn-outline-secondary" target="_blank">PNG</a>
+                                    <a href="{{ url_for('expense.get_receipt_image', receipt_id=current_receipt.id, thumbnail='false', format='webp') }}" 
+                                       class="btn btn-outline-secondary" target="_blank">WebP</a>
+                                </div>
                                 {% else %}
                                 <div class="text-muted">
                                     <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" 
