@@ -34,7 +34,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h5 class="card-title mb-1">Complete Your Profile</h5>
+                                    <h5 class="card-title mb-1">Complete Your Profile <span class="badge bg-danger">Important</span></h5>
                                     <p class="card-text text-muted mb-2">Add your personal information and profile photo</p>
                                     <div class="mt-1">
                                         <a href="{{ url_for('profile') }}" class="btn btn-sm {% if progress.profile_completed %}btn-outline-success{% else %}btn-primary{% endif %}">
@@ -67,7 +67,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h5 class="card-title mb-1">Create an Organization</h5>
+                                    <h5 class="card-title mb-1">Create an Organization <span class="badge bg-danger">Important</span></h5>
                                     <p class="card-text text-muted mb-2">Set up your business or personal organization with branding</p>
                                     <div class="mt-1">
                                         <a href="{{ url_for('organizations.organizations') }}" class="btn btn-sm {% if progress.organization_created %}btn-outline-success{% else %}btn-primary{% endif %}">
@@ -106,7 +106,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h5 class="card-title mb-1">Set Up Bank Accounts</h5>
+                                    <h5 class="card-title mb-1">Set Up Bank Accounts <span class="badge bg-secondary">Optional</span></h5>
                                     <p class="card-text text-muted mb-2">Add your business or personal bank accounts for invoicing</p>
                                     <div class="mt-1">
                                         <a href="{{ url_for('bank_accounts') }}" class="btn btn-sm {% if progress.bank_account_added %}btn-outline-success{% else %}btn-primary{% endif %}">
@@ -139,7 +139,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h5 class="card-title mb-1">Invite Team Members</h5>
+                                    <h5 class="card-title mb-1">Invite Team Members <span class="badge bg-secondary">Optional</span></h5>
                                     <p class="card-text text-muted mb-2">Invite colleagues or team members to collaborate</p>
                                     <div class="mt-1">
                                         {% if default_organization %}
@@ -179,7 +179,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h5 class="card-title mb-1">Set Up Customers</h5>
+                                    <h5 class="card-title mb-1">Set Up Customers <span class="badge bg-secondary">Optional</span></h5>
                                     <p class="card-text text-muted mb-2">Add customers or clients for invoicing and expense tracking</p>
                                     <div class="mt-1">
                                         <a href="{{ url_for('clients.clients') }}" class="btn btn-sm {% if progress.customer_added %}btn-outline-success{% else %}btn-primary{% endif %}">
@@ -212,7 +212,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h5 class="card-title mb-1">Scan Your First Document</h5>
+                                    <h5 class="card-title mb-1">Scan Your First Document <span class="badge bg-secondary">Optional</span></h5>
                                     <p class="card-text text-muted mb-2">Process your first receipt using the AI-powered scan feature</p>
                                     <div class="mt-1">
                                         <a href="{{ url_for('index') }}" class="btn btn-sm {% if progress.document_scanned %}btn-outline-success{% else %}btn-primary{% endif %}">
