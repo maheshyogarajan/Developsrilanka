@@ -75,8 +75,14 @@
                                             {% if progress.organization_created %}View Organizations{% else %}Create Organization{% endif %}
                                         </a>
                                         
+                                        {% if not progress.organization_created and not user_has_organizations %}
+                                        <button class="btn btn-sm btn-success ms-2" id="setupPersonalFinancesBtn" onclick="setupPersonalFinances()">
+                                            <i class="fas fa-magic me-1"></i> Quick Setup: Personal Finances
+                                        </button>
+                                        {% endif %}
+                                        
                                         {% if not progress.organization_created %}
-                                        <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('organization')">
+                                        <button class="btn btn-sm btn-secondary ms-2" onclick="markStepComplete('organization')">
                                             <i class="fas fa-check me-1"></i> Mark Complete
                                         </button>
                                         {% endif %}
@@ -136,10 +142,17 @@
                                     <h5 class="card-title mb-1">Invite Team Members</h5>
                                     <p class="card-text text-muted mb-2">Invite colleagues or team members to collaborate</p>
                                     <div class="mt-1">
-                                        <a href="{{ url_for('team.team_dashboard') }}" class="btn btn-sm {% if progress.team_member_invited %}btn-outline-success{% else %}btn-primary{% endif %}">
+                                        {% if default_organization %}
+                                        <a href="{{ url_for('team.team_dashboard', org_id=default_organization.id) }}" class="btn btn-sm {% if progress.team_member_invited %}btn-outline-success{% else %}btn-primary{% endif %}">
                                             <i class="fas fa-users me-1"></i>
                                             {% if progress.team_member_invited %}Manage Team{% else %}Invite Team Members{% endif %}
                                         </a>
+                                        {% else %}
+                                        <a href="#" class="btn btn-sm {% if progress.team_member_invited %}btn-outline-success{% else %}btn-primary{% endif %} disabled" title="Please create an organization first">
+                                            <i class="fas fa-users me-1"></i>
+                                            {% if progress.team_member_invited %}Manage Team{% else %}Invite Team Members{% endif %}
+                                        </a>
+                                        {% endif %}
                                         
                                         {% if not progress.team_member_invited %}
                                         <button class="btn btn-sm btn-success ms-2" onclick="markStepComplete('team_member')">
@@ -278,6 +291,61 @@
         })
         .catch(error => {
             console.error('Error:', error);
+        });
+    }
+    
+    // Function to set up Personal Finances organization with one click
+    function setupPersonalFinances() {
+        // Show loading state
+        const btn = document.getElementById('setupPersonalFinancesBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Setting up...';
+        btn.disabled = true;
+        
+        // Call API endpoint to create Personal Finances organization
+        fetch('{{ url_for("getting_started.create_personal_finances") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message briefly before reload
+                const successMsg = document.createElement('div');
+                successMsg.className = 'alert alert-success mt-2';
+                successMsg.innerHTML = '<i class="fas fa-check-circle me-1"></i> ' + data.message;
+                btn.parentNode.appendChild(successMsg);
+                
+                // Reload page after a short delay to show updated progress
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'alert alert-danger mt-2';
+                errorMsg.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> ' + data.error;
+                btn.parentNode.appendChild(errorMsg);
+                
+                // Reset button
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Show generic error message
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'alert alert-danger mt-2';
+            errorMsg.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> An error occurred. Please try again.';
+            btn.parentNode.appendChild(errorMsg);
+            
+            // Reset button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         });
     }
     

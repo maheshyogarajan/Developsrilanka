@@ -40,6 +40,19 @@ def wizard():
     user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
     has_organizations = len(user_orgs) > 0
     
+    # Find default organization for links
+    default_organization = None
+    if has_organizations:
+        # First check for primary organization
+        for org_user in user_orgs:
+            if hasattr(org_user, 'is_primary') and org_user.is_primary:
+                default_organization = Organization.query.get(org_user.organization_id)
+                break
+        
+        # If no primary found, use the first one
+        if not default_organization and user_orgs:
+            default_organization = Organization.query.get(user_orgs[0].organization_id)
+    
     # Check if user has set up profile
     has_profile = current_user.name is not None
     
@@ -84,8 +97,72 @@ def wizard():
         db.session.commit()
     
     return render_template('getting_started.html', 
-                          progress=progress, 
+                          progress=progress,
+                          user_has_organizations=has_organizations,
+                          default_organization=default_organization,
                           completion_percentage=progress.get_completion_percentage())
+
+@getting_started_bp.route('/create-personal-finances', methods=['POST'])
+@login_required
+def create_personal_finances():
+    """Create a 'Personal Finances' organization for the current user."""
+    # Check if user already has any organizations
+    user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+    if user_orgs:
+        return jsonify({
+            'success': False,
+            'error': 'You already have organizations. Please use the existing ones.'
+        }), 400
+    
+    try:
+        # Determine the UserRole enum value for OWNER
+        from models import UserRole
+        owner_role = UserRole.OWNER.value
+        
+        # Create the organization
+        org = Organization(
+            name="Personal Finances",
+            type="PERSONAL",
+            description="My personal finances and expenses",
+            created_by_user_id=current_user.id,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(org)
+        db.session.flush()  # Get ID without committing
+        
+        # Create owner relationship
+        org_user = OrganizationUser(
+            user_id=current_user.id,
+            organization_id=org.id,
+            role=owner_role,
+            is_primary=True
+        )
+        db.session.add(org_user)
+        
+        # Update onboarding progress
+        progress = OnboardingProgress.query.filter_by(user_id=current_user.id).first()
+        if not progress:
+            progress = OnboardingProgress(user_id=current_user.id)
+            db.session.add(progress)
+        
+        progress.organization_created = True
+        db.session.commit()
+        
+        flash('Personal Finances organization created successfully!', 'success')
+        
+        return jsonify({
+            'success': True,
+            'organization_id': org.id,
+            'message': 'Personal Finances organization created successfully'
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating Personal Finances organization: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to create organization. Please try again or contact support.'
+        }), 500
 
 @getting_started_bp.route('/api/update', methods=['POST'])
 @login_required
