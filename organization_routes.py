@@ -851,7 +851,10 @@ def send_invitation_email(invitation):
 @login_required
 def list_organizations():
     """API endpoint to get all organizations for the current user."""
+    logger.debug(f"Fetching organizations list for user_id={current_user.id}")
     user_orgs = OrganizationUser.query.filter_by(user_id=current_user.id).all()
+    
+    logger.debug(f"Found {len(user_orgs)} organizations for user")
     
     organizations = []
     for org_user in user_orgs:
@@ -860,11 +863,14 @@ def list_organizations():
             'name': org_user.organization.name,
             'is_default': org_user.is_default
         })
+        logger.debug(f"Adding organization to list: id={org_user.organization_id}, name={org_user.organization.name}")
     
-    return jsonify({
+    response = {
         'success': True,
         'organizations': organizations
-    })
+    }
+    logger.debug(f"Returning organization list response: {response}")
+    return jsonify(response)
 
 @organizations_bp.route('/api/organizations')
 @login_required
