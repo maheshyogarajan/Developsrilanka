@@ -1114,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load organizations when company expense is checked
     function loadOrganizations() {
-        fetch('/organizations/list')
+        fetch('/api/user/organizations')
             .then(response => response.json())
             .then(data => {
                 if (data.organizations) {
@@ -1144,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load clients for a specific organization
     function loadClientsForOrganization(organizationId) {
-        fetch(`/clients/list?organization_id=${organizationId}`)
+        fetch(`/api/organization/${organizationId}/clients`)
             .then(response => response.json())
             .then(data => {
                 // Clear existing options except the default
