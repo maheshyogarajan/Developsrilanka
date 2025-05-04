@@ -484,6 +484,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (pageTitleElement) {
                     pageTitleElement.textContent = 'Edit Receipt Details';
                 }
+                
+                // Transfer organization context to detailed form
+                const detailFormToggle = document.getElementById('is_company_expense');
+                const detailFormOrgSelect = document.getElementById('expense_organization_id');
+                const detailFormClientSelect = document.getElementById('expense_client_id');
+                
+                if (detailFormToggle && formData.is_company_expense !== undefined) {
+                    detailFormToggle.checked = formData.is_company_expense;
+                    
+                    // Initialize company expense details visibility
+                    const companyExpenseDetails = document.getElementById('company-expense-details');
+                    if (companyExpenseDetails) {
+                        companyExpenseDetails.style.display = formData.is_company_expense ? 'block' : 'none';
+                    }
+                }
+                
+                // Transfer organization ID if it's a company expense
+                if (detailFormOrgSelect && formData.expense_organization_id && formData.is_company_expense) {
+                    detailFormOrgSelect.value = formData.expense_organization_id;
+                }
+                
+                // Transfer client ID if available
+                if (detailFormClientSelect && formData.expense_client_id && formData.is_company_expense) {
+                    detailFormClientSelect.value = formData.expense_client_id;
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
