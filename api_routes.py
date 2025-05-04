@@ -66,6 +66,7 @@ def api_user_organizations():
         
         # Convert to list of dictionaries
         organizations = []
+        app.logger.debug(f"Found {len(org_users)} organizations for user_id={current_user.id}")
         for org_id, name, role, is_default in org_users:
             organizations.append({
                 'id': org_id,
@@ -73,6 +74,7 @@ def api_user_organizations():
                 'role': role,
                 'is_default': is_default
             })
+            app.logger.debug(f"Adding organization: id={org_id}, name={name}, role={role}, is_default={is_default}")
         
         return jsonify({
             'organizations': organizations,
