@@ -137,27 +137,40 @@
                 </div>
             </div>
             
-            <!-- Organization Selection -->
-            <div class="row mt-3" id="organization-context-container" style="display: none;">
+            <!-- Simplified Organization Selection -->
+            <div class="row mt-3" id="expense-type-container">
                 <div class="col-12">
                     <div class="card border-info">
                         <div class="card-header bg-info text-white">
                             <h6 class="mb-0">Where would you like to save this receipt?</h6>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6 mb-2">
-                                    <label for="receipt_organization_id" class="form-label">Organization</label>
-                                    <select class="form-select" id="receipt_organization_id">
-                                        <!-- Organizations will be loaded dynamically -->
-                                    </select>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="expense_type_toggle">
+                                    <label class="form-check-label fw-bold" for="expense_type_toggle">
+                                        <span class="expense-type-label">Personal Expense</span>
+                                        <span class="expense-type-toggle-text">Toggle for Company Expense</span>
+                                    </label>
                                 </div>
-                                <div class="col-md-6 mb-2">
-                                    <label for="receipt_expense_type" class="form-label">Expense Type</label>
-                                    <select class="form-select" id="receipt_expense_type">
-                                        <option value="personal">Personal Expense</option>
-                                        <option value="company">Company Expense</option>
-                                    </select>
+                            </div>
+                            
+                            <!-- Company Expense Fields (hidden by default) -->
+                            <div id="company-expense-fields" class="d-none">
+                                <div class="row">
+                                    <div class="col-md-7 mb-2">
+                                        <label for="company_organization_id" class="form-label">Organization</label>
+                                        <select class="form-select" id="company_organization_id">
+                                            <!-- Organizations will be loaded dynamically -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5 mb-2">
+                                        <label for="expense_client_id" class="form-label">Client (Optional)</label>
+                                        <select class="form-select" id="expense_client_id">
+                                            <option value="" selected>Select Client (Optional)</option>
+                                            <!-- Clients will be loaded dynamically -->
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -168,11 +181,8 @@
             <!-- Action Buttons -->
             <div class="row mt-4">
                 <div class="col-12 text-center">
-                    <button type="button" class="btn btn-primary btn-lg me-2" id="scan-another-btn">
-                        <i class="fas fa-camera me-2"></i> Save & Scan Another
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-lg" id="see-details-btn">
-                        <i class="fas fa-list-ul me-2"></i> See Details
+                    <button type="button" class="btn btn-primary btn-lg" id="next-btn">
+                        <i class="fas fa-arrow-right me-2"></i> Next
                     </button>
                 </div>
             </div>
@@ -272,14 +282,17 @@
                 </div>
             </div>
             
-            <!-- Company Expense Section -->
+            <!-- Company Expense Section (Synced with the first screen) -->
             <div class="row mt-3">
                 <div class="col-12">
                     <div class="card border-primary">
                         <div class="card-header bg-primary text-white">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="is_company_expense" name="is_company_expense">
-                                <label class="form-check-label" for="is_company_expense">Submit as Company Expense</label>
+                                <label class="form-check-label fw-bold" for="is_company_expense">
+                                    <span class="expense-type-label">Personal Expense</span>
+                                    <span class="expense-type-toggle-text">Toggle for Company Expense</span>
+                                </label>
                             </div>
                         </div>
                         <div class="card-body company-expense-details" id="company-expense-details" style="display: none;">
@@ -292,9 +305,9 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="expense_client_id" class="form-label">Client (Optional)</label>
-                                    <select class="form-select" id="expense_client_id" name="expense_client_id">
-                                        <option value="" selected>No client selected</option>
+                                    <label for="expense_detail_client_id" class="form-label">Client (Optional)</label>
+                                    <select class="form-select" id="expense_detail_client_id" name="expense_detail_client_id">
+                                        <option value="" selected>Select Client (Optional)</option>
                                         <!-- Clients will be loaded dynamically based on selected organization -->
                                     </select>
                                 </div>
@@ -356,5 +369,114 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script src="{{ url_for('static', filename='js/improved-context.js') }}"></script>
+<script>
+// Add some styling for the toggle
+document.addEventListener('DOMContentLoaded', function() {
+    // Update toggle label text based on state
+    const updateToggleLabel = function(toggle) {
+        const label = toggle.closest('.form-check').querySelector('.expense-type-label');
+        if (toggle.checked) {
+            label.textContent = 'Company Expense';
+            label.classList.add('text-primary');
+        } else {
+            label.textContent = 'Personal Expense';
+            label.classList.remove('text-primary');
+        }
+    };
+    
+    // Setup event listeners for both toggles (first screen and detailed form)
+    const toggles = [
+        document.getElementById('expense_type_toggle'),
+        document.getElementById('is_company_expense')
+    ];
+    
+    toggles.forEach(toggle => {
+        if (toggle) {
+            // Initial label update
+            updateToggleLabel(toggle);
+            
+            // Listen for changes
+            toggle.addEventListener('change', function() {
+                updateToggleLabel(this);
+                
+                // Sync the other toggle if it exists
+                const otherId = this.id === 'expense_type_toggle' ? 'is_company_expense' : 'expense_type_toggle';
+                const otherToggle = document.getElementById(otherId);
+                if (otherToggle && otherToggle.checked !== this.checked) {
+                    otherToggle.checked = this.checked;
+                    updateToggleLabel(otherToggle);
+                }
+            });
+        }
+    });
+    
+    // Handle the "Next" button to replace scan-another and see-details
+    const nextBtn = document.getElementById('next-btn');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+            // First update the data
+            const formData = {
+                // We'll use the toggle and organization selection only here
+                is_company_expense: document.getElementById('expense_type_toggle')?.checked || false
+            };
+            
+            // If it's a company expense, include organization and client
+            if (formData.is_company_expense) {
+                formData.expense_organization_id = document.getElementById('company_organization_id')?.value;
+                formData.expense_client_id = document.getElementById('expense_client_id')?.value;
+            }
+            
+            // Show loading state
+            nextBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+            nextBtn.disabled = true;
+            
+            // Update the data first
+            fetch('/update_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(updateData => {
+                if (updateData.error) {
+                    throw new Error(updateData.error);
+                }
+                
+                // Hide the receipt value animation
+                const receiptValueAnimation = document.getElementById('receipt-value-animation');
+                if (receiptValueAnimation) {
+                    receiptValueAnimation.classList.add('d-none');
+                }
+                
+                // Show the detailed form
+                const resultsElement = document.getElementById('results');
+                if (resultsElement) {
+                    resultsElement.classList.remove('d-none');
+                }
+                
+                // Update page title
+                const pageTitleElement = document.querySelector('.page-title');
+                if (pageTitleElement) {
+                    pageTitleElement.textContent = 'Edit Receipt Details';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorElement = document.getElementById('error-message');
+                if (errorElement) {
+                    errorElement.textContent = error.message || 'An error occurred';
+                    errorElement.classList.remove('d-none');
+                }
+                
+                // Reset button
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = '<i class="fas fa-arrow-right me-2"></i> Next';
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
-<!-- This was a duplicate endblock/block that's now removed -->
