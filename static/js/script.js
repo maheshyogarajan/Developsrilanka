@@ -1,5 +1,95 @@
 // Receipt Scanner Application - JavaScript
 
+// Image compression settings
+const IMAGE_MAX_WIDTH = 1600;
+const IMAGE_MAX_HEIGHT = 1200;
+const IMAGE_QUALITY = 0.85;
+
+/**
+ * Compresses an image file to reduce size before upload
+ * 
+ * @param {File} file - The original file from input
+ * @param {number} maxWidth - Maximum width in pixels
+ * @param {number} maxHeight - Maximum height in pixels
+ * @param {number} quality - JPEG quality (0-1)
+ * @returns {Promise<Blob>} Promise resolving to compressed image blob
+ */
+function compressImage(file, maxWidth = IMAGE_MAX_WIDTH, maxHeight = IMAGE_MAX_HEIGHT, quality = IMAGE_QUALITY) {
+  return new Promise((resolve, reject) => {
+    // Skip compression for non-image files
+    if (!file.type.match('image.*')) {
+      resolve(file);
+      return;
+    }
+    
+    console.log("Starting image compression for file:", file.name, "size:", Math.round(file.size/1024), "KB");
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        // Check if compression is needed based on file size and dimensions
+        if (file.size < 500000 && img.width <= maxWidth && img.height <= maxHeight) {
+          console.log("Image already small enough, skipping compression");
+          resolve(file);
+          return;
+        }
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round(height * (maxWidth / width));
+            width = maxWidth;
+          } else {
+            width = Math.round(width * (maxHeight / height));
+            height = maxHeight;
+          }
+        }
+        
+        // Create canvas for compression
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to blob
+        canvas.toBlob((blob) => {
+          console.log("Compression complete - Original:", Math.round(file.size/1024), "KB, Compressed:", Math.round(blob.size/1024), "KB", 
+                      "Reduction:", Math.round((1 - (blob.size / file.size)) * 100), "%");
+          
+          // Create a new File object from the blob to maintain filename
+          const compressedFile = new File([blob], file.name, {
+            type: file.type,
+            lastModified: file.lastModified
+          });
+          
+          resolve(compressedFile);
+        }, file.type, quality);
+      };
+      
+      img.onerror = function() {
+        console.error("Error loading image for compression");
+        resolve(file); // Fall back to original file on error
+      };
+      
+      img.src = e.target.result;
+    };
+    
+    reader.onerror = function() {
+      console.error("Error reading file for compression");
+      resolve(file); // Fall back to original on error
+    };
+    
+    reader.readAsDataURL(file);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOMContentLoaded event fired");
     
@@ -108,15 +198,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Display preview
+            // Display preview immediately
             const reader = new FileReader();
             reader.onload = function(e) {
                 receiptPreview.src = e.target.result;
                 previewContainer.classList.remove('d-none');
                 uploadArea.classList.add('d-none'); // Hide the upload area
                 
-                // Prepare for scanning
-                processReceiptImage(file);
+                // Start compression after preview is shown
+                const compressionStart = Date.now();
+                const loadingText = document.querySelector('#loading p');
+                if (loadingText) {
+                    loadingText.innerHTML = 'Optimizing image for upload... <br>This will improve performance.';
+                }
+                
+                // Compress the image before sending it for processing
+                compressImage(file)
+                    .then(compressedFile => {
+                        const compressionTime = Date.now() - compressionStart;
+                        console.log(`Image compression took ${compressionTime}ms`);
+                        
+                        // Log compression results
+                        if (file.size !== compressedFile.size) {
+                            console.log(`Original size: ${Math.round(file.size/1024)}KB, Compressed: ${Math.round(compressedFile.size/1024)}KB, Reduction: ${Math.round((1 - (compressedFile.size / file.size)) * 100)}%`);
+                        } else {
+                            console.log("Image didn't need compression");
+                        }
+                        
+                        // Update loading text for processing
+                        if (loadingText) {
+                            loadingText.innerHTML = 'Processing receipt... <br>This might take a moment.';
+                        }
+                        
+                        // Proceed with the compressed file
+                        processReceiptImage(compressedFile);
+                    })
+                    .catch(error => {
+                        console.error("Compression failed:", error);
+                        // Fall back to original file if compression fails
+                        processReceiptImage(file);
+                    });
             };
             reader.readAsDataURL(file);
             
