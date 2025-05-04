@@ -1958,6 +1958,14 @@ def email_login():
             # Display welcome message on first login - different from login success message
             flash('Account verification complete! Your account has been created and you are now logged in.', 'success')
             
+            # Create Personal Finances organization for the new user
+            try:
+                from user_utils import create_personal_finances_for_new_user
+                create_personal_finances_for_new_user(new_user.id)
+                logging.info(f"Created Personal Finances organization for new user {new_user.id}")
+            except Exception as e:
+                logging.error(f"Error creating Personal Finances organization: {str(e)}")
+            
             # Check if there's a pending invitation token in the session
             invitation_token = session.get('invitation_token')
             if invitation_token:
@@ -2055,6 +2063,14 @@ def google_callback():
             )
             db.session.add(user)
             db.session.commit()
+            
+            # Create Personal Finances organization for new Google OAuth users
+            try:
+                from user_utils import create_personal_finances_for_new_user
+                create_personal_finances_for_new_user(user.id)
+                logging.info(f"Created Personal Finances organization for new Google OAuth user {user.id}")
+            except Exception as e:
+                logging.error(f"Error creating Personal Finances organization for Google OAuth user: {str(e)}")
         
         # Log the user in
         login_user(user)
@@ -2156,6 +2172,14 @@ def facebook_callback():
             )
             db.session.add(user)
             db.session.commit()
+            
+            # Create Personal Finances organization for new Facebook OAuth users
+            try:
+                from user_utils import create_personal_finances_for_new_user
+                create_personal_finances_for_new_user(user.id)
+                logging.info(f"Created Personal Finances organization for new Facebook OAuth user {user.id}")
+            except Exception as e:
+                logging.error(f"Error creating Personal Finances organization for Facebook OAuth user: {str(e)}")
         
         # Log the user in
         login_user(user)

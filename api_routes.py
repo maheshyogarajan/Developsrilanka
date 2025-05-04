@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import text
 
 from app import app, db
-from models import OrganizationUser, Client
+from models import OrganizationUser, Client, Organization
 
 @app.route('/api/organizations/<int:org_id>/clients')
 @login_required
@@ -45,3 +45,39 @@ def api_organization_clients(org_id):
         })
     
     return jsonify({'clients': clients})
+
+@app.route('/api/user/organizations')
+@login_required
+def api_user_organizations():
+    """API endpoint to get all organizations for the current user."""
+    try:
+        # Get all organizations for the current user with their role
+        org_users = OrganizationUser.query.filter_by(
+            user_id=current_user.id
+        ).join(
+            Organization, 
+            Organization.id == OrganizationUser.organization_id
+        ).with_entities(
+            Organization.id,
+            Organization.name,
+            OrganizationUser.role,
+            OrganizationUser.is_default
+        ).all()
+        
+        # Convert to list of dictionaries
+        organizations = []
+        for org_id, name, role, is_default in org_users:
+            organizations.append({
+                'id': org_id,
+                'name': name,
+                'role': role,
+                'is_default': is_default
+            })
+        
+        return jsonify({
+            'organizations': organizations,
+            'current_organization_id': session.get('current_organization_id')
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching user organizations: {str(e)}")
+        return jsonify({'error': 'Failed to fetch organizations'}), 500
