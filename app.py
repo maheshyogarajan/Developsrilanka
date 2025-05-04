@@ -912,7 +912,7 @@ def update_data():
             response.headers.set('Content-Type', 'application/json')
             return response, 400
         
-        # Get current session data to preserve image paths
+        # Get current session data to preserve image paths and other data
         current_session_data = session.get('receipt_data', {})
         
         # Preserve image paths from original session data
@@ -929,11 +929,51 @@ def update_data():
         if 's3_key' not in updated_data or not updated_data['s3_key']:
             updated_data['s3_key'] = original_s3_key
             
+        # Handle simplified organization context from the improved UI
+        is_company_expense = updated_data.get('is_company_expense', False)
+        
+        # Get the user's default organization for personal expenses
+        from models import OrganizationUser
+        personal_finances_org = None
+        if not is_company_expense:
+            # Find the Personal Finances organization
+            personal_finances = OrganizationUser.query.join(
+                OrganizationUser.organization
+            ).filter(
+                OrganizationUser.user_id == current_user.id,
+                db.text("LOWER(organization.name) = 'personal finances'")
+            ).first()
+            
+            if personal_finances:
+                personal_finances_org = personal_finances.organization_id
+                logging.info(f"Found Personal Finances organization ID: {personal_finances_org}")
+                
+                # Set the organization_id for the receipt
+                updated_data['organization_id'] = personal_finances_org
+                updated_data['expense_organization_id'] = None  # Clear company org selection
+                updated_data['expense_client_id'] = None  # Clear client selection
+                updated_data['expense_description'] = ''  # Clear expense description
+            else:
+                logging.warning(f"No Personal Finances organization found for user {current_user.id}")
+        else:
+            # For company expenses, use the selected organization
+            company_org_id = updated_data.get('expense_organization_id')
+            client_id = updated_data.get('expense_client_id')
+            
+            if company_org_id:
+                logging.info(f"Company expense with organization ID: {company_org_id}")
+                
+                # Set the organization_id for the receipt
+                updated_data['organization_id'] = company_org_id
+            else:
+                logging.warning("Company expense selected but no organization provided")
+        
         # Update the session data with corrected values
         session['receipt_data'] = updated_data
         
         # Log the final data for debugging
         logging.info(f"Final updated data - image_path: '{updated_data.get('image_path')}', s3_key: '{updated_data.get('s3_key')}'")
+        logging.info(f"Organization context - is_company_expense: {is_company_expense}, organization_id: {updated_data.get('organization_id')}")
         
         response = jsonify({'success': True, 'data': updated_data})
         response.headers.set('Content-Type', 'application/json')
@@ -941,6 +981,7 @@ def update_data():
     
     except Exception as e:
         logging.error(f"Error updating data: {str(e)}")
+        logging.error(traceback.format_exc())
         response = jsonify({'error': f'Error updating data: {str(e)}'})
         response.headers.set('Content-Type', 'application/json')
         return response, 500
