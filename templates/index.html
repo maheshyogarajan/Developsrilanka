@@ -305,8 +305,8 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="expense_detail_client_id" class="form-label">Client (Optional)</label>
-                                    <select class="form-select" id="expense_detail_client_id" name="expense_detail_client_id">
+                                    <label for="expense_client_id" class="form-label">Client (Optional)</label>
+                                    <select class="form-select" id="expense_client_id" name="expense_client_id">
                                         <option value="" selected>Select Client (Optional)</option>
                                         <!-- Clients will be loaded dynamically based on selected organization -->
                                     </select>
@@ -391,6 +391,18 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('is_company_expense')
     ];
     
+    // Initialize company expense details visibility
+    const initCompanyExpenseDetails = function() {
+        const isCompanyExpense = document.getElementById('is_company_expense')?.checked || false;
+        const companyExpenseDetails = document.getElementById('company-expense-details');
+        if (companyExpenseDetails) {
+            companyExpenseDetails.style.display = isCompanyExpense ? 'block' : 'none';
+        }
+    };
+    
+    // Call initialization function
+    initCompanyExpenseDetails();
+    
     toggles.forEach(toggle => {
         if (toggle) {
             // Initial label update
@@ -406,6 +418,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (otherToggle && otherToggle.checked !== this.checked) {
                     otherToggle.checked = this.checked;
                     updateToggleLabel(otherToggle);
+                }
+                
+                // Update the company expense details visibility
+                const companyExpenseDetails = document.getElementById('company-expense-details');
+                if (companyExpenseDetails) {
+                    if (this.checked) {
+                        companyExpenseDetails.style.display = 'block';
+                    } else {
+                        companyExpenseDetails.style.display = 'none';
+                    }
                 }
             });
         }
