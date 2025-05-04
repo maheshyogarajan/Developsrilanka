@@ -137,6 +137,34 @@
                 </div>
             </div>
             
+            <!-- Organization Selection -->
+            <div class="row mt-3" id="organization-context-container" style="display: none;">
+                <div class="col-12">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">Where would you like to save this receipt?</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label for="receipt_organization_id" class="form-label">Organization</label>
+                                    <select class="form-select" id="receipt_organization_id">
+                                        <!-- Organizations will be loaded dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label for="receipt_expense_type" class="form-label">Expense Type</label>
+                                    <select class="form-select" id="receipt_expense_type">
+                                        <option value="personal">Personal Expense</option>
+                                        <option value="company">Company Expense</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Action Buttons -->
             <div class="row mt-4">
                 <div class="col-12 text-center">
