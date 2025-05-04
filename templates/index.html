@@ -146,12 +146,12 @@
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="expense_type_toggle">
-                                    <label class="form-check-label fw-bold" for="expense_type_toggle">
-                                        <span class="expense-type-label">Personal Expense</span>
-                                        <span class="expense-type-toggle-text">Toggle for Company Expense</span>
-                                    </label>
+                                <div class="expense-type-toggle-container d-flex align-items-center justify-content-center mb-2">
+                                    <span id="personal-label" class="expense-type-label personal-label me-3 fw-bold active-expense-type">Personal Expense</span>
+                                    <div class="form-check form-switch mx-2">
+                                        <input class="form-check-input" type="checkbox" id="expense_type_toggle">
+                                    </div>
+                                    <span id="company-label" class="expense-type-label company-label ms-3 fw-bold">Company Expense</span>
                                 </div>
                             </div>
                             
@@ -287,12 +287,12 @@
                 <div class="col-12">
                     <div class="card border-primary">
                         <div class="card-header bg-primary text-white">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="is_company_expense" name="is_company_expense">
-                                <label class="form-check-label fw-bold" for="is_company_expense">
-                                    <span class="expense-type-label">Personal Expense</span>
-                                    <span class="expense-type-toggle-text">Toggle for Company Expense</span>
-                                </label>
+                            <div class="expense-type-toggle-container d-flex align-items-center justify-content-center mb-2">
+                                <span id="detail-personal-label" class="expense-type-label personal-label me-3 fw-bold active-expense-type">Personal Expense</span>
+                                <div class="form-check form-switch mx-2">
+                                    <input class="form-check-input" type="checkbox" id="is_company_expense" name="is_company_expense">
+                                </div>
+                                <span id="detail-company-label" class="expense-type-label company-label ms-3 fw-bold">Company Expense</span>
                             </div>
                         </div>
                         <div class="card-body company-expense-details" id="company-expense-details" style="display: none;">
@@ -371,17 +371,43 @@
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 <!-- improved-context.js is already loaded in layout.html -->
 <script>
-// Add some styling for the toggle
+// Enhanced toggle UI handling
 document.addEventListener('DOMContentLoaded', function() {
-    // Update toggle label text based on state
-    const updateToggleLabel = function(toggle) {
-        const label = toggle.closest('.form-check').querySelector('.expense-type-label');
-        if (toggle.checked) {
-            label.textContent = 'Company Expense';
-            label.classList.add('text-primary');
+    // Update toggle visualization based on state
+    const updateToggleVisuals = function(toggle) {
+        const isCompanyExpense = toggle.checked;
+        
+        // Find the right set of labels based on which toggle was changed
+        let personalLabel, companyLabel;
+        
+        if (toggle.id === 'expense_type_toggle') {
+            personalLabel = document.getElementById('personal-label');
+            companyLabel = document.getElementById('company-label');
         } else {
-            label.textContent = 'Personal Expense';
-            label.classList.remove('text-primary');
+            personalLabel = document.getElementById('detail-personal-label');
+            companyLabel = document.getElementById('detail-company-label');
+        }
+        
+        if (personalLabel && companyLabel) {
+            if (isCompanyExpense) {
+                // Company expense is selected
+                personalLabel.classList.remove('active-expense-type', 'fw-bold');
+                companyLabel.classList.add('active-expense-type', 'fw-bold');
+                companyLabel.classList.add('text-primary');
+                personalLabel.classList.remove('text-primary');
+            } else {
+                // Personal expense is selected
+                personalLabel.classList.add('active-expense-type', 'fw-bold');
+                companyLabel.classList.remove('active-expense-type', 'fw-bold');
+                personalLabel.classList.add('text-primary');
+                companyLabel.classList.remove('text-primary');
+            }
+        }
+        
+        // Show/hide the company expense fields conditionally
+        const companyExpenseFields = document.getElementById('company-expense-fields');
+        if (companyExpenseFields) {
+            companyExpenseFields.classList.toggle('d-none', !isCompanyExpense);
         }
     };
     
@@ -398,36 +424,53 @@ document.addEventListener('DOMContentLoaded', function() {
         if (companyExpenseDetails) {
             companyExpenseDetails.style.display = isCompanyExpense ? 'block' : 'none';
         }
+        
+        // Initialize toggle visuals for both toggles
+        toggles.forEach(toggle => {
+            if (toggle) {
+                updateToggleVisuals(toggle);
+            }
+        });
     };
     
     // Call initialization function
     initCompanyExpenseDetails();
     
+    // Add CSS for active toggle state
+    const style = document.createElement('style');
+    style.textContent = `
+        .active-expense-type {
+            font-weight: bold !important;
+        }
+        .expense-type-toggle-container {
+            padding: 0.5rem;
+        }
+        .form-check-input:checked {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+    `;
+    document.head.appendChild(style);
+    
     toggles.forEach(toggle => {
         if (toggle) {
-            // Initial label update
-            updateToggleLabel(toggle);
-            
             // Listen for changes
             toggle.addEventListener('change', function() {
-                updateToggleLabel(this);
+                // Update visuals for this toggle
+                updateToggleVisuals(this);
                 
                 // Sync the other toggle if it exists
                 const otherId = this.id === 'expense_type_toggle' ? 'is_company_expense' : 'expense_type_toggle';
                 const otherToggle = document.getElementById(otherId);
                 if (otherToggle && otherToggle.checked !== this.checked) {
                     otherToggle.checked = this.checked;
-                    updateToggleLabel(otherToggle);
+                    updateToggleVisuals(otherToggle);
                 }
                 
-                // Update the company expense details visibility
+                // Update the company expense details visibility in the detailed form
                 const companyExpenseDetails = document.getElementById('company-expense-details');
                 if (companyExpenseDetails) {
-                    if (this.checked) {
-                        companyExpenseDetails.style.display = 'block';
-                    } else {
-                        companyExpenseDetails.style.display = 'none';
-                    }
+                    companyExpenseDetails.style.display = this.checked ? 'block' : 'none';
                 }
             });
         }
