@@ -1,9 +1,13 @@
 // Receipt Scanner Application - JavaScript
 
-// Image compression settings
-const IMAGE_MAX_WIDTH = 1600;
-const IMAGE_MAX_HEIGHT = 1200;
-const IMAGE_QUALITY = 0.85;
+// Image compression settings - using namespacing to avoid conflicts
+// Only define these variables if they don't already exist
+if (typeof window.RECEIPT_APP === 'undefined') {
+    window.RECEIPT_APP = {};
+}
+window.RECEIPT_APP.IMAGE_MAX_WIDTH = 1600;
+window.RECEIPT_APP.IMAGE_MAX_HEIGHT = 1200;
+window.RECEIPT_APP.IMAGE_QUALITY = 0.85;
 
 /**
  * Compresses an image file to reduce size before upload
@@ -14,7 +18,7 @@ const IMAGE_QUALITY = 0.85;
  * @param {number} quality - JPEG quality (0-1)
  * @returns {Promise<Blob>} Promise resolving to compressed image blob
  */
-function compressImage(file, maxWidth = IMAGE_MAX_WIDTH, maxHeight = IMAGE_MAX_HEIGHT, quality = IMAGE_QUALITY) {
+function compressImage(file, maxWidth = window.RECEIPT_APP.IMAGE_MAX_WIDTH, maxHeight = window.RECEIPT_APP.IMAGE_MAX_HEIGHT, quality = window.RECEIPT_APP.IMAGE_QUALITY) {
   return new Promise((resolve, reject) => {
     // Skip compression for non-image files
     if (!file.type.match('image.*')) {
@@ -910,7 +914,21 @@ document.addEventListener('DOMContentLoaded', function() {
             is_company_expense: document.getElementById('is_company_expense') ? document.getElementById('is_company_expense').checked : false,
             is_reimbursable: document.getElementById('is_reimbursable') ? document.getElementById('is_reimbursable').checked : true,
             expense_description: document.getElementById('expense_description') ? document.getElementById('expense_description').value : '',
-            expense_organization_id: document.getElementById('expense_organization_id') ? document.getElementById('expense_organization_id').value : null,
+            expense_organization_id: (function() {
+                // Try to get the organization ID from multiple possible sources
+                const detailedFormOrgSelect = document.getElementById('expense_organization_id');
+                const initialFormOrgSelect = document.getElementById('company_organization_id');
+                
+                // First try the detailed form's organization select
+                if (detailedFormOrgSelect && detailedFormOrgSelect.value) {
+                    return detailedFormOrgSelect.value;
+                }
+                // Then try the initial form's organization select
+                else if (initialFormOrgSelect && initialFormOrgSelect.value) {
+                    return initialFormOrgSelect.value;
+                }
+                return null;
+            })(),
             expense_client_id: document.getElementById('expense_client_id') ? document.getElementById('expense_client_id').value : null,
             items: []
         };
@@ -1121,8 +1139,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Clear existing options except the default
                     expenseOrganizationSelect.innerHTML = '<option value="" selected disabled>Select organization...</option>';
                     
+                    // Filter out personal finances organizations for company expense
+                    const companyOrgs = data.organizations.filter(org => 
+                        org.name.toLowerCase() !== 'personal finances');
+                    
                     // Add options for each organization
-                    data.organizations.forEach(org => {
+                    companyOrgs.forEach(org => {
                         const option = document.createElement('option');
                         option.value = org.id;
                         option.textContent = org.name;
@@ -1133,10 +1155,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         expenseOrganizationSelect.appendChild(option);
                     });
                     
+                    // Find the default company organization
+                    const defaultCompanyOrg = companyOrgs.find(org => org.is_default);
+                    if (defaultCompanyOrg) {
+                        expenseOrganizationSelect.value = defaultCompanyOrg.id;
+                    } else if (companyOrgs.length > 0) {
+                        // Otherwise, select the first company organization
+                        expenseOrganizationSelect.value = companyOrgs[0].id;
+                    }
+                    
                     // Load clients for the selected organization
                     if (expenseOrganizationSelect.value) {
                         loadClientsForOrganization(expenseOrganizationSelect.value);
                     }
+                    
+                    console.log('Loaded organizations for detailed form:', companyOrgs.length);
                 }
             })
             .catch(error => console.error('Error loading organizations:', error));

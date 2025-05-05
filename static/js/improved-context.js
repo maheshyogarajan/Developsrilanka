@@ -55,41 +55,60 @@ function fetchUserOrganizations() {
 /**
  * Update the organization dropdown with user's organizations
  * Filters out Personal Finances for company expense dropdown
+ * Updates both initial form and detailed form organization dropdowns
  */
 function updateOrganizationDropdown() {
-    const orgDropdown = document.getElementById('company_organization_id');
-    if (!orgDropdown || !userOrganizations.length) return;
+    // Get both organization dropdowns
+    const initialOrgDropdown = document.getElementById('company_organization_id');
+    const detailOrgDropdown = document.getElementById('expense_organization_id');
     
-    // Clear existing options
-    orgDropdown.innerHTML = '';
+    // Exit if no organizations or neither dropdown exists
+    if ((!initialOrgDropdown && !detailOrgDropdown) || !userOrganizations.length) return;
     
-    // Add a placeholder option
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = '';
-    placeholderOption.textContent = 'Select Organization';
-    placeholderOption.disabled = true;
-    placeholderOption.selected = true;
-    orgDropdown.appendChild(placeholderOption);
-    
-    // Add options for companies (filter out Personal Finances)
+    // Filter out Personal Finances for company expense dropdowns
     const companyOrgs = userOrganizations.filter(org => 
         org.name.toLowerCase() !== 'personal finances');
-        
-    companyOrgs.forEach(org => {
-        const option = document.createElement('option');
-        option.value = org.id;
-        option.textContent = org.name;
-        orgDropdown.appendChild(option);
-    });
     
-    // If user has a default company organization, select it
+    // Find the default company organization
     const defaultCompanyOrg = companyOrgs.find(org => org.is_default);
-    if (defaultCompanyOrg) {
-        orgDropdown.value = defaultCompanyOrg.id;
-    } else if (companyOrgs.length > 0) {
-        // Otherwise, select the first company organization
-        orgDropdown.value = companyOrgs[0].id;
+    const firstOrgId = companyOrgs.length > 0 ? companyOrgs[0].id : '';
+    const defaultOrgId = defaultCompanyOrg ? defaultCompanyOrg.id : firstOrgId;
+    
+    // Helper function to populate a dropdown
+    function populateDropdown(dropdown) {
+        if (!dropdown) return;
+        
+        // Clear existing options
+        dropdown.innerHTML = '';
+        
+        // Add a placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = 'Select Organization';
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        dropdown.appendChild(placeholderOption);
+        
+        // Add options for companies
+        companyOrgs.forEach(org => {
+            const option = document.createElement('option');
+            option.value = org.id;
+            option.textContent = org.name;
+            dropdown.appendChild(option);
+        });
+        
+        // Set default value
+        if (defaultOrgId) {
+            dropdown.value = defaultOrgId;
+        }
     }
+    
+    // Update both dropdowns
+    populateDropdown(initialOrgDropdown);
+    populateDropdown(detailOrgDropdown);
+    
+    // Log for debugging
+    console.log('Updated organization dropdowns with:', companyOrgs.length, 'organizations');
 }
 
 /**
