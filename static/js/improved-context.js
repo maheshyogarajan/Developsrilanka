@@ -124,6 +124,26 @@ function setupEventListeners() {
         });
     }
     
+    // Make the labels clickable too
+    const personalLabel = document.getElementById('personal-label');
+    const companyLabel = document.getElementById('company-label');
+    
+    if (personalLabel && expenseTypeToggle) {
+        personalLabel.addEventListener('click', function() {
+            expenseTypeToggle.checked = false;
+            toggleExpenseType(false);
+            updateReceiptContext();
+        });
+    }
+    
+    if (companyLabel && expenseTypeToggle) {
+        companyLabel.addEventListener('click', function() {
+            expenseTypeToggle.checked = true;
+            toggleExpenseType(true);
+            updateReceiptContext();
+        });
+    }
+    
     // Organization dropdown change
     const orgDropdown = document.getElementById('company_organization_id');
     if (orgDropdown) {
@@ -153,10 +173,18 @@ function setupEventListeners() {
 function toggleExpenseType(isCompany) {
     const companyFields = document.getElementById('company-expense-fields');
     const orgDropdown = document.getElementById('company_organization_id');
+    const personalLabel = document.getElementById('personal-label');
+    const companyLabel = document.getElementById('company-label');
     
     if (companyFields) {
         if (isCompany) {
             companyFields.classList.remove('d-none');
+            
+            // Update active styling for labels
+            if (personalLabel && companyLabel) {
+                personalLabel.classList.remove('active-expense-type');
+                companyLabel.classList.add('active-expense-type');
+            }
             
             // Focus on organization dropdown if available
             if (orgDropdown) {
@@ -164,6 +192,12 @@ function toggleExpenseType(isCompany) {
             }
         } else {
             companyFields.classList.add('d-none');
+            
+            // Update active styling for labels
+            if (personalLabel && companyLabel) {
+                personalLabel.classList.add('active-expense-type');
+                companyLabel.classList.remove('active-expense-type');
+            }
         }
     }
 }

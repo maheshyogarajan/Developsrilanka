@@ -1,0 +1,103 @@
+/* Enhanced Toggle Styling for Expense Type */
+.expense-type-toggle-container {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    padding: 8px 15px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.expense-type-label {
+    transition: all 0.2s ease;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.personal-label {
+    color: #0d6efd; /* Bootstrap primary blue */
+}
+
+.company-label {
+    color: #198754; /* Bootstrap success green */
+}
+
+/* Active state styling for labels */
+.active-expense-type.personal-label {
+    background-color: rgba(13, 110, 253, 0.15);
+    color: #0d6efd;
+    font-weight: bold !important;
+}
+
+.active-expense-type.company-label {
+    background-color: rgba(25, 135, 84, 0.15);
+    color: #198754;
+    font-weight: bold !important;
+}
+
+/* Form switch (toggle) styling */
+.form-check-input[type="checkbox"].form-switch {
+    height: 24px;
+    width: 48px !important;
+    margin-top: 0;
+    cursor: pointer;
+    background-color: #e0e0e0;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+.form-check-input[type="checkbox"].form-switch:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.form-check-input[type="checkbox"].form-switch:focus {
+    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.25);
+}
+
+/* Prevent text selection on labels */
+.expense-type-label {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
+}
+
+/* Enhanced organization and client dropdowns */
+#company_organization_id, #expense_client_id {
+    border: 1px solid #dee2e6;
+    padding: 10px 15px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+#company_organization_id:focus, #expense_client_id:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Improve client display on the results page */
+.client-display {
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #198754;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+/* Client chip styling for selected client */
+.client-chip {
+    display: inline-flex;
+    align-items: center;
+    background-color: rgba(25, 135, 84, 0.10);
+    border: 1px solid rgba(25, 135, 84, 0.25);
+    color: #198754;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    margin-left: 8px;
+}
+
+.client-chip i {
+    margin-right: 5px;
+    font-size: 0.8rem;
+}
