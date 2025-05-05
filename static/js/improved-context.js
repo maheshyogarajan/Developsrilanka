@@ -250,31 +250,55 @@ function updateReceiptContext() {
  * @param {string} organizationId - The ID of the selected organization
  */
 function fetchOrganizationClients(organizationId) {
-    if (!organizationId) return;
+    if (!organizationId) {
+        console.log('No organization ID provided for client fetch');
+        return;
+    }
+    
+    console.log(`Fetching clients for organization ID: ${organizationId}`);
     
     const clientDropdown = document.getElementById('expense_client_id');
-    if (!clientDropdown) return;
+    if (!clientDropdown) {
+        console.log('Client dropdown not found in DOM');
+        return;
+    }
     
-    // Clear existing options
+    // Clear existing options and show loading state
     clientDropdown.innerHTML = '';
     
-    // Add a placeholder option
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = '';
-    placeholderOption.textContent = 'Select Client (Optional)';
-    placeholderOption.selected = true;
-    clientDropdown.appendChild(placeholderOption);
+    // Add a loading option
+    const loadingOption = document.createElement('option');
+    loadingOption.value = '';
+    loadingOption.textContent = 'Loading clients...';
+    loadingOption.selected = true;
+    clientDropdown.appendChild(loadingOption);
     
-    // Fetch clients from the server
+    // Fetch clients from the server with improved error handling
     fetch(`/api/organization/${organizationId}/clients`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            // Clear loading state
+            clientDropdown.innerHTML = '';
+            
+            // Add a placeholder option
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'Select Client (Optional)';
+            placeholderOption.selected = true;
+            clientDropdown.appendChild(placeholderOption);
+            
             if (data.error) {
                 console.error('Error loading clients:', data.error);
-                return;
+                throw new Error(data.error);
             }
             
             const clients = data.clients || [];
+            console.log(`Received ${clients.length} clients for organization ${organizationId}`);
             
             // Add options for clients
             clients.forEach(client => {
@@ -283,9 +307,39 @@ function fetchOrganizationClients(organizationId) {
                 option.textContent = client.name;
                 clientDropdown.appendChild(option);
             });
+            
+            if (clients.length === 0) {
+                // Add a message when no clients exist
+                const noClientsOption = document.createElement('option');
+                noClientsOption.disabled = true;
+                noClientsOption.textContent = 'No clients found for this organization';
+                clientDropdown.appendChild(noClientsOption);
+            }
         })
         .catch(error => {
             console.error('Error fetching clients:', error);
+            
+            // Provide user feedback
+            clientDropdown.innerHTML = '';
+            
+            const errorOption = document.createElement('option');
+            errorOption.value = '';
+            errorOption.textContent = 'Error loading clients';
+            errorOption.selected = true;
+            clientDropdown.appendChild(errorOption);
+            
+            // Add a retry option
+            const retryOption = document.createElement('option');
+            retryOption.value = 'retry';
+            retryOption.textContent = 'Click to retry loading clients';
+            clientDropdown.appendChild(retryOption);
+            
+            // Add retry handler
+            clientDropdown.addEventListener('change', function(e) {
+                if (e.target.value === 'retry') {
+                    fetchOrganizationClients(organizationId);
+                }
+            }, { once: true });
         });
 }
 

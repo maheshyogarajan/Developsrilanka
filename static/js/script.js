@@ -1230,13 +1230,31 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.error('Error loading organizations:', error));
     }
     
-    // Load clients for a specific organization
+    // Load clients for a specific organization with improved error handling
     function loadClientsForOrganization(organizationId) {
+        console.log(`Loading clients for organization ID: ${organizationId}`);
+        
+        // Clear existing options and show loading state
+        expenseClientSelect.innerHTML = '<option value="" selected>Loading clients...</option>';
+        
         fetch(`/api/organization/${organizationId}/clients`)
-            .then(response => response.json())
+            .then(response => {
+                // Check for HTTP errors
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                // Clear existing options except the default
+                // Clear loading state
                 expenseClientSelect.innerHTML = '<option value="" selected>No client selected</option>';
+                
+                // Log response data for debugging
+                console.log(`Client data received:`, data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 
                 if (data.clients && data.clients.length > 0) {
                     // Add options for each client
@@ -1246,9 +1264,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.textContent = client.name;
                         expenseClientSelect.appendChild(option);
                     });
+                    console.log(`Added ${data.clients.length} clients to dropdown`);
+                } else {
+                    // Add a message when no clients exist
+                    const noClientsOption = document.createElement('option');
+                    noClientsOption.disabled = true;
+                    noClientsOption.textContent = 'No clients found for this organization';
+                    expenseClientSelect.appendChild(noClientsOption);
                 }
             })
-            .catch(error => console.error('Error loading clients:', error));
+            .catch(error => {
+                console.error('Error loading clients:', error);
+                
+                // Provide user feedback
+                expenseClientSelect.innerHTML = '<option value="" selected>Error loading clients</option>';
+                
+                // Add a retry option
+                const retryOption = document.createElement('option');
+                retryOption.value = "retry";
+                retryOption.textContent = "Click to retry loading clients";
+                expenseClientSelect.appendChild(retryOption);
+                
+                // Add listener for retry
+                expenseClientSelect.addEventListener('change', function(e) {
+                    if (e.target.value === "retry") {
+                        loadClientsForOrganization(organizationId);
+                    }
+                }, { once: true });
+            });
     }
     
     if (isCompanyExpenseCheckbox && companyExpenseDetails) {
