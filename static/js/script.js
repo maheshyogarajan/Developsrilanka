@@ -821,6 +821,59 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Handle company expense toggle and fields
+        const isCompanyExpenseCheckbox = document.getElementById('is_company_expense');
+        const companyExpenseDetails = document.getElementById('company-expense-details');
+        const expenseOrganizationSelect = document.getElementById('expense_organization_id');
+        
+        // If company expense data is available, set the toggle and related fields
+        if (data.is_company_expense !== undefined) {
+            if (isCompanyExpenseCheckbox) {
+                isCompanyExpenseCheckbox.checked = data.is_company_expense;
+            }
+            
+            if (companyExpenseDetails) {
+                companyExpenseDetails.style.display = data.is_company_expense ? 'block' : 'none';
+            }
+            
+            // If it's a company expense and we have organization data, load it
+            if (data.is_company_expense && data.expense_organization_id && expenseOrganizationSelect) {
+                // Trigger organization loading
+                loadOrganizations();
+                
+                // Set a small delay to ensure the organizations are loaded before selecting
+                setTimeout(() => {
+                    // Try to select the organization
+                    expenseOrganizationSelect.value = data.expense_organization_id;
+                    
+                    // Trigger change event to load clients
+                    expenseOrganizationSelect.dispatchEvent(new Event('change'));
+                    
+                    // Try to select client after a delay to ensure clients are loaded
+                    if (data.expense_client_id) {
+                        setTimeout(() => {
+                            const expenseClientSelect = document.getElementById('expense_client_id');
+                            if (expenseClientSelect) {
+                                expenseClientSelect.value = data.expense_client_id;
+                            }
+                        }, 500);
+                    }
+                }, 300);
+            }
+            
+            // Handle reimbursable checkbox if available
+            const isReimbursableCheckbox = document.getElementById('is_reimbursable');
+            if (isReimbursableCheckbox && data.is_reimbursable !== undefined) {
+                isReimbursableCheckbox.checked = data.is_reimbursable;
+            }
+            
+            // Set expense description if available
+            const expenseDescriptionField = document.getElementById('expense_description');
+            if (expenseDescriptionField && data.expense_description) {
+                expenseDescriptionField.value = data.expense_description;
+            }
+        }
+        
         // Clear existing items
         itemsContainer.innerHTML = '';
         
@@ -835,6 +888,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 );
             });
         }
+        
+        console.log('Form populated with data:', data);
     }
 
     // Helper function to add a new item row
