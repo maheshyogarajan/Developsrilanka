@@ -14,8 +14,8 @@ from models import (
 from app import db
 # Removed import that doesn't exist in the codebase
 
-# Create blueprint
-classify_bp = Blueprint('classify', __name__, template_folder='templates')
+# Create blueprint - use a different name to avoid conflicts
+classify_bp = Blueprint('enhanced_classify', __name__, template_folder='templates')
 
 @classify_bp.route('/classify', defaults={'page': None, 'receipt_id': None})
 @classify_bp.route('/classify/<string:page>/<int:receipt_id>')
@@ -180,7 +180,7 @@ def classify_receipt_submit(receipt_id):
     
     if existing_company or existing_client:
         flash('This receipt has already been classified', 'warning')
-        return redirect(url_for('classify.classify_receipts'))
+        return redirect(url_for('enhanced_classify.classify_receipts'))
     
     # Get form data
     organization_id = request.form.get('organization_id')
