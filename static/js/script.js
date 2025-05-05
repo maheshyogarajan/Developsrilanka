@@ -1344,6 +1344,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        if (!organizationId) {
+            console.error('No organization ID provided for client fetch');
+            return;
+        }
+        
         // Clear existing options and show loading state
         expenseClientSelect.innerHTML = '<option value="" selected>Loading clients...</option>';
         
