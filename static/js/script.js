@@ -1293,16 +1293,81 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.error('Error loading organizations:', error));
     }
     
+    // Helper function to update the receipt context with organization and client information
+    function updateReceiptContext(organizationId, clientId = null) {
+        if (!organizationId) return Promise.reject(new Error('Organization ID is required'));
+        
+        return fetch('/api/receipt/save-context', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                organization_id: organizationId,
+                expense_type: 'company',
+                client_id: clientId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error saving receipt context:', data.error);
+                throw new Error(data.error);
+            }
+            
+            console.log('Receipt context updated:', data);
+            return data;
+        });
+    }
+    
+    // Helper function to load the current receipt context
+    function loadReceiptContext() {
+        return fetch('/api/receipt/get-context')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading receipt context:', data.error);
+                    throw new Error(data.error);
+                }
+                
+                console.log('Receipt context loaded:', data);
+                return data;
+            });
+    }
+    
     // Load clients for a specific organization with improved error handling
     function loadClientsForOrganization(organizationId) {
         console.log(`Loading clients for organization ID: ${organizationId}`);
         
+        if (!expenseClientSelect) {
+            console.error('Client dropdown not found in the DOM');
+            return;
+        }
+        
         // Clear existing options and show loading state
         expenseClientSelect.innerHTML = '<option value="" selected>Loading clients...</option>';
         
+        // Remove any existing client display component
+        const existingClientDisplay = document.querySelector('.client-display');
+        if (existingClientDisplay) {
+            existingClientDisplay.remove();
+        }
+        
+        // First update the receipt context with the organization ID
+        updateReceiptContext(organizationId);
+        
+        // Try both API endpoints for backward compatibility
         fetch(`/api/organization/${organizationId}/clients`)
             .then(response => {
                 // Check for HTTP errors
+                if (!response.ok) {
+                    // If the first endpoint fails, try the alternate endpoint
+                    console.log(`First client endpoint failed with status ${response.status}, trying alternate endpoint`);
+                    return fetch(`/api/organizations/${organizationId}/clients`);
+                }
+                return response;
+            })
+            .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -1310,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 // Clear loading state
-                expenseClientSelect.innerHTML = '<option value="" selected>No client selected</option>';
+                expenseClientSelect.innerHTML = '<option value="" selected>Select Client (Optional)</option>';
                 
                 // Log response data for debugging
                 console.log(`Client data received:`, data);
@@ -1325,9 +1390,38 @@ document.addEventListener('DOMContentLoaded', function() {
                         const option = document.createElement('option');
                         option.value = client.id;
                         option.textContent = client.name;
+                        // Store full client data as a data attribute for later use
+                        option.dataset.clientInfo = JSON.stringify({
+                            id: client.id,
+                            name: client.name,
+                            company_name: client.company_name,
+                            contact_person: client.contact_person,
+                            email: client.email
+                        });
                         expenseClientSelect.appendChild(option);
                     });
                     console.log(`Added ${data.clients.length} clients to dropdown`);
+                    
+                    // After loading clients, check if we need to restore a previously selected client
+                    loadReceiptContext()
+                        .then(contextData => {
+                            if (contextData && contextData.client_id) {
+                                // Check if this client ID exists in the dropdown
+                                const options = Array.from(expenseClientSelect.options);
+                                const clientOption = options.find(opt => opt.value === contextData.client_id.toString());
+                                
+                                if (clientOption) {
+                                    console.log(`Restoring previously selected client: ${contextData.client_id}`);
+                                    expenseClientSelect.value = contextData.client_id;
+                                    // Trigger a change event to update any dependent UI
+                                    const event = new Event('change', { bubbles: true });
+                                    expenseClientSelect.dispatchEvent(event);
+                                }
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading receipt context:', err);
+                        });
                 } else {
                     // Add a message when no clients exist
                     const noClientsOption = document.createElement('option');
@@ -1377,7 +1471,82 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadClientsForOrganization(this.value);
                 } else {
                     // Clear client dropdown if no organization selected
-                    expenseClientSelect.innerHTML = '<option value="" selected>No client selected</option>';
+                    expenseClientSelect.innerHTML = '<option value="" selected>Select Client (Optional)</option>';
+                    
+                    // Remove any existing client display
+                    const existingClientDisplay = document.querySelector('.client-display');
+                    if (existingClientDisplay) {
+                        existingClientDisplay.remove();
+                    }
+                }
+            });
+            
+            // Handle client dropdown change to update context and display
+            expenseClientSelect.addEventListener('change', function() {
+                const clientId = this.value;
+                const organizationId = expenseOrganizationSelect.value;
+                
+                // Remove existing client display if any
+                const existingClientDisplay = document.querySelector('.client-display');
+                if (existingClientDisplay) {
+                    existingClientDisplay.remove();
+                }
+                
+                // Only proceed if a valid client is selected (not empty or retry option)
+                if (clientId && clientId !== 'retry' && organizationId) {
+                    // Update the receipt context
+                    updateReceiptContext(organizationId, clientId)
+                        .then(() => {
+                            // Create client display element
+                            const selectedOption = this.options[this.selectedIndex];
+                            if (selectedOption) {
+                                try {
+                                    // Try to get client info from data attribute
+                                    let clientInfo = null;
+                                    if (selectedOption.dataset.clientInfo) {
+                                        clientInfo = JSON.parse(selectedOption.dataset.clientInfo);
+                                    }
+                                    
+                                    // Create client display element
+                                    const clientDisplay = document.createElement('div');
+                                    clientDisplay.className = 'client-display mt-2';
+                                    
+                                    // Customize display based on available info
+                                    if (clientInfo && (clientInfo.company_name || clientInfo.contact_person)) {
+                                        clientDisplay.innerHTML = `
+                                            <div class="d-flex align-items-center">
+                                                <strong class="me-2">Selected Client:</strong>
+                                                <span class="client-chip">
+                                                    <i class="fas fa-building me-1"></i>
+                                                    ${clientInfo.name}
+                                                </span>
+                                            </div>
+                                            <small class="text-muted d-block mt-1">
+                                                ${clientInfo.company_name ? `Company: ${clientInfo.company_name}` : ''}
+                                                ${clientInfo.contact_person ? `<br>Contact: ${clientInfo.contact_person}` : ''}
+                                            </small>
+                                        `;
+                                    } else {
+                                        // Simple display with just the name
+                                        clientDisplay.innerHTML = `
+                                            <strong>Selected Client:</strong>
+                                            <span class="client-chip">
+                                                <i class="fas fa-building me-1"></i>
+                                                ${selectedOption.textContent}
+                                            </span>
+                                        `;
+                                    }
+                                    
+                                    // Add to the DOM after the client dropdown
+                                    this.parentElement.appendChild(clientDisplay);
+                                } catch (error) {
+                                    console.error('Error creating client display:', error);
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error updating receipt context with client:', error);
+                        });
                 }
             });
         }
