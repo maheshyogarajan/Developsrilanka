@@ -204,14 +204,14 @@ def classify_receipt_submit(receipt_id):
             
             if not org_user:
                 flash('You are not a member of the selected organization', 'danger')
-                return redirect(url_for('classify.classify_receipts', receipt_id=receipt_id))
+                return redirect(url_for('enhanced_classify.classify_receipts', receipt_id=receipt_id))
         
         # Verify client belongs to the organization
         if client_id:
             client = Client.query.filter_by(id=client_id, organization_id=organization_id).first()
             if not client:
                 flash('Selected client does not belong to the selected organization', 'danger')
-                return redirect(url_for('classify.classify_receipts', receipt_id=receipt_id))
+                return redirect(url_for('enhanced_classify.classify_receipts', receipt_id=receipt_id))
         
         # Update receipt organization
         receipt.organization_id = organization_id
@@ -248,13 +248,13 @@ def classify_receipt_submit(receipt_id):
         flash('Receipt successfully classified as a business expense', 'success')
         
         # Redirect to next receipt
-        return redirect(url_for('classify.classify_receipts', page='next', receipt_id=receipt_id))
+        return redirect(url_for('enhanced_classify.classify_receipts', page='next', receipt_id=receipt_id))
         
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error classifying receipt: {str(e)}")
         flash(f'Error classifying receipt: {str(e)}', 'danger')
-        return redirect(url_for('classify.classify_receipts', receipt_id=receipt_id))
+        return redirect(url_for('enhanced_classify.classify_receipts', receipt_id=receipt_id))
 
 @classify_bp.route('/api/clients')
 @login_required
