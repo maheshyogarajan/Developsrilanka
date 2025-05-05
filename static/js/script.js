@@ -1247,6 +1247,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const companyExpenseDetails = document.getElementById('company-expense-details');
     const expenseOrganizationSelect = document.getElementById('expense_organization_id');
     const expenseClientSelect = document.getElementById('expense_client_id');
+    const initialClientSelect = document.getElementById('initial_client_id');
+    const companyOrganizationSelect = document.getElementById('company_organization_id');
     
     // Load organizations when company expense is checked
     function loadOrganizations() {
@@ -1255,39 +1257,80 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.organizations) {
                     // Clear existing options except the default
-                    expenseOrganizationSelect.innerHTML = '<option value="" selected disabled>Select organization...</option>';
+                    if (expenseOrganizationSelect) {
+                        expenseOrganizationSelect.innerHTML = '<option value="" selected disabled>Select organization...</option>';
+                    }
+                    
+                    if (companyOrganizationSelect) {
+                        companyOrganizationSelect.innerHTML = '<option value="" selected disabled>Select organization...</option>';
+                    }
                     
                     // Filter out personal finances organizations for company expense
                     const companyOrgs = data.organizations.filter(org => 
                         org.name.toLowerCase() !== 'personal finances');
                     
-                    // Add options for each organization
-                    companyOrgs.forEach(org => {
-                        const option = document.createElement('option');
-                        option.value = org.id;
-                        option.textContent = org.name;
-                        // Set default organization as selected
-                        if (org.is_default) {
-                            option.selected = true;
-                        }
-                        expenseOrganizationSelect.appendChild(option);
-                    });
+                    // Add options to the expense organization dropdown
+                    if (expenseOrganizationSelect) {
+                        companyOrgs.forEach(org => {
+                            const option = document.createElement('option');
+                            option.value = org.id;
+                            option.textContent = org.name;
+                            // Set default organization as selected
+                            if (org.is_default) {
+                                option.selected = true;
+                            }
+                            expenseOrganizationSelect.appendChild(option);
+                        });
+                    }
+                    
+                    // Add options to the initial company organization dropdown
+                    if (companyOrganizationSelect) {
+                        companyOrgs.forEach(org => {
+                            const option = document.createElement('option');
+                            option.value = org.id;
+                            option.textContent = org.name;
+                            // Set default organization as selected
+                            if (org.is_default) {
+                                option.selected = true;
+                            }
+                            companyOrganizationSelect.appendChild(option);
+                        });
+                    }
                     
                     // Find the default company organization
                     const defaultCompanyOrg = companyOrgs.find(org => org.is_default);
-                    if (defaultCompanyOrg) {
-                        expenseOrganizationSelect.value = defaultCompanyOrg.id;
-                    } else if (companyOrgs.length > 0) {
-                        // Otherwise, select the first company organization
-                        expenseOrganizationSelect.value = companyOrgs[0].id;
+                    
+                    // Set the selected organization in the expense dropdown
+                    if (expenseOrganizationSelect) {
+                        if (defaultCompanyOrg) {
+                            expenseOrganizationSelect.value = defaultCompanyOrg.id;
+                        } else if (companyOrgs.length > 0) {
+                            // Otherwise, select the first company organization
+                            expenseOrganizationSelect.value = companyOrgs[0].id;
+                        }
+                        
+                        // Load clients for the selected organization
+                        if (expenseOrganizationSelect.value) {
+                            loadClientsForOrganization(expenseOrganizationSelect.value);
+                        }
                     }
                     
-                    // Load clients for the selected organization
-                    if (expenseOrganizationSelect.value) {
-                        loadClientsForOrganization(expenseOrganizationSelect.value);
+                    // Set the selected organization in the initial dropdown
+                    if (companyOrganizationSelect) {
+                        if (defaultCompanyOrg) {
+                            companyOrganizationSelect.value = defaultCompanyOrg.id;
+                        } else if (companyOrgs.length > 0) {
+                            // Otherwise, select the first company organization
+                            companyOrganizationSelect.value = companyOrgs[0].id;
+                        }
+                        
+                        // Load clients for the selected organization
+                        if (companyOrganizationSelect.value) {
+                            loadClientsForOrganization(companyOrganizationSelect.value);
+                        }
                     }
                     
-                    console.log('Loaded organizations for detailed form:', companyOrgs.length);
+                    console.log('Loaded organizations for dropdowns:', companyOrgs.length);
                 }
             })
             .catch(error => console.error('Error loading organizations:', error));
@@ -1339,8 +1382,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadClientsForOrganization(organizationId) {
         console.log(`Loading clients for organization ID: ${organizationId}`);
         
-        if (!expenseClientSelect) {
-            console.error('Client dropdown not found in the DOM');
+        if (!expenseClientSelect && !initialClientSelect) {
+            console.error('No client dropdowns found in the DOM');
             return;
         }
         
@@ -1349,8 +1392,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Clear existing options and show loading state
-        expenseClientSelect.innerHTML = '<option value="" selected>Loading clients...</option>';
+        // Clear existing options and show loading state in both dropdowns
+        if (expenseClientSelect) {
+            expenseClientSelect.innerHTML = '<option value="" selected>Loading clients...</option>';
+        }
+        
+        if (initialClientSelect) {
+            initialClientSelect.innerHTML = '<option value="" selected>Loading clients...</option>';
+        }
         
         // Remove any existing client display component
         const existingClientDisplay = document.querySelector('.client-display');
@@ -1379,9 +1428,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                // Clear loading state
-                expenseClientSelect.innerHTML = '<option value="" selected>Select Client (Optional)</option>';
-                
                 // Log response data for debugging
                 console.log(`Client data received:`, data);
                 
@@ -1389,71 +1435,123 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error);
                 }
                 
-                if (data.clients && data.clients.length > 0) {
-                    // Add options for each client
-                    data.clients.forEach(client => {
-                        const option = document.createElement('option');
-                        option.value = client.id;
-                        option.textContent = client.name;
-                        // Store full client data as a data attribute for later use
-                        option.dataset.clientInfo = JSON.stringify({
-                            id: client.id,
-                            name: client.name,
-                            company_name: client.company_name,
-                            contact_person: client.contact_person,
-                            email: client.email
+                // Function to populate a client dropdown
+                const populateClientDropdown = (dropdown) => {
+                    if (!dropdown) return;
+                    
+                    // Clear and set default option
+                    dropdown.innerHTML = '<option value="" selected>Select Client (Optional)</option>';
+                    
+                    if (data.clients && data.clients.length > 0) {
+                        // Add options for each client
+                        data.clients.forEach(client => {
+                            const option = document.createElement('option');
+                            option.value = client.id;
+                            option.textContent = client.name;
+                            // Store full client data as a data attribute for later use
+                            option.dataset.clientInfo = JSON.stringify({
+                                id: client.id,
+                                name: client.name,
+                                company_name: client.company_name,
+                                contact_person: client.contact_person,
+                                email: client.email
+                            });
+                            dropdown.appendChild(option);
                         });
-                        expenseClientSelect.appendChild(option);
-                    });
-                    console.log(`Added ${data.clients.length} clients to dropdown`);
+                    } else {
+                        // Add a message when no clients exist
+                        const noClientsOption = document.createElement('option');
+                        noClientsOption.disabled = true;
+                        noClientsOption.textContent = 'No clients found for this organization';
+                        dropdown.appendChild(noClientsOption);
+                    }
+                };
+                
+                // Populate both dropdowns
+                populateClientDropdown(expenseClientSelect);
+                populateClientDropdown(initialClientSelect);
+                
+                if (data.clients && data.clients.length > 0) {
+                    console.log(`Added ${data.clients.length} clients to dropdown(s)`);
                     
                     // After loading clients, check if we need to restore a previously selected client
                     loadReceiptContext()
                         .then(contextData => {
                             if (contextData && contextData.client_id) {
-                                // Check if this client ID exists in the dropdown
-                                const options = Array.from(expenseClientSelect.options);
-                                const clientOption = options.find(opt => opt.value === contextData.client_id.toString());
+                                // Set the client ID in both dropdowns if they exist
+                                const setDropdownValue = (dropdown) => {
+                                    if (!dropdown) return;
+                                    
+                                    // Check if this client ID exists in the dropdown
+                                    const options = Array.from(dropdown.options);
+                                    const clientOption = options.find(opt => opt.value === contextData.client_id.toString());
+                                    
+                                    if (clientOption) {
+                                        console.log(`Restoring previously selected client in dropdown: ${contextData.client_id}`);
+                                        dropdown.value = contextData.client_id;
+                                        // Trigger a change event to update any dependent UI
+                                        const event = new Event('change', { bubbles: true });
+                                        dropdown.dispatchEvent(event);
+                                    }
+                                };
                                 
-                                if (clientOption) {
-                                    console.log(`Restoring previously selected client: ${contextData.client_id}`);
-                                    expenseClientSelect.value = contextData.client_id;
-                                    // Trigger a change event to update any dependent UI
-                                    const event = new Event('change', { bubbles: true });
-                                    expenseClientSelect.dispatchEvent(event);
-                                }
+                                setDropdownValue(expenseClientSelect);
+                                setDropdownValue(initialClientSelect);
                             }
                         })
                         .catch(err => {
                             console.error('Error loading receipt context:', err);
                         });
-                } else {
-                    // Add a message when no clients exist
-                    const noClientsOption = document.createElement('option');
-                    noClientsOption.disabled = true;
-                    noClientsOption.textContent = 'No clients found for this organization';
-                    expenseClientSelect.appendChild(noClientsOption);
                 }
             })
             .catch(error => {
                 console.error('Error loading clients:', error);
                 
-                // Provide user feedback
-                expenseClientSelect.innerHTML = '<option value="" selected>Error loading clients</option>';
+                // Function to show error in a dropdown
+                const showErrorInDropdown = (dropdown) => {
+                    if (!dropdown) return;
+                    
+                    // Provide user feedback
+                    dropdown.innerHTML = '<option value="" selected>Error loading clients</option>';
+                    
+                    // Add a retry option
+                    const retryOption = document.createElement('option');
+                    retryOption.value = "retry";
+                    retryOption.textContent = "Click to retry loading clients";
+                    dropdown.appendChild(retryOption);
+                    
+                    // Add listener for retry
+                    dropdown.addEventListener('change', function(e) {
+                        if (e.target.value === "retry") {
+                            loadClientsForOrganization(organizationId);
+                        }
+                    }, { once: true });
+                };
                 
-                // Add a retry option
-                const retryOption = document.createElement('option');
-                retryOption.value = "retry";
-                retryOption.textContent = "Click to retry loading clients";
-                expenseClientSelect.appendChild(retryOption);
-                
-                // Add listener for retry
-                expenseClientSelect.addEventListener('change', function(e) {
-                    if (e.target.value === "retry") {
-                        loadClientsForOrganization(organizationId);
-                    }
-                }, { once: true });
+                // Show error in both dropdowns
+                showErrorInDropdown(expenseClientSelect);
+                showErrorInDropdown(initialClientSelect);
             });
+    }
+    
+    // Load organizations immediately when the page loads
+    // This will populate both organization dropdowns and their respective client dropdowns
+    if (companyOrganizationSelect || expenseOrganizationSelect) {
+        loadOrganizations();
+    }
+    
+    // Set up event listener for company organization dropdown change
+    if (companyOrganizationSelect) {
+        companyOrganizationSelect.addEventListener('change', function() {
+            if (this.value) {
+                loadClientsForOrganization(this.value);
+            } else {
+                // Clear client dropdown if no organization selected
+                if (initialClientSelect) {
+                    initialClientSelect.innerHTML = '<option value="" selected>Select Client (Optional)</option>';
+                }
+            }
+        });
     }
     
     if (isCompanyExpenseCheckbox && companyExpenseDetails) {
@@ -1485,6 +1583,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
+            
+            // Set up the initial client dropdown event handling
+            if (initialClientSelect) {
+                initialClientSelect.addEventListener('change', function() {
+                    const clientId = this.value;
+                    const organizationId = companyOrganizationSelect?.value;
+                    
+                    // Only proceed if a valid client is selected (not empty or retry option)
+                    if (clientId && clientId !== 'retry' && organizationId) {
+                        // Update the receipt context
+                        updateReceiptContext(organizationId, clientId)
+                            .then(() => {
+                                console.log('Initial screen client selection updated successfully');
+                                
+                                // If we have the expense client dropdown on the page, sync it
+                                if (expenseClientSelect && expenseClientSelect.options.length > 1) {
+                                    expenseClientSelect.value = clientId;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error updating receipt context with client from initial screen:', error);
+                            });
+                    }
+                });
+            }
             
             // Handle client dropdown change to update context and display
             expenseClientSelect.addEventListener('change', function() {
