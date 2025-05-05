@@ -821,58 +821,121 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Handle company expense toggle and fields
-        const isCompanyExpenseCheckbox = document.getElementById('is_company_expense');
-        const companyExpenseDetails = document.getElementById('company-expense-details');
-        const expenseOrganizationSelect = document.getElementById('expense_organization_id');
-        
-        // If company expense data is available, set the toggle and related fields
-        if (data.is_company_expense !== undefined) {
-            if (isCompanyExpenseCheckbox) {
-                isCompanyExpenseCheckbox.checked = data.is_company_expense;
-            }
-            
-            if (companyExpenseDetails) {
-                companyExpenseDetails.style.display = data.is_company_expense ? 'block' : 'none';
-            }
-            
-            // If it's a company expense and we have organization data, load it
-            if (data.is_company_expense && data.expense_organization_id && expenseOrganizationSelect) {
-                // Trigger organization loading
-                loadOrganizations();
+        // Load receipt context first to ensure we have the latest organization and client data
+        fetch('/api/receipt/get-context')
+            .then(response => response.json())
+            .then(contextData => {
+                if (contextData.error) {
+                    console.error('Error loading receipt context:', contextData.error);
+                    return;
+                }
                 
-                // Set a small delay to ensure the organizations are loaded before selecting
-                setTimeout(() => {
-                    // Try to select the organization
-                    expenseOrganizationSelect.value = data.expense_organization_id;
-                    
-                    // Trigger change event to load clients
-                    expenseOrganizationSelect.dispatchEvent(new Event('change'));
-                    
-                    // Try to select client after a delay to ensure clients are loaded
-                    if (data.expense_client_id) {
-                        setTimeout(() => {
-                            const expenseClientSelect = document.getElementById('expense_client_id');
-                            if (expenseClientSelect) {
-                                expenseClientSelect.value = data.expense_client_id;
-                            }
-                        }, 500);
+                console.log('Receipt context loaded in populateForm:', contextData);
+                
+                // Handle company expense toggle and fields
+                const isCompanyExpenseCheckbox = document.getElementById('is_company_expense');
+                const companyExpenseDetails = document.getElementById('company-expense-details');
+                const detailPersonalLabel = document.getElementById('detail-personal-label');
+                const detailCompanyLabel = document.getElementById('detail-company-label');
+                
+                // Default to using context data, but if data.is_company_expense is explicitly set, use that instead
+                const isCompanyExpense = data.is_company_expense !== undefined 
+                    ? data.is_company_expense 
+                    : (contextData.expense_type === 'company');
+                
+                // Update labels active state
+                if (detailPersonalLabel && detailCompanyLabel) {
+                    if (isCompanyExpense) {
+                        detailPersonalLabel.classList.remove('active-expense-type');
+                        detailCompanyLabel.classList.add('active-expense-type');
+                    } else {
+                        detailPersonalLabel.classList.add('active-expense-type');
+                        detailCompanyLabel.classList.remove('active-expense-type');
                     }
-                }, 300);
-            }
-            
-            // Handle reimbursable checkbox if available
-            const isReimbursableCheckbox = document.getElementById('is_reimbursable');
-            if (isReimbursableCheckbox && data.is_reimbursable !== undefined) {
-                isReimbursableCheckbox.checked = data.is_reimbursable;
-            }
-            
-            // Set expense description if available
-            const expenseDescriptionField = document.getElementById('expense_description');
-            if (expenseDescriptionField && data.expense_description) {
-                expenseDescriptionField.value = data.expense_description;
-            }
-        }
+                }
+                
+                // Set the toggle and show/hide company details section
+                if (isCompanyExpenseCheckbox) {
+                    isCompanyExpenseCheckbox.checked = isCompanyExpense;
+                }
+                
+                if (companyExpenseDetails) {
+                    companyExpenseDetails.style.display = isCompanyExpense ? 'block' : 'none';
+                }
+                
+                // If it's a company expense, set organization and client
+                if (isCompanyExpense) {
+                    const expenseOrganizationSelect = document.getElementById('expense_organization_id');
+                    
+                    // Use organization ID from context if available, otherwise from data
+                    const organizationId = data.expense_organization_id || contextData.organization_id;
+                    
+                    // Use client ID from context if available, otherwise from data
+                    const clientId = data.expense_client_id || contextData.client_id;
+                    
+                    if (organizationId && expenseOrganizationSelect) {
+                        // Trigger organization loading
+                        loadOrganizations();
+                        
+                        // Set a small delay to ensure the organizations are loaded before selecting
+                        setTimeout(() => {
+                            // Try to select the organization
+                            expenseOrganizationSelect.value = organizationId;
+                            
+                            // Trigger change event to load clients
+                            expenseOrganizationSelect.dispatchEvent(new Event('change'));
+                            
+                            // Try to select client after a delay to ensure clients are loaded
+                            if (clientId) {
+                                setTimeout(() => {
+                                    const expenseClientSelect = document.getElementById('expense_client_id');
+                                    if (expenseClientSelect) {
+                                        expenseClientSelect.value = clientId;
+                                        console.log(`Selected client ID ${clientId} from context`);
+                                        
+                                        // If we have client details, display them nicely
+                                        if (contextData.client && contextData.client.name) {
+                                            // Check if client display already exists, create if it doesn't
+                                            let clientDisplay = document.querySelector('.client-display');
+                                            if (!clientDisplay) {
+                                                clientDisplay = document.createElement('div');
+                                                clientDisplay.className = 'client-display';
+                                                // Insert it after the client dropdown
+                                                const clientDropdownParent = expenseClientSelect.parentElement;
+                                                clientDropdownParent.appendChild(clientDisplay);
+                                            }
+                                            
+                                            // Update client display with name
+                                            clientDisplay.innerHTML = `
+                                                <strong>Selected Client:</strong> 
+                                                <span class="client-chip">
+                                                    <i class="fas fa-building"></i>
+                                                    ${contextData.client.name}
+                                                </span>
+                                            `;
+                                        }
+                                    }
+                                }, 800); // Longer delay to ensure clients are fully loaded
+                            }
+                        }, 300);
+                    }
+                }
+                
+                // Handle reimbursable checkbox if available
+                const isReimbursableCheckbox = document.getElementById('is_reimbursable');
+                if (isReimbursableCheckbox && data.is_reimbursable !== undefined) {
+                    isReimbursableCheckbox.checked = data.is_reimbursable;
+                }
+                
+                // Set expense description if available
+                const expenseDescriptionField = document.getElementById('expense_description');
+                if (expenseDescriptionField && data.expense_description) {
+                    expenseDescriptionField.value = data.expense_description;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching receipt context:', error);
+            });
         
         // Clear existing items
         itemsContainer.innerHTML = '';
