@@ -101,6 +101,7 @@ def api_save_receipt_context():
     try:
         organization_id = request.json.get('organization_id')
         expense_type = request.json.get('expense_type', 'personal')  # 'personal' or 'company'
+        client_id = request.json.get('client_id')  # Add client_id parameter
         
         # Validate organization access
         if organization_id:
@@ -111,15 +112,30 @@ def api_save_receipt_context():
             
             if not org_user:
                 return jsonify({'error': 'Access denied to this organization'}), 403
+            
+            # Validate client belongs to organization if client_id is provided
+            if client_id:
+                client = Client.query.filter_by(
+                    id=client_id,
+                    organization_id=organization_id
+                ).first()
+                
+                if not client:
+                    app.logger.warning(f"Invalid client {client_id} for organization {organization_id}")
+                    return jsonify({'error': 'Invalid client for this organization'}), 400
+                
+                app.logger.debug(f"Valid client {client_id} ({client.name}) for organization {organization_id}")
                 
             # Store in session
             session['receipt_organization_id'] = organization_id
             session['receipt_expense_type'] = expense_type
+            session['receipt_client_id'] = client_id  # Store client_id in session
             
             return jsonify({
                 'success': True,
                 'organization_id': organization_id,
-                'expense_type': expense_type
+                'expense_type': expense_type,
+                'client_id': client_id
             })
         else:
             return jsonify({'error': 'Organization ID is required'}), 400
@@ -136,6 +152,9 @@ def api_get_receipt_context():
         # Get the context from session
         organization_id = session.get('receipt_organization_id')
         expense_type = session.get('receipt_expense_type', 'personal')
+        client_id = session.get('receipt_client_id')
+        
+        app.logger.debug(f"Getting receipt context: org={organization_id}, type={expense_type}, client={client_id}")
         
         # If no organization ID is set, use the user's default organization
         if not organization_id:
@@ -167,10 +186,27 @@ def api_get_receipt_context():
                     'name': org.name
                 }
         
+        # Get client details if client_id exists
+        client_details = None
+        if client_id:
+            client = Client.query.get(client_id)
+            if client:
+                client_details = {
+                    'id': client.id,
+                    'name': client.name
+                }
+                app.logger.debug(f"Found client details: {client.id} - {client.name}")
+            else:
+                app.logger.warning(f"Client with ID {client_id} not found")
+                # Clear invalid client_id from session
+                session.pop('receipt_client_id', None)
+        
         return jsonify({
             'organization_id': organization_id,
             'organization': org_details,
-            'expense_type': expense_type
+            'expense_type': expense_type,
+            'client_id': client_id,
+            'client': client_details
         })
             
     except Exception as e:

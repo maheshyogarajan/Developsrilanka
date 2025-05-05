@@ -133,6 +133,17 @@ function setupEventListeners() {
             updateReceiptContext();
         });
     }
+    
+    // Client dropdown change
+    const clientDropdown = document.getElementById('expense_client_id');
+    if (clientDropdown) {
+        clientDropdown.addEventListener('change', function() {
+            // Only update context when a client is selected (not during loading or error states)
+            if (this.value && this.value !== 'retry') {
+                updateReceiptContext();
+            }
+        });
+    }
 }
 
 /**
@@ -173,6 +184,7 @@ function loadReceiptContext() {
             
             const expenseTypeToggle = document.getElementById('expense_type_toggle');
             const orgDropdown = document.getElementById('company_organization_id');
+            const clientDropdown = document.getElementById('expense_client_id');
             
             // Set the expense type toggle
             if (expenseTypeToggle && data.expense_type) {
@@ -187,6 +199,20 @@ function loadReceiptContext() {
                 
                 // Fetch clients for the selected organization
                 fetchOrganizationClients(data.organization_id);
+                
+                // After fetching clients is complete, select the client if it exists
+                if (data.client_id && clientDropdown) {
+                    // We need to set this with a short delay to ensure client options are loaded
+                    setTimeout(() => {
+                        // Set the client if it exists in the dropdown
+                        if (Array.from(clientDropdown.options).some(opt => opt.value === data.client_id.toString())) {
+                            clientDropdown.value = data.client_id;
+                            console.log(`Selected client ID ${data.client_id} from context`);
+                        } else {
+                            console.log(`Client ID ${data.client_id} not found in dropdown options`);
+                        }
+                    }, 500);
+                }
             }
         })
         .catch(error => {
@@ -200,6 +226,7 @@ function loadReceiptContext() {
 function updateReceiptContext() {
     const expenseTypeToggle = document.getElementById('expense_type_toggle');
     const orgDropdown = document.getElementById('company_organization_id');
+    const clientDropdown = document.getElementById('expense_client_id');
     
     if (!expenseTypeToggle) return;
     
@@ -221,6 +248,12 @@ function updateReceiptContext() {
         return;
     }
     
+    // Get the client ID if available
+    let clientId = null;
+    if (isCompany && clientDropdown && clientDropdown.value) {
+        clientId = clientDropdown.value;
+    }
+    
     fetch('/api/receipt/save-context', {
         method: 'POST',
         headers: {
@@ -228,7 +261,8 @@ function updateReceiptContext() {
         },
         body: JSON.stringify({
             organization_id: organizationId,
-            expense_type: expenseType
+            expense_type: expenseType,
+            client_id: clientId
         })
     })
     .then(response => response.json())
