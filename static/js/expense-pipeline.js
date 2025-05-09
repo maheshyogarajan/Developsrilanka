@@ -14,80 +14,143 @@ const DEBOUNCE_DELAY_MS = 300; // 300ms for debouncing
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing expense pipeline kanban board...');
-    // Initialize pipeline data
-    loadPipelineData();
     
-    // Set up event listeners
-    document.getElementById('organizationSelector').addEventListener('change', function() {
-        debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
-        updateURLParams({org_id: this.value});
-    });
-    
-    document.getElementById('viewSelector').addEventListener('change', function() {
-        debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
-        updateURLParams({view: this.value});
-    });
-    
-    const clientSelector = document.getElementById('clientSelector');
-    if (clientSelector) {
-        clientSelector.addEventListener('change', function() {
-            debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
-            updateURLParams({client_id: this.value});
+    try {
+        // Check if pipeline element exists
+        const pipelineContainer = document.getElementById('expensePipeline');
+        if (!pipelineContainer) {
+            console.warn("Pipeline container not found, aborting initialization");
+            return;
+        }
+        
+        console.log("Pipeline element found:", !!pipelineContainer);
+        console.log("Pipeline script element found:", !!document.getElementById('expensePipelineJS'));
+        
+        // Verify SortableJS is available
+        if (typeof Sortable === 'undefined') {
+            console.error("SortableJS not available, check script inclusion");
+            console.log("SortableJS available:", typeof Sortable !== 'undefined');
+            return;
+        }
+        
+        // Manual test to log important info
+        const urlParams = new URLSearchParams(window.location.search);
+        const orgId = urlParams.get('org_id') || document.getElementById('organizationSelector')?.value || 'default';
+        const view = urlParams.get('view') || document.getElementById('viewSelector')?.value || 'default';
+        console.log("Manual test: Fetching data for org " + orgId + ", view " + view);
+        
+        // Initialize pipeline data
+        loadPipelineData();
+        
+        // Set up event listeners
+        const organizationSelector = document.getElementById('organizationSelector');
+        if (organizationSelector) {
+            organizationSelector.addEventListener('change', function() {
+                debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
+                updateURLParams({org_id: this.value});
+            });
+        }
+        
+        const viewSelector = document.getElementById('viewSelector');
+        if (viewSelector) {
+            viewSelector.addEventListener('change', function() {
+                debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
+                updateURLParams({view: this.value});
+            });
+        }
+        
+        const clientSelector = document.getElementById('clientSelector');
+        if (clientSelector) {
+            clientSelector.addEventListener('change', function() {
+                debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
+                updateURLParams({client_id: this.value});
+            });
+        }
+        
+        const refreshButton = document.getElementById('refreshButton');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', function() {
+                loadPipelineData(true); // Force refresh
+            });
+        }
+        
+        const batchSubmitButton = document.getElementById('batchSubmitButton');
+        if (batchSubmitButton) {
+            batchSubmitButton.addEventListener('click', function() {
+                openBatchSubmissionModal();
+            });
+        }
+        
+        const exportButton = document.getElementById('exportButton');
+        if (exportButton) {
+            exportButton.addEventListener('click', function() {
+                exportPipelineData();
+            });
+        }
+        
+        // Handle date filter changes
+        const dateFromFilter = document.getElementById('dateFromFilter');
+        if (dateFromFilter) {
+            dateFromFilter.addEventListener('change', function() {
+                debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
+                updateURLParams({date_from: this.value});
+            });
+        }
+        
+        const dateToFilter = document.getElementById('dateToFilter');
+        if (dateToFilter) {
+            dateToFilter.addEventListener('change', function() {
+                debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
+                updateURLParams({date_to: this.value});
+            });
+        }
+        
+        // Set up modal action buttons
+        const submitBatchButton = document.getElementById('submitBatchButton');
+        if (submitBatchButton) {
+            submitBatchButton.addEventListener('click', function() {
+                submitBatchExpenses();
+            });
+        }
+        
+        const saveReimbursementButton = document.getElementById('saveReimbursementButton');
+        if (saveReimbursementButton) {
+            saveReimbursementButton.addEventListener('click', function() {
+                saveReimbursementDetails();
+            });
+        }
+        
+        const confirmRejectButton = document.getElementById('confirmRejectButton');
+        if (confirmRejectButton) {
+            confirmRejectButton.addEventListener('click', function() {
+                confirmRejectExpense();
+            });
+        }
+        
+        // Set up window resize handler for mobile optimizations
+        window.addEventListener('resize', handleWindowResize);
+        
+        // Initialize mobile indicators if needed
+        handleWindowResize();
+        
+        // Listen for URL parameter changes (browser back/forward buttons)
+        window.addEventListener('popstate', function() {
+            loadPipelineDataFromURL();
         });
+    } catch (error) {
+        console.error("Error initializing expense pipeline:", error);
+        // Display a user-friendly error
+        const pipelineContainer = document.getElementById('expensePipeline');
+        if (pipelineContainer) {
+            pipelineContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4>Error Loading Pipeline</h4>
+                    <p>There was a problem loading the expense pipeline. Please try refreshing the page.</p>
+                    <button class="btn btn-outline-primary" onclick="location.reload()">Refresh Page</button>
+                </div>
+            `;
+        }
     }
-    
-    document.getElementById('refreshButton').addEventListener('click', function() {
-        loadPipelineData(true); // Force refresh
-    });
-    
-    document.getElementById('batchSubmitButton').addEventListener('click', function() {
-        openBatchSubmissionModal();
-    });
-    
-    document.getElementById('exportButton').addEventListener('click', function() {
-        exportPipelineData();
-    });
-    
-    // Handle date filter changes
-    const dateFromFilter = document.getElementById('dateFromFilter');
-    if (dateFromFilter) {
-        dateFromFilter.addEventListener('change', function() {
-            debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
-            updateURLParams({date_from: this.value});
-        });
-    }
-    
-    const dateToFilter = document.getElementById('dateToFilter');
-    if (dateToFilter) {
-        dateToFilter.addEventListener('change', function() {
-            debounce(loadPipelineData, DEBOUNCE_DELAY_MS)();
-            updateURLParams({date_to: this.value});
-        });
-    }
-    
-    // Set up modal action buttons
-    document.getElementById('submitBatchButton').addEventListener('click', function() {
-        submitBatchExpenses();
-    });
-    
-    document.getElementById('saveReimbursementButton').addEventListener('click', function() {
-        saveReimbursementDetails();
-    });
-    
-    document.getElementById('confirmRejectButton').addEventListener('click', function() {
-        confirmRejectExpense();
-    });
-    
-    // Set up window resize handler for mobile optimizations
-    window.addEventListener('resize', handleWindowResize);
-    
-    // Initialize mobile indicators if needed
-    handleWindowResize();
-    
-    // Listen for URL parameter changes (browser back/forward buttons)
-    window.addEventListener('popstate', function() {
-        loadPipelineDataFromURL();
-    });
 });
 
 /**
@@ -277,41 +340,94 @@ function loadPipelineData(force = false) {
 function displayErrorMessage(errorMessage, detailedError = '') {
     console.error('Error loading pipeline data:', errorMessage);
     
-    // Get the pipeline container
-    const pipelineContainer = document.getElementById('expensePipeline');
-    
-    // Create the basic error message
-    let errorHtml = `
-        <div class="alert alert-danger w-100" role="alert">
-            <strong>Error loading pipeline data:</strong> ${errorMessage}
-            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="loadPipelineData(true)">
-                <i class="fas fa-sync-alt"></i> Try Again
-            </button>
-        </div>
-    `;
-    
-    // Add detailed error if available, in a collapsible section
-    if (detailedError) {
-        errorHtml += `
-            <div class="mt-2">
-                <button class="btn btn-sm btn-outline-secondary" type="button" 
-                    data-bs-toggle="collapse" data-bs-target="#errorDetails" 
-                    aria-expanded="false" aria-controls="errorDetails">
-                    Show Error Details
-                </button>
-                <div class="collapse mt-2" id="errorDetails">
-                    <div class="card card-body">
-                        <pre class="text-danger" style="max-height: 200px; overflow-y: auto;">${detailedError}</pre>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    if (pipelineContainer) {
-        pipelineContainer.innerHTML = errorHtml;
-    } else {
-        console.error('Pipeline container not found');
+    try {
+        // Get the pipeline container
+        const pipelineContainer = document.getElementById('expensePipeline');
+        
+        if (!pipelineContainer) {
+            console.error('Pipeline container not found');
+            return;
+        }
+        
+        // Clear any remaining loading timeouts
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+        
+        // Create error elements manually to avoid potential issues with templating
+        // Clear the container first
+        while (pipelineContainer.firstChild) {
+            pipelineContainer.removeChild(pipelineContainer.firstChild);
+        }
+        
+        // Create the alert div
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger w-100';
+        alertDiv.setAttribute('role', 'alert');
+        
+        // Create the error message
+        const strongElement = document.createElement('strong');
+        strongElement.textContent = 'Error loading pipeline data: ';
+        alertDiv.appendChild(strongElement);
+        
+        // Add the error message text
+        const errorTextNode = document.createTextNode(errorMessage);
+        alertDiv.appendChild(errorTextNode);
+        
+        // Create the try again button
+        const tryAgainButton = document.createElement('button');
+        tryAgainButton.className = 'btn btn-sm btn-outline-secondary ms-2';
+        tryAgainButton.innerHTML = '<i class="fas fa-sync-alt"></i> Try Again';
+        tryAgainButton.addEventListener('click', function() {
+            loadPipelineData(true);
+        });
+        alertDiv.appendChild(tryAgainButton);
+        
+        // Add to container
+        pipelineContainer.appendChild(alertDiv);
+        
+        // Add detailed error if available
+        if (detailedError) {
+            // Create details container
+            const detailsContainer = document.createElement('div');
+            detailsContainer.className = 'mt-2';
+            
+            // Create details toggle button
+            const detailsButton = document.createElement('button');
+            detailsButton.className = 'btn btn-sm btn-outline-secondary';
+            detailsButton.setAttribute('type', 'button');
+            detailsButton.setAttribute('data-bs-toggle', 'collapse');
+            detailsButton.setAttribute('data-bs-target', '#errorDetails');
+            detailsButton.setAttribute('aria-expanded', 'false');
+            detailsButton.setAttribute('aria-controls', 'errorDetails');
+            detailsButton.textContent = 'Show Error Details';
+            
+            detailsContainer.appendChild(detailsButton);
+            
+            // Create collapsible content
+            const collapseDiv = document.createElement('div');
+            collapseDiv.className = 'collapse mt-2';
+            collapseDiv.id = 'errorDetails';
+            
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'card card-body';
+            
+            const preElement = document.createElement('pre');
+            preElement.className = 'text-danger';
+            preElement.style.maxHeight = '200px';
+            preElement.style.overflowY = 'auto';
+            preElement.textContent = detailedError;
+            
+            cardDiv.appendChild(preElement);
+            collapseDiv.appendChild(cardDiv);
+            detailsContainer.appendChild(collapseDiv);
+            
+            // Add to container
+            pipelineContainer.appendChild(detailsContainer);
+        }
+    } catch (err) {
+        console.error('Error displaying error message:', err);
     }
 }
 
@@ -359,20 +475,23 @@ function renderPipeline(data) {
     // to ensure we don't lose the flexbox structure
     
     // First, clear the container properly
-    while (pipelineContainer.firstChild) {
+    while (pipelineContainer && pipelineContainer.firstChild) {
         pipelineContainer.removeChild(pipelineContainer.firstChild);
     }
     
-    // Apply explicit flexbox styling
-    pipelineContainer.className = 'expense-pipeline d-flex flex-row overflow-auto';
-    pipelineContainer.style.cssText = `
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        width: 100% !important;
-        min-height: 600px !important;
-    `;
+    // Apply explicit flexbox styling using setAttribute to avoid cssText issues
+    if (pipelineContainer) {
+        pipelineContainer.className = 'expense-pipeline d-flex flex-row overflow-auto';
+        pipelineContainer.style.display = 'flex';
+        pipelineContainer.style.flexDirection = 'row';
+        pipelineContainer.style.flexWrap = 'nowrap';
+        pipelineContainer.style.overflowX = 'auto';
+        pipelineContainer.style.width = '100%';
+        pipelineContainer.style.minHeight = '600px';
+    } else {
+        console.error("Pipeline container not found");
+        return;
+    }
     
     // Create a temporary div to parse the HTML
     const tempDiv = document.createElement('div');
@@ -382,16 +501,16 @@ function renderPipeline(data) {
     while (tempDiv.firstChild) {
         const column = tempDiv.firstChild;
         
-        // Apply explicit flexbox styling to each column
-        column.style.cssText = `
-            display: flex !important;
-            flex-direction: column !important;
-            flex: 0 0 300px !important;
-            min-width: 300px !important;
-            width: 300px !important;
-            margin-right: 15px !important;
-            float: none !important;
-        `;
+        // Apply explicit flexbox styling to each column using individual properties
+        if (column && column.style) {
+            column.style.display = 'flex';
+            column.style.flexDirection = 'column';
+            column.style.flex = '0 0 300px';
+            column.style.minWidth = '300px';
+            column.style.width = '300px';
+            column.style.marginRight = '15px';
+            column.style.float = 'none';
+        }
         
         // Append to pipeline
         pipelineContainer.appendChild(column);
