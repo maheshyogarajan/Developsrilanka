@@ -84,9 +84,30 @@ def get_pipeline_data():
     """
     # Get the organization ID from the query parameters
     org_id = request.args.get('org_id', None)
+    
+    # If no org_id provided, find user's default organization
     if not org_id:
-        logging.error("Missing organization ID in pipeline data request")
-        return jsonify({'error': 'Organization ID is required'}), 400
+        default_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            is_default=True
+        ).first()
+        
+        # If user has a default organization, use it
+        if default_org:
+            org_id = default_org.organization_id
+            logging.info(f"Using default organization ID: {org_id}")
+        else:
+            # Otherwise get the first organization user belongs to
+            first_org = OrganizationUser.query.filter_by(
+                user_id=current_user.id
+            ).first()
+            
+            if first_org:
+                org_id = first_org.organization_id
+                logging.info(f"Using first available organization ID: {org_id}")
+            else:
+                logging.error("No organizations found for user")
+                return jsonify({'error': 'No organizations found for user'}), 404
     
     try:
         logging.info(f"Loading pipeline data for organization ID: {org_id}")
@@ -210,21 +231,31 @@ def get_pipeline_data():
                 # Get image URL for the receipt
                 try:
                     image_url = get_receipt_image_url(receipt)
-                    thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt)
-                except Exception as e:
+                    # Check if thumbnail_manager is properly initialized
+                    if hasattr(thumbnail_manager, 'get_thumbnail_url'):
+                        thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt)
+                    else:
+                        logging.warning("thumbnail_manager missing get_thumbnail_url method")
+                        thumbnail_url = '/static/img/receipt-placeholder.svg'
+                except Exception as img_error:
+                    logging.error(f"Error getting image URL for receipt {receipt.id}: {str(img_error)}")
                     image_url = '/static/img/receipt-placeholder.svg'
                     thumbnail_url = '/static/img/receipt-placeholder.svg'
                 
+                # Get safe user object
+                user_obj = User.query.get(receipt.user_id)
+                user_name = getattr(user_obj, 'username', "Unknown") if user_obj else "Unknown"
+                
                 pending_submission.append({
                     'id': f"receipt_{receipt.id}",
-                    'description': receipt.vendor_name or "Receipt",
-                    'amount': float(receipt.total_amount if hasattr(receipt, 'total_amount') else (receipt.total if hasattr(receipt, 'total') else 0)),
-                    'date': receipt.date.strftime('%Y-%m-%d') if receipt.date else None,
+                    'description': getattr(receipt, 'vendor_name', "") or "Receipt",
+                    'amount': float(getattr(receipt, 'total_amount', getattr(receipt, 'total', 0)) or 0),
+                    'date': receipt.date.strftime('%Y-%m-%d') if hasattr(receipt, 'date') and receipt.date else None,
                     'receipt_id': receipt.id,
-                    'category': receipt.expense_major_category if hasattr(receipt, 'expense_major_category') else (receipt.category if hasattr(receipt, 'category') else "Uncategorized"),
+                    'category': getattr(receipt, 'expense_major_category', getattr(receipt, 'category', "Uncategorized")) or "Uncategorized",
                     'user': {
                         'id': receipt.user_id,
-                        'name': User.query.get(receipt.user_id).username if User.query.get(receipt.user_id) else "Unknown"
+                        'name': user_name
                     },
                     'image_url': image_url,
                     'thumbnail_url': thumbnail_url,
@@ -288,17 +319,21 @@ def get_pipeline_data():
                 elif float(expense.amount) < 100:
                     priority = 1
             
+            # Get safe user object for expense
+            user_obj = User.query.get(expense.user_id)
+            user_name = getattr(user_obj, 'username', "Unknown") if user_obj else "Unknown"
+                
             # Build the expense data object
             expense_data = {
                 'id': expense.id,
-                'description': expense.description or "Expense",
-                'amount': float(expense.amount) if expense.amount else 0,
-                'date': expense.submitted_date.strftime('%Y-%m-%d') if expense.submitted_date else None,
+                'description': getattr(expense, 'description', "") or "Expense",
+                'amount': float(getattr(expense, 'amount', 0) or 0),
+                'date': expense.submitted_date.strftime('%Y-%m-%d') if hasattr(expense, 'submitted_date') and expense.submitted_date else None,
                 'receipt_id': expense.receipt_id,
-                'category': expense.category or "Uncategorized",
+                'category': getattr(expense, 'category', "Uncategorized") or "Uncategorized",
                 'user': {
                     'id': expense.user_id,
-                    'name': User.query.get(expense.user_id).username if User.query.get(expense.user_id) else "Unknown"
+                    'name': user_name
                 },
                 'notes': expense.notes,
                 'client_id': expense.client_id,
