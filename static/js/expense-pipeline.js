@@ -237,6 +237,7 @@ function loadPipelineData(force = false) {
                 throw new Error(data.details || data.error || 'Unknown error');
             }
             
+            console.log('Pipeline data received:', data);
             pipelineData = data;
             renderPipeline(data);
             initializeDragAndDrop();
