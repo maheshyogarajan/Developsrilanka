@@ -13,6 +13,7 @@ const LOADING_TIMEOUT_MS = 10000; // 10 seconds
 const DEBOUNCE_DELAY_MS = 300; // 300ms for debouncing
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing expense pipeline kanban board...');
     // Initialize pipeline data
     loadPipelineData();
     
@@ -317,12 +318,19 @@ function displayErrorMessage(errorMessage, detailedError = '') {
  * @param {Object} data - Pipeline data from the server
  */
 function renderPipeline(data) {
+    console.log('Rendering pipeline with data:', data);
     const pipelineContainer = document.getElementById('expensePipeline');
+    
+    if (!pipelineContainer) {
+        console.error('Pipeline container not found!');
+        return;
+    }
     
     // Create HTML for each column
     let columnsHTML = '';
     
     for (const [columnId, column] of Object.entries(data.columns)) {
+        console.log(`Rendering column: ${columnId} with ${column.items?.length || 0} items`);
         const items = column.items || [];
         
         columnsHTML += `
@@ -571,6 +579,7 @@ function renderColumnActions(columnId, userRole) {
  * Initialize drag and drop functionality
  */
 function initializeDragAndDrop() {
+    console.log('Initializing drag and drop functionality');
     // Clean up any existing sortable instances
     sortableInstances.forEach(instance => {
         if (instance && typeof instance.destroy === 'function') {
@@ -581,6 +590,7 @@ function initializeDragAndDrop() {
     
     // Get all dropzone elements
     const dropzones = document.querySelectorAll('.pipeline-column-body');
+    console.log(`Found ${dropzones.length} dropzones for drag-and-drop`);
     
     // Initialize Sortable for each dropzone
     dropzones.forEach(dropzone => {
