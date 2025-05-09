@@ -4,6 +4,7 @@ This provides a kanban-style board for managing expense reimbursements.
 """
 
 import logging
+import traceback
 from datetime import datetime, time as datetime_time
 from flask import Blueprint, render_template, request, jsonify, abort, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
@@ -84,10 +85,11 @@ def get_pipeline_data():
     # Get the organization ID from the query parameters
     org_id = request.args.get('org_id', None)
     if not org_id:
+        logging.error("Missing organization ID in pipeline data request")
         return jsonify({'error': 'Organization ID is required'}), 400
     
     try:
-        org_id = int(org_id)
+        logging.info(f"Loading pipeline data for organization ID: {org_id}")
         
         # Check if the user has permission to view this organization
         if not check_organization_permission(current_user.id, org_id, ['owner', 'admin', 'member', 'viewer']):
@@ -399,10 +401,13 @@ def get_pipeline_data():
     
     except Exception as e:
         error_msg = str(e)
+        stack_trace = traceback.format_exc()
         logging.error(f"Error getting pipeline data: {error_msg}")
+        logging.error(f"Stack trace: {stack_trace}")
         detailed_msg = {
             'error': 'Failed to load pipeline data',
             'details': error_msg,
+            'trace': stack_trace,
             'type': 'api_error'
         }
         return jsonify(detailed_msg), 500
