@@ -214,11 +214,29 @@ function loadPipelineData(force = false) {
         .then(response => {
             clearTimeout(loadingTimeout);
             if (!response.ok) {
-                throw new Error('Failed to load pipeline data');
+                return response.json().then(errorData => {
+                    console.error('Error details:', errorData);
+                    if (errorData.error) {
+                        throw new Error(errorData.error);
+                    } else if (errorData.details) {
+                        throw new Error(errorData.details);
+                    } else {
+                        throw new Error('Failed to load pipeline data: ' + response.status);
+                    }
+                }).catch(jsonError => {
+                    // If we can't parse the error as JSON, just throw a generic error
+                    throw new Error('Failed to load pipeline data: ' + response.status);
+                });
             }
             return response.json();
         })
         .then(data => {
+            // Check if the response is an error message
+            if (data.error || data.type === 'api_error') {
+                console.error('API returned error:', data);
+                throw new Error(data.details || data.error || 'Unknown error');
+            }
+            
             pipelineData = data;
             renderPipeline(data);
             initializeDragAndDrop();
@@ -255,6 +273,9 @@ function loadPipelineData(force = false) {
 function displayErrorMessage(errorMessage, detailedError = '') {
     console.error('Error loading pipeline data:', errorMessage);
     
+    // Get the pipeline container
+    const pipelineContainer = document.getElementById('expensePipeline');
+    
     // Create the basic error message
     let errorHtml = `
         <div class="alert alert-danger w-100" role="alert">
@@ -283,8 +304,11 @@ function displayErrorMessage(errorMessage, detailedError = '') {
         `;
     }
     
-    pipelineContainer.innerHTML = errorHtml;
-}
+    if (pipelineContainer) {
+        pipelineContainer.innerHTML = errorHtml;
+    } else {
+        console.error('Pipeline container not found');
+    }
 }
 
 /**
