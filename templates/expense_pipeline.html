@@ -4,29 +4,40 @@
 
 {% block styles %}
 {{ super() }}
+<!-- Pipeline CSS loaded after Bootstrap to ensure proper override -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pipeline.css') }}">
 <style>
-    /* Ensure container has proper styling for the flexbox kanban layout */
-    .container-fluid {
-        max-width: 100%;
-        padding-right: 15px;
-        padding-left: 15px;
-        overflow-x: hidden;
-    }
-    
-    /* Force flex display on the pipeline */
-    .expense-pipeline {
+    /* Critical overrides with highest specificity */
+    #expensePipeline.expense-pipeline {
         display: flex !important;
         flex-direction: row !important;
+        flex-wrap: nowrap !important;
         overflow-x: auto !important;
-        min-height: 600px !important; /* Ensure sufficient height */
+        min-height: 600px !important;
         padding: 15px !important;
+        width: 100% !important;
+        list-style: none !important;
+        margin-bottom: 0 !important;
     }
     
-    /* Ensure pipeline columns are properly sized */
-    .pipeline-column {
+    /* Direct child elements must be flex items */
+    #expensePipeline.expense-pipeline > div.pipeline-column {
         flex: 0 0 300px !important;
+        width: 300px !important;
+        min-width: 300px !important;
+        max-width: 300px !important;
         margin-right: 15px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        float: none !important; /* Prevent Bootstrap float behaviors */
+    }
+    
+    /* Ensure container expands fully */
+    .container-fluid {
+        max-width: 100% !important;
+        padding-right: 15px !important;
+        padding-left: 15px !important;
+        overflow-x: hidden !important;
     }
 </style>
 {% endblock %}

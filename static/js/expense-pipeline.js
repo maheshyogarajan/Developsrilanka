@@ -355,10 +355,24 @@ function renderPipeline(data) {
         `;
     }
     
-    // Clear any previous content
+    // Clear any previous content and restore flexbox
     pipelineContainer.innerHTML = '';
+    pipelineContainer.className = 'expense-pipeline d-flex flex-row overflow-auto';
+    
     // Insert new content
     pipelineContainer.innerHTML = columnsHTML;
+    
+    // Force display style after content is inserted
+    pipelineContainer.style.display = 'flex';
+    pipelineContainer.style.flexDirection = 'row';
+    
+    // Apply flex style to direct children
+    const columns = pipelineContainer.querySelectorAll('.pipeline-column');
+    columns.forEach(column => {
+        column.style.display = 'flex';
+        column.style.flexDirection = 'column';
+        column.style.flex = '0 0 300px';
+    });
     
     // Add event listeners to cards
     document.querySelectorAll('.pipeline-card').forEach(card => {

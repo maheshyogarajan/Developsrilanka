@@ -1,0 +1,69 @@
+I’m building an “Expense Pipeline” Kanban board on Replit using Flask, Bootstrap 5, SortableJS, and custom CSS, but despite correctly loading data and generating the column structure in JavaScript, it still renders as a vertical list instead of side-by-side columns. I’ve tried Bootstrap flex utilities, custom CSS overrides, and !important flags without success, so I need advice on why my flex layout isn’t taking effect and how to fix it. 
+Bootstrap
+MDN Web Docs
+
+Project Overview
+Frameworks: Flask backend, SQLAlchemy ORM, PostgreSQL database 
+GitHub
+
+UI: Bootstrap 5 for styling, Font Awesome for icons, jQuery + AJAX/Fetch for data loading 
+Reddit
+
+Drag-and-Drop: SortableJS for moving cards between columns 
+GitHub
+
+Layout Attempt: Custom pipeline.css using Flexbox (direct children must be flex items) 
+Stack Overflow
+CSS-Tricks
+
+Current Issues
+Flexbox Rules Not Applying: My .pipeline { display:flex } and .column { flex:1 } never override Bootstrap’s default display:block prints 
+Stack Overflow
+Reddit
+.
+
+CSS Cascade & Specificity: Loading pipeline.css after Bootstrap and using !important still doesn’t win the cascade 
+Stack Overflow
+.
+
+HTML Structure Conflicts: The generated HTML wraps each column in list elements (<ul>, <li>), which may not be direct children of the flex container 
+MDN Web Docs
+.
+
+SortableJS Initialization: Cards and columns are correctly initialized, but the containers remain stacked vertically 
+CodePen
+.
+
+What I’ve Tried
+Bootstrap Utilities: Applied .d-flex .flex-row to the pipeline container and .flex-fill to columns, per Bootstrap docs 
+Bootstrap
+.
+
+Custom CSS Overrides: Used ID-prefixed selectors (#pipeline .column { … }) and !important flags 
+Stack Overflow
+.
+
+DevTools Inspection: Confirmed display:block is coming from bootstrap.min.css and my CSS isn’t loaded afterward 
+Reddit
+.
+
+Simplified Markup: Tried refactoring to plain <div> columns instead of list groups, but no change 
+Frappe Forum
+.
+
+Desired Outcome
+A responsive, horizontal Kanban board where each status column sits side-by-side and cards can be dragged between them. 
+CodePen
+
+Specific Questions
+Override Strategy: What’s the most reliable way to override Bootstrap’s default list styling and ensure display:flex is honoured? 
+Stack Overflow
+
+Markup Best Practices: Should I avoid <ul>/<li> for flex columns, and if so, what container structure works best? 
+MDN Web Docs
+
+Flexbox Deep-Dive: Are there any pitfalls with nested wrappers or CSS reset rules on Replit that could block flex layouts? 
+MDN Web Docs
+
+SortableJS Integration: Any tips on combining SortableJS with Flexbox for both columns and cards to render correctly? 
+CodePen
