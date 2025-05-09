@@ -226,16 +226,65 @@ function loadPipelineData(force = false) {
         })
         .catch(error => {
             clearTimeout(loadingTimeout);
-            console.error('Error loading pipeline data:', error);
-            pipelineContainer.innerHTML = `
-                <div class="alert alert-danger w-100" role="alert">
-                    <strong>Error loading pipeline data:</strong> ${error.message}
-                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="loadPipelineData(true)">
-                        <i class="fas fa-sync-alt"></i> Try Again
-                    </button>
-                </div>
-            `;
+            
+            // Try to parse the error response
+            let errorMessage = error.message || 'Unknown error';
+            let detailedError = '';
+            
+            if (error.response) {
+                // Try to extract detailed error information from our enhanced error format
+                error.response.json().then(errorData => {
+                    console.error('Detailed error:', errorData);
+                    if (errorData.details) {
+                        errorMessage = errorData.details;
+                    }
+                    if (errorData.trace) {
+                        detailedError = errorData.trace;
+                    }
+                    displayErrorMessage(errorMessage, detailedError);
+                }).catch(e => {
+                    // If we can't parse the JSON, just use what we have
+                    displayErrorMessage(errorMessage);
+                });
+            } else {
+                displayErrorMessage(errorMessage);
+            }
         });
+}
+
+function displayErrorMessage(errorMessage, detailedError = '') {
+    console.error('Error loading pipeline data:', errorMessage);
+    
+    // Create the basic error message
+    let errorHtml = `
+        <div class="alert alert-danger w-100" role="alert">
+            <strong>Error loading pipeline data:</strong> ${errorMessage}
+            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="loadPipelineData(true)">
+                <i class="fas fa-sync-alt"></i> Try Again
+            </button>
+        </div>
+    `;
+    
+    // Add detailed error if available, in a collapsible section
+    if (detailedError) {
+        errorHtml += `
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-secondary" type="button" 
+                    data-bs-toggle="collapse" data-bs-target="#errorDetails" 
+                    aria-expanded="false" aria-controls="errorDetails">
+                    Show Error Details
+                </button>
+                <div class="collapse mt-2" id="errorDetails">
+                    <div class="card card-body">
+                        <pre class="text-danger" style="max-height: 200px; overflow-y: auto;">${detailedError}</pre>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    pipelineContainer.innerHTML = errorHtml;
+}
 }
 
 /**

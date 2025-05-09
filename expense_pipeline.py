@@ -276,8 +276,14 @@ def get_pipeline_data():
                 if receipt:
                     try:
                         image_url = get_receipt_image_url(receipt)
-                        thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt)
-                    except Exception as e:
+                        # Check if thumbnail_manager is properly initialized
+                        if hasattr(thumbnail_manager, 'get_thumbnail_url'):
+                            thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt)
+                        else:
+                            logging.warning("thumbnail_manager missing get_thumbnail_url method")
+                            thumbnail_url = '/static/img/receipt-placeholder.svg'
+                    except Exception as img_error:
+                        logging.error(f"Error getting image URL for expense receipt {receipt.id}: {str(img_error)}")
                         image_url = '/static/img/receipt-placeholder.svg'
                         thumbnail_url = '/static/img/receipt-placeholder.svg'
             
@@ -309,14 +315,19 @@ def get_pipeline_data():
                 if rejector:
                     rejected_by_name = rejector.username
             
+            # Get expense amount from receipt relationship since CompanyExpense doesn't store amount directly
+            expense_amount = 0.0
+            if expense.receipt and hasattr(expense.receipt, 'total_amount'):
+                expense_amount = float(expense.receipt.total_amount or 0.0)
+            
             # Calculate priority (1-3) based on amount
             priority = 2  # Default medium priority
             
-            if expense.amount:
+            if expense_amount:
                 # Higher amounts get higher priority
-                if float(expense.amount) > 1000:
+                if expense_amount > 1000:
                     priority = 3
-                elif float(expense.amount) < 100:
+                elif expense_amount < 100:
                     priority = 1
             
             # Get safe user object for expense
@@ -327,7 +338,7 @@ def get_pipeline_data():
             expense_data = {
                 'id': expense.id,
                 'description': getattr(expense, 'description', "") or "Expense",
-                'amount': float(getattr(expense, 'amount', 0) or 0),
+                'amount': expense_amount,
                 'date': expense.submitted_date.strftime('%Y-%m-%d') if hasattr(expense, 'submitted_date') and expense.submitted_date else None,
                 'receipt_id': expense.receipt_id,
                 'category': getattr(expense, 'category', "Uncategorized") or "Uncategorized",
