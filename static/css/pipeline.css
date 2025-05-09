@@ -8,6 +8,8 @@
     padding-bottom: 20px;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
+    background-color: #f0f8ff; /* Light blue background to verify CSS is loading */
+    border: 2px dashed #007AFF; /* Blue border to make it obvious */
 }
 
 /* Pipeline columns */

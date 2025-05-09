@@ -5,6 +5,30 @@
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pipeline.css') }}">
+<style>
+    /* Ensure container has proper styling for the flexbox kanban layout */
+    .container-fluid {
+        max-width: 100%;
+        padding-right: 15px;
+        padding-left: 15px;
+        overflow-x: hidden;
+    }
+    
+    /* Force flex display on the pipeline */
+    .expense-pipeline {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        min-height: 600px !important; /* Ensure sufficient height */
+        padding: 15px !important;
+    }
+    
+    /* Ensure pipeline columns are properly sized */
+    .pipeline-column {
+        flex: 0 0 300px !important;
+        margin-right: 15px !important;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -220,6 +244,26 @@
         // Try to access our pipeline JavaScript
         const scriptElement = document.querySelector('script[src*="expense-pipeline.js"]');
         console.log('Pipeline script element found:', scriptElement !== null);
+        
+        // Try to manually fetch the pipeline data
+        const organizationId = document.getElementById('organizationSelector').value;
+        const viewType = document.getElementById('viewSelector').value;
+        console.log(`Manual test: Fetching data for org ${organizationId}, view ${viewType}`);
+        
+        fetch(`/expenses/api/pipeline-data?org_id=${organizationId}&view=${viewType}`)
+            .then(response => {
+                console.log('Manual test API response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Manual test API data received:', data);
+                // Log the complete structure to see all data
+                console.log('Pipeline columns:', Object.keys(data.columns));
+                console.log('First column data sample:', data.columns[Object.keys(data.columns)[0]]);
+            })
+            .catch(error => {
+                console.error('Manual test API error:', error);
+            });
     });
 </script>
 <script src="{{ url_for('static', filename='js/expense-pipeline.js') }}"></script>
