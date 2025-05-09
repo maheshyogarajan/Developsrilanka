@@ -74,7 +74,7 @@ def expense_pipeline():
         flash(f"Error loading expense pipeline: {str(e)}", "danger")
         return redirect(url_for('expense.expenses'))
 
-@pipeline_bp.route('/api/pipeline-data')
+@pipeline_bp.route('/api/pipeline-data', methods=['GET'])
 @login_required
 def get_pipeline_data():
     """
