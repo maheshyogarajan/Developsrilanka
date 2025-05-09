@@ -207,5 +207,20 @@
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+<script>
+    // Debug script to verify scripts are loading
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Debug script loaded');
+        console.log('SortableJS available:', typeof Sortable !== 'undefined');
+        
+        // Check if the expense pipeline element exists
+        const pipelineElement = document.getElementById('expensePipeline');
+        console.log('Pipeline element found:', pipelineElement !== null);
+        
+        // Try to access our pipeline JavaScript
+        const scriptElement = document.querySelector('script[src*="expense-pipeline.js"]');
+        console.log('Pipeline script element found:', scriptElement !== null);
+    });
+</script>
 <script src="{{ url_for('static', filename='js/expense-pipeline.js') }}"></script>
 {% endblock %}

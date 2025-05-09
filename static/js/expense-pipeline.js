@@ -211,8 +211,10 @@ function loadPipelineData(force = false) {
     if (dateTo) queryParams += `&date_to=${dateTo}`;
     
     // Fetch pipeline data from the server
+    console.log(`Fetching pipeline data from: /expenses/api/pipeline-data?${queryParams}`);
     fetch(`/expenses/api/pipeline-data?${queryParams}`)
         .then(response => {
+            console.log('Pipeline API response status:', response.status);
             clearTimeout(loadingTimeout);
             if (!response.ok) {
                 return response.json().then(errorData => {
