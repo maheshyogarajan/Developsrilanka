@@ -4,7 +4,7 @@ This provides a kanban-style board for managing expense reimbursements.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, time as datetime_time
 from flask import Blueprint, render_template, request, jsonify, abort, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func, desc, text
@@ -125,7 +125,6 @@ def get_pipeline_data():
         # Apply date filters if specified
         if date_from:
             try:
-                from datetime import datetime
                 date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
                 query = query.filter(CompanyExpense.submitted_date >= date_from_obj)
             except ValueError:
@@ -134,7 +133,6 @@ def get_pipeline_data():
         
         if date_to:
             try:
-                from datetime import datetime
                 date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
                 query = query.filter(CompanyExpense.submitted_date <= date_to_obj)
             except ValueError:
@@ -486,14 +484,15 @@ def create_expense_from_receipt(receipt_id, org_id, new_status):
         expense.organization_id = int(org_id)
         expense.receipt_id = receipt_id
         expense.description = receipt.vendor_name or "Expense from receipt"
-        expense.amount = receipt.total_amount
+        # Receipt fields may have different names than in the model we're looking at
+        expense.amount = receipt.total_amount if hasattr(receipt, 'total_amount') else receipt.total
         # Use submitted_date since CompanyExpense doesn't have a date field
         expense.submitted_date = datetime.utcnow()
         # Use receipt.date for reference
         if receipt.date:
-            expense.submitted_date = datetime.combine(receipt.date, datetime.min.time())
-        # Use the expense category from receipt if available  
-        expense.category = receipt.expense_major_category
+            expense.submitted_date = datetime.combine(receipt.date, datetime_time.min)
+        # Use the expense category from receipt if available
+        expense.category = receipt.expense_major_category if hasattr(receipt, 'expense_major_category') else receipt.category
         expense.vendor_name = receipt.vendor_name
         expense.is_reimbursable = True
         expense.status = ExpenseStatus.SUBMITTED.value
@@ -647,7 +646,7 @@ def batch_submit_expenses():
                     expense.submitted_date = datetime.utcnow()
                     # Use receipt.date for reference
                     if receipt.date:
-                        expense.submitted_date = datetime.combine(receipt.date, datetime.min.time())
+                        expense.submitted_date = datetime.combine(receipt.date, datetime_time.min)
                     # Use the expense category from receipt if available
                     expense.category = receipt.expense_major_category if hasattr(receipt, 'expense_major_category') else receipt.category
                     expense.vendor_name = receipt.vendor_name
