@@ -299,21 +299,21 @@ def get_pipeline_data():
             if hasattr(expense, 'approved_by_user_id') and expense.approved_by_user_id:
                 approver = User.query.get(expense.approved_by_user_id)
                 if approver:
-                    approver_name = approver.username
+                    approver_name = getattr(approver, 'name', None)
             
             # Get reimbursement processor name if available
             reimbursed_by_name = None
             if hasattr(expense, 'reimbursed_by_user_id') and expense.reimbursed_by_user_id:
                 processor = User.query.get(expense.reimbursed_by_user_id)
                 if processor:
-                    reimbursed_by_name = processor.username
+                    reimbursed_by_name = getattr(processor, 'name', None)
             
             # Get rejection processor name if available
             rejected_by_name = None
             if hasattr(expense, 'rejected_by_user_id') and expense.rejected_by_user_id:
                 rejector = User.query.get(expense.rejected_by_user_id)
                 if rejector:
-                    rejected_by_name = rejector.username
+                    rejected_by_name = getattr(rejector, 'name', None)
             
             # Get expense amount from receipt relationship since CompanyExpense doesn't store amount directly
             expense_amount = 0.0
@@ -332,7 +332,7 @@ def get_pipeline_data():
             
             # Get safe user object for expense
             user_obj = User.query.get(expense.user_id)
-            user_name = getattr(user_obj, 'username', "Unknown") if user_obj else "Unknown"
+            user_name = getattr(user_obj, 'name', "Unknown") if user_obj else "Unknown"
                 
             # Build the expense data object
             expense_data = {
@@ -350,7 +350,7 @@ def get_pipeline_data():
                 'client_id': expense.client_id,
                 'client_name': client_name,
                 'is_reimbursable': expense.is_reimbursable,
-                'vendor_name': expense.vendor_name,
+                'vendor_name': expense.receipt.vendor_name if expense.receipt else "",
                 'image_url': image_url,
                 'thumbnail_url': thumbnail_url,
                 'type': 'expense',
