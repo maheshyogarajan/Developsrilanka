@@ -230,6 +230,37 @@ def can_view_organization_receipts(organization_id, user_id=None):
     # Owner and admin roles can view all receipts
     return org_user.role in ['owner', 'admin']
 
+def get_user_organizations(user_id):
+    """
+    Get all organizations a user is a member of.
+    
+    Args:
+        user_id: The user ID to get organizations for
+        
+    Returns:
+        List of Organization objects the user is a member of
+    """
+    from models import Organization, OrganizationUser
+    
+    # Query for organization users with the given user ID
+    org_users = OrganizationUser.query.filter_by(user_id=user_id).all()
+    
+    # Extract the organizations 
+    organizations = []
+    for org_user in org_users:
+        organization = Organization.query.get(org_user.organization_id)
+        if organization:
+            # Add the is_default attribute to the organization object
+            organization.is_default = org_user.is_default
+            # Add the user's role in this organization
+            organization.user_role = org_user.role
+            organizations.append(organization)
+    
+    # Sort organizations with default first, then alphabetically by name
+    organizations.sort(key=lambda org: (0 if getattr(org, 'is_default', False) else 1, org.name))
+    
+    return organizations
+
 def check_organization_permission(user_id, organization_id, required_roles):
     """
     Check if a user has the required role in an organization.

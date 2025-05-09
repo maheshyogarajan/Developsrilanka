@@ -481,18 +481,17 @@ def create_expense_from_receipt(receipt_id, org_id, new_status):
             return jsonify({'error': 'Receipt does not belong to the specified organization'}), 400
         
         # Create a new expense
-        expense = CompanyExpense(
-            user_id=current_user.id,
-            organization_id=int(org_id),
-            receipt_id=receipt_id,
-            description=receipt.vendor_name or "Expense from receipt",
-            amount=receipt.total,
-            date=receipt.date,
-            category=receipt.category,
-            vendor_name=receipt.vendor_name,
-            is_reimbursable=True,
-            status=ExpenseStatus.SUBMITTED.value
-        )
+        expense = CompanyExpense()
+        expense.user_id = current_user.id
+        expense.organization_id = int(org_id)
+        expense.receipt_id = receipt_id
+        expense.description = receipt.vendor_name or "Expense from receipt"
+        expense.amount = receipt.total
+        expense.date = receipt.date
+        expense.category = receipt.category
+        expense.vendor_name = receipt.vendor_name
+        expense.is_reimbursable = True
+        expense.status = ExpenseStatus.SUBMITTED.value
         
         db.session.add(expense)
         db.session.commit()
@@ -631,20 +630,19 @@ def batch_submit_expenses():
                         continue
                     
                     # Create a new expense
-                    expense = CompanyExpense(
-                        user_id=current_user.id,
-                        organization_id=int(org_id),
-                        client_id=client_id,
-                        receipt_id=receipt_id,
-                        description=receipt.vendor_name or "Expense from receipt",
-                        amount=receipt.total,
-                        date=receipt.date,
-                        category=receipt.category,
-                        vendor_name=receipt.vendor_name,
-                        is_reimbursable=is_reimbursable,
-                        notes=notes,
-                        status=ExpenseStatus.SUBMITTED.value
-                    )
+                    expense = CompanyExpense()
+                    expense.user_id = current_user.id
+                    expense.organization_id = int(org_id)
+                    expense.client_id = client_id
+                    expense.receipt_id = receipt_id
+                    expense.description = receipt.vendor_name or "Expense from receipt"
+                    expense.amount = receipt.total
+                    expense.date = receipt.date
+                    expense.category = receipt.category
+                    expense.vendor_name = receipt.vendor_name
+                    expense.is_reimbursable = is_reimbursable
+                    expense.notes = notes
+                    expense.status = ExpenseStatus.SUBMITTED.value
                     
                     db.session.add(expense)
                     created_count += 1
