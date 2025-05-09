@@ -336,7 +336,7 @@ function renderPipeline(data) {
         const items = column.items || [];
         
         columnsHTML += `
-            <div class="pipeline-column column-${columnId}" data-column-id="${columnId}">
+            <div class="pipeline-column column-${columnId} flex-shrink-0" data-column-id="${columnId}">
                 <div class="pipeline-column-header">
                     <div class="column-summary">
                         <div class="column-title" style="color: ${column.color}">
@@ -355,6 +355,9 @@ function renderPipeline(data) {
         `;
     }
     
+    // Clear any previous content
+    pipelineContainer.innerHTML = '';
+    // Insert new content
     pipelineContainer.innerHTML = columnsHTML;
     
     // Add event listeners to cards
