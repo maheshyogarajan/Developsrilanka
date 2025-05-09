@@ -127,7 +127,7 @@ def get_pipeline_data():
             try:
                 from datetime import datetime
                 date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
-                query = query.filter(CompanyExpense.date >= date_from_obj)
+                query = query.filter(CompanyExpense.submitted_date >= date_from_obj)
             except ValueError:
                 # Invalid date format, ignore this filter
                 pass
@@ -136,7 +136,7 @@ def get_pipeline_data():
             try:
                 from datetime import datetime
                 date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
-                query = query.filter(CompanyExpense.date <= date_to_obj)
+                query = query.filter(CompanyExpense.submitted_date <= date_to_obj)
             except ValueError:
                 # Invalid date format, ignore this filter
                 pass
@@ -293,7 +293,7 @@ def get_pipeline_data():
                 'id': expense.id,
                 'description': expense.description or "Expense",
                 'amount': float(expense.amount) if expense.amount else 0,
-                'date': expense.date.strftime('%Y-%m-%d') if expense.date else None,
+                'date': expense.submitted_date.strftime('%Y-%m-%d') if expense.submitted_date else None,
                 'receipt_id': expense.receipt_id,
                 'category': expense.category or "Uncategorized",
                 'user': {
@@ -486,9 +486,14 @@ def create_expense_from_receipt(receipt_id, org_id, new_status):
         expense.organization_id = int(org_id)
         expense.receipt_id = receipt_id
         expense.description = receipt.vendor_name or "Expense from receipt"
-        expense.amount = receipt.total
-        expense.date = receipt.date
-        expense.category = receipt.category
+        expense.amount = receipt.total_amount
+        # Use submitted_date since CompanyExpense doesn't have a date field
+        expense.submitted_date = datetime.utcnow()
+        # Use receipt.date for reference
+        if receipt.date:
+            expense.submitted_date = datetime.combine(receipt.date, datetime.min.time())
+        # Use the expense category from receipt if available  
+        expense.category = receipt.expense_major_category
         expense.vendor_name = receipt.vendor_name
         expense.is_reimbursable = True
         expense.status = ExpenseStatus.SUBMITTED.value
@@ -636,9 +641,15 @@ def batch_submit_expenses():
                     expense.client_id = client_id
                     expense.receipt_id = receipt_id
                     expense.description = receipt.vendor_name or "Expense from receipt"
-                    expense.amount = receipt.total
-                    expense.date = receipt.date
-                    expense.category = receipt.category
+                    # Receipt fields may have different names than in the model we're looking at
+                    expense.amount = receipt.total_amount if hasattr(receipt, 'total_amount') else receipt.total
+                    # Use submitted_date since CompanyExpense doesn't have a date field
+                    expense.submitted_date = datetime.utcnow()
+                    # Use receipt.date for reference
+                    if receipt.date:
+                        expense.submitted_date = datetime.combine(receipt.date, datetime.min.time())
+                    # Use the expense category from receipt if available
+                    expense.category = receipt.expense_major_category if hasattr(receipt, 'expense_major_category') else receipt.category
                     expense.vendor_name = receipt.vendor_name
                     expense.is_reimbursable = is_reimbursable
                     expense.notes = notes
