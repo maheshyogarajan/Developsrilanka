@@ -216,10 +216,10 @@ def get_pipeline_data():
                 pending_submission.append({
                     'id': f"receipt_{receipt.id}",
                     'description': receipt.vendor_name or "Receipt",
-                    'amount': float(receipt.total) if receipt.total else 0,
+                    'amount': float(receipt.total_amount if hasattr(receipt, 'total_amount') else (receipt.total if hasattr(receipt, 'total') else 0)),
                     'date': receipt.date.strftime('%Y-%m-%d') if receipt.date else None,
                     'receipt_id': receipt.id,
-                    'category': receipt.category or "Uncategorized",
+                    'category': receipt.expense_major_category if hasattr(receipt, 'expense_major_category') else (receipt.category if hasattr(receipt, 'category') else "Uncategorized"),
                     'user': {
                         'id': receipt.user_id,
                         'name': User.query.get(receipt.user_id).username if User.query.get(receipt.user_id) else "Unknown"
@@ -398,8 +398,14 @@ def get_pipeline_data():
         return jsonify(pipeline_data)
     
     except Exception as e:
-        logging.error(f"Error getting pipeline data: {str(e)}")
-        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+        error_msg = str(e)
+        logging.error(f"Error getting pipeline data: {error_msg}")
+        detailed_msg = {
+            'error': 'Failed to load pipeline data',
+            'details': error_msg,
+            'type': 'api_error'
+        }
+        return jsonify(detailed_msg), 500
 
 @pipeline_bp.route('/api/update-expense-status', methods=['POST'])
 @login_required
