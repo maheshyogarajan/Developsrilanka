@@ -1,0 +1,237 @@
+/* Expense Pipeline CSS */
+
+/* Base pipeline layout */
+.expense-pipeline {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 20px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Pipeline columns */
+.pipeline-column {
+    min-width: 300px;
+    width: 300px;
+    margin-right: 12px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    scroll-snap-align: start;
+    height: calc(100vh - 250px);
+    max-height: 800px;
+}
+
+/* Column header */
+.pipeline-column-header {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    background-color: #f1f3f5;
+    border-radius: 8px 8px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Column content area with scrolling */
+.pipeline-column-body {
+    padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 200px;
+}
+
+/* Expense cards */
+.pipeline-card {
+    background-color: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: grab;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.pipeline-card:hover {
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+    transform: translateY(-2px);
+}
+
+.pipeline-card.dragging {
+    opacity: 0.7;
+    cursor: grabbing;
+}
+
+/* Card sections */
+.pipeline-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.pipeline-card-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    word-break: break-word;
+    flex: 1;
+}
+
+.pipeline-card-amount {
+    font-size: 18px;
+    font-weight: 700;
+    color: #495057;
+    white-space: nowrap;
+    margin-left: 8px;
+}
+
+/* Category tag styling */
+.category-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-top: 6px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Different category colors */
+.category-travel { background-color: #e7f5ff; color: #1864ab; }
+.category-meals { background-color: #ebfbee; color: #2b8a3e; }
+.category-office { background-color: #fff9db; color: #e67700; }
+.category-equipment { background-color: #f3f0ff; color: #5f3dc4; }
+.category-utilities { background-color: #e6fcf5; color: #099268; }
+.category-other { background-color: #f8f9fa; color: #495057; }
+
+/* Priority rating stars */
+.priority-rating {
+    margin-top: 6px;
+    color: #fcc419;
+}
+
+.priority-rating i {
+    margin-right: 2px;
+}
+
+/* Column statistics */
+.column-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.column-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.column-total {
+    font-weight: 700;
+    color: #343a40;
+}
+
+.column-count {
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 0 6px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-left: 6px;
+}
+
+.column-actions {
+    margin-top: 10px;
+    text-align: right;
+}
+
+/* Column color indicators */
+.column-pending-submission .column-title { color: #495057; }
+.column-submitted .column-title { color: #1864ab; }
+.column-approved .column-title { color: #2b8a3e; }
+.column-reimbursed .column-title { color: #5f3dc4; }
+.column-rejected .column-title { color: #c92a2a; }
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .pipeline-column {
+        min-width: 85vw;
+        width: 85vw;
+    }
+    
+    .pipeline-controls {
+        flex-direction: column;
+    }
+    
+    .pipeline-controls > div {
+        margin-bottom: 10px;
+    }
+    
+    .column-indicators {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .column-indicator {
+        flex: 0 0 auto;
+        margin-right: 8px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+}
+
+/* Empty state styling */
+.column-empty-state {
+    padding: 20px 0;
+    text-align: center;
+    color: #adb5bd;
+}
+
+.column-empty-state i {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+/* Placeholder for drag indicators */
+.card-placeholder {
+    background-color: #e9ecef;
+    border-radius: 6px;
+    height: 80px;
+    margin-bottom: 8px;
+    border: 2px dashed #ced4da;
+}
+
+/* Accessibility improvements */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Animation for status changes */
+@keyframes highlight-card {
+    0% { background-color: #fff0f6; }
+    100% { background-color: white; }
+}
+
+.status-changed {
+    animation: highlight-card 2s;
+}

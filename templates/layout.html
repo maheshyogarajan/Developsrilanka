@@ -433,9 +433,15 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{{ url_for('expense.expenses') }}" class="submenu-link {% if '/expenses' in request.path and not '/reports' in request.path %}active{% endif %}">
+                            <a href="{{ url_for('expense.expenses') }}" class="submenu-link {% if '/expenses' in request.path and not '/pipeline' in request.path and not '/reports' in request.path %}active{% endif %}">
                                 <i class="fas fa-clipboard-list submenu-icon"></i>
                                 <span>Expenses</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('pipeline.expense_pipeline') }}" class="submenu-link {% if '/expenses/pipeline' in request.path %}active{% endif %}">
+                                <i class="fas fa-th-list submenu-icon"></i>
+                                <span>Pipeline</span>
                             </a>
                         </li>
                         <li>
@@ -557,6 +563,8 @@
                     Organizations
                 {% elif '/team' in request.path %}
                     Team Management
+                {% elif '/expenses/pipeline' in request.path %}
+                    Expense Pipeline
                 {% elif '/expenses' in request.path %}
                     Expenses
                 {% elif '/classify' in request.path %}
