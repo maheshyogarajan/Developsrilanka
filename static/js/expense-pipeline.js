@@ -497,27 +497,38 @@ function renderPipeline(data) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = columnsHTML;
     
-    // Append each column individually to maintain control
-    while (tempDiv.firstChild) {
-        const column = tempDiv.firstChild;
-        
-        // Apply explicit flexbox styling to each column using individual properties
-        if (column && column.style) {
-            column.style.display = 'flex';
-            column.style.flexDirection = 'column';
-            column.style.flex = '0 0 300px';
-            column.style.minWidth = '300px';
-            column.style.width = '300px';
-            column.style.marginRight = '15px';
-            column.style.float = 'none';
+    // Get all columns from the temporary container
+    const columns = tempDiv.children;
+    console.log(`Found ${columns.length} columns in the temporary container`);
+    
+    // Convert HTMLCollection to an array to safely iterate
+    const columnsArray = Array.from(columns);
+    
+    // Process each column
+    columnsArray.forEach(column => {
+        try {
+            // Apply explicit flexbox styling to each column using individual properties
+            if (column && column.style) {
+                column.style.display = 'flex';
+                column.style.flexDirection = 'column';
+                column.style.flex = '0 0 300px';
+                column.style.minWidth = '300px';
+                column.style.width = '300px';
+                column.style.marginRight = '15px';
+                column.style.float = 'none';
+            }
+            
+            // Clone the node to avoid potential issues with removing it from tempDiv
+            const columnClone = column.cloneNode(true);
+            
+            // Append the clone to pipeline
+            pipelineContainer.appendChild(columnClone);
+        } catch (error) {
+            console.error('Error processing column:', error);
         }
-        
-        // Append to pipeline
-        pipelineContainer.appendChild(column);
-        
-        // Remove from temp container
-        tempDiv.removeChild(column);
-    }
+    });
+    
+    // We no longer need to remove anything since we're using clones
     
     // Add event listeners to cards
     document.querySelectorAll('.pipeline-card').forEach(card => {
