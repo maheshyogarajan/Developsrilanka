@@ -446,16 +446,17 @@ def update_expense_status():
         expense.status = new_status
         
         # Add additional information based on the new status
+        current_time = datetime.utcnow()
         if new_status == ExpenseStatus.APPROVED.value:
             expense.approved_by_user_id = current_user.id
-            expense.approved_date = datetime.utcnow()
+            expense.approved_date = current_time
         elif new_status == ExpenseStatus.REJECTED.value:
             expense.rejected_by_user_id = current_user.id
-            expense.rejected_date = datetime.utcnow()
+            expense.rejected_date = current_time
             expense.rejection_reason = data.get('rejection_reason')
         elif new_status == ExpenseStatus.REIMBURSED.value:
             expense.reimbursed_by_user_id = current_user.id
-            expense.reimbursed_date = datetime.utcnow()
+            expense.reimbursed_date = current_time
             expense.reimbursement_method = data.get('reimbursement_method')
             expense.reimbursement_reference = data.get('reimbursement_reference')
         
@@ -490,16 +491,20 @@ def create_expense_from_receipt(receipt_id, org_id, new_status):
         expense.organization_id = int(org_id)
         expense.receipt_id = receipt_id
         expense.description = receipt.vendor_name or "Expense from receipt"
-        # Receipt fields may have different names than in the model we're looking at
-        expense.amount = receipt.total_amount if hasattr(receipt, 'total_amount') else receipt.total
+        
+        # Get total amount from receipt - for CompanyExpense, we don't set an amount directly
+        # since it's derived from the receipt relationship
+        total_amount = receipt.total_amount if hasattr(receipt, 'total_amount') else 0
+        
         # Use submitted_date since CompanyExpense doesn't have a date field
         expense.submitted_date = datetime.utcnow()
-        # Use receipt.date for reference
+        # Use receipt.date for reference if available
         if receipt.date:
             expense.submitted_date = datetime.combine(receipt.date, datetime_time.min)
-        # Use the expense category from receipt if available
-        expense.category = receipt.expense_major_category if hasattr(receipt, 'expense_major_category') else receipt.category
-        expense.vendor_name = receipt.vendor_name
+            
+        # We don't set category directly as it's derived from receipt relationship
+        # We don't set vendor_name directly as it's derived from receipt relationship
+        
         expense.is_reimbursable = True
         expense.status = ExpenseStatus.SUBMITTED.value
         
@@ -646,18 +651,16 @@ def batch_submit_expenses():
                     expense.client_id = client_id
                     expense.receipt_id = receipt_id
                     expense.description = receipt.vendor_name or "Expense from receipt"
-                    # Receipt fields may have different names than in the model we're looking at
-                    expense.amount = receipt.total_amount if hasattr(receipt, 'total_amount') else receipt.total
+                    
                     # Use submitted_date since CompanyExpense doesn't have a date field
                     expense.submitted_date = datetime.utcnow()
                     # Use receipt.date for reference
                     if receipt.date:
                         expense.submitted_date = datetime.combine(receipt.date, datetime_time.min)
-                    # Use the expense category from receipt if available
-                    expense.category = receipt.expense_major_category if hasattr(receipt, 'expense_major_category') else receipt.category
-                    expense.vendor_name = receipt.vendor_name
-                    expense.is_reimbursable = is_reimbursable
+                    
+                    # Add notes from the form
                     expense.notes = notes
+                    expense.is_reimbursable = is_reimbursable
                     expense.status = ExpenseStatus.SUBMITTED.value
                     
                     db.session.add(expense)
