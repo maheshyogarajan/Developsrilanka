@@ -23,6 +23,9 @@
     <!-- Improved Toggle Styling -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/improved-toggles.css') }}">
     
+    <!-- Additional page-specific styles -->
+    {% block additional_styles %}{% endblock %}>
+    
     <style>
         :root {
             --sidebar-width: 260px;

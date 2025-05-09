@@ -355,24 +355,50 @@ function renderPipeline(data) {
         `;
     }
     
-    // Clear any previous content and restore flexbox
-    pipelineContainer.innerHTML = '';
+    // Instead of changing innerHTML directly, create a document fragment
+    // to ensure we don't lose the flexbox structure
+    
+    // First, clear the container properly
+    while (pipelineContainer.firstChild) {
+        pipelineContainer.removeChild(pipelineContainer.firstChild);
+    }
+    
+    // Apply explicit flexbox styling
     pipelineContainer.className = 'expense-pipeline d-flex flex-row overflow-auto';
+    pipelineContainer.style.cssText = `
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        width: 100% !important;
+        min-height: 600px !important;
+    `;
     
-    // Insert new content
-    pipelineContainer.innerHTML = columnsHTML;
+    // Create a temporary div to parse the HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = columnsHTML;
     
-    // Force display style after content is inserted
-    pipelineContainer.style.display = 'flex';
-    pipelineContainer.style.flexDirection = 'row';
-    
-    // Apply flex style to direct children
-    const columns = pipelineContainer.querySelectorAll('.pipeline-column');
-    columns.forEach(column => {
-        column.style.display = 'flex';
-        column.style.flexDirection = 'column';
-        column.style.flex = '0 0 300px';
-    });
+    // Append each column individually to maintain control
+    while (tempDiv.firstChild) {
+        const column = tempDiv.firstChild;
+        
+        // Apply explicit flexbox styling to each column
+        column.style.cssText = `
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 0 0 300px !important;
+            min-width: 300px !important;
+            width: 300px !important;
+            margin-right: 15px !important;
+            float: none !important;
+        `;
+        
+        // Append to pipeline
+        pipelineContainer.appendChild(column);
+        
+        // Remove from temp container
+        tempDiv.removeChild(column);
+    }
     
     // Add event listeners to cards
     document.querySelectorAll('.pipeline-card').forEach(card => {

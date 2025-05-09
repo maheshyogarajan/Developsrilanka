@@ -4,10 +4,13 @@
 
 {% block styles %}
 {{ super() }}
-<!-- Pipeline CSS loaded after Bootstrap to ensure proper override -->
+{% endblock %}
+
+{% block additional_styles %}
+<!-- Pipeline CSS loaded at the end to override all Bootstrap styles -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pipeline.css') }}">
 <style>
-    /* Critical overrides with highest specificity */
+    /* Critical overrides with highest specificity - Applied at the end of all CSS */
     #expensePipeline.expense-pipeline {
         display: flex !important;
         flex-direction: row !important;
@@ -30,6 +33,7 @@
         display: flex !important;
         flex-direction: column !important;
         float: none !important; /* Prevent Bootstrap float behaviors */
+        position: relative !important; /* Ensure proper stacking context */
     }
     
     /* Ensure container expands fully */
