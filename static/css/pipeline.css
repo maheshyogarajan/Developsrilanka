@@ -1,15 +1,14 @@
 /* Expense Pipeline CSS */
 
-/* Base pipeline layout */
+/* Base pipeline layout - Note: most of these are now applied via Bootstrap classes */
 .expense-pipeline {
-    display: flex;
+    display: flex !important; /* Use Bootstrap's d-flex instead */
+    flex-direction: row !important; /* Use Bootstrap's flex-row instead */
     width: 100%;
-    overflow-x: auto;
-    padding-bottom: 20px;
+    padding: 20px !important;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
-    background-color: #f0f8ff; /* Light blue background to verify CSS is loading */
-    border: 2px dashed #007AFF; /* Blue border to make it obvious */
+    min-height: 600px;
 }
 
 /* Pipeline columns */
