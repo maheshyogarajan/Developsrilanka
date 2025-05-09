@@ -11,8 +11,9 @@ from sqlalchemy import or_, and_, func, desc, text
 
 from app import db
 from models import CompanyExpense, Receipt, Organization, OrganizationUser, User, Client, ExpenseStatus
-from decorators import org_member_required
-from utils import check_organization_permission, get_user_organizations, get_receipt_image_url
+from decorators import check_organization_permission
+from user_utils import get_user_organizations
+from s3_storage import get_receipt_image_url
 import thumbnail_manager
 
 # Create the blueprint
