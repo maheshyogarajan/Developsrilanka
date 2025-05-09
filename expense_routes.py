@@ -461,14 +461,24 @@ def approve_expense(expense_id):
         
         db.session.commit()
         
+        # Get the associated receipt to redirect back to receipt view
+        receipt_id = expense.receipt_id
+        
         flash('Expense approved successfully', 'success')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        # Redirect to unified receipt view instead of the old expense view
+        return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
         
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error approving expense: {str(e)}")
         flash(f'Error approving expense: {str(e)}', 'danger')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        
+        # Try to redirect back to the receipt page if we know the receipt_id
+        try:
+            return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense.receipt_id))
+        except:
+            # Fallback to expense list if we can't get the receipt_id
+            return redirect(url_for('expense.expenses'))
 
 @expense_bp.route('/expenses/<int:expense_id>/reject', methods=['POST'])
 @login_required
@@ -489,7 +499,10 @@ def reject_expense(expense_id):
         # Can reject submitted or approved expenses
         if expense.status not in [ExpenseStatus.SUBMITTED.value, ExpenseStatus.APPROVED.value]:
             flash('Only submitted or approved expenses can be rejected', 'warning')
-            return redirect(url_for('expense.view_expense', expense_id=expense_id))
+            try:
+                return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense.receipt_id))
+            except:
+                return redirect(url_for('expense.expenses'))
         
         # Add rejection reason from form
         rejection_reason = request.form.get('rejection_reason', '')
@@ -501,14 +514,24 @@ def reject_expense(expense_id):
         
         db.session.commit()
         
+        # Get the associated receipt to redirect back to receipt view
+        receipt_id = expense.receipt_id
+        
         flash('Expense rejected successfully', 'success')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        # Redirect to unified receipt view instead of the old expense view
+        return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
         
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error rejecting expense: {str(e)}")
         flash(f'Error rejecting expense: {str(e)}', 'danger')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        
+        # Try to redirect back to the receipt page if we know the receipt_id
+        try:
+            return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense.receipt_id))
+        except:
+            # Fallback to expense list if we can't get the receipt_id
+            return redirect(url_for('expense.expenses'))
 
 @expense_bp.route('/expenses/<int:expense_id>/cancel', methods=['POST'])
 @login_required
@@ -524,7 +547,10 @@ def cancel_expense(expense_id):
     # Can only cancel submitted expenses
     if expense.status != ExpenseStatus.SUBMITTED.value:
         flash('Only submitted expenses can be cancelled', 'warning')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        try:
+            return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense.receipt_id))
+        except:
+            return redirect(url_for('expense.expenses'))
     
     try:
         # Update the expense status
@@ -533,14 +559,24 @@ def cancel_expense(expense_id):
         
         db.session.commit()
         
+        # Get the associated receipt to redirect back to receipt view
+        receipt_id = expense.receipt_id
+        
         flash('Expense cancelled successfully', 'success')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        # Redirect to unified receipt view instead of the old expense view
+        return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
         
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error cancelling expense: {str(e)}")
         flash(f'Error cancelling expense: {str(e)}', 'danger')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        
+        # Try to redirect back to the receipt page if we know the receipt_id
+        try:
+            return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense.receipt_id))
+        except:
+            # Fallback to expense list if we can't get the receipt_id
+            return redirect(url_for('expense.expenses'))
 
 @expense_bp.route('/expenses/<int:expense_id>/reimburse', methods=['POST'])
 @login_required
@@ -561,7 +597,10 @@ def mark_reimbursed(expense_id):
         # Can only reimburse approved expenses
         if expense.status != ExpenseStatus.APPROVED.value:
             flash('Only approved expenses can be reimbursed', 'warning')
-            return redirect(url_for('expense.view_expense', expense_id=expense_id))
+            try:
+                return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense.receipt_id))
+            except:
+                return redirect(url_for('expense.expenses'))
         
         # Update the expense status
         expense.status = ExpenseStatus.REIMBURSED.value
@@ -570,14 +609,24 @@ def mark_reimbursed(expense_id):
         
         db.session.commit()
         
+        # Get the associated receipt to redirect back to receipt view
+        receipt_id = expense.receipt_id
+        
         flash('Expense marked as reimbursed successfully', 'success')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        # Redirect to unified receipt view instead of the old expense view
+        return redirect(url_for('unified_view.view_unified_receipt', receipt_id=receipt_id))
         
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error reimbursing expense: {str(e)}")
         flash(f'Error reimbursing expense: {str(e)}', 'danger')
-        return redirect(url_for('expense.view_expense', expense_id=expense_id))
+        
+        # Try to redirect back to the receipt page if we know the receipt_id
+        try:
+            return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense.receipt_id))
+        except:
+            # Fallback to expense list if we can't get the receipt_id
+            return redirect(url_for('expense.expenses'))
 
 @expense_bp.route('/expenses/<int:expense_id>/update-ajax', methods=['POST'])
 @login_required
