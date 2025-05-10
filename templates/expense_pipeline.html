@@ -12,24 +12,19 @@
 <style>
     /* Critical overrides with highest specificity - Applied at the end of all CSS */
     #expensePipeline.expense-pipeline {
-        width: 100% !important;
-        padding: 15px !important;
-        list-style: none !important;
-        margin-bottom: 0 !important;
-    }
-    
-    /* The pipelineColumns container handles the flexbox layout */
-    #pipelineColumns {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         overflow-x: auto !important;
         min-height: 600px !important;
+        padding: 15px !important;
         width: 100% !important;
+        list-style: none !important;
+        margin-bottom: 0 !important;
     }
     
     /* Direct child elements must be flex items */
-    #pipelineColumns > div.pipeline-column {
+    #expensePipeline.expense-pipeline > div.pipeline-column {
         flex: 0 0 300px !important;
         width: 300px !important;
         min-width: 300px !important;
@@ -39,12 +34,6 @@
         flex-direction: column !important;
         float: none !important; /* Prevent Bootstrap float behaviors */
         position: relative !important; /* Ensure proper stacking context */
-    }
-    
-    /* Pagination styling */
-    .pipeline-pagination {
-        margin-top: 15px !important;
-        margin-bottom: 15px !important;
     }
     
     /* Ensure container expands fully */
