@@ -5,7 +5,7 @@ This module combines the functionality of receipt_views and expense_views.
 import logging
 import os
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort, send_file
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort, send_file, session
 from app import app
 from flask_login import login_required, current_user
 from sqlalchemy import text, or_, and_, func
@@ -35,6 +35,24 @@ def view_unified_receipt(receipt_id):
     
     All in a single cohesive view.
     """
+    # Check if coming from pipeline
+    from_pipeline = request.args.get('from_pipeline', 'false').lower() == 'true'
+    
+    # Store pipeline state in session if coming from pipeline
+    if from_pipeline:
+        # Save pipeline state in session
+        session['from_pipeline'] = True
+        
+        # Store pipeline filter parameters
+        pipeline_params = {}
+        for param in ['org_id', 'view', 'client_id', 'status', 'date_range', 'search']:
+            value = request.args.get(param)
+            if value:
+                pipeline_params[param] = value
+        
+        # Store in session
+        session['pipeline_params'] = pipeline_params
+    
     # Retrieve the receipt with organization filtering
     receipt = Receipt.query.filter_by(id=receipt_id).first_or_404()
     
