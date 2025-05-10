@@ -1079,23 +1079,44 @@ function renderExpenseDetail(item, columnId) {
             
             <div class="col-md-6">
                 <div class="card mb-3">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Receipt Image</h5>
-                        ${item.image_url ? `
-                        <a href="${item.image_url}" target="_blank" class="d-block mb-2">
-                            <img src="${item.thumbnail_url || item.image_url}" class="img-fluid img-thumbnail" 
-                                alt="Receipt image" style="max-height: 300px;">
-                        </a>
-                        <a href="${item.image_url}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-external-link-alt"></i> View Full Image
-                        </a>
-                        ` : `
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            No receipt image available
-                        </div>`}
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Receipt Image</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="receipt-image-container">
+                            <!-- Loading indicator -->
+                            <div class="receipt-image-loading">
+                                <div class="receipt-image-spinner"></div>
+                                <div>Loading receipt image...</div>
+                                <div class="receipt-image-progress-container">
+                                    <div class="receipt-image-progress-bar"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Placeholder when no image available -->
+                            <div class="receipt-image-placeholder" ${item.has_image ? 'style="display:none;"' : ''}>
+                                <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+                                <p>No receipt image available</p>
+                            </div>
+                            
+                            <!-- Actual image element, hidden until loaded -->
+                            <img src="" alt="Receipt Image" class="receipt-image-actual">
+                        </div>
+                        
+                        <div class="text-center mt-3" id="receipt-image-controls" style="display: none;">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="view-full-image">
+                                <i class="fas fa-search-plus"></i> View Full Image
+                            </button>
+                        </div>
                     </div>
                 </div>
+                
+                ${!isReceipt && item.has_image && item.receipt_id ? `
+                <script>
+                    // Load the receipt image with progress indicator
+                    loadReceiptImage(${item.receipt_id}, ${item.id});
+                </script>
+                ` : ''}
                 
                 ${!isReceipt && item.status === 'REIMBURSED' && (item.reimbursement_method || item.reimbursement_reference) ? `
                 <div class="card mb-3">
