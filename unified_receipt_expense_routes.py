@@ -368,16 +368,16 @@ def history():
             # Default sort
             query = query.order_by(Receipt.date.desc())
         
-        # Use eager loading to avoid N+1 queries
+        # Use eager loading with string-based relationships to avoid N+1 queries 
         query = query.options(
-            # Load organization data in the same query
-            joinedload(Receipt.organization),
+            # Organization is loaded via string path since we're using a foreign key
+            joinedload('organization'),
             
-            # Load company expenses and their clients in one go
-            joinedload(Receipt.company_expenses).joinedload(CompanyExpense.client),
+            # Company expense is loaded via string path from the backref in CompanyExpense model
+            joinedload('company_expense').joinedload('client'),
             
-            # Load client expenses and their clients in one go
-            joinedload(Receipt.client_expenses).joinedload(ClientExpense.client)
+            # Client expenses are loaded via string path from the backref in ClientExpense model
+            joinedload('client_expenses').joinedload('client')
         )
         
         # Get pagination parameters
