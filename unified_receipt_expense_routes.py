@@ -368,6 +368,18 @@ def history():
             # Default sort
             query = query.order_by(Receipt.date.desc())
         
+        # Use eager loading to avoid N+1 queries
+        query = query.options(
+            # Load organization data in the same query
+            joinedload(Receipt.organization),
+            
+            # Load company expenses and their clients in one go
+            joinedload(Receipt.company_expenses).joinedload(CompanyExpense.client),
+            
+            # Load client expenses and their clients in one go
+            joinedload(Receipt.client_expenses).joinedload(ClientExpense.client)
+        )
+        
         # Get pagination parameters
         per_page = 24  # Number of receipts per page
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -416,33 +428,29 @@ def history():
         # Enhance receipt objects with associated business and client expenses
         enhanced_receipts = []
         for receipt in receipts:
-            # Check for business expense
-            business_expense = CompanyExpense.query.filter_by(receipt_id=receipt.id).first()
+            # Check for business expense using the preloaded relationship
+            business_expenses = list(receipt.company_expenses) if hasattr(receipt, 'company_expenses') else []
+            business_expense = business_expenses[0] if business_expenses else None
+            
             if business_expense:
                 receipt.is_business_expense = True
                 receipt.business_expense = business_expense
-                
-                # Add client if one exists
-                if business_expense.client_id:
-                    business_expense.client = Client.query.get(business_expense.client_id)
+                # Client already preloaded through joinedload
             else:
                 receipt.is_business_expense = False
             
-            # Check for client expense
-            client_expense = ClientExpense.query.filter_by(receipt_id=receipt.id).first()
+            # Check for client expense using the preloaded relationship
+            client_expenses = list(receipt.client_expenses) if hasattr(receipt, 'client_expenses') else []
+            client_expense = client_expenses[0] if client_expenses else None
+            
             if client_expense:
                 receipt.is_client_expense = True
                 receipt.client_expense = client_expense
-                
-                # Add client
-                if client_expense.client_id:
-                    client_expense.client = Client.query.get(client_expense.client_id)
+                # Client already preloaded through joinedload
             else:
                 receipt.is_client_expense = False
             
-            # Add organization info
-            if receipt.organization_id:
-                receipt.organization = Organization.query.get(receipt.organization_id)
+            # Organization already preloaded through joinedload
             
             # Don't generate image URLs here - they'll be loaded on demand by JavaScript
             enhanced_receipts.append(receipt)
