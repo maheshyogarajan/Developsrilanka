@@ -315,7 +315,7 @@ def submit_expense():
 @expense_bp.route('/expenses/<int:expense_id>')
 @login_required
 def view_expense(expense_id):
-    """View a specific expense."""
+    """View a specific expense by redirecting to the unified receipt view."""
     # Get the expense first
     expense_obj = CompanyExpense.query.get_or_404(expense_id)
     
@@ -327,6 +327,11 @@ def view_expense(expense_id):
         if not check_organization_permission(current_user.id, expense_obj.organization_id, ['owner', 'admin']):
             abort(403)  # User doesn't have permission in this organization
     
+    # Redirect to the unified receipt view
+    return redirect(url_for('unified_view.view_unified_receipt', receipt_id=expense_obj.receipt_id))
+    
+    # The following code is kept as a reference but will not be executed due to the redirect
+    """
     # Get the related receipt
     receipt = Receipt.query.get_or_404(expense_obj.receipt_id)
     
@@ -385,6 +390,9 @@ def view_expense(expense_id):
         'is_reimbursable': getattr(expense_obj, 'is_reimbursable', True),  # Add support for is_reimbursable field
         'date_scanned': receipt.created_at  # Add date scanned field
     }
+    
+    return render_template('view_expense.html', expense=expense)
+    """
     
     # Get receipt items
     items_result = db.session.execute(text("""
