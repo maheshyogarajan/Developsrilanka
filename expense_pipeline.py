@@ -24,7 +24,7 @@ from pipeline_cache import cache_pipeline_data, invalidate_pipeline_cache, calcu
 pipeline_bp = Blueprint('pipeline', __name__, url_prefix='/expenses')
 
 @pipeline_bp.route('/api/expense-image/<int:expense_id>', methods=['GET'])
-@login_required
+@ajax_login_required
 def get_expense_image(expense_id):
     """
     API endpoint to get the image URL for a specific expense.
@@ -142,7 +142,7 @@ def expense_pipeline():
         return redirect(url_for('expense.expenses'))
 
 @pipeline_bp.route('/api/pipeline-data', methods=['GET'])
-@login_required
+@ajax_login_required
 @cache_pipeline_data(timeout=60)  # Cache for 1 minute
 def get_pipeline_data():
     """
