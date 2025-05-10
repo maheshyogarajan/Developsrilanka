@@ -404,7 +404,7 @@ def history():
             
             # Create a simple fallback pagination object that mimics SQLAlchemy's pagination
             # This ensures templates receive the expected structure even when queries fail
-            class EmptyPagination:
+            class QueryPagination:
                 """
                 Fallback pagination object that provides the minimum attributes
                 needed by templates when the actual query fails.
@@ -424,11 +424,11 @@ def history():
                     """Empty implementation of iter_pages to match SQLAlchemy's Pagination"""
                     return []
                     
-            # Use our custom EmptyPagination class 
-            pagination = EmptyPagination(page=page, per_page=per_page)
+            # Use our custom QueryPagination class 
+            pagination = QueryPagination(page=page, per_page=per_page)
             
             # Also log this as a fallback case for monitoring
-            app.logger.info("Using EmptyPagination fallback due to query error")
+            app.logger.info("Using QueryPagination fallback due to query error")
         receipts = pagination.items
         total_pages = pagination.pages
         
@@ -563,6 +563,30 @@ def history():
         page = 1
         total_pages = 0
         
+        # Create a mock pagination object that mimics SQLAlchemy's pagination interface
+        class ErrorPagination:
+            """
+            Fallback pagination object that provides the minimum attributes
+            needed by templates when the actual query fails.
+            """
+            def __init__(self, page: int, per_page: int):
+                self.page = page
+                self.per_page = per_page
+                self.items = []
+                self.pages = 0
+                self.total = 0
+                self.has_prev = False
+                self.has_next = False
+                self.prev_num = 0
+                self.next_num = 0
+            
+            def iter_pages(self, left_edge=2, right_edge=2, left_current=2, right_current=2):
+                """Empty implementation of iter_pages to match SQLAlchemy's Pagination"""
+                return []
+                
+        # Use our custom ErrorPagination class 
+        pagination = ErrorPagination(page=page, per_page=24)
+        
         # Render a simplified view with error message and all required variables
         return render_template(
             'unified_history.html', 
@@ -581,7 +605,8 @@ def history():
             filter_params_without_search=filter_params_without_search,
             filter_params_without_page=filter_params_without_page,
             current_page=page,
-            total_pages=total_pages
+            total_pages=total_pages,
+            pagination=pagination
         )
 
 @unified_view_bp.route('/update/<int:receipt_id>', methods=['POST'])
