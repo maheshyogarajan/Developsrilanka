@@ -1081,14 +1081,60 @@ function renderExpenseDetail(item, columnId) {
                 <div class="card mb-3">
                     <div class="card-body text-center">
                         <h5 class="card-title">Receipt Image</h5>
-                        ${item.image_url ? `
-                        <a href="${item.image_url}" target="_blank" class="d-block mb-2">
-                            <img src="${item.thumbnail_url || item.image_url}" class="img-fluid img-thumbnail" 
-                                alt="Receipt image" style="max-height: 300px;">
-                        </a>
-                        <a href="${item.image_url}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-external-link-alt"></i> View Full Image
-                        </a>
+                        ${item.has_image ? `
+                        <div class="receipt-image-container" data-expense-id="${item.id}">
+                            <div class="text-center py-3 image-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading image...</span>
+                                </div>
+                                <p class="mt-2">Loading receipt image...</p>
+                            </div>
+                            <div class="image-content" style="display: none;">
+                                <!-- Image will be loaded here -->
+                            </div>
+                        </div>
+                        <script>
+                            // Load the image on demand
+                            (function() {
+                                const container = document.querySelector('.receipt-image-container[data-expense-id="${item.id}"]');
+                                if (container) {
+                                    fetch('/expenses/api/expense-image/${item.id}')
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            if (data.success || data.image_url) {
+                                                const imageContent = container.querySelector('.image-content');
+                                                container.querySelector('.image-loading').style.display = 'none';
+                                                imageContent.innerHTML = `
+                                                    <a href="${data.image_url}" target="_blank" class="d-block mb-2">
+                                                        <img src="${data.thumbnail_url || data.image_url}" class="img-fluid img-thumbnail" 
+                                                            alt="Receipt image" style="max-height: 300px;">
+                                                    </a>
+                                                    <a href="${data.image_url}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                                        <i class="fas fa-external-link-alt"></i> View Full Image
+                                                    </a>
+                                                `;
+                                                imageContent.style.display = 'block';
+                                            } else {
+                                                container.innerHTML = `
+                                                    <div class="alert alert-warning">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        Error loading receipt image
+                                                    </div>
+                                                `;
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error('Error loading image:', error);
+                                            container.innerHTML = `
+                                                <div class="alert alert-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    Error loading receipt image
+                                                </div>
+                                            `;
+                                        });
+                                }
+                            })();
+                        </script>
                         ` : `
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle"></i>

@@ -511,10 +511,21 @@ def get_pipeline_data():
         total_reimbursed = sum(item['amount'] or 0 for item in reimbursed)
         total_rejected = sum(item['amount'] or 0 for item in rejected)
         
-        # Prepare response data
+        # Create pagination metadata
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total_items': total_count,
+            'total_pages': (total_count + per_page - 1) // per_page,  # Ceiling division
+            'has_next': page < ((total_count + per_page - 1) // per_page),
+            'has_prev': page > 1
+        }
+        
+        # Prepare response data with pagination metadata
         pipeline_data = {
             'organization_id': org_id,
             'user_role': user_role,
+            'pagination': pagination,
             'columns': {
                 'pending_submission': {
                     'title': 'Pending Submission',
