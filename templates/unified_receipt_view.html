@@ -134,6 +134,21 @@
             </p>
         </div>
         <div>
+            {% if from_pipeline %}
+                {% set pipeline_url = url_for('pipeline.expense_pipeline') %}
+                {% if pipeline_params %}
+                    {% set params = [] %}
+                    {% for key, value in pipeline_params.items() %}
+                        {% set _ = params.append(key ~ '=' ~ value) %}
+                    {% endfor %}
+                    {% if params %}
+                        {% set pipeline_url = pipeline_url ~ '?' ~ params|join('&') %}
+                    {% endif %}
+                {% endif %}
+                <a href="{{ pipeline_url }}" class="btn btn-primary me-2">
+                    <i class="fas fa-project-diagram"></i> Back to Pipeline
+                </a>
+            {% endif %}
             <a href="{{ url_for('unified_view.history') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Back to History
             </a>

@@ -151,7 +151,9 @@ def view_unified_receipt(receipt_id):
         is_client_expense=is_client_expense,
         user_org_role=user_org_role,
         items=receipt_items,
-        current_user=current_user
+        current_user=current_user,
+        from_pipeline=session.get('from_pipeline', False),
+        pipeline_params=session.get('pipeline_params', {})
     )
 
 @unified_view_bp.route('/history')

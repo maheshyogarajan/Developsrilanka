@@ -1250,8 +1250,29 @@ function renderExpenseDetail(item, columnId) {
         
         // Add view in receipt detail button for all expenses
         if (item.receipt_id) {
+            // Get current pipeline filter parameters
+            const orgId = getSelectedOrgId();
+            const viewType = document.getElementById('viewType')?.value || 'default';
+            const clientId = document.getElementById('clientFilter')?.value || '';
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            const dateRange = document.getElementById('dateRangeFilter')?.value || '';
+            const searchTerm = document.getElementById('expenseSearch')?.value || '';
+            
+            // Construct the URL with pipeline state parameters
+            const pipelineParams = new URLSearchParams({
+                from_pipeline: 'true',
+                org_id: orgId,
+                view: viewType
+            });
+            
+            // Add optional parameters if they exist
+            if (clientId) pipelineParams.append('client_id', clientId);
+            if (statusFilter) pipelineParams.append('status', statusFilter);
+            if (dateRange) pipelineParams.append('date_range', dateRange);
+            if (searchTerm) pipelineParams.append('search', searchTerm);
+            
             actionsHTML += `
-                <a href="/receipts/${item.receipt_id}/view" class="btn btn-outline-secondary ms-2">
+                <a href="/receipts/view/${item.receipt_id}?${pipelineParams.toString()}" class="btn btn-outline-secondary ms-2">
                     <i class="fas fa-file-alt"></i> View Receipt Details
                 </a>
             `;
