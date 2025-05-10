@@ -475,7 +475,15 @@ def history():
         enhanced_receipts = []
         for receipt in receipts:
             # Check for business expense using the preloaded relationship from the backref
-            company_expense = getattr(receipt, 'company_expense', None)
+            company_expenses = getattr(receipt, 'company_expense', None)
+            # Handle both single object and list cases
+            if isinstance(company_expenses, list) or hasattr(company_expenses, '__iter__') and not isinstance(company_expenses, (str, bytes)):
+                # It's a list (or list-like collection)
+                company_expense = company_expenses[0] if company_expenses else None
+            else:
+                # It's already a single object or None
+                company_expense = company_expenses
+                
             if company_expense:
                 receipt.is_business_expense = True
                 receipt.business_expense = company_expense
