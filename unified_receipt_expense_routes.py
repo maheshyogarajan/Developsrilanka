@@ -509,7 +509,11 @@ def history():
         items = []
         for receipt in enhanced_receipts:
             if hasattr(receipt, 'is_business_expense') and receipt.is_business_expense:
-                items.append({'type': 'expense', 'expense': receipt})
+                # Add the company expense object, with amount derived from receipt's total_amount
+                expense = receipt.business_expense
+                if not hasattr(expense, 'amount'):
+                    expense.amount = receipt.total_amount
+                items.append({'type': 'expense', 'expense': expense})
             else:
                 items.append({'type': 'receipt', 'receipt': receipt})
         
