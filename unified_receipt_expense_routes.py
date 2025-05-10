@@ -368,31 +368,67 @@ def history():
             # Default sort
             query = query.order_by(Receipt.date.desc())
         
-        # For SQLAlchemy 2.0, we need to avoid string-based relationship references
-        # But we still need a query that works without breaking the Pagination
-        
-        # Import for the fallback case
-        import logging
-        from flask_sqlalchemy import Pagination
-        
+        # SQLAlchemy 2.0 Compatible Approach
+        # ---------------------------------
+        # We're avoiding string-based relationship references that cause
+        # compatibility issues with SQLAlchemy 2.0. This approach focuses
+        # on reliability over optimization for now.
+
+        # Standard library imports - Type hints for better IDE support
+        from typing import List, Optional, Dict, Any
+
         # Define pagination parameters
         per_page = 24  # Number of receipts per page
-        
+
+        # -------------------------------------------------------------------------
+        # PERFORMANCE NOTE: By removing eager loading, we may experience N+1 query
+        # issues. If performance degrades, consider implementing:
+        #  1. Selective loading using SQLAlchemy 2.0 compatible syntax
+        #  2. Caching for frequently accessed relationships
+        #  3. Batch loading in the template rendering logic
+        # -------------------------------------------------------------------------
+
         try:
-            # Skip eager loading completely for now
-            # This is less efficient but more compatible with SQLAlchemy 2.0
-            # We'll get each relationship as needed when rendering
-            
-            # Create the pagination
+            # Execute the base query with pagination but without problematic eager loading
+            # This prioritizes compatibility with SQLAlchemy 2.0 over query optimization
+            app.logger.debug(f"Executing paginated query for page {page} with per_page={per_page}")
             pagination = query.paginate(page=page, per_page=per_page, error_out=False)
             
-        except Exception as e:
-            # Log the error for debugging
-            logging.error(f"Error in receipt pagination: {str(e)}")
+            # Log basic performance metrics
+            app.logger.debug(f"Query returned {len(pagination.items)} items out of {pagination.total} total")
             
-            # Create an empty pagination object as fallback
-            pagination = Pagination(query=Receipt.query, page=page, per_page=per_page, 
-                                   total=0, items=[])
+        except Exception as e:
+            # Detailed error logging for easier debugging
+            app.logger.error(f"Error in receipt pagination: {str(e)}")
+            app.logger.error(f"Query parameters: page={page}, per_page={per_page}")
+            
+            # Create a simple fallback pagination object that mimics SQLAlchemy's pagination
+            # This ensures templates receive the expected structure even when queries fail
+            class EmptyPagination:
+                """
+                Fallback pagination object that provides the minimum attributes
+                needed by templates when the actual query fails.
+                """
+                def __init__(self, page: int, per_page: int):
+                    self.page = page
+                    self.per_page = per_page
+                    self.items: List[Any] = []
+                    self.pages = 0
+                    self.total = 0
+                    self.has_prev = False
+                    self.has_next = False
+                    self.prev_num = 0
+                    self.next_num = 0
+                
+                def iter_pages(self, *args, **kwargs):
+                    """Empty implementation of iter_pages to match SQLAlchemy's Pagination"""
+                    return []
+                    
+            # Use our custom EmptyPagination class 
+            pagination = EmptyPagination(page=page, per_page=per_page)
+            
+            # Also log this as a fallback case for monitoring
+            app.logger.info("Using EmptyPagination fallback due to query error")
         receipts = pagination.items
         total_pages = pagination.pages
         
