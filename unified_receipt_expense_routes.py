@@ -540,7 +540,8 @@ def history():
             filter_params_without_page=filter_params_without_page,
             current_page=page,
             total_pages=total_pages,
-            current_user=current_user
+            current_user=current_user,
+            pagination=pagination
         )
     except Exception as e:
         # Log the error
