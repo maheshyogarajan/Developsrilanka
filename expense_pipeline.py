@@ -10,7 +10,8 @@ import time
 import json
 from datetime import datetime, time as datetime_time
 from flask import Blueprint, render_template, request, jsonify, abort, redirect, url_for, flash, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
+from decorators import ajax_login_required
 from sqlalchemy import or_, and_, func, desc, text
 from functools import wraps
 
@@ -85,7 +86,7 @@ def get_expense_image(expense_id):
         return jsonify({'error': 'Failed to retrieve image'}), 500
 
 @pipeline_bp.route('/pipeline')
-@login_required
+@ajax_login_required
 def expense_pipeline():
     """
     Render the main expense pipeline view.
@@ -575,7 +576,7 @@ def get_pipeline_data():
         return jsonify(detailed_msg), 500
 
 @pipeline_bp.route('/api/update-expense-status', methods=['POST'])
-@login_required
+@ajax_login_required
 def update_expense_status():
     """
     API endpoint to update an expense's status (used for drag-and-drop).
@@ -743,7 +744,7 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
         }
 
 @pipeline_bp.route('/batch-submit', methods=['GET', 'POST'])
-@login_required
+@ajax_login_required
 def batch_submit_expenses():
     """
     Handle batch submission of expenses.

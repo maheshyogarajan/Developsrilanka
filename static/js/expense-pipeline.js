@@ -275,26 +275,64 @@ function loadPipelineData(force = false) {
     
     // Fetch pipeline data from the server
     console.log(`Fetching pipeline data from: /expenses/api/pipeline-data?${queryParams}`);
-    fetch(`/expenses/api/pipeline-data?${queryParams}`)
+    // Add X-Requested-With header for AJAX detection
+    const fetchOptions = {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    };
+    
+    fetch(`/expenses/api/pipeline-data?${queryParams}`, fetchOptions)
         .then(response => {
             console.log('Pipeline API response status:', response.status);
             clearTimeout(loadingTimeout);
-            if (!response.ok) {
-                return response.json().then(errorData => {
-                    console.error('Error details:', errorData);
-                    if (errorData.error) {
-                        throw new Error(errorData.error);
-                    } else if (errorData.details) {
-                        throw new Error(errorData.details);
+            
+            return response.json().then(data => {
+                // If not successful, handle error
+                if (!response.ok) {
+                    console.error('Error details:', data);
+                    
+                    // Handle authentication errors specifically
+                    if (response.status === 401 && data.redirect) {
+                        console.log('Authentication required, redirecting to login page');
+                        pipelineContainer.innerHTML = `
+                            <div class="alert alert-warning w-100" role="alert">
+                                <strong>Your session has expired.</strong> Please <a href="${data.redirect}" class="alert-link">log in</a> again.
+                            </div>
+                        `;
+                        // Wait 2 seconds before redirecting
+                        setTimeout(() => {
+                            window.location.href = data.redirect;
+                        }, 2000);
+                        throw new Error('Authentication required');
+                    }
+                    
+                    // Handle other errors
+                    if (data.error) {
+                        throw new Error(data.error);
+                    } else if (data.details) {
+                        throw new Error(data.details);
                     } else {
                         throw new Error('Failed to load pipeline data: ' + response.status);
                     }
-                }).catch(jsonError => {
-                    // If we can't parse the error as JSON, just throw a generic error
-                    throw new Error('Failed to load pipeline data: ' + response.status);
-                });
-            }
-            return response.json();
+                }
+                
+                return data;
+            }).catch(jsonError => {
+                // If we can't parse the error as JSON, just throw a generic error
+                if (response.status === 401) {
+                    pipelineContainer.innerHTML = `
+                        <div class="alert alert-warning w-100" role="alert">
+                            <strong>Your session has expired.</strong> Please <a href="/login" class="alert-link">log in</a> again.
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    throw new Error('Authentication required');
+                }
+                throw new Error('Failed to load pipeline data: ' + response.status);
+            });
         })
         .then(data => {
             // Check if the response is an error message
@@ -1712,6 +1750,9 @@ function loadReceiptImage(receiptId, expenseId) {
     $.ajax({
         url: `/expenses/api/expense-image/${expenseId}`,
         type: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
         xhr: function() {
             const xhr = new window.XMLHttpRequest();
             
