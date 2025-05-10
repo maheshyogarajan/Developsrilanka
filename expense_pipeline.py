@@ -426,7 +426,8 @@ def get_pipeline_data():
                     try:
                         image_url = get_receipt_image_url(receipt)
                         if hasattr(thumbnail_manager, 'get_thumbnail_url'):
-                            thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt)
+                            # Pass the s3_key string, not the Receipt object
+                            thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt.s3_key)
                         else:
                             thumbnail_url = '/static/img/receipt-placeholder.svg'
                     except Exception as img_error:
