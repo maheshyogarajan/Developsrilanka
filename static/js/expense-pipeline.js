@@ -444,6 +444,48 @@ function renderPipeline(data) {
         return;
     }
     
+    // Create HTML for the pagination if available
+    let paginationHTML = '';
+    if (data.pagination) {
+        const p = data.pagination;
+        // Generate page numbers (simplified for now, we'll add the full function later)
+        let pageNumbers = '';
+        for (let i = 1; i <= p.total_pages; i++) {
+            if (i === p.page) {
+                pageNumbers += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+            } else if (i === 1 || i === p.total_pages || (i >= p.page - 1 && i <= p.page + 1)) {
+                pageNumbers += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a></li>`;
+            } else if (i === p.page - 2 || i === p.page + 2) {
+                pageNumbers += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        paginationHTML = `
+            <div class="pipeline-pagination w-100 mb-3">
+                <nav aria-label="Expense pipeline navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item ${!p.has_prev ? 'disabled' : ''}">
+                            <a class="page-link" href="#" onclick="changePage(${p.page - 1}); return false;" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        
+                        ${pageNumbers}
+                        
+                        <li class="page-item ${!p.has_next ? 'disabled' : ''}">
+                            <a class="page-link" href="#" onclick="changePage(${p.page + 1}); return false;" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="text-center text-muted small">
+                    Showing page ${p.page} of ${p.total_pages}, ${p.total_items} items total
+                </div>
+            </div>
+        `;
+    }
+    
     // Create HTML for each column
     let columnsHTML = '';
     
@@ -471,8 +513,8 @@ function renderPipeline(data) {
         `;
     }
     
-    // Instead of changing innerHTML directly, create a document fragment
-    // to ensure we don't lose the flexbox structure
+    // Create the complete container HTML with pagination
+    const containerHTML = paginationHTML + `<div id="pipelineColumns" class="d-flex flex-row overflow-auto w-100">${columnsHTML}</div>` + paginationHTML;
     
     // First, clear the container properly
     while (pipelineContainer && pipelineContainer.firstChild) {
@@ -1104,12 +1146,14 @@ function renderExpenseDetail(item, columnId) {
                                             if (data.success || data.image_url) {
                                                 const imageContent = container.querySelector('.image-content');
                                                 container.querySelector('.image-loading').style.display = 'none';
+                                                const imgUrl = data.image_url || '';
+                                                const thumbUrl = data.thumbnail_url || data.image_url || '';
                                                 imageContent.innerHTML = `
-                                                    <a href="${data.image_url}" target="_blank" class="d-block mb-2">
-                                                        <img src="${data.thumbnail_url || data.image_url}" class="img-fluid img-thumbnail" 
+                                                    <a href="${imgUrl}" target="_blank" class="d-block mb-2">
+                                                        <img src="${thumbUrl}" class="img-fluid img-thumbnail" 
                                                             alt="Receipt image" style="max-height: 300px;">
                                                     </a>
-                                                    <a href="${data.image_url}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                                    <a href="${imgUrl}" target="_blank" class="btn btn-sm btn-outline-secondary">
                                                         <i class="fas fa-external-link-alt"></i> View Full Image
                                                     </a>
                                                 `;
