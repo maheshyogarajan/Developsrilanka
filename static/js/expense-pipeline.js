@@ -1272,11 +1272,12 @@ function renderExpenseDetail(item, columnId) {
         if (item.receipt_id) {
             // Get current pipeline filter parameters
             const orgId = getSelectedOrgId();
-            const viewType = document.getElementById('viewType')?.value || 'default';
-            const clientId = document.getElementById('clientFilter')?.value || '';
-            const statusFilter = document.getElementById('statusFilter')?.value || '';
-            const dateRange = document.getElementById('dateRangeFilter')?.value || '';
-            const searchTerm = document.getElementById('expenseSearch')?.value || '';
+            const viewType = document.getElementById('viewSelector')?.value || 'default';
+            const clientId = document.getElementById('clientSelector')?.value || '';
+            const statusFilter = document.getElementById('statusSelector')?.value || '';
+            const dateFrom = document.getElementById('dateFromFilter')?.value || '';
+            const dateTo = document.getElementById('dateToFilter')?.value || '';
+            const searchTerm = document.getElementById('searchInput')?.value || '';
             
             // Construct the URL with pipeline state parameters
             const pipelineParams = new URLSearchParams({
@@ -1288,7 +1289,8 @@ function renderExpenseDetail(item, columnId) {
             // Add optional parameters if they exist
             if (clientId) pipelineParams.append('client_id', clientId);
             if (statusFilter) pipelineParams.append('status', statusFilter);
-            if (dateRange) pipelineParams.append('date_range', dateRange);
+            if (dateFrom) pipelineParams.append('date_from', dateFrom);
+            if (dateTo) pipelineParams.append('date_to', dateTo);
             if (searchTerm) pipelineParams.append('search', searchTerm);
             
             actionsHTML += `

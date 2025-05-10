@@ -45,7 +45,7 @@ def view_unified_receipt(receipt_id):
         
         # Store pipeline filter parameters
         pipeline_params = {}
-        for param in ['org_id', 'view', 'client_id', 'status', 'date_range', 'search']:
+        for param in ['org_id', 'view', 'client_id', 'status', 'date_from', 'date_to', 'search']:
             value = request.args.get(param)
             if value:
                 pipeline_params[param] = value
