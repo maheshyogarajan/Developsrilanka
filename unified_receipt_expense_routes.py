@@ -368,16 +368,31 @@ def history():
             # Default sort
             query = query.order_by(Receipt.date.desc())
         
-        # For SQLAlchemy 2.0, we need to be careful with the type of options
-        # Let's avoid eager loading entirely for now to get the system working
-        # We can optimize with proper loading strategies later
+        # For SQLAlchemy 2.0, we need to avoid string-based relationship references
+        # But we still need a query that works without breaking the Pagination
         
-        # Skip eager loading and just use the standard query
-        # The performance might be slightly degraded, but it will work reliably
+        # Import for the fallback case
+        import logging
+        from flask_sqlalchemy import Pagination
         
-        # Get pagination parameters
+        # Define pagination parameters
         per_page = 24  # Number of receipts per page
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        try:
+            # Skip eager loading completely for now
+            # This is less efficient but more compatible with SQLAlchemy 2.0
+            # We'll get each relationship as needed when rendering
+            
+            # Create the pagination
+            pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+            
+        except Exception as e:
+            # Log the error for debugging
+            logging.error(f"Error in receipt pagination: {str(e)}")
+            
+            # Create an empty pagination object as fallback
+            pagination = Pagination(query=Receipt.query, page=page, per_page=per_page, 
+                                   total=0, items=[])
         receipts = pagination.items
         total_pages = pagination.pages
         
