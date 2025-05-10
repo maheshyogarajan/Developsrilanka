@@ -334,77 +334,123 @@ def get_pipeline_data():
                     'priority': calculate_priority(amount)  # Calculate priority based on amount
                 })
         
-        # Get all expenses by status
-        all_expenses = query.all()
-        for expense in all_expenses:
-            # Get the related receipt if available
-            receipt = None
-            image_url = None
-            thumbnail_url = None
-            if expense.receipt_id:
-                receipt = Receipt.query.get(expense.receipt_id)
-                if receipt:
-                    try:
-                        image_url = get_receipt_image_url(receipt)
-                        # Check if thumbnail_manager is properly initialized
-                        if hasattr(thumbnail_manager, 'get_thumbnail_url'):
-                            thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt)
-                        else:
-                            logging.warning("thumbnail_manager missing get_thumbnail_url method")
-                            thumbnail_url = '/static/img/receipt-placeholder.svg'
-                    except Exception as img_error:
-                        logging.error(f"Error getting image URL for expense receipt {receipt.id}: {str(img_error)}")
-                        image_url = '/static/img/receipt-placeholder.svg'
-                        thumbnail_url = '/static/img/receipt-placeholder.svg'
+        # Optimized: Use a single joined query to get expenses with related data
+        # This approach replaces the N+1 query problem with a single efficient query
+        expenses_query = (
+            db.session.query(
+                CompanyExpense,
+                Receipt,
+                User,
+                Client
+            )
+            .outerjoin(Receipt, CompanyExpense.receipt_id == Receipt.id)
+            .outerjoin(User, CompanyExpense.user_id == User.id)
+            .outerjoin(Client, CompanyExpense.client_id == Client.id)
+            .filter(CompanyExpense.organization_id == org_id)
+        )
+        
+        # Apply the same filters from earlier
+        if view_type == 'submitter' or (view_type == 'default' and user_role in ['member', 'viewer']):
+            expenses_query = expenses_query.filter(CompanyExpense.user_id == current_user.id)
             
-            # Get client name if available
-            client_name = None
-            if expense.client_id:
-                client = Client.query.get(expense.client_id)
-                if client:
-                    client_name = client.name
+        # Apply client filter if specified
+        if client_id:
+            try:
+                client_id = int(client_id)
+                expenses_query = expenses_query.filter(CompanyExpense.client_id == client_id)
+            except ValueError:
+                pass
+                
+        # Apply date filters
+        if date_from:
+            try:
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+                expenses_query = expenses_query.filter(CompanyExpense.submitted_date >= date_from_obj)
+            except ValueError:
+                pass
+                
+        if date_to:
+            try:
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+                # Add time to include the entire day
+                date_to_obj = datetime.combine(date_to_obj.date(), datetime_time(23, 59, 59))
+                expenses_query = expenses_query.filter(CompanyExpense.submitted_date <= date_to_obj)
+            except ValueError:
+                pass
+                
+        # Order by most recent first
+        if hasattr(CompanyExpense, 'updated_at'):
+            expenses_query = expenses_query.order_by(desc(CompanyExpense.updated_at))
+        else:
+            expenses_query = expenses_query.order_by(desc(CompanyExpense.id))
             
-            # Get approver name if available
+        # Apply pagination if requested
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        # Limit per_page to reasonable values
+        if per_page < 10:
+            per_page = 10
+        elif per_page > 100:
+            per_page = 100
+            
+        # Get total count for pagination metadata
+        total_count = expenses_query.count()
+        
+        # Apply pagination
+        expenses_query = expenses_query.limit(per_page).offset((page - 1) * per_page)
+            
+        # Execute the query
+        all_expenses_results = expenses_query.all()
+        
+        # Process the results
+        for expense, receipt, user, client in all_expenses_results:
+            # Check for image using flag instead of generating URLs
+            has_image = False
+            if receipt:
+                has_image = bool(
+                    getattr(receipt, 's3_key', None) or 
+                    getattr(receipt, 'image_path', None)
+                )
+            
+            # Get expense amount from receipt if available
+            expense_amount = 0.0
+            if receipt and hasattr(receipt, 'total_amount'):
+                try:
+                    expense_amount = float(receipt.total_amount or 0.0)
+                except (ValueError, TypeError):
+                    expense_amount = 0.0
+            
+            # Get user name safely
+            user_name = getattr(user, 'name', "Unknown") if user else "Unknown"
+            
+            # Get client name safely
+            client_name = getattr(client, 'name', None) if client else None
+                
+            # Calculate priority based on amount
+            priority = calculate_priority(expense_amount)
+            
+            # Get user data for approvers/reimbursers/rejectors
+            # We'll need additional queries here since we don't include these in the join
             approver_name = None
             if hasattr(expense, 'approved_by_user_id') and expense.approved_by_user_id:
                 approver = User.query.get(expense.approved_by_user_id)
                 if approver:
                     approver_name = getattr(approver, 'name', None)
-            
-            # Get reimbursement processor name if available
+                    
             reimbursed_by_name = None
             if hasattr(expense, 'reimbursed_by_user_id') and expense.reimbursed_by_user_id:
                 processor = User.query.get(expense.reimbursed_by_user_id)
                 if processor:
                     reimbursed_by_name = getattr(processor, 'name', None)
-            
-            # Get rejection processor name if available
+                    
             rejected_by_name = None
             if hasattr(expense, 'rejected_by_user_id') and expense.rejected_by_user_id:
                 rejector = User.query.get(expense.rejected_by_user_id)
                 if rejector:
                     rejected_by_name = getattr(rejector, 'name', None)
             
-            # Get expense amount from receipt relationship since CompanyExpense doesn't store amount directly
-            expense_amount = 0.0
-            if expense.receipt and hasattr(expense.receipt, 'total_amount'):
-                expense_amount = float(expense.receipt.total_amount or 0.0)
-            
-            # Calculate priority (1-3) based on amount
-            priority = 2  # Default medium priority
-            
-            if expense_amount:
-                # Higher amounts get higher priority
-                if expense_amount > 1000:
-                    priority = 3
-                elif expense_amount < 100:
-                    priority = 1
-            
-            # Get safe user object for expense
-            user_obj = User.query.get(expense.user_id)
-            user_name = getattr(user_obj, 'name', "Unknown") if user_obj else "Unknown"
-                
-            # Build the expense data object
+            # Build the expense data object with has_image flag instead of URLs
             expense_data = {
                 'id': expense.id,
                 'description': getattr(expense, 'description', "") or "Expense",
@@ -416,18 +462,17 @@ def get_pipeline_data():
                     'id': expense.user_id,
                     'name': user_name
                 },
-                'notes': expense.notes,
+                'notes': getattr(expense, 'notes', None),
                 'client_id': expense.client_id,
                 'client_name': client_name,
-                'is_reimbursable': expense.is_reimbursable,
-                'vendor_name': expense.receipt.vendor_name if expense.receipt else "",
-                'image_url': image_url,
-                'thumbnail_url': thumbnail_url,
+                'is_reimbursable': getattr(expense, 'is_reimbursable', True),
+                'vendor_name': getattr(receipt, 'vendor_name', "") if receipt else "",
+                'has_image': has_image,  # Flag instead of URLs
                 'type': 'expense',
-                'status': expense.status,
+                'status': expense.status.value if hasattr(expense.status, 'value') else expense.status,
                 'priority': priority,
-                'reimbursement_method': expense.reimbursement_method if hasattr(expense, 'reimbursement_method') else None,
-                'reimbursement_reference': expense.reimbursement_reference if hasattr(expense, 'reimbursement_reference') else None,
+                'reimbursement_method': getattr(expense, 'reimbursement_method', None),
+                'reimbursement_reference': getattr(expense, 'reimbursement_reference', None),
                 'approved_by': {
                     'id': expense.approved_by_user_id,
                     'name': approver_name
@@ -443,19 +488,20 @@ def get_pipeline_data():
                     'name': rejected_by_name
                 } if hasattr(expense, 'rejected_by_user_id') and expense.rejected_by_user_id else None,
                 'rejected_date': expense.rejected_date.strftime('%Y-%m-%d') if hasattr(expense, 'rejected_date') and expense.rejected_date else None,
-                'rejection_reason': expense.rejection_reason if hasattr(expense, 'rejection_reason') else None,
+                'rejection_reason': getattr(expense, 'rejection_reason', None),
                 'created_at': expense.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(expense, 'created_at') and expense.created_at else None,
                 'updated_at': expense.updated_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(expense, 'updated_at') and expense.updated_at else None,
             }
             
             # Add to the appropriate list based on status
-            if expense.status == ExpenseStatus.SUBMITTED.value:
+            status_value = expense.status.value if hasattr(expense.status, 'value') else expense.status
+            if status_value == ExpenseStatus.SUBMITTED.value:
                 submitted.append(expense_data)
-            elif expense.status == ExpenseStatus.APPROVED.value:
+            elif status_value == ExpenseStatus.APPROVED.value:
                 approved.append(expense_data)
-            elif expense.status == ExpenseStatus.REIMBURSED.value:
+            elif status_value == ExpenseStatus.REIMBURSED.value:
                 reimbursed.append(expense_data)
-            elif expense.status == ExpenseStatus.REJECTED.value:
+            elif status_value == ExpenseStatus.REJECTED.value:
                 rejected.append(expense_data)
         
         # Calculate summary statistics
