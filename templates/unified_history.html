@@ -458,9 +458,8 @@
         }
         
         // View mode toggle functionality - only initialize if we're not in error state
-        const gridViewBtn = document.getElementById('grid-view-btn');
+        // Grid view removed to improve performance
         const listViewBtn = document.getElementById('list-view-btn');
-        const gridView = document.getElementById('grid-view');
         const listView = document.getElementById('list-view');
         
         // Stores the state of loaded images to prevent duplicate requests
@@ -691,48 +690,14 @@
             }
         }
         
-        // Only setup view mode if all required elements exist
-        if (gridViewBtn && listViewBtn && gridView && listView) {
-            // Function to save view preference to localStorage
-            function saveViewPreference(mode) {
-                localStorage.setItem('receiptHistoryViewMode', mode);
-            }
+        // Grid view removed to improve performance 
+        // Only setup list view if the element exists
+        if (listViewBtn && listView) {
+            // Always ensure list view is visible
+            listView.classList.remove('d-none');
+            listViewBtn.classList.add('active');
             
-            // Function to get view preference from localStorage
-            function getViewPreference() {
-                return localStorage.getItem('receiptHistoryViewMode') || 'list'; // Default to list view
-            }
-            
-            // Function to set view mode
-            function setViewMode(mode) {
-                if (mode === 'grid') {
-                    gridViewBtn.classList.add('active');
-                    listViewBtn.classList.remove('active');
-                    gridView.classList.remove('d-none');
-                    listView.classList.add('d-none');
-                    
-                    // Load images when switching to grid view
-                    loadAllImages();
-                } else {
-                    gridViewBtn.classList.remove('active');
-                    listViewBtn.classList.add('active');
-                    gridView.classList.add('d-none');
-                    listView.classList.remove('d-none');
-                }
-                saveViewPreference(mode);
-            }
-            
-            // Initialize view mode from saved preference
-            setViewMode(getViewPreference());
-            
-            // Add event listeners for view mode buttons
-            gridViewBtn.addEventListener('click', function() {
-                setViewMode('grid');
-            });
-            
-            listViewBtn.addEventListener('click', function() {
-                setViewMode('list');
-            });
+            // No event listeners needed as grid view has been removed entirely
         }
     });
 </script>
