@@ -8,6 +8,26 @@ let sortableInstances = [];
 let loadingTimeout = null;
 let expenseDetailsCache = {};
 
+/**
+ * Gets the currently selected organization ID from the UI
+ * @returns {string} The selected organization ID or 'default' if not found
+ */
+function getSelectedOrgId() {
+    // Try getting from URL parameters first
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('org_id')) {
+        return urlParams.get('org_id');
+    }
+    
+    // Try getting from the organization selector
+    const orgSelector = document.getElementById('organizationSelector');
+    if (orgSelector && orgSelector.value) {
+        return orgSelector.value;
+    }
+    
+    return 'default';
+}
+
 // Configuration
 const LOADING_TIMEOUT_MS = 10000; // 10 seconds
 const DEBOUNCE_DELAY_MS = 300; // 300ms for debouncing
