@@ -428,19 +428,18 @@ def history():
         # Enhance receipt objects with associated business and client expenses
         enhanced_receipts = []
         for receipt in receipts:
-            # Check for business expense using the preloaded relationship
-            business_expenses = list(receipt.company_expenses) if hasattr(receipt, 'company_expenses') else []
-            business_expense = business_expenses[0] if business_expenses else None
-            
-            if business_expense:
+            # Check for business expense using the preloaded relationship from the backref
+            company_expense = getattr(receipt, 'company_expense', None)
+            if company_expense:
                 receipt.is_business_expense = True
-                receipt.business_expense = business_expense
+                receipt.business_expense = company_expense
                 # Client already preloaded through joinedload
             else:
                 receipt.is_business_expense = False
             
             # Check for client expense using the preloaded relationship
-            client_expenses = list(receipt.client_expenses) if hasattr(receipt, 'client_expenses') else []
+            # Client expenses are loaded via string-based path from our joinedload
+            client_expenses = getattr(receipt, 'client_expenses', [])
             client_expense = client_expenses[0] if client_expenses else None
             
             if client_expense:
