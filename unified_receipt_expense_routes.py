@@ -246,7 +246,7 @@ def history():
             for q in org_queries:
                 query = query.union(q)
         except Exception as orm_error:
-            logging.error(f"ORM query error, falling back to core SQL: {str(orm_error)}")
+            app.logger.error(f"ORM query error, falling back to core SQL: {str(orm_error)}")
             
             # If that fails, fall back to a more explicit query using SQL text
             base_query = """
@@ -532,10 +532,45 @@ def history():
         )
     except Exception as e:
         # Log the error
-        logging.error(f"Database error in history view: {str(e)}")
+        app.logger.error(f"Database error in history view: {str(e)}")
         flash("We encountered a temporary database issue. Please try again in a moment.", "error")
-        # Render a simplified view with error message
-        return render_template('unified_history.html', error=True, error_message="Database connection error", current_user=current_user)
+        
+        # Create empty objects needed by the template to prevent 'undefined' errors
+        # Make sure all variables used in the template are defined
+        items = []
+        organizations = []
+        selected_org_id = None
+        selected_type = None
+        vendor = None
+        filtered = False
+        filter_params = {}
+        filter_params_without_org = {}
+        filter_params_without_type = {}
+        filter_params_without_search = {}
+        filter_params_without_page = {}
+        page = 1
+        total_pages = 0
+        
+        # Render a simplified view with error message and all required variables
+        return render_template(
+            'unified_history.html', 
+            error=True, 
+            error_message="Database connection error", 
+            current_user=current_user,
+            items=items,
+            organizations=organizations,
+            selected_org_id=selected_org_id,
+            selected_type=selected_type,
+            search_query=vendor,
+            has_filters=filtered,
+            filter_params=filter_params,
+            filter_params_without_org=filter_params_without_org,
+            filter_params_without_type=filter_params_without_type,
+            filter_params_without_search=filter_params_without_search,
+            filter_params_without_page=filter_params_without_page,
+            current_page=page,
+            total_pages=total_pages
+        )
 
 @unified_view_bp.route('/update/<int:receipt_id>', methods=['POST'])
 @login_required
@@ -1303,7 +1338,7 @@ def api_receipt_image(receipt_id):
     thumbnail_url = url_for('expense.get_receipt_image', receipt_id=receipt_id, thumbnail='true', _external=True)
     fullsize_url = url_for('expense.get_receipt_image', receipt_id=receipt_id, thumbnail='false', _external=True)
     
-    logging.info(f"Using secure proxied URLs for receipt {receipt_id}")
+    app.logger.info(f"Using secure proxied URLs for receipt {receipt_id}")
     
     return jsonify({
         "image_url": thumbnail_url,
@@ -1346,7 +1381,7 @@ def direct_receipt_image(receipt_id):
                     as_attachment=False
                 )
         except Exception as e:
-            logging.error(f"Error fetching S3 image for receipt {receipt_id}: {e}")
+            app.logger.error(f"Error fetching S3 image for receipt {receipt_id}: {e}")
     
     # Fall back to local file path if S3 unavailable or failed
     if receipt.image_path:
@@ -1399,7 +1434,7 @@ def api_expense_image(expense_id):
     thumbnail_url = url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='true', _external=True)
     fullsize_url = url_for('expense.get_receipt_image', receipt_id=receipt.id, thumbnail='false', _external=True)
     
-    logging.info(f"Using secure proxied URLs for expense {expense_id} with receipt {receipt.id}")
+    app.logger.info(f"Using secure proxied URLs for expense {expense_id} with receipt {receipt.id}")
     
     return jsonify({
         "image_url": thumbnail_url,
@@ -1414,4 +1449,4 @@ def register_routes(app):
     app.add_template_filter(format_currency, 'currencyformat')
     # Also register it with its default name for backward compatibility
     app.add_template_filter(format_currency)
-    logging.info('Unified receipt and expense view routes loaded successfully')
+    app.logger.info('Unified receipt and expense view routes loaded successfully')
