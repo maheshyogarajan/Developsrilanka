@@ -508,7 +508,7 @@ def history():
         
         items = []
         for receipt in enhanced_receipts:
-            if hasattr(receipt, 'is_company_expense') and receipt.is_company_expense:
+            if hasattr(receipt, 'is_business_expense') and receipt.is_business_expense:
                 items.append({'type': 'expense', 'expense': receipt})
             else:
                 items.append({'type': 'receipt', 'receipt': receipt})
