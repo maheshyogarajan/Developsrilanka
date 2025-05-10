@@ -5,18 +5,84 @@ This provides a kanban-style board for managing expense reimbursements.
 
 import logging
 import traceback
+import os
+import time
+import json
 from datetime import datetime, time as datetime_time
 from flask import Blueprint, render_template, request, jsonify, abort, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func, desc, text
+from functools import wraps
 
 from app import db
 from models import CompanyExpense, Receipt, Organization, OrganizationUser, User, Client, ExpenseStatus
 from utils import check_organization_permission, get_user_organizations, get_receipt_image_url
 import thumbnail_manager
+from pipeline_cache import cache_pipeline_data, invalidate_pipeline_cache, calculate_priority
 
 # Create the blueprint
 pipeline_bp = Blueprint('pipeline', __name__, url_prefix='/expenses')
+
+@pipeline_bp.route('/api/expense-image/<int:expense_id>', methods=['GET'])
+@login_required
+def get_expense_image(expense_id):
+    """
+    API endpoint to get the image URL for a specific expense.
+    Only loads the image when requested by a detail view.
+    """
+    try:
+        # Input validation
+        if not expense_id or expense_id <= 0:
+            return jsonify({'error': 'Invalid expense ID'}), 400
+            
+        # Get the expense
+        expense = CompanyExpense.query.get_or_404(expense_id)
+        
+        # Security: Verify organization access permission
+        if not check_organization_permission(current_user.id, expense.organization_id):
+            logging.warning(f"User {current_user.id} attempted to access image for expense {expense_id} in unauthorized organization {expense.organization_id}")
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Get the receipt
+        if not expense.receipt_id:
+            return jsonify({'error': 'No receipt associated with this expense'}), 404
+            
+        receipt = Receipt.query.get_or_404(expense.receipt_id)
+        
+        # Security: Ensure receipt belongs to the same organization if possible
+        if hasattr(receipt, 'organization_id') and receipt.organization_id != expense.organization_id:
+            logging.warning(f"Receipt organization mismatch: receipt {receipt.id} belongs to org {receipt.organization_id}, expense belongs to org {expense.organization_id}")
+            return jsonify({'error': 'Resource not found'}), 404
+        
+        # Generate image URLs using project utility functions
+        image_url = '/static/img/receipt-placeholder.svg'
+        thumbnail_url = '/static/img/receipt-placeholder.svg'
+        
+        # Use appropriate image retrieval method based on schema
+        try:
+            if hasattr(receipt, 's3_key') and receipt.s3_key:
+                # Use existing utility function for S3-stored images
+                image_url = get_receipt_image_url(receipt)
+                
+                # Get thumbnail if available using existing thumbnail_manager
+                if hasattr(thumbnail_manager, 'get_thumbnail_url'):
+                    thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt) or image_url
+            elif hasattr(receipt, 'image_path') and receipt.image_path:
+                # Legacy path-based image storage
+                image_url = url_for('static', filename=f'uploads/{receipt.image_path}')
+                thumbnail_url = image_url
+        except Exception as e:
+            logging.error(f"Error generating image URL for receipt {receipt.id}: {str(e)}")
+        
+        return jsonify({
+            'expense_id': expense_id,
+            'image_url': image_url,
+            'thumbnail_url': thumbnail_url
+        })
+        
+    except Exception as e:
+        logging.error(f"Error fetching expense image: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve image'}), 500
 
 @pipeline_bp.route('/pipeline')
 @login_required
