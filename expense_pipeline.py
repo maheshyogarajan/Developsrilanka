@@ -384,8 +384,7 @@ def get_pipeline_data():
         else:
             expenses_query = expenses_query.order_by(desc(CompanyExpense.id))
             
-        # For consistent pagination in API response
-        # Get pagination parameters from request
+        # Apply pagination if requested
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 50, type=int)
         
@@ -394,20 +393,27 @@ def get_pipeline_data():
             per_page = 10
         elif per_page > 100:
             per_page = 100
-        
-        # Get total count for pagination metadata before applying limit/offset
-        # This ensures we have accurate totals for creating pagination links
+            
+        # Get total count for pagination metadata
         total_count = expenses_query.count()
         
-        # Apply pagination to the query for better performance
+        # Apply pagination
         expenses_query = expenses_query.limit(per_page).offset((page - 1) * per_page)
             
-        # Execute the query efficiently with all related data
+        # Execute the query
         all_expenses_results = expenses_query.all()
         
         # Process the results
         for expense, receipt, user, client in all_expenses_results:
-            # Get expense amount from receipt relationship
+            # Check for image using flag instead of generating URLs
+            has_image = False
+            if receipt:
+                has_image = bool(
+                    getattr(receipt, 's3_key', None) or 
+                    getattr(receipt, 'image_path', None)
+                )
+            
+            # Get expense amount from receipt if available
             expense_amount = 0.0
             if receipt and hasattr(receipt, 'total_amount'):
                 try:
@@ -415,32 +421,11 @@ def get_pipeline_data():
                 except (ValueError, TypeError):
                     expense_amount = 0.0
             
-            # Get user name
+            # Get user name safely
             user_name = getattr(user, 'name', "Unknown") if user else "Unknown"
             
-            # Get client name
+            # Get client name safely
             client_name = getattr(client, 'name', None) if client else None
-            
-            # Generate image and thumbnail URLs for compatibility with existing frontend
-            image_url = None
-            thumbnail_url = None
-            
-            if receipt:
-                if hasattr(receipt, 's3_key') and receipt.s3_key:
-                    try:
-                        image_url = get_receipt_image_url(receipt)
-                        if hasattr(thumbnail_manager, 'get_thumbnail_url'):
-                            # Pass the s3_key string, not the Receipt object
-                            thumbnail_url = thumbnail_manager.get_thumbnail_url(receipt.s3_key)
-                        else:
-                            thumbnail_url = '/static/img/receipt-placeholder.svg'
-                    except Exception as img_error:
-                        logging.error(f"Error getting image URL for receipt {receipt.id}: {str(img_error)}")
-                        image_url = '/static/img/receipt-placeholder.svg'
-                        thumbnail_url = '/static/img/receipt-placeholder.svg'
-                elif hasattr(receipt, 'image_path') and receipt.image_path:
-                    image_url = url_for('static', filename=f'uploads/{receipt.image_path}')
-                    thumbnail_url = image_url
                 
             # Calculate priority based on amount
             priority = calculate_priority(expense_amount)
@@ -465,7 +450,7 @@ def get_pipeline_data():
                 if rejector:
                     rejected_by_name = getattr(rejector, 'name', None)
             
-            # Build the expense data object using the current expected format for frontend compatibility
+            # Build the expense data object with has_image flag instead of URLs
             expense_data = {
                 'id': expense.id,
                 'description': getattr(expense, 'description', "") or "Expense",
@@ -482,8 +467,7 @@ def get_pipeline_data():
                 'client_name': client_name,
                 'is_reimbursable': getattr(expense, 'is_reimbursable', True),
                 'vendor_name': getattr(receipt, 'vendor_name', "") if receipt else "",
-                'image_url': image_url,  # Keep the original format expected by frontend
-                'thumbnail_url': thumbnail_url,  # Keep the original format expected by frontend
+                'has_image': has_image,  # Flag instead of URLs
                 'type': 'expense',
                 'status': expense.status.value if hasattr(expense.status, 'value') else expense.status,
                 'priority': priority,
@@ -527,21 +511,10 @@ def get_pipeline_data():
         total_reimbursed = sum(item['amount'] or 0 for item in reimbursed)
         total_rejected = sum(item['amount'] or 0 for item in rejected)
         
-        # Create pagination metadata for the response
-        pagination = {
-            'page': page,
-            'per_page': per_page,
-            'total_items': total_count,
-            'total_pages': (total_count + per_page - 1) // per_page if per_page > 0 else 1,  # Ceiling division
-            'has_next': page < ((total_count + per_page - 1) // per_page if per_page > 0 else 1),
-            'has_prev': page > 1
-        }
-        
-        # Prepare response data with pagination metadata
+        # Prepare response data
         pipeline_data = {
             'organization_id': org_id,
             'user_role': user_role,
-            'pagination': pagination,
             'columns': {
                 'pending_submission': {
                     'title': 'Pending Submission',
