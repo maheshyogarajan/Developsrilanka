@@ -1685,6 +1685,101 @@ function getStatusText(status) {
 }
 
 /**
+ * Load receipt image with progress indicator
+ * @param {number} receiptId - The ID of the receipt to load
+ * @param {number} expenseId - The ID of the expense
+ */
+function loadReceiptImage(receiptId, expenseId) {
+    if (!receiptId) {
+        // If no receipt ID, just show the placeholder
+        $('.receipt-image-placeholder').show();
+        $('.receipt-image-loading').removeClass('active');
+        $('.receipt-image-actual').removeClass('loaded');
+        $('#receipt-image-controls').hide();
+        return;
+    }
+    
+    // Show loading indicator
+    $('.receipt-image-placeholder').hide();
+    $('.receipt-image-loading').addClass('active');
+    $('.receipt-image-actual').removeClass('loaded');
+    $('#receipt-image-controls').hide();
+    
+    // Reset progress bar
+    $('.receipt-image-progress-bar').css('width', '0%');
+    
+    // Use existing endpoint to get secure image URL
+    $.ajax({
+        url: `/expenses/api/expense-image/${expenseId}`,
+        type: 'GET',
+        xhr: function() {
+            const xhr = new window.XMLHttpRequest();
+            
+            // Add progress listener for progress bar updates
+            xhr.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    $('.receipt-image-progress-bar').css('width', percentComplete + '%');
+                } else {
+                    // If progress not computable, show indeterminate progress
+                    $('.receipt-image-progress-bar').css('width', '100%');
+                    $('.receipt-image-progress-bar').css('opacity', '0.5');
+                }
+            }, false);
+            
+            return xhr;
+        },
+        success: function(response) {
+            if (response.image_url) {
+                // Set progress to 90% - still need to load the actual image
+                $('.receipt-image-progress-bar').css('width', '90%');
+                
+                // Preload the image to ensure it's fully loaded before showing
+                const img = new Image();
+                img.onload = function() {
+                    // Complete the progress bar
+                    $('.receipt-image-progress-bar').css('width', '100%');
+                    
+                    // Hide loading indicator, show the image
+                    setTimeout(function() {
+                        $('.receipt-image-loading').removeClass('active');
+                        $('.receipt-image-actual').attr('src', response.image_url).addClass('loaded');
+                        $('#receipt-image-controls').show();
+                        
+                        // Set up full image view functionality
+                        $('#view-full-image').off('click').on('click', function() {
+                            window.open(response.image_url, '_blank');
+                        });
+                    }, 300); // Small delay to show the completed progress bar
+                };
+                
+                img.onerror = function() {
+                    // Handle image loading error
+                    $('.receipt-image-loading').removeClass('active');
+                    $('.receipt-image-placeholder').show();
+                    $('.receipt-image-placeholder i').removeClass('fa-exclamation-triangle').addClass('fa-times-circle text-danger');
+                    $('.receipt-image-placeholder p').text('Error loading receipt image');
+                };
+                
+                // Start loading the image
+                img.src = response.image_url;
+            } else {
+                // No image URL in response
+                $('.receipt-image-loading').removeClass('active');
+                $('.receipt-image-placeholder').show();
+            }
+        },
+        error: function() {
+            // API call failed
+            $('.receipt-image-loading').removeClass('active');
+            $('.receipt-image-placeholder').show();
+            $('.receipt-image-placeholder i').removeClass('fa-exclamation-triangle').addClass('fa-times-circle text-danger');
+            $('.receipt-image-placeholder p').text('Failed to retrieve receipt image');
+        }
+    });
+}
+
+/**
  * Escape HTML special characters to prevent XSS
  * @param {string} unsafe - Unsafe string
  * @returns {string} - Escaped string
