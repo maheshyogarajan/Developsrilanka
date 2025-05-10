@@ -384,8 +384,8 @@ def get_pipeline_data():
         else:
             expenses_query = expenses_query.order_by(desc(CompanyExpense.id))
             
-        # Apply pagination to the query for better performance
-        # Default to page 1 with 50 items per page
+        # For consistent pagination in API response
+        # Get pagination parameters from request
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 50, type=int)
         
@@ -394,10 +394,14 @@ def get_pipeline_data():
             per_page = 10
         elif per_page > 100:
             per_page = 100
-            
-        # Apply pagination to the query
-        expenses_query = expenses_query.limit(per_page).offset((page - 1) * per_page)
         
+        # Get total count for pagination metadata before applying limit/offset
+        # This ensures we have accurate totals for creating pagination links
+        total_count = expenses_query.count()
+        
+        # Apply pagination to the query for better performance
+        expenses_query = expenses_query.limit(per_page).offset((page - 1) * per_page)
+            
         # Execute the query efficiently with all related data
         all_expenses_results = expenses_query.all()
         
@@ -523,13 +527,21 @@ def get_pipeline_data():
         total_reimbursed = sum(item['amount'] or 0 for item in reimbursed)
         total_rejected = sum(item['amount'] or 0 for item in rejected)
         
-        # We'll implement pagination in a future update if needed, using request parameters
-        # and adding appropriate metadata to the response
+        # Create pagination metadata for the response
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total_items': total_count,
+            'total_pages': (total_count + per_page - 1) // per_page if per_page > 0 else 1,  # Ceiling division
+            'has_next': page < ((total_count + per_page - 1) // per_page if per_page > 0 else 1),
+            'has_prev': page > 1
+        }
         
-        # Prepare response data
+        # Prepare response data with pagination metadata
         pipeline_data = {
             'organization_id': org_id,
             'user_role': user_role,
+            'pagination': pagination,
             'columns': {
                 'pending_submission': {
                     'title': 'Pending Submission',
