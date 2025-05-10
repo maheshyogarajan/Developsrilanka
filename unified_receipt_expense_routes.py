@@ -9,7 +9,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import app
 from flask_login import login_required, current_user
 from sqlalchemy import text, or_, and_, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, contains_eager
 from models import (
     Receipt, ReceiptItem, CompanyExpense, ClientExpense, Client, 
     ExpenseStatus, Organization, User, OrganizationUser, AuditLog
@@ -368,19 +368,12 @@ def history():
             # Default sort
             query = query.order_by(Receipt.date.desc())
         
-        # Use eager loading with class-bound attributes to avoid N+1 queries
-        query = query.options(
-            # Organization relationship is defined as backref in the Organization model
-            joinedload(Receipt.organization),
-            
-            # CompanyExpense has a backref to Receipt called 'company_expense'
-            # and CompanyExpense has a relationship to Client
-            joinedload(Receipt.company_expense).joinedload(CompanyExpense.client),
-            
-            # ClientExpense has a backref to Receipt called 'client_expenses'
-            # and ClientExpense has a relationship to Client
-            joinedload(Receipt.client_expenses).joinedload(ClientExpense.client)
-        )
+        # For SQLAlchemy 2.0, we need to be careful with the type of options
+        # Let's avoid eager loading entirely for now to get the system working
+        # We can optimize with proper loading strategies later
+        
+        # Skip eager loading and just use the standard query
+        # The performance might be slightly degraded, but it will work reliably
         
         # Get pagination parameters
         per_page = 24  # Number of receipts per page
