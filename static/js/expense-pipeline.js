@@ -238,6 +238,9 @@ function loadPipelineData(force = false) {
     const dateFrom = document.getElementById('dateFromFilter')?.value || '';
     const dateTo = document.getElementById('dateToFilter')?.value || '';
     
+    // Get current URL parameters to extract pagination info
+    const urlParams = new URLSearchParams(window.location.search);
+    
     const pipelineContainer = document.getElementById('expensePipeline');
     
     // Clear any existing loading timeout
@@ -267,8 +270,12 @@ function loadPipelineData(force = false) {
         `;
     }, LOADING_TIMEOUT_MS);
     
-    // Build the query string
-    let queryParams = `org_id=${organizationId}&view=${viewType}`;
+    // Get pagination parameters
+    const page = urlParams.get('page') || 1;
+    const perPage = urlParams.get('per_page') || 50;
+    
+    // Build the query string with pagination
+    let queryParams = `org_id=${organizationId}&view=${viewType}&page=${page}&per_page=${perPage}`;
     if (clientId) queryParams += `&client_id=${clientId}`;
     if (dateFrom) queryParams += `&date_from=${dateFrom}`;
     if (dateTo) queryParams += `&date_to=${dateTo}`;
@@ -1633,6 +1640,24 @@ function exportPipelineData() {
     
     // Redirect to export endpoint
     window.location.href = `/expenses/export?org_id=${organizationId}&view=${viewType}&format=excel`;
+}
+
+/**
+ * Change the current page in the pagination
+ * @param {number} page - The page number to navigate to
+ */
+function changePage(page) {
+    // Get current URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Update page parameter
+    urlParams.set('page', page);
+    
+    // Update URL without reloading
+    updateURLParams({page: page});
+    
+    // Reload pipeline data with the new page
+    loadPipelineData();
 }
 
 /**
