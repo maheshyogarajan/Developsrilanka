@@ -90,6 +90,48 @@ function compressImage(file, maxWidth = IMAGE_MAX_WIDTH, maxHeight = IMAGE_MAX_H
   });
 }
 
+// Function to setup demo organization and client data
+function setupDemoOptions() {
+    console.log('Setting up demo organization and client options');
+    
+    // Setup organization dropdown for company expense
+    const orgSelect = document.getElementById('company_organization_id');
+    if (orgSelect) {
+        // Clear any existing options
+        orgSelect.innerHTML = '';
+        
+        // Add Demo Organization option
+        const demoOption = document.createElement('option');
+        demoOption.value = '999'; // Use a fake ID
+        demoOption.text = 'Demo Organization';
+        demoOption.selected = true;
+        orgSelect.appendChild(demoOption);
+    } else {
+        console.log('Organization select element not found');
+    }
+    
+    // Setup client dropdown
+    const clientSelect = document.getElementById('initial_client_id');
+    if (clientSelect) {
+        // Clear any existing options
+        clientSelect.innerHTML = '';
+        
+        // Add blank option
+        const blankOption = document.createElement('option');
+        blankOption.value = '';
+        blankOption.text = 'Select a client...';
+        clientSelect.appendChild(blankOption);
+        
+        // Add Demo Client option
+        const demoOption = document.createElement('option');
+        demoOption.value = '999'; // Use a fake ID
+        demoOption.text = 'Demo Client';
+        clientSelect.appendChild(demoOption);
+    } else {
+        console.log('Client select element not found');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const receiptForm = document.getElementById('receiptForm');
@@ -576,38 +618,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('sscl_tax').value = data.sscl_tax || '';
         document.getElementById('vat_tax').value = data.vat_tax || '';
         
-        // Set up demo organization option
-        const orgSelect = document.getElementById('company_organization_id');
-        if (orgSelect) {
-            // Clear any existing options
-            orgSelect.innerHTML = '';
-            
-            // Add Demo Organization option
-            const demoOption = document.createElement('option');
-            demoOption.value = '999'; // Use a fake ID
-            demoOption.text = 'Demo Organization';
-            demoOption.selected = true;
-            orgSelect.appendChild(demoOption);
-        }
-        
-        // Set up demo client option
-        const clientSelect = document.getElementById('initial_client_id');
-        if (clientSelect) {
-            // Clear any existing options
-            clientSelect.innerHTML = '';
-            
-            // Add blank option
-            const blankOption = document.createElement('option');
-            blankOption.value = '';
-            blankOption.text = 'Select a client...';
-            clientSelect.appendChild(blankOption);
-            
-            // Add Demo Client option
-            const demoOption = document.createElement('option');
-            demoOption.value = '999'; // Use a fake ID
-            demoOption.text = 'Demo Client';
-            clientSelect.appendChild(demoOption);
-        }
+        // Set up demo organization and client dropdowns
+        setupDemoOptions();
         
         // Set expense categories if they exist
         if (data.expense_major_category) {
