@@ -6,8 +6,9 @@ These endpoints allow front-end AJAX calls to get data efficiently.
 from flask import jsonify, request, session
 from flask_login import login_required, current_user
 from sqlalchemy import text
+from flask_wtf.csrf import CSRFProtect
 
-from app import app, db
+from app import app, db, csrf
 from models import OrganizationUser, Client, Organization
 
 @app.route('/api/organization/<int:org_id>/clients')

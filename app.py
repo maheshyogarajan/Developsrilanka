@@ -35,6 +35,9 @@ db = SQLAlchemy(model_class=Base)
 # Initialize Flask app
 app = Flask(__name__)
 
+# Initialize CSRF Protection
+csrf = CSRFProtect(app)
+
 # Initialize Flask-Mail
 mail = Mail()
 
@@ -81,6 +84,13 @@ def load_user(user_id):
     # Import here to avoid circular imports
     from models import User, FriendInvitation
     return User.query.get(int(user_id))
+
+# Add CSRF token to all templates
+@app.context_processor
+def inject_csrf_token():
+    """Add CSRF token to all templates."""
+    from template_utils import get_csrf_token
+    return dict(csrf_token=get_csrf_token)
 
 # Setup OAuth
 oauth = OAuth(app)
@@ -2401,13 +2411,28 @@ def profile():
         # Get comprehensive trust activity summary
         trust_summary = current_user.get_trust_activity_summary()
         
-        return render_template(
-            'profile.html', 
-            sent_friend_invitations=friend_invitations,
-            invitation_stats=invitation_stats,
-            recent_activities=recent_activities,
-            trust_summary=trust_summary
-        )
+        # Prepare template context for error logging
+        template_context = {
+            'sent_friend_invitations': f"<List[{len(friend_invitations)}]>",
+            'invitation_stats': invitation_stats,
+            'recent_activities': f"<List[{len(recent_activities)}]>",
+            'trust_summary': trust_summary
+        }
+        
+        try:
+            return render_template(
+                'profile.html', 
+                sent_friend_invitations=friend_invitations,
+                invitation_stats=invitation_stats,
+                recent_activities=recent_activities,
+                trust_summary=trust_summary
+            )
+        except Exception as template_error:
+            # Import here to avoid circular imports
+            from error_logger import log_template_error
+            log_template_error('profile.html', str(template_error), profile, template_context)
+            flash(f"Error loading profile template: {str(template_error)}", "danger")
+            return redirect(url_for('home'))
     except Exception as e:
         logging.error(f"Error rendering profile page: {str(e)}")
         logging.error(traceback.format_exc())
