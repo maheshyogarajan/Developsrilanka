@@ -119,10 +119,9 @@ def create_personal_finances():
         from models import UserRole
         owner_role = UserRole.OWNER.value
         
-        # Create the organization (removed parameters that don't exist in the model)
+        # Create the organization (using only valid fields)
         org = Organization(
             name="Personal Finances",
-            description="My personal finances and expenses",
             primary_color="#4a6da7",
             secondary_color="#f5f8ff",
             created_at=datetime.utcnow()
