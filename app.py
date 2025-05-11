@@ -1936,6 +1936,29 @@ def email_login():
                         friend_invitation.accepted = True
                         friend_invitation.accepted_at = datetime.utcnow()
                         friend_invitation.accepted_by_user_id = user.id
+                        friend_invitation.converted_to_user_id = user.id
+                        
+                        # Record who sent the invitation to grant them rewards
+                        inviter = friend_invitation.invited_by
+                        
+                        # Grant reward to the inviter (extra days of access)
+                        reward_days = 7  # One week free for each successful invitation
+                        friend_invitation.reward_days_granted = reward_days
+                        friend_invitation.reward_granted_at = datetime.utcnow()
+                        
+                        # Update inviter's stats
+                        inviter.successful_invites_count += 1
+                        inviter.earned_access_days += reward_days
+                        
+                        # Add trust points for successful invitation
+                        from models import TrustActivity
+                        trust_activity = TrustActivity(
+                            user_id=inviter.id,
+                            activity_type='invitation_accepted',
+                            points=25,  # High value for successful invitations
+                            description=f'Invitation accepted by: {user.email}'
+                        )
+                        db.session.add(trust_activity)
                         db.session.commit()
                         
                         # Clear the token from session
@@ -2022,6 +2045,29 @@ def email_login():
                         friend_invitation.accepted = True
                         friend_invitation.accepted_at = datetime.utcnow()
                         friend_invitation.accepted_by_user_id = new_user.id
+                        friend_invitation.converted_to_user_id = new_user.id
+                        
+                        # Record who sent the invitation to grant them rewards
+                        inviter = friend_invitation.invited_by
+                        
+                        # Grant reward to the inviter (extra days of access)
+                        reward_days = 7  # One week free for each successful invitation
+                        friend_invitation.reward_days_granted = reward_days
+                        friend_invitation.reward_granted_at = datetime.utcnow()
+                        
+                        # Update inviter's stats
+                        inviter.successful_invites_count += 1
+                        inviter.earned_access_days += reward_days
+                        
+                        # Add trust points for successful invitation
+                        from models import TrustActivity
+                        trust_activity = TrustActivity(
+                            user_id=inviter.id,
+                            activity_type='invitation_accepted',
+                            points=25,  # High value for successful invitations
+                            description=f'Invitation accepted by: {new_user.email}'
+                        )
+                        db.session.add(trust_activity)
                         db.session.commit()
                         
                         # Clear the token from session

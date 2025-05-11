@@ -27,8 +27,8 @@
                                 <div class="text-end">
                                     <h5 class="mb-1">Invitations Available</h5>
                                     <div class="d-flex justify-content-end align-items-center">
-                                        <span class="h3 mb-0 text-primary me-2">{{ current_user.get_available_invitations() }}</span>
-                                        <small class="text-muted">/ {{ current_user.get_daily_invitation_limit() }} today</small>
+                                        <span class="h3 mb-0 text-primary me-2">{{ invitation_stats.available }}</span>
+                                        <small class="text-muted">/ {{ invitation_stats.daily_limit }} today</small>
                                     </div>
                                 </div>
                             </div>
@@ -37,9 +37,9 @@
                             <div class="mt-3">
                                 <h6>Trust Progress</h6>
                                 <div class="progress" style="height: 10px;">
-                                    {% set next_level = current_user.trust_level + 1 %}
+                                    {% set next_level = invitation_stats.trust_level + 1 %}
                                     {% if next_level <= 3 %}
-                                        {% set progress = (current_user.trust_level / 3) * 100 %}
+                                        {% set progress = (invitation_stats.trust_level / 3) * 100 %}
                                         <div class="progress-bar" role="progressbar" style="width: {{ progress }}%" 
                                              aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100"></div>
                                     {% else %}
@@ -76,7 +76,7 @@
                         </div>
                         
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary" {% if current_user.get_available_invitations() <= 0 %}disabled{% endif %}>
+                            <button type="submit" class="btn btn-primary" {% if invitation_stats.available <= 0 %}disabled{% endif %}>
                                 <i class="fas fa-paper-plane me-2"></i> Send Invitations
                             </button>
                             <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary">
