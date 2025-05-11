@@ -2429,12 +2429,21 @@ def profile():
         # Get comprehensive trust activity summary
         trust_summary = current_user.get_trust_activity_summary()
         
+        # Get subscription information
+        subscription_info = {
+            'status': current_user.get_subscription_status_display(),
+            'days_remaining': current_user.get_days_remaining(),
+            'is_expired': current_user.is_access_expired(),
+            'expiration_date': current_user.access_expiration_date
+        }
+        
         # Prepare template context for error logging
         template_context = {
             'sent_friend_invitations': f"<List[{len(friend_invitations)}]>",
             'invitation_stats': invitation_stats,
             'recent_activities': f"<List[{len(recent_activities)}]>",
-            'trust_summary': trust_summary
+            'trust_summary': trust_summary,
+            'subscription_info': subscription_info
         }
         
         try:
@@ -2443,7 +2452,8 @@ def profile():
                 sent_friend_invitations=friend_invitations,
                 invitation_stats=invitation_stats,
                 recent_activities=recent_activities,
-                trust_summary=trust_summary
+                trust_summary=trust_summary,
+                subscription_info=subscription_info
             )
         except Exception as template_error:
             # Import here to avoid circular imports

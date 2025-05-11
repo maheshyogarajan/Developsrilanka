@@ -556,6 +556,55 @@ class User(UserMixin, db.Model):
             data['trust_ranking_consent_at'] = self.trust_ranking_consent_at.isoformat()
             
         return data
+        
+    def get_days_remaining(self):
+        """
+        Calculate the number of days remaining until the user's access expires.
+        
+        Returns:
+            int: Number of days remaining, or 0 if expired or no expiration date set
+        """
+        if not self.access_expiration_date:
+            return 0
+            
+        # Calculate the days difference between now and expiration date
+        now = datetime.utcnow()
+        if now > self.access_expiration_date:
+            return 0
+            
+        # Get the days difference
+        delta = self.access_expiration_date - now
+        return delta.days
+        
+    def is_access_expired(self):
+        """
+        Check if the user's access has expired.
+        
+        Returns:
+            bool: True if expired or no expiration date, False otherwise
+        """
+        if not self.access_expiration_date:
+            return True
+            
+        return datetime.utcnow() > self.access_expiration_date
+        
+    def get_subscription_status_display(self):
+        """
+        Get a user-friendly display of the subscription status.
+        
+        Returns:
+            str: Formatted subscription status message
+        """
+        status_display = {
+            'free_trial': 'Free Trial',
+            'basic': 'Basic Plan',
+            'pro': 'Pro Plan',
+            'premium': 'Premium Plan',
+            'extended': 'Extended Access',
+            'invited': 'Invitation Access'
+        }
+        
+        return status_display.get(self.subscription_status, 'Free Trial')
 
 class Receipt(db.Model):
     """Model for storing receipt information."""
