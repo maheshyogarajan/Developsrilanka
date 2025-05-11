@@ -431,6 +431,7 @@ def calculate_user_rewards():
                 WHERE fi.id = rg.id AND (rg.invitation_number % 5) = 0;
             """))
             
+            db.session.commit()
             logging.info("Calculated and applied invitation rewards for existing users")
             return True
         except Exception as e:
