@@ -1500,32 +1500,57 @@ function renderTimelineSection(item) {
 function openReimbursementModal(event, expenseId) {
     if (event) event.stopPropagation();
     
+    // Get modal elements
     const modal = document.getElementById('reimbursementModal');
+    if (!modal) return;
+    
     const expenseIdField = document.getElementById('reimbursementExpenseId');
+    const methodField = document.getElementById('reimbursementMethod');
+    
+    // Clear previous validation states
+    if (methodField) methodField.classList.remove('is-invalid');
+    
+    // Reset the form
+    const form = document.getElementById('reimbursementForm');
+    if (form) form.reset();
     
     // Set the expense ID
-    expenseIdField.value = expenseId;
+    if (expenseIdField) expenseIdField.value = expenseId;
     
     // Show the modal
     const bsModal = new bootstrap.Modal(modal);
     bsModal.show();
+    
+    // Focus the method field after modal is shown
+    modal.addEventListener('shown.bs.modal', function onModalShown() {
+        if (methodField) methodField.focus();
+        // Remove the event listener after execution
+        modal.removeEventListener('shown.bs.modal', onModalShown);
+    });
 }
 
 /**
  * Save reimbursement details
  */
 function saveReimbursementDetails() {
-    const expenseId = document.getElementById('reimbursementExpenseId').value;
-    const method = document.getElementById('reimbursementMethod').value;
-    const reference = document.getElementById('reimbursementReference').value;
-    const notes = document.getElementById('reimbursementNotes').value;
-    const organizationId = document.getElementById('organizationSelector').value;
+    const expenseId = document.getElementById('reimbursementExpenseId')?.value;
+    const methodField = document.getElementById('reimbursementMethod');
+    const method = methodField?.value;
+    const reference = document.getElementById('reimbursementReference')?.value || '';
+    const notes = document.getElementById('reimbursementNotes')?.value || '';
+    const organizationId = document.getElementById('organizationSelector')?.value;
     
-    // Validate inputs
+    // Enhanced validation with better feedback
     if (!method) {
-        showToast('Error', 'Please select a reimbursement method', 'error');
+        if (methodField) {
+            methodField.classList.add('is-invalid');
+            methodField.focus();
+        }
         return;
     }
+    
+    // Clear validation state
+    if (methodField) methodField.classList.remove('is-invalid');
     
     // Show loading toast
     showToast('Processing', 'Recording reimbursement...', 'info');
@@ -1567,17 +1592,28 @@ function saveReimbursementDetails() {
     .then(data => {
         // Hide the modal
         const modal = document.getElementById('reimbursementModal');
-        bootstrap.Modal.getInstance(modal).hide();
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) bsModal.hide();
         
         // Reset form
-        document.getElementById('reimbursementForm').reset();
+        const form = document.getElementById('reimbursementForm');
+        if (form) form.reset();
         
         showToast('Success', 'Reimbursement recorded successfully', 'success');
         loadPipelineData(); // Reload to show changes
     })
     .catch(error => {
         console.error('Error recording reimbursement:', error);
-        showToast('Error', error.message, 'error');
+        
+        // Check if the error is related to the reimbursement method
+        if (error.message && error.message.toLowerCase().includes('method')) {
+            if (methodField) {
+                methodField.classList.add('is-invalid');
+                methodField.focus();
+            }
+        } else {
+            showToast('Error', error.message, 'error');
+        }
     });
 }
 
@@ -1586,30 +1622,55 @@ function saveReimbursementDetails() {
  * @param {string} expenseId - ID of the expense
  */
 function openRejectionModal(expenseId) {
+    // Get modal elements
     const modal = document.getElementById('rejectionModal');
+    if (!modal) return;
+    
     const expenseIdField = document.getElementById('rejectionExpenseId');
+    const reasonField = document.getElementById('rejectionReason');
+    
+    // Clear previous validation states
+    if (reasonField) reasonField.classList.remove('is-invalid');
+    
+    // Reset the form
+    const form = document.getElementById('rejectionForm');
+    if (form) form.reset();
     
     // Set the expense ID
-    expenseIdField.value = expenseId;
+    if (expenseIdField) expenseIdField.value = expenseId;
     
     // Show the modal
     const bsModal = new bootstrap.Modal(modal);
     bsModal.show();
+    
+    // Focus the reason field after modal is shown
+    modal.addEventListener('shown.bs.modal', function onModalShown() {
+        if (reasonField) reasonField.focus();
+        // Remove the event listener after execution
+        modal.removeEventListener('shown.bs.modal', onModalShown);
+    });
 }
 
 /**
  * Confirm rejection of an expense
  */
 function confirmRejectExpense() {
-    const expenseId = document.getElementById('rejectionExpenseId').value;
-    const reason = document.getElementById('rejectionReason').value;
-    const organizationId = document.getElementById('organizationSelector').value;
+    const expenseId = document.getElementById('rejectionExpenseId')?.value;
+    const reasonField = document.getElementById('rejectionReason');
+    const reason = reasonField?.value.trim();
+    const organizationId = document.getElementById('organizationSelector')?.value;
     
-    // Validate inputs
+    // Enhanced validation with better feedback
     if (!reason) {
-        showToast('Error', 'Please provide a reason for rejection', 'error');
+        if (reasonField) {
+            reasonField.classList.add('is-invalid');
+            reasonField.focus();
+        }
         return;
     }
+    
+    // Clear validation state
+    if (reasonField) reasonField.classList.remove('is-invalid');
     
     // Show loading toast
     showToast('Processing', 'Rejecting expense...', 'info');
@@ -1649,17 +1710,28 @@ function confirmRejectExpense() {
     .then(data => {
         // Hide the modal
         const modal = document.getElementById('rejectionModal');
-        bootstrap.Modal.getInstance(modal).hide();
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) bsModal.hide();
         
         // Reset form
-        document.getElementById('rejectionForm').reset();
+        const form = document.getElementById('rejectionForm');
+        if (form) form.reset();
         
         showToast('Success', 'Expense rejected successfully', 'success');
         loadPipelineData(); // Reload to show changes
     })
     .catch(error => {
         console.error('Error rejecting expense:', error);
-        showToast('Error', error.message, 'error');
+        
+        // Check if the error is related to the rejection reason
+        if (error.message && error.message.toLowerCase().includes('reason')) {
+            if (reasonField) {
+                reasonField.classList.add('is-invalid');
+                reasonField.focus();
+            }
+        } else {
+            showToast('Error', error.message, 'error');
+        }
     });
 }
 
