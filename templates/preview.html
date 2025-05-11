@@ -2,6 +2,42 @@
 
 {% block styles %}
 <style>
+    /* Add animated classes if not already available from animate.css */
+    .animate__animated {
+        animation-duration: 1s;
+        animation-fill-mode: both;
+    }
+    
+    .animate__fadeInUp {
+        animation-name: fadeInUp;
+    }
+    
+    .animate__fadeOutDown {
+        animation-name: fadeOutDown;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translate3d(0, 40px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+    
+    @keyframes fadeOutDown {
+        from {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+        to {
+            opacity: 0;
+            transform: translate3d(0, 40px, 0);
+        }
+    }
+    
     .icon-rounded {
         display: inline-flex;
         align-items: center;
