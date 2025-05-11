@@ -923,6 +923,13 @@ function createExpenseFromReceipt(receiptId, targetColumn) {
     // Get CSRF token from page
     const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
     
+    // Check if CSRF token exists
+    if (!csrfToken) {
+        console.error('CSRF token not found in the page');
+        showToast('Error', 'Authentication token missing. Please refresh the page and try again.', 'error');
+        return;
+    }
+    
     // Send request to create expense
     fetch('/expenses/api/update-expense-status', {
         method: 'POST',
@@ -950,7 +957,17 @@ function createExpenseFromReceipt(receiptId, targetColumn) {
     })
     .catch(error => {
         console.error('Error creating expense:', error);
-        showToast('Error', error.message, 'error');
+        
+        // Check if the error might be related to CSRF token issues
+        if (error.message && error.message.includes('<!DOCTYPE')) {
+            // Server returned HTML instead of JSON, likely a CSRF error
+            console.error('Server returned HTML instead of JSON. This is likely a CSRF token issue.');
+            showToast('Authentication Error', 'Session may have expired. Please refresh the page and try again.', 'error');
+        } else {
+            // Show generic error message
+            showToast('Error', error.message || 'Failed to create expense', 'error');
+        }
+        
         loadPipelineData(); // Reload to reset position
     });
 }
@@ -984,6 +1001,14 @@ function updateExpenseStatus(expenseId, newStatus, targetColumn) {
     
     // Get CSRF token from page
     const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+    
+    // Check if CSRF token exists
+    if (!csrfToken) {
+        console.error('CSRF token not found in the page');
+        showToast('Error', 'Authentication token missing. Please refresh the page and try again.', 'error');
+        loadPipelineData(); // Reload to reset position
+        return;
+    }
     
     fetch('/expenses/api/update-expense-status', {
         method: 'POST',
