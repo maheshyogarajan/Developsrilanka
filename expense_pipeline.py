@@ -710,7 +710,7 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
         'owner': {
             # Owners can make any transition
             ExpenseStatus.SUBMITTED.value: [ExpenseStatus.APPROVED.value, ExpenseStatus.REJECTED.value],
-            ExpenseStatus.APPROVED.value: [ExpenseStatus.REIMBURSED.value, ExpenseStatus.REJECTED.value],
+            ExpenseStatus.APPROVED.value: [ExpenseStatus.REIMBURSED.value, ExpenseStatus.REJECTED.value],  # Fixed: Allow reimbursement transition
             ExpenseStatus.REJECTED.value: [ExpenseStatus.SUBMITTED.value, ExpenseStatus.APPROVED.value],
             ExpenseStatus.REIMBURSED.value: []  # Cannot transition from reimbursed
         },
