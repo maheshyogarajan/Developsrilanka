@@ -165,6 +165,30 @@
                                         </div>
                                     </div>
                                     
+                                    {% if trust_summary and trust_summary.points_needed_for_next_level > 0 %}
+                                    <div class="mt-3">
+                                        <h6 class="d-flex justify-content-between">
+                                            <span>Progress to Level {{ trust_summary.next_level }}</span>
+                                            <small class="text-muted">{{ trust_summary.total_points }} / {{ trust_summary.total_points + trust_summary.points_needed_for_next_level }} points</small>
+                                        </h6>
+                                        <div class="progress" style="height: 10px;">
+                                            {% set percent = (trust_summary.total_points / (trust_summary.total_points + trust_summary.points_needed_for_next_level) * 100)|int %}
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                 style="width: {{ percent }}%;" 
+                                                 aria-valuenow="{{ percent }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100"></div>
+                                        </div>
+                                        <small class="text-muted">Need {{ trust_summary.points_needed_for_next_level }} more points to reach the next level</small>
+                                    </div>
+                                    {% elif trust_summary and trust_summary.points_needed_for_next_level == 0 and trust_summary.next_level == 3 %}
+                                    <div class="mt-3">
+                                        <div class="alert alert-success py-2">
+                                            <small><i class="fas fa-trophy me-1"></i> You've reached the highest trust level!</small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
                                     {% if recent_activities %}
                                     <div class="mt-3">
                                         <h6 class="text-muted">Recent Activity</h6>
@@ -213,6 +237,94 @@
                             </div>
                         </div>
                     </div>
+                    
+                    {% if trust_summary and trust_summary.activities %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body p-3">
+                                    <h5 class="card-title text-primary">Activity Breakdown</h5>
+                                    <div class="row">
+                                        {% if trust_summary.activities.receipt_added is defined %}
+                                        <div class="col-md-4 mb-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="fas fa-receipt text-success me-2"></i>
+                                                    <span>Receipts</span>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-success">{{ trust_summary.activities.receipt_added.count }}×</span>
+                                                    <span class="badge bg-primary ms-1">{{ trust_summary.activities.receipt_added.points }} pts</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if trust_summary.activities.invoice_created is defined %}
+                                        <div class="col-md-4 mb-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="fas fa-file-invoice text-success me-2"></i>
+                                                    <span>Invoices</span>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-success">{{ trust_summary.activities.invoice_created.count }}×</span>
+                                                    <span class="badge bg-primary ms-1">{{ trust_summary.activities.invoice_created.points }} pts</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if trust_summary.activities.bank_account_added is defined %}
+                                        <div class="col-md-4 mb-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="fas fa-university text-success me-2"></i>
+                                                    <span>Bank Accounts</span>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-success">{{ trust_summary.activities.bank_account_added.count }}×</span>
+                                                    <span class="badge bg-primary ms-1">{{ trust_summary.activities.bank_account_added.points }} pts</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if trust_summary.activities.invitation_sent is defined %}
+                                        <div class="col-md-4 mb-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="fas fa-paper-plane text-success me-2"></i>
+                                                    <span>Invitations Sent</span>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-success">{{ trust_summary.activities.invitation_sent.count }}×</span>
+                                                    <span class="badge bg-primary ms-1">{{ trust_summary.activities.invitation_sent.points }} pts</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if trust_summary.activities.invitation_accepted is defined %}
+                                        <div class="col-md-4 mb-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="fas fa-user-check text-success me-2"></i>
+                                                    <span>Invitations Accepted</span>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-success">{{ trust_summary.activities.invitation_accepted.count }}×</span>
+                                                    <span class="badge bg-primary ms-1">{{ trust_summary.activities.invitation_accepted.points }} pts</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
                 

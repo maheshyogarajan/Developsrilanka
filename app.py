@@ -2397,11 +2397,15 @@ def profile():
             user_id=current_user.id
         ).order_by(TrustActivity.created_at.desc()).limit(5).all()
         
+        # Get comprehensive trust activity summary
+        trust_summary = current_user.get_trust_activity_summary()
+        
         return render_template(
             'profile.html', 
             sent_friend_invitations=friend_invitations,
             invitation_stats=invitation_stats,
-            recent_activities=recent_activities
+            recent_activities=recent_activities,
+            trust_summary=trust_summary
         )
     except Exception as e:
         logging.error(f"Error rendering profile page: {str(e)}")
