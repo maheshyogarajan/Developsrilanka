@@ -1,5 +1,5 @@
 from app import db
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import json
 import logging
 from flask_login import UserMixin
@@ -322,6 +322,18 @@ class User(UserMixin, db.Model):
     social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Trust level and rewards
+    subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
+    access_expiration_date = db.Column(db.DateTime, nullable=True)
+    successful_invites_count = db.Column(db.Integer, nullable=False, default=0)
+    earned_access_days = db.Column(db.Integer, nullable=False, default=0)
+    invitations_sent_today = db.Column(db.Integer, nullable=False, default=0)
+    last_invitation_date = db.Column(db.Date, nullable=True)
+    trust_level = db.Column(db.Integer, nullable=False, default=0)
+    show_in_trust_ranking = db.Column(db.Boolean, nullable=False, default=False)
+    trust_points = db.Column(db.Integer, nullable=False, default=0)
+    trust_ranking_consent_at = db.Column(db.DateTime, nullable=True)
+    
     # Relationships
     organizations = db.relationship('OrganizationUser', back_populates='user', lazy=True, cascade='all, delete-orphan')
     receipts = db.relationship('Receipt', backref='user', lazy=True)
@@ -361,10 +373,45 @@ class User(UserMixin, db.Model):
         if not org_user:
             return False
         return org_user.role == role
+        
+    def get_daily_invitation_limit(self):
+        """Get the number of invitations a user can send per day based on trust level."""
+        # Trust level 0: 3 invites per day
+        # Trust level 1: 5 invites per day
+        # Trust level 2: 10 invites per day
+        # Trust level 3: 20 invites per day
+        limits = {
+            0: 3,
+            1: 5,
+            2: 10,
+            3: 20
+        }
+        return limits.get(self.trust_level, 3)  # Default to 3 if trust level not in limits
+        
+    def can_send_invitation(self):
+        """Check if user can send an invitation based on their limits."""
+        # Reset counter if it's a new day
+        today = date.today()
+        if self.last_invitation_date is None or self.last_invitation_date < today:
+            self.invitations_sent_today = 0
+            self.last_invitation_date = today
+            
+        # Check if under daily limit
+        return self.invitations_sent_today < self.get_daily_invitation_limit()
+        
+    def increment_invitation_counter(self):
+        """Increment the daily invitation counter."""
+        # Ensure we're tracking for today
+        today = date.today()
+        if self.last_invitation_date is None or self.last_invitation_date < today:
+            self.invitations_sent_today = 1
+            self.last_invitation_date = today
+        else:
+            self.invitations_sent_today += 1
     
     def to_dict(self):
         """Convert the user to a dictionary."""
-        return {
+        data = {
             'id': self.id,
             'email': self.email,
             'name': self.name,
@@ -372,8 +419,25 @@ class User(UserMixin, db.Model):
             'role': self.role,
             'provider': self.social_provider,
             'created_at': self.created_at.isoformat(),
-            'organizations': [org_user.to_dict() for org_user in self.organizations]
+            'organizations': [org_user.to_dict() for org_user in self.organizations],
+            'subscription_status': self.subscription_status,
+            'trust_level': self.trust_level,
+            'trust_points': self.trust_points,
+            'show_in_trust_ranking': self.show_in_trust_ranking,
+            'successful_invites_count': self.successful_invites_count,
+            'earned_access_days': self.earned_access_days
         }
+        
+        if self.access_expiration_date:
+            data['access_expiration_date'] = self.access_expiration_date.isoformat()
+            
+        if self.last_invitation_date:
+            data['last_invitation_date'] = self.last_invitation_date.isoformat()
+            
+        if self.trust_ranking_consent_at:
+            data['trust_ranking_consent_at'] = self.trust_ranking_consent_at.isoformat()
+            
+        return data
 
 class Receipt(db.Model):
     """Model for storing receipt information."""
