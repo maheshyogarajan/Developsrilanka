@@ -1739,6 +1739,226 @@ function confirmRejectExpense() {
  * Batch submit receipts from a column
  * @param {string} columnId - ID of the column
  */
+
+/**
+ * Open the batch submission modal
+ */
+function openBatchSubmissionModal() {
+    // Get modal elements
+    const modal = document.getElementById('batchSubmissionModal');
+    if (!modal) return;
+    
+    const modalBody = document.getElementById('batchSubmissionBody');
+    if (!modalBody) return;
+    
+    const organizationId = document.getElementById('organizationSelector').value;
+    
+    // Show loading state
+    modalBody.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading receipts...</p>
+        </div>
+    `;
+    
+    // Show the modal
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Fetch all pending receipt data for this organization
+    fetch(`/expenses/api/pending-receipts?org_id=${organizationId}`)
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Failed to load receipts');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Render receipt selection form
+            if (!data.receipts || data.receipts.length === 0) {
+                modalBody.innerHTML = `
+                    <div class="alert alert-info">
+                        No receipts available for batch submission. Please upload receipts first.
+                    </div>
+                `;
+                return;
+            }
+            
+            // Render receipt selection form
+            let formHTML = `
+                <form id="batchSubmissionForm">
+                    <div class="alert alert-info">
+                        Select receipts to submit as expenses
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="selectAllReceipts" checked>
+                            <label class="form-check-label fw-bold" for="selectAllReceipts">
+                                Select All
+                            </label>
+                        </div>
+                    </div>
+                    <div class="receipt-list">
+            `;
+            
+            data.receipts.forEach(receipt => {
+                formHTML += `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <div class="form-check d-flex align-items-center">
+                                <input class="form-check-input batch-receipt-checkbox" 
+                                    type="checkbox" 
+                                    name="receipt_ids" 
+                                    value="${receipt.id}" 
+                                    id="receipt_${receipt.id}"
+                                    checked>
+                                <label class="form-check-label ms-2" for="receipt_${receipt.id}">
+                                    <div class="d-flex justify-content-between w-100 align-items-center">
+                                        <div>
+                                            <strong>${receipt.vendor_name || 'Unknown Vendor'}</strong>
+                                            <div class="text-muted small">
+                                                ${formatDate(receipt.purchase_date)} • ${formatCurrency(receipt.total_amount)}
+                                            </div>
+                                        </div>
+                                        <a href="#" class="text-decoration-none" onclick="openReceiptPreview(${receipt.id}); return false;">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            formHTML += `
+                    </div>
+                    <div class="mt-3 form-text text-muted">
+                        Selected receipts: <span id="selectedReceiptCount">${data.receipts.length}</span>
+                    </div>
+                </form>
+            `;
+            
+            modalBody.innerHTML = formHTML;
+            
+            // Add event listener for "Select All" checkbox
+            const selectAllCheckbox = document.getElementById('selectAllReceipts');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    const isChecked = this.checked;
+                    document.querySelectorAll('.batch-receipt-checkbox').forEach(checkbox => {
+                        checkbox.checked = isChecked;
+                    });
+                    updateSelectedCount();
+                });
+            }
+            
+            // Add event listeners for individual checkboxes
+            document.querySelectorAll('.batch-receipt-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateSelectedCount();
+                    // Update "Select All" checkbox if needed
+                    const totalCheckboxes = document.querySelectorAll('.batch-receipt-checkbox').length;
+                    const checkedCheckboxes = document.querySelectorAll('.batch-receipt-checkbox:checked').length;
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = checkedCheckboxes === totalCheckboxes;
+                    }
+                });
+            });
+            
+            // Initial update of the selected count
+            updateSelectedCount();
+        })
+        .catch(error => {
+            console.error('Error loading pending receipts:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> ${error.message}
+                </div>
+            `;
+        });
+}
+
+/**
+ * Update the count of selected receipts
+ */
+function updateSelectedCount() {
+    const selectedCount = document.querySelectorAll('.batch-receipt-checkbox:checked').length;
+    const countElement = document.getElementById('selectedReceiptCount');
+    if (countElement) {
+        countElement.textContent = selectedCount;
+    }
+}
+
+/**
+ * Submit batch expenses
+ */
+function submitBatchExpenses() {
+    const form = document.getElementById('batchSubmissionForm');
+    if (!form) return;
+    
+    // Get checked receipt IDs
+    const checkedBoxes = document.querySelectorAll('.batch-receipt-checkbox:checked');
+    if (!checkedBoxes.length) {
+        showToast('Warning', 'Please select at least one receipt to submit', 'warning');
+        return;
+    }
+    
+    const receiptIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+    const organizationId = document.getElementById('organizationSelector').value;
+    
+    // Show loading state
+    showToast('Processing', 'Submitting receipts as expenses...', 'info');
+    
+    // Get CSRF token from page
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+    
+    // Check if CSRF token exists
+    if (!csrfToken) {
+        console.error('CSRF token not found in the page');
+        showToast('Error', 'Authentication token missing. Please refresh the page and try again.', 'error');
+        return;
+    }
+    
+    // Send request to submit receipts as expenses
+    fetch('/expenses/api/batch-submit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            receipt_ids: receiptIds,
+            organization_id: organizationId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => {
+                throw new Error(err.error || 'Failed to batch submit receipts');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Hide the modal
+        const modal = document.getElementById('batchSubmissionModal');
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) bsModal.hide();
+        
+        showToast('Success', 'Expenses submitted successfully', 'success');
+        loadPipelineData(true); // Reload to show changes
+    })
+    .catch(error => {
+        console.error('Error batch submitting receipts:', error);
+        showToast('Error', error.message, 'error');
+    });
+}
+
 function batchSubmitReceipts(columnId) {
     const organizationId = document.getElementById('organizationSelector').value;
     
