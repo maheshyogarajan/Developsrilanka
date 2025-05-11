@@ -5,8 +5,9 @@ while ensuring data integrity for existing records.
 """
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from app import db, app
+from sqlalchemy import text
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,79 +16,79 @@ def add_trust_tracking_fields_to_user():
     with app.app_context():
         try:
             # Check if columns already exist
-            columns = db.engine.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'user'").fetchall()
+            columns = db.session.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'user'")).fetchall()
             column_names = [col[0] for col in columns]
             
             columns_added = False
             
             # Add subscription_status if it doesn't exist
             if 'subscription_status' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN subscription_status VARCHAR(30) NOT NULL DEFAULT 'free_trial'")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN subscription_status VARCHAR(30) NOT NULL DEFAULT 'free_trial'"))
                 columns_added = True
                 logging.info("Added subscription_status column to user table")
             
             # Add access_expiration_date if it doesn't exist
             if 'access_expiration_date' not in column_names:
-                db.engine.execute("""
+                db.session.execute(text("""
                     ALTER TABLE \"user\" ADD COLUMN access_expiration_date TIMESTAMP WITHOUT TIME ZONE;
                     UPDATE \"user\" SET access_expiration_date = created_at + INTERVAL '14 days';
                     ALTER TABLE \"user\" ALTER COLUMN access_expiration_date SET NOT NULL;
-                """)
+                """))
                 columns_added = True
                 logging.info("Added access_expiration_date column to user table")
             
             # Add successful_invites_count if it doesn't exist
             if 'successful_invites_count' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN successful_invites_count INTEGER NOT NULL DEFAULT 0")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN successful_invites_count INTEGER NOT NULL DEFAULT 0"))
                 columns_added = True
                 logging.info("Added successful_invites_count column to user table")
             
             # Add earned_access_days if it doesn't exist
             if 'earned_access_days' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN earned_access_days INTEGER NOT NULL DEFAULT 0")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN earned_access_days INTEGER NOT NULL DEFAULT 0"))
                 columns_added = True
                 logging.info("Added earned_access_days column to user table")
             
             # Add invitations_sent_today if it doesn't exist
             if 'invitations_sent_today' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN invitations_sent_today INTEGER NOT NULL DEFAULT 0")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN invitations_sent_today INTEGER NOT NULL DEFAULT 0"))
                 columns_added = True
                 logging.info("Added invitations_sent_today column to user table")
             
             # Add last_invitation_date if it doesn't exist
             if 'last_invitation_date' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN last_invitation_date DATE")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN last_invitation_date DATE"))
                 columns_added = True
                 logging.info("Added last_invitation_date column to user table")
             
             # Add trust_level if it doesn't exist
             if 'trust_level' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN trust_level INTEGER NOT NULL DEFAULT 0")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN trust_level INTEGER NOT NULL DEFAULT 0"))
                 columns_added = True
                 logging.info("Added trust_level column to user table")
             
             # Add show_in_trust_ranking if it doesn't exist
             if 'show_in_trust_ranking' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN show_in_trust_ranking BOOLEAN NOT NULL DEFAULT FALSE")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN show_in_trust_ranking BOOLEAN NOT NULL DEFAULT FALSE"))
                 columns_added = True
                 logging.info("Added show_in_trust_ranking column to user table")
             
             # Add trust_points if it doesn't exist
             if 'trust_points' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN trust_points INTEGER NOT NULL DEFAULT 0")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN trust_points INTEGER NOT NULL DEFAULT 0"))
                 columns_added = True
                 logging.info("Added trust_points column to user table")
             
             # Add trust_ranking_consent_at if it doesn't exist
             if 'trust_ranking_consent_at' not in column_names:
-                db.engine.execute("ALTER TABLE \"user\" ADD COLUMN trust_ranking_consent_at TIMESTAMP WITHOUT TIME ZONE")
+                db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN trust_ranking_consent_at TIMESTAMP WITHOUT TIME ZONE"))
                 columns_added = True
                 logging.info("Added trust_ranking_consent_at column to user table")
             
             # If columns were added, initialize data for existing users
             if columns_added:
                 # Initialize trust level based on account age and activity
-                db.engine.execute("""
+                db.session.execute(text("""
                     WITH user_activities AS (
                         SELECT 
                             u.id as user_id,
@@ -123,17 +124,17 @@ def add_trust_tracking_fields_to_user():
                             END
                     FROM user_activities ua
                     WHERE u.id = ua.user_id;
-                """)
+                """))
                 
                 # Set subscription_status based on access_expiration_date
-                db.engine.execute("""
+                db.session.execute(text("""
                     UPDATE "user"
                     SET subscription_status = 
                         CASE 
                             WHEN access_expiration_date > NOW() THEN 'free_trial'
                             ELSE 'expired'
                         END;
-                """)
+                """))
                 
                 logging.info("Initialized trust levels and points for existing users")
             
@@ -150,50 +151,50 @@ def add_fields_to_friend_invitation():
     with app.app_context():
         try:
             # Check if columns already exist
-            columns = db.engine.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'friend_invitation'").fetchall()
+            columns = db.session.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'friend_invitation'")).fetchall()
             column_names = [col[0] for col in columns]
             
             columns_added = False
             
             # Add converted_to_user_id if it doesn't exist
             if 'converted_to_user_id' not in column_names:
-                db.engine.execute("""
+                db.session.execute(text("""
                     ALTER TABLE friend_invitation ADD COLUMN converted_to_user_id INTEGER;
                     ALTER TABLE friend_invitation ADD CONSTRAINT fk_friend_invitation_converted 
                     FOREIGN KEY (converted_to_user_id) REFERENCES "user" (id);
-                """)
+                """))
                 columns_added = True
                 logging.info("Added converted_to_user_id column to friend_invitation table")
             
             # Add reward_days_granted if it doesn't exist
             if 'reward_days_granted' not in column_names:
-                db.engine.execute("ALTER TABLE friend_invitation ADD COLUMN reward_days_granted INTEGER DEFAULT 0")
+                db.session.execute(text("ALTER TABLE friend_invitation ADD COLUMN reward_days_granted INTEGER DEFAULT 0"))
                 columns_added = True
                 logging.info("Added reward_days_granted column to friend_invitation table")
             
             # Add reward_granted_at if it doesn't exist
             if 'reward_granted_at' not in column_names:
-                db.engine.execute("ALTER TABLE friend_invitation ADD COLUMN reward_granted_at TIMESTAMP WITHOUT TIME ZONE")
+                db.session.execute(text("ALTER TABLE friend_invitation ADD COLUMN reward_granted_at TIMESTAMP WITHOUT TIME ZONE"))
                 columns_added = True
                 logging.info("Added reward_granted_at column to friend_invitation table")
             
             # If columns were added, initialize data
             if columns_added:
                 # For accepted invitations, try to link them to users with matching email addresses
-                db.engine.execute("""
+                db.session.execute(text("""
                     UPDATE friend_invitation fi
                     SET converted_to_user_id = u.id
                     FROM "user" u
                     WHERE fi.email = u.email 
                     AND fi.accepted = TRUE;
-                """)
+                """))
                 
                 # Fix any null accepted_at values for accepted invitations
-                db.engine.execute("""
+                db.session.execute(text("""
                     UPDATE friend_invitation 
                     SET accepted_at = created_at + INTERVAL '1 day' 
                     WHERE accepted = TRUE AND accepted_at IS NULL;
-                """)
+                """))
                 
                 logging.info("Initialized friend invitation tracking fields for existing records")
             
@@ -210,15 +211,16 @@ def create_trust_activity_table():
     with app.app_context():
         try:
             # Check if table already exists
-            table_exists = db.engine.execute("""
+            result = db.session.execute(text("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_name = 'trust_activity'
                 );
-            """).scalar()
+            """))
+            table_exists = result.scalar()
             
             if not table_exists:
-                db.engine.execute("""
+                db.session.execute(text("""
                     CREATE TABLE trust_activity (
                         id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES "user" (id),
@@ -228,7 +230,7 @@ def create_trust_activity_table():
                         created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
                     );
                     CREATE INDEX idx_trust_activity_user_id ON trust_activity(user_id);
-                """)
+                """))
                 logging.info("Created trust_activity table")
                 return True
             else:
@@ -244,15 +246,16 @@ def create_trust_ranking_table():
     with app.app_context():
         try:
             # Check if table already exists
-            table_exists = db.engine.execute("""
+            result = db.session.execute(text("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_name = 'trust_ranking'
                 );
-            """).scalar()
+            """))
+            table_exists = result.scalar()
             
             if not table_exists:
-                db.engine.execute("""
+                db.session.execute(text("""
                     CREATE TABLE trust_ranking (
                         id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES "user" (id),
@@ -263,7 +266,7 @@ def create_trust_ranking_table():
                         UNIQUE(user_id, ranking_month)
                     );
                     CREATE INDEX idx_trust_ranking_month ON trust_ranking(ranking_month);
-                """)
+                """))
                 logging.info("Created trust_ranking table")
                 return True
             else:
