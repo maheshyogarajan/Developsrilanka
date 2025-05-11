@@ -1764,15 +1764,18 @@ function formatRelativeTime(dateString) {
  * @returns {string} - Formatted currency string
  */
 function formatCurrency(amount) {
-    if (amount === null || amount === undefined) return '$0.00';
+    if (amount === null || amount === undefined) return '0.00';
     
     try {
+        // Format as plain number with 2 decimal places, no currency symbol
         return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD'
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         }).format(amount);
     } catch (e) {
-        return `$${amount}`;
+        // Fallback without currency symbol
+        return amount.toFixed(2);
     }
 }
 
