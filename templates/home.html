@@ -31,7 +31,36 @@
                         <i class="fas fa-user-plus me-2"></i>Register
                     </a>
                 </div>
-                <p class="text-muted small">New to Develop Sri Lanka? <a href="{{ url_for('preview') }}">Try a preview</a> without creating an account.</p>
+                <div class="mt-4">
+                    <div class="demo-button-container position-relative">
+                        <a href="{{ url_for('preview') }}" class="btn btn-success btn-lg px-5 py-3 d-block shadow-lg fw-bold">
+                            <i class="fas fa-play-circle me-2"></i>TRY DEMO
+                        </a>
+                        <div class="pulse-animation position-absolute top-0 start-0 w-100 h-100"></div>
+                    </div>
+                    <p class="text-muted small mt-2 text-center">Experience the platform without creating an account</p>
+                </div>
+                
+                <style>
+                    .demo-button-container {
+                        margin: 20px auto;
+                        max-width: 300px;
+                        overflow: hidden;
+                        border-radius: 0.5rem;
+                    }
+                    .pulse-animation {
+                        background: rgba(25, 135, 84, 0.2);
+                        border-radius: 0.5rem;
+                        animation: pulse 2s infinite;
+                        pointer-events: none;
+                        z-index: -1;
+                    }
+                    @keyframes pulse {
+                        0% { transform: scale(1); opacity: 1; }
+                        50% { transform: scale(1.05); opacity: 0.8; }
+                        100% { transform: scale(1); opacity: 1; }
+                    }
+                </style>
                 {% endif %}
             </div>
             <div class="col-lg-6">
