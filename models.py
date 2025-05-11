@@ -388,6 +388,31 @@ class User(UserMixin, db.Model):
             self.invitations_sent_today = 0
             self.last_invitation_date = today
             db.session.commit()
+            
+    def recalculate_trust_level(self):
+        """Recalculate user's trust level based on trust points.
+        
+        Trust level thresholds:
+        - Level 0: 0-99 points (default for new users)
+        - Level 1: 100-499 points
+        - Level 2: 500-999 points
+        - Level 3: 1000+ points
+        """
+        if self.trust_points >= 1000:
+            new_level = 3
+        elif self.trust_points >= 500:
+            new_level = 2
+        elif self.trust_points >= 100:
+            new_level = 1
+        else:
+            new_level = 0
+            
+        # Only update if level changed
+        if new_level != self.trust_level:
+            self.trust_level = new_level
+            db.session.commit()
+            
+        return self.trust_level
     
     def get_available_invitations(self):
         """Get the number of invitations still available today."""

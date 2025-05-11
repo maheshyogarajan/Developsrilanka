@@ -1160,6 +1160,22 @@ def save_receipt():
             db.session.flush()
             company_expense_id = company_expense.id
         
+        # Add trust points for adding a receipt
+        from models import TrustActivity
+        trust_activity = TrustActivity(
+            user_id=current_user.id,
+            activity_type='receipt_added',
+            points=10,  # 10 points for adding a receipt
+            description=f'Added receipt for {new_receipt.vendor_name}'
+        )
+        db.session.add(trust_activity)
+        
+        # Update user's trust points
+        current_user.trust_points = current_user.trust_points + 10
+        
+        # Recalculate trust level based on new points
+        current_user.recalculate_trust_level()
+        
         # Commit all changes
         db.session.commit()
         
