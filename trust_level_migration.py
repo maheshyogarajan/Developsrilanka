@@ -282,25 +282,27 @@ def initialize_trust_activities():
     with app.app_context():
         try:
             # Check if there are any existing activities
-            table_exists = db.engine.execute("""
+            result = db.session.execute(text("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_name = 'trust_activity'
                 );
-            """).scalar()
+            """))
+            table_exists = result.scalar()
             
             if not table_exists:
                 logging.info("Trust activity table does not exist, skipping initialization")
                 return False
                 
-            existing_activities = db.engine.execute("""
+            result = db.session.execute(text("""
                 SELECT COUNT(*) FROM trust_activity;
-            """).scalar()
+            """))
+            existing_activities = result.scalar()
             
             # Only populate if the table is empty
             if existing_activities == 0:
                 # Insert receipt-related activities (safely with COALESCE)
-                db.engine.execute("""
+                db.session.execute(text("""
                     INSERT INTO trust_activity (user_id, activity_type, points, description, created_at)
                     SELECT 
                         user_id, 
@@ -310,10 +312,10 @@ def initialize_trust_activities():
                         created_at
                     FROM receipt
                     WHERE user_id IS NOT NULL;
-                """)
+                """))
                 
                 # Insert invoice-related activities (safely with COALESCE)
-                db.engine.execute("""
+                db.session.execute(text("""
                     INSERT INTO trust_activity (user_id, activity_type, points, description, created_at)
                     SELECT 
                         user_id, 
@@ -323,10 +325,10 @@ def initialize_trust_activities():
                         created_at
                     FROM invoice
                     WHERE user_id IS NOT NULL;
-                """)
+                """))
                 
                 # Insert bank account-related activities (safely with COALESCE)
-                db.engine.execute("""
+                db.session.execute(text("""
                     INSERT INTO trust_activity (user_id, activity_type, points, description, created_at)
                     SELECT 
                         user_id, 
@@ -336,10 +338,10 @@ def initialize_trust_activities():
                         created_at
                     FROM bank_account
                     WHERE user_id IS NOT NULL;
-                """)
+                """))
                 
                 # Insert invitation-related activities
-                db.engine.execute("""
+                db.session.execute(text("""
                     INSERT INTO trust_activity (user_id, activity_type, points, description, created_at)
                     SELECT 
                         invited_by_user_id, 
@@ -355,7 +357,7 @@ def initialize_trust_activities():
                         created_at
                     FROM friend_invitation
                     WHERE invited_by_user_id IS NOT NULL;
-                """)
+                """))
                 
                 logging.info("Added historical trust activities for existing users")
             else:
@@ -372,7 +374,7 @@ def calculate_user_rewards():
     with app.app_context():
         try:
             # Calculate rewards for users with successful invitations
-            db.engine.execute("""
+            db.session.execute(text("""
                 WITH user_rewards AS (
                     SELECT 
                         invited_by_user_id,
@@ -400,10 +402,10 @@ def calculate_user_rewards():
                         END
                 FROM user_rewards ur
                 WHERE u.id = ur.invited_by_user_id AND ur.days_to_grant > 0;
-            """)
+            """))
             
             # Mark appropriate invitations as having granted rewards
-            db.engine.execute("""
+            db.session.execute(text("""
                 WITH reward_groups AS (
                     SELECT
                         invited_by_user_id,
@@ -427,7 +429,7 @@ def calculate_user_rewards():
                         END
                 FROM reward_groups rg
                 WHERE fi.id = rg.id AND (rg.invitation_number % 5) = 0;
-            """)
+            """))
             
             logging.info("Calculated and applied invitation rewards for existing users")
             return True
@@ -441,52 +443,59 @@ def verify_data_consistency():
     with app.app_context():
         try:
             # Fix any NULL trust_level values
-            null_trust_levels = db.engine.execute(
-                "SELECT COUNT(*) FROM \"user\" WHERE trust_level IS NULL").scalar()
+            result = db.session.execute(text(
+                "SELECT COUNT(*) FROM \"user\" WHERE trust_level IS NULL"))
+            null_trust_levels = result.scalar()
             if null_trust_levels > 0:
-                db.engine.execute("UPDATE \"user\" SET trust_level = 0 WHERE trust_level IS NULL")
+                db.session.execute(text("UPDATE \"user\" SET trust_level = 0 WHERE trust_level IS NULL"))
                 logging.info(f"Fixed {null_trust_levels} users with NULL trust_level values")
             
             # Fix any NULL trust_points values
-            null_trust_points = db.engine.execute(
-                "SELECT COUNT(*) FROM \"user\" WHERE trust_points IS NULL").scalar()
+            result = db.session.execute(text(
+                "SELECT COUNT(*) FROM \"user\" WHERE trust_points IS NULL"))
+            null_trust_points = result.scalar()
             if null_trust_points > 0:
-                db.engine.execute("UPDATE \"user\" SET trust_points = 0 WHERE trust_points IS NULL")
+                db.session.execute(text("UPDATE \"user\" SET trust_points = 0 WHERE trust_points IS NULL"))
                 logging.info(f"Fixed {null_trust_points} users with NULL trust_points values")
             
             # Fix any NULL successful_invites_count values
-            null_invite_counts = db.engine.execute(
-                "SELECT COUNT(*) FROM \"user\" WHERE successful_invites_count IS NULL").scalar()
+            result = db.session.execute(text(
+                "SELECT COUNT(*) FROM \"user\" WHERE successful_invites_count IS NULL"))
+            null_invite_counts = result.scalar()
             if null_invite_counts > 0:
-                db.engine.execute("UPDATE \"user\" SET successful_invites_count = 0 WHERE successful_invites_count IS NULL")
+                db.session.execute(text("UPDATE \"user\" SET successful_invites_count = 0 WHERE successful_invites_count IS NULL"))
                 logging.info(f"Fixed {null_invite_counts} users with NULL successful_invites_count values")
             
             # Fix any NULL earned_access_days values
-            null_earned_days = db.engine.execute(
-                "SELECT COUNT(*) FROM \"user\" WHERE earned_access_days IS NULL").scalar()
+            result = db.session.execute(text(
+                "SELECT COUNT(*) FROM \"user\" WHERE earned_access_days IS NULL"))
+            null_earned_days = result.scalar()
             if null_earned_days > 0:
-                db.engine.execute("UPDATE \"user\" SET earned_access_days = 0 WHERE earned_access_days IS NULL")
+                db.session.execute(text("UPDATE \"user\" SET earned_access_days = 0 WHERE earned_access_days IS NULL"))
                 logging.info(f"Fixed {null_earned_days} users with NULL earned_access_days values")
             
             # Fix any NULL subscription_status values
-            null_subscription = db.engine.execute(
-                "SELECT COUNT(*) FROM \"user\" WHERE subscription_status IS NULL").scalar()
+            result = db.session.execute(text(
+                "SELECT COUNT(*) FROM \"user\" WHERE subscription_status IS NULL"))
+            null_subscription = result.scalar()
             if null_subscription > 0:
-                db.engine.execute("UPDATE \"user\" SET subscription_status = 'free_trial' WHERE subscription_status IS NULL")
+                db.session.execute(text("UPDATE \"user\" SET subscription_status = 'free_trial' WHERE subscription_status IS NULL"))
                 logging.info(f"Fixed {null_subscription} users with NULL subscription_status values")
             
             # Fix any NULL access_expiration_date values
-            null_expiration = db.engine.execute(
-                "SELECT COUNT(*) FROM \"user\" WHERE access_expiration_date IS NULL").scalar()
+            result = db.session.execute(text(
+                "SELECT COUNT(*) FROM \"user\" WHERE access_expiration_date IS NULL"))
+            null_expiration = result.scalar()
             if null_expiration > 0:
-                db.engine.execute("UPDATE \"user\" SET access_expiration_date = created_at + INTERVAL '14 days' WHERE access_expiration_date IS NULL")
+                db.session.execute(text("UPDATE \"user\" SET access_expiration_date = created_at + INTERVAL '14 days' WHERE access_expiration_date IS NULL"))
                 logging.info(f"Fixed {null_expiration} users with NULL access_expiration_date values")
             
             # Verify FriendInvitation data - fix any inconsistencies
-            accepted_without_date = db.engine.execute(
-                "SELECT COUNT(*) FROM friend_invitation WHERE accepted = TRUE AND accepted_at IS NULL").scalar()
+            result = db.session.execute(text(
+                "SELECT COUNT(*) FROM friend_invitation WHERE accepted = TRUE AND accepted_at IS NULL"))
+            accepted_without_date = result.scalar()
             if accepted_without_date > 0:
-                db.engine.execute("UPDATE friend_invitation SET accepted_at = created_at + INTERVAL '1 day' WHERE accepted = TRUE AND accepted_at IS NULL")
+                db.session.execute(text("UPDATE friend_invitation SET accepted_at = created_at + INTERVAL '1 day' WHERE accepted = TRUE AND accepted_at IS NULL"))
                 logging.info(f"Fixed {accepted_without_date} accepted invitations with missing accepted_at timestamp")
             
             db.session.commit()
