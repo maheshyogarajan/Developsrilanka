@@ -32,11 +32,11 @@
   <!-- Summary Cards -->
   <rect x="200" y="80" width="180" height="100" rx="6" fill="#e9ecef"/>
   <text x="220" y="105" font-family="Arial" font-size="14" font-weight="bold" fill="#212529">Receipts Processed</text>
-  <text x="220" y="145" font-family="Arial" font-size="24" font-weight="bold" fill="#0d6efd">248</text>
+  <text x="220" y="145" font-family="Arial" font-size="24" font-weight="bold" fill="#0d6efd">112,000+</text>
   
   <rect x="400" y="80" width="180" height="100" rx="6" fill="#e9ecef"/>
   <text x="420" y="105" font-family="Arial" font-size="14" font-weight="bold" fill="#212529">Active Invoices</text>
-  <text x="420" y="145" font-family="Arial" font-size="24" font-weight="bold" fill="#198754">36</text>
+  <text x="420" y="145" font-family="Arial" font-size="24" font-weight="bold" fill="#198754">2,400+</text>
   
   <!-- Chart Placeholder -->
   <rect x="200" y="200" width="380" height="120" rx="6" fill="#e9ecef"/>
