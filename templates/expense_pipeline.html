@@ -265,9 +265,27 @@
         const viewType = document.getElementById('viewSelector').value;
         console.log(`Manual test: Fetching data for org ${organizationId}, view ${viewType}`);
         
-        fetch(`/expenses/api/pipeline-data?org_id=${organizationId}&view=${viewType}`)
+        // Get CSRF token from the page
+        let csrfToken = '';
+        const tokenElement = document.querySelector('input[name="csrf_token"]');
+        if (tokenElement) {
+            csrfToken = tokenElement.value;
+        } else {
+            console.warn('CSRF token not found in the page. Request might fail.');
+        }
+        
+        fetch(`/expenses/api/pipeline-data?org_id=${organizationId}&view=${viewType}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Accept': 'application/json'
+            }
+        })
             .then(response => {
                 console.log('Manual test API response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
                 return response.json();
             })
             .then(data => {
