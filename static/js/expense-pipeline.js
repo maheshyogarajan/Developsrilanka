@@ -505,10 +505,68 @@ function renderPipeline(data) {
     // Create HTML for each column
     let columnsHTML = '';
     
-    for (const [columnId, column] of Object.entries(data.columns)) {
+    // Define the desired column order (NEW)
+    // This enforces a specific order for the expense pipeline columns
+    const columnOrder = [
+        'pending_submission',  // 1. Pending Submission - Receipts awaiting submission
+        'submitted',           // 2. Submitted - Expenses under review
+        'approved',            // 3. Approved - Expenses approved for payment
+        'reimbursed',          // 4. Reimbursed - Expenses that have been paid
+        'rejected'             // 5. Rejected - Expenses that were denied
+    ];
+    
+    // Check if all expected columns exist (NEW)
+    let missingColumns = columnOrder.filter(columnId => !data.columns[columnId]);
+    if (missingColumns.length > 0) {
+        console.warn(`Some expected columns are missing: ${missingColumns.join(', ')}`);
+        // Continue anyway - we'll just render the columns that exist
+    }
+    
+    // First, render columns in our specified order (NEW)
+    // This creates the HTML for each column that exists in our specified order
+    columnOrder.forEach(columnId => {
+        // Skip if this column doesn't exist in the data
+        if (!data.columns[columnId]) {
+            return; // Skip to the next column
+        }
+        
+        const column = data.columns[columnId];
         console.log(`Rendering column: ${columnId} with ${column.items?.length || 0} items`);
         const items = column.items || [];
         
+        // The column HTML generation remains exactly the same as the original code
+        columnsHTML += `
+            <div class="pipeline-column column-${columnId} flex-shrink-0" data-column-id="${columnId}">
+                <div class="pipeline-column-header">
+                    <div class="column-summary">
+                        <div class="column-title" style="color: ${column.color}">
+                            <i class="${column.icon} me-1"></i>
+                            ${column.title}
+                            <span class="column-count">${column.count}</span>
+                        </div>
+                        <div class="column-total">${formatCurrency(column.total)}</div>
+                    </div>
+                </div>
+                <div class="pipeline-column-body" id="${columnId}-dropzone">
+                    ${items.length > 0 ? renderColumnItems(items, columnId) : renderEmptyState(columnId)}
+                </div>
+                ${renderColumnActions(columnId, data.user_role)}
+            </div>
+        `;
+    });
+    
+    // Then render any additional columns that might exist but aren't in our order (NEW)
+    // This ensures we don't lose any columns that might be added in the future
+    for (const [columnId, column] of Object.entries(data.columns)) {
+        // Skip columns we've already rendered
+        if (columnOrder.includes(columnId)) {
+            continue;
+        }
+        
+        console.log(`Rendering additional column: ${columnId} with ${column.items?.length || 0} items`);
+        const items = column.items || [];
+        
+        // Use the same HTML template for consistency
         columnsHTML += `
             <div class="pipeline-column column-${columnId} flex-shrink-0" data-column-id="${columnId}">
                 <div class="pipeline-column-header">
