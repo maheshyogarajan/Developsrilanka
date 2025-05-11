@@ -244,6 +244,7 @@
                     {% if is_company_expense %}
                         {% if current_user.id == expense.user_id and expense.status == 'submitted' %}
                             <form action="{{ url_for('expense.cancel_expense', expense_id=expense.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to cancel this expense?')">
                                     <i class="fas fa-times"></i> Cancel Expense
                                 </button>
@@ -253,11 +254,13 @@
                         {% if user_org_role == 'owner' or user_org_role == 'admin' %}
                             {% if expense.status == 'submitted' %}
                                 <form action="{{ url_for('expense.approve_expense', expense_id=expense.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-success btn-sm">
                                         <i class="fas fa-check"></i> Approve
                                     </button>
                                 </form>
                                 <form action="{{ url_for('expense.reject_expense', expense_id=expense.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-danger btn-sm">
                                         <i class="fas fa-times"></i> Reject
                                     </button>
