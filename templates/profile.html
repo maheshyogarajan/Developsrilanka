@@ -158,16 +158,27 @@
                                         </div>
                                         <div class="text-end">
                                             <span class="badge bg-primary">{{ current_user.get_trust_level_name() }}</span>
-                                            <div class="mt-2 mb-1 d-flex flex-column align-items-end">
-                                                <small class="text-muted mb-1">Ranking visibility:</small>
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="showInRanking"
-                                                        {% if current_user.show_in_trust_ranking %}checked{% endif %}
-                                                        onchange="updateTrustRankingVisibility(this.checked)">
-                                                    <label class="form-check-label small" for="showInRanking">
-                                                        {% if current_user.show_in_trust_ranking %}Show in rankings{% else %}Hidden from rankings{% endif %}
-                                                    </label>
-                                                </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Trust ranking visibility setting -->
+                                    <div class="mt-3 border-top pt-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">Visibility in Trust Rankings</h6>
+                                                <p class="mb-0 text-muted small">Control whether you appear in public trust rankings</p>
+                                            </div>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="showInRanking"
+                                                    {% if current_user.show_in_trust_ranking %}checked{% endif %}
+                                                    onchange="updateTrustRankingVisibility(this.checked)">
+                                                <label class="form-check-label" for="showInRanking">
+                                                    {% if current_user.show_in_trust_ranking %}
+                                                        <span class="badge bg-success">Visible</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Hidden</span>
+                                                    {% endif %}
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
