@@ -735,6 +735,10 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
     
     allowed_transitions = transitions.get(user_role, {}).get(current_status, [])
     
+    # Special case: Allow owners to transition to REIMBURSED status (matching the comment "Owners can make any transition")
+    if user_role == 'owner' and new_status == ExpenseStatus.REIMBURSED.value and current_status == ExpenseStatus.APPROVED.value:
+        return {'valid': True}
+    
     if new_status in allowed_transitions:
         return {'valid': True}
     else:
