@@ -46,6 +46,39 @@
                             <label for="joined" class="form-label">Account Created</label>
                             <input type="text" class="form-control" id="joined" value="{{ current_user.created_at.strftime('%B %d, %Y') }}" readonly>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Trust Status</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-primary text-white">
+                                    <i class="fas fa-shield-alt"></i>
+                                </span>
+                                <input type="text" class="form-control" value="{{ current_user.get_trust_level_name() }} (Level {{ current_user.trust_level }})" readonly>
+                            </div>
+                            <small class="text-muted">Your trust level unlocks additional features and invitation limits.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Invitation Quota</label>
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-2" style="height: 30px;">
+                                    {% set invitation_percent = (current_user.invitations_sent_today / current_user.get_daily_invitation_limit()) * 100 %}
+                                    <div class="progress-bar 
+                                        {% if invitation_percent < 50 %}bg-success
+                                        {% elif invitation_percent < 75 %}bg-info
+                                        {% elif invitation_percent < 90 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ invitation_percent }}%" 
+                                        aria-valuenow="{{ current_user.invitations_sent_today }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="{{ current_user.get_daily_invitation_limit() }}">
+                                        {{ current_user.invitations_sent_today }} / {{ current_user.get_daily_invitation_limit() }}
+                                    </div>
+                                </div>
+                                <a href="{{ url_for('invite_friends') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-user-plus"></i>
+                                </a>
+                            </div>
+                            <small class="text-muted">Daily invitation limit resets at midnight.</small>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -73,7 +106,7 @@
                                             {% if invitation.accepted %}
                                                 <span class="badge bg-success">Accepted</span>
                                             {% elif invitation.is_expired() %}
-                                                <span class="badge bg-warning text-dark">Expired</span>
+                                                <span class="badge bg-warning text-dark">Already Invited</span>
                                             {% else %}
                                                 <span class="badge bg-info text-dark">Pending</span>
                                             {% endif %}
@@ -106,6 +139,55 @@
                 </div>
             </div>
             
+            <div class="card border-0 shadow mt-4">
+                <div class="card-body p-4">
+                    <h3 class="card-title mb-4">Trust Ranking & Activity</h3>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body p-3">
+                                    <h5 class="card-title text-primary">Trust Points</h5>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h3 class="text-success mb-0">{{ current_user.trust_points }}</h3>
+                                            <small class="text-muted">Total earned points</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-primary">{{ current_user.get_trust_level_name() }}</span>
+                                            <div class="mt-1">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="showInRanking"
+                                                        {% if current_user.show_in_trust_ranking %}checked{% endif %}
+                                                        onchange="updateTrustRankingVisibility(this.checked)">
+                                                    <label class="form-check-label" for="showInRanking">Show in rankings</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body p-3">
+                                    <h5 class="card-title text-primary">Invitation Success</h5>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h3 class="text-success mb-0">{{ current_user.successful_invites_count }}</h3>
+                                            <small class="text-muted">Accepted invitations</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <h3 class="text-primary mb-0">{{ current_user.earned_access_days }}</h3>
+                                            <small class="text-muted">Days earned</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                
             <div class="card border-0 shadow mt-4">
                 <div class="card-body p-4">
                     <h3 class="card-title mb-4">Tax Contribution Summary</h3>
@@ -144,4 +226,55 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function updateTrustRankingVisibility(showInRanking) {
+        // Send an AJAX request to update the user's preference
+        fetch('{{ url_for("update_trust_ranking_visibility") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                show_in_ranking: showInRanking
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show toast notification
+                const toast = document.createElement('div');
+                toast.className = 'position-fixed bottom-0 end-0 p-3';
+                toast.style.zIndex = '9999';
+                toast.innerHTML = `
+                    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header ${showInRanking ? 'bg-success' : 'bg-secondary'} text-white">
+                            <strong class="me-auto">Profile Updated</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${showInRanking ? 'You are now visible in trust rankings!' : 'You have been removed from trust rankings.'}
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+                
+                // Auto-remove toast after 3 seconds
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+            } else {
+                console.error('Failed to update visibility setting');
+                alert('Failed to update your ranking visibility. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+</script>
 {% endblock %}

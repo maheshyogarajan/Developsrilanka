@@ -2321,6 +2321,43 @@ def profile():
 def invite_friends():
     """Show the invite friends page."""
     return render_template('invite_friends.html')
+    
+@app.route('/update-trust-ranking-visibility', methods=['POST'])
+@login_required
+def update_trust_ranking_visibility():
+    """Update the user's visibility in trust rankings."""
+    try:
+        data = request.get_json()
+        show_in_ranking = data.get('show_in_ranking', False)
+        
+        # Update the user's preference
+        current_user.show_in_trust_ranking = show_in_ranking
+        
+        # If showing in ranking for the first time, set consent timestamp
+        if show_in_ranking and not current_user.trust_ranking_consent_at:
+            current_user.trust_ranking_consent_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Log the activity
+        from models import TrustActivity
+        activity_type = 'trust_ranking_opt_in' if show_in_ranking else 'trust_ranking_opt_out'
+        description = 'Opted into trust ranking system' if show_in_ranking else 'Opted out of trust ranking system'
+        
+        trust_activity = TrustActivity(
+            user_id=current_user.id,
+            activity_type=activity_type,
+            points=0,  # No points for this administrative action
+            description=description
+        )
+        db.session.add(trust_activity)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating trust ranking visibility: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/resend-invitation', methods=['POST'])
 @login_required
