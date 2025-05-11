@@ -2401,7 +2401,7 @@ def cancel_invitation():
 @app.route('/send-invitations', methods=['POST'])
 @login_required
 def send_invitations():
-    """Process and send friend invitations via email."""
+    """Process and send friend invitations via email with trust-based limits."""
     emails_input = request.form.get('emails', '')
     personal_message = request.form.get('message', '')
     
@@ -2411,6 +2411,17 @@ def send_invitations():
     if not email_list:
         flash('Please enter at least one email address.', 'warning')
         return redirect(url_for('invite_friends'))
+    
+    # Check available invitations
+    available_invitations = current_user.get_available_invitations()
+    if available_invitations <= 0:
+        flash('You have reached your daily invitation limit. Please try again tomorrow.', 'warning')
+        return redirect(url_for('invite_friends'))
+    
+    # Limit the number of emails to process based on available invitations
+    if len(email_list) > available_invitations:
+        email_list = email_list[:available_invitations]
+        flash(f'Only processing the first {available_invitations} email(s) due to your daily invitation limit.', 'info')
     
     # Initialize counters for success/failure reporting
     sent_count = 0
@@ -2463,6 +2474,20 @@ def send_invitations():
                 # Send invitation email
                 if send_invitation_email(normalized_email, current_user, personal_message, invitation.token):
                     sent_count += 1
+                    # Track invitation in user's daily count
+                    current_user.track_sent_invitation()
+                    
+                    # Track in trust activity system
+                    from models import TrustActivity
+                    trust_activity = TrustActivity(
+                        user_id=current_user.id,
+                        activity_type='invitation_sent',
+                        points=5,
+                        description=f'Sent invitation to: {normalized_email}'
+                    )
+                    db.session.add(trust_activity)
+                    db.session.commit()
+                    
                     logging.info(f"Successfully sent invitation to {normalized_email}")
                 else:
                     failed_emails.append(normalized_email)
