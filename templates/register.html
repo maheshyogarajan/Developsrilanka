@@ -215,6 +215,7 @@
                     <!-- Flash messages are now displayed in the main layout template -->
 
                     <form method="POST" action="{{ url_for('email_login') }}" class="mb-3" id="registerForm">
+                        {{ csrf_token() }}
                         <div class="mb-3">
                             <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required>
                         </div>
