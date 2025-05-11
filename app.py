@@ -212,7 +212,12 @@ def health_check():
 @app.route('/')
 def home():
     """Render the homepage with welcome message and features."""
-    return render_template('home.html')
+    # Hard-coded statistics for dashboard
+    receipt_stats = {
+        'total': '112,000+',
+        'active_invoices': '2,400+'
+    }
+    return render_template('home.html', stats=receipt_stats)
 
 @app.route('/preview')
 def preview():
