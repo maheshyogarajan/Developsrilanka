@@ -290,6 +290,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('receipt', file);
         
+        // Get CSRF token from the form
+        const tokenField = document.querySelector('input[name="csrf_token"]');
+        if (tokenField) {
+            formData.append('csrf_token', tokenField.value);
+        }
+        
         // Update header based on the design
         const pageTitleElement = document.querySelector('.page-title');
         if (pageTitleElement) {
