@@ -2385,9 +2385,9 @@ def profile():
                 return lambda: exp_date < datetime.utcnow()
             invitation.is_expired = make_is_expired(invitation.expires_at)
             
-            # Make sure the token is not accidentally exposed in the template
+            # Store the token in a separate attribute to prevent it from displaying in the template
+            # But don't modify the actual database column since it has a NOT NULL constraint
             invitation._token = invitation.token
-            invitation.token = None
         
         # Get trust activity statistics
         from models import TrustActivity
@@ -2530,7 +2530,7 @@ def resend_invitation():
         db.session.commit()
         
         # Resend the email
-        if send_invitation_email(invitation.email, current_user, invitation.personal_message, invitation._token):
+        if send_invitation_email(invitation.email, current_user, invitation.personal_message, invitation.token):
             flash(f'Invitation to {invitation.email} has been resent!', 'success')
         else:
             flash(f'Failed to resend invitation to {invitation.email}.', 'danger')
@@ -2652,7 +2652,7 @@ def send_invitations():
                     db.session.commit()
                 
                 # Send invitation email
-                if send_invitation_email(normalized_email, current_user, personal_message, invitation._token):
+                if send_invitation_email(normalized_email, current_user, personal_message, invitation.token):
                     sent_count += 1
                     # Track invitation in user's daily count
                     current_user.track_sent_invitation()
