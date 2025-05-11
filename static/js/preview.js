@@ -363,16 +363,84 @@ document.addEventListener('DOMContentLoaded', function() {
             // Synchronous processing completed
             console.log('Synchronous processing completed. Data:', data);
             
-            // Fill form with extracted data
-            populateForm(data.data);
+            // Get receipt animation elements
+            const receiptValueAnimation = document.getElementById('receipt-value-animation');
             
-            // Show results
-            loadingElement.classList.add('d-none');
-            resultsElement.classList.remove('d-none');
-            
-            // Update header based on the design
-            if (pageTitleElement) {
-                pageTitleElement.textContent = 'Preview Results';
+            if (receiptValueAnimation) {
+                // Get receipt values
+                const receiptTotal = parseFloat(data.data.total_amount) || 0;
+                const vatTax = parseFloat(data.data.vat_tax) || 0;
+                const ssclTax = parseFloat(data.data.sscl_tax) || 0;
+                
+                // Calculate maximum savings (36% of the receipt value, assuming all is tax deductible)
+                const maxSaving = receiptTotal * 0.36;
+                
+                // Update the animation values
+                document.getElementById('receipt-value-amount').textContent = `Rs ${receiptTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('max-saving-amount').textContent = `Rs ${maxSaving.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('vat-amount').textContent = `Rs ${vatTax.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('sscl-amount').textContent = `Rs ${ssclTax.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                
+                // Setup the expense type toggle
+                const expenseTypeToggle = document.getElementById('expense_type_toggle');
+                const personalLabel = document.getElementById('personal-label');
+                const companyLabel = document.getElementById('company-label');
+                const companyExpenseFields = document.getElementById('company-expense-fields');
+                
+                if (expenseTypeToggle && personalLabel && companyLabel && companyExpenseFields) {
+                    expenseTypeToggle.addEventListener('change', function() {
+                        if (this.checked) {
+                            personalLabel.classList.remove('active-expense-type');
+                            companyLabel.classList.add('active-expense-type');
+                            companyExpenseFields.classList.remove('d-none');
+                        } else {
+                            personalLabel.classList.add('active-expense-type');
+                            companyLabel.classList.remove('active-expense-type');
+                            companyExpenseFields.classList.add('d-none');
+                        }
+                    });
+                }
+                
+                // Show the animation
+                loadingElement.classList.add('d-none');
+                receiptValueAnimation.classList.remove('d-none');
+                receiptValueAnimation.querySelector('.card').classList.add('animate__animated', 'animate__fadeInUp');
+                
+                // Setup Next button
+                const nextBtn = document.getElementById('next-btn');
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', function() {
+                        // Fade out animation and show details form
+                        receiptValueAnimation.querySelector('.card').classList.remove('animate__fadeInUp');
+                        receiptValueAnimation.querySelector('.card').classList.add('animate__fadeOutDown');
+                        
+                        setTimeout(() => {
+                            // Fill form with extracted data
+                            populateForm(data.data);
+                            
+                            receiptValueAnimation.classList.add('d-none');
+                            resultsElement.classList.remove('d-none');
+                            
+                            // Update header
+                            if (pageTitleElement) {
+                                pageTitleElement.textContent = 'Preview Results';
+                            }
+                        }, 500); // Short delay for animation
+                    });
+                }
+            } else {
+                // Fallback if animation elements aren't found
+                // Fill form with extracted data
+                populateForm(data.data);
+                
+                // Show results directly
+                loadingElement.classList.add('d-none');
+                resultsElement.classList.remove('d-none');
+                
+                // Update header based on the design
+                if (pageTitleElement) {
+                    pageTitleElement.textContent = 'Preview Results';
+                }
             }
             
             // Reset processing flag
