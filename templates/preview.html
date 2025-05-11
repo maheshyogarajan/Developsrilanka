@@ -18,6 +18,7 @@
         </div>
         <p class="upload-text">Drag and drop a receipt image, or click to take photo/select</p>
         <form id="receiptForm" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="file" id="receipt" name="receipt" accept="image/*" capture="environment" class="file-input">
         </form>
     </div>
@@ -74,6 +75,7 @@
     
     <div id="results" class="d-none">
         <form id="editDataForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="vendor_name" class="form-label">Vendor Name</label>
                 <input type="text" class="form-control" id="vendor_name" name="vendor_name">
