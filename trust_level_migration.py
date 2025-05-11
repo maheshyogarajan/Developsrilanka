@@ -447,7 +447,7 @@ def verify_data_consistency():
             result = db.session.execute(text(
                 "SELECT COUNT(*) FROM \"user\" WHERE trust_level IS NULL"))
             null_trust_levels = result.scalar()
-            if null_trust_levels > 0:
+            if null_trust_levels is not None and int(null_trust_levels) > 0:
                 db.session.execute(text("UPDATE \"user\" SET trust_level = 0 WHERE trust_level IS NULL"))
                 logging.info(f"Fixed {null_trust_levels} users with NULL trust_level values")
             
@@ -455,7 +455,7 @@ def verify_data_consistency():
             result = db.session.execute(text(
                 "SELECT COUNT(*) FROM \"user\" WHERE trust_points IS NULL"))
             null_trust_points = result.scalar()
-            if null_trust_points > 0:
+            if null_trust_points is not None and int(null_trust_points) > 0:
                 db.session.execute(text("UPDATE \"user\" SET trust_points = 0 WHERE trust_points IS NULL"))
                 logging.info(f"Fixed {null_trust_points} users with NULL trust_points values")
             
@@ -463,7 +463,7 @@ def verify_data_consistency():
             result = db.session.execute(text(
                 "SELECT COUNT(*) FROM \"user\" WHERE successful_invites_count IS NULL"))
             null_invite_counts = result.scalar()
-            if null_invite_counts > 0:
+            if null_invite_counts is not None and int(null_invite_counts) > 0:
                 db.session.execute(text("UPDATE \"user\" SET successful_invites_count = 0 WHERE successful_invites_count IS NULL"))
                 logging.info(f"Fixed {null_invite_counts} users with NULL successful_invites_count values")
             
@@ -471,7 +471,7 @@ def verify_data_consistency():
             result = db.session.execute(text(
                 "SELECT COUNT(*) FROM \"user\" WHERE earned_access_days IS NULL"))
             null_earned_days = result.scalar()
-            if null_earned_days > 0:
+            if null_earned_days is not None and int(null_earned_days) > 0:
                 db.session.execute(text("UPDATE \"user\" SET earned_access_days = 0 WHERE earned_access_days IS NULL"))
                 logging.info(f"Fixed {null_earned_days} users with NULL earned_access_days values")
             
@@ -479,7 +479,7 @@ def verify_data_consistency():
             result = db.session.execute(text(
                 "SELECT COUNT(*) FROM \"user\" WHERE subscription_status IS NULL"))
             null_subscription = result.scalar()
-            if null_subscription > 0:
+            if null_subscription is not None and int(null_subscription) > 0:
                 db.session.execute(text("UPDATE \"user\" SET subscription_status = 'free_trial' WHERE subscription_status IS NULL"))
                 logging.info(f"Fixed {null_subscription} users with NULL subscription_status values")
             
@@ -487,7 +487,7 @@ def verify_data_consistency():
             result = db.session.execute(text(
                 "SELECT COUNT(*) FROM \"user\" WHERE access_expiration_date IS NULL"))
             null_expiration = result.scalar()
-            if null_expiration > 0:
+            if null_expiration is not None and int(null_expiration) > 0:
                 db.session.execute(text("UPDATE \"user\" SET access_expiration_date = created_at + INTERVAL '14 days' WHERE access_expiration_date IS NULL"))
                 logging.info(f"Fixed {null_expiration} users with NULL access_expiration_date values")
             
@@ -495,7 +495,7 @@ def verify_data_consistency():
             result = db.session.execute(text(
                 "SELECT COUNT(*) FROM friend_invitation WHERE accepted = TRUE AND accepted_at IS NULL"))
             accepted_without_date = result.scalar()
-            if accepted_without_date > 0:
+            if accepted_without_date is not None and int(accepted_without_date) > 0:
                 db.session.execute(text("UPDATE friend_invitation SET accepted_at = created_at + INTERVAL '1 day' WHERE accepted = TRUE AND accepted_at IS NULL"))
                 logging.info(f"Fixed {accepted_without_date} accepted invitations with missing accepted_at timestamp")
             
