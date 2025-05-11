@@ -43,32 +43,6 @@
         padding-left: 15px !important;
         overflow-x: hidden !important;
     }
-    
-    /* Form validation styling for required fields */
-    .required-indicator {
-        color: #dc3545;
-        margin-left: 0.2rem;
-    }
-    
-    /* Ensure validation feedback is styled correctly */
-    .invalid-feedback {
-        display: none;
-        width: 100%;
-        margin-top: 0.25rem;
-        font-size: 0.875em;
-        color: #dc3545;
-    }
-    
-    .form-control.is-invalid ~ .invalid-feedback,
-    .form-select.is-invalid ~ .invalid-feedback,
-    .form-check-input.is-invalid ~ .invalid-feedback {
-        display: block;
-    }
-    
-    /* Enhance visibility of form labels for required fields */
-    label:has(> .text-danger) {
-        font-weight: 500;
-    }
 </style>
 {% endblock %}
 
@@ -217,7 +191,7 @@
                 <form id="reimbursementForm">
                     <input type="hidden" id="reimbursementExpenseId">
                     <div class="mb-3">
-                        <label for="reimbursementMethod" class="form-label">Reimbursement Method <span class="text-danger">*</span></label>
+                        <label for="reimbursementMethod" class="form-label">Reimbursement Method</label>
                         <select class="form-select" id="reimbursementMethod" required>
                             <option value="">Select a method...</option>
                             <option value="Cash">Cash</option>
@@ -227,9 +201,6 @@
                             <option value="Digital Wallet">Digital Wallet</option>
                             <option value="Other">Other</option>
                         </select>
-                        <div id="reimbursementMethodFeedback" class="invalid-feedback">
-                            Please select a reimbursement method.
-                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="reimbursementReference" class="form-label">Reference Number</label>
@@ -261,11 +232,8 @@
                 <form id="rejectionForm">
                     <input type="hidden" id="rejectionExpenseId">
                     <div class="mb-3">
-                        <label for="rejectionReason" class="form-label">Reason for Rejection <span class="text-danger">*</span></label>
+                        <label for="rejectionReason" class="form-label">Reason for Rejection</label>
                         <textarea class="form-control" id="rejectionReason" rows="3" required></textarea>
-                        <div id="rejectionReasonFeedback" class="invalid-feedback">
-                            Please provide a reason for rejection.
-                        </div>
                     </div>
                 </form>
             </div>
