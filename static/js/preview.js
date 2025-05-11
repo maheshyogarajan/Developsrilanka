@@ -626,12 +626,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Collect the updated form data
         const updatedData = collectFormData();
         
+        // Get CSRF token from the page
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+        
         // Send a request to update the data in the session
         fetch('/preview/update_data', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify(updatedData)
         })

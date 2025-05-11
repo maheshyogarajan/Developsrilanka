@@ -744,10 +744,14 @@
                 
                 console.error(errorData);
                 
+                // Get CSRF token
+                const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+                
                 fetch('/api/log-client-error', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
                     },
                     body: JSON.stringify(errorData),
                 }).catch(function(error) {
