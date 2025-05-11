@@ -2955,6 +2955,7 @@ def check_authentication():
         return redirect(url_for('login'))
 
 @app.route('/api/log_client_error', methods=['POST'])
+@csrf.exempt
 def log_client_error():
     """
     API endpoint to receive and log client-side errors.

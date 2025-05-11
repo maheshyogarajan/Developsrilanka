@@ -11,6 +11,8 @@ from flask_wtf.csrf import CSRFProtect
 from app import app, db, csrf
 from models import OrganizationUser, Client, Organization
 
+# Exempt API routes from CSRF protection
+@csrf.exempt
 @app.route('/api/organization/<int:org_id>/clients')
 @app.route('/api/organizations/<int:org_id>/clients')  # Keep this for backward compatibility
 @login_required
@@ -57,6 +59,7 @@ def api_organization_clients(org_id):
         app.logger.error(f"Error fetching clients for org {org_id}: {str(e)}")
         return jsonify({'error': str(e), 'clients': []})
 
+@csrf.exempt
 @app.route('/api/user/organizations')
 @login_required
 def api_user_organizations():
@@ -95,6 +98,7 @@ def api_user_organizations():
         app.logger.error(f"Error fetching user organizations: {str(e)}")
         return jsonify({'error': 'Failed to fetch organizations'}), 500
         
+@csrf.exempt
 @app.route('/api/receipt/save-context', methods=['POST'])
 @login_required
 def api_save_receipt_context():
@@ -145,6 +149,7 @@ def api_save_receipt_context():
         app.logger.error(f"Error saving receipt context: {str(e)}")
         return jsonify({'error': 'Failed to save receipt context'}), 500
         
+@csrf.exempt
 @app.route('/api/receipt/get-context')
 @login_required
 def api_get_receipt_context():
