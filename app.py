@@ -17,6 +17,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from authlib.integrations.flask_client import OAuth
 import requests
 from flask_mail import Mail, Message
+from flask_wtf.csrf import CSRFProtect
 
 # Import Celery task queue components
 from celery import Celery

@@ -246,3 +246,44 @@ def handle_and_log_exception(e, error_type=ErrorTypes.UNKNOWN, component="genera
         "error_message": str(e),
         "error_type": error_type
     }
+
+def log_template_error(template_name, error_message, view_function=None, template_context=None):
+    """
+    Enhanced logging for template rendering errors.
+    
+    Args:
+        template_name: Name of the template that failed to render
+        error_message: The error message
+        view_function: The view function that called the template (optional)
+        template_context: The template context (excluding sensitive data) (optional)
+    
+    Returns:
+        dict: Error details for reference
+    """
+    filtered_context = {}
+    
+    # Filter sensitive keys from context
+    if template_context:
+        for key, value in template_context.items():
+            if key not in ["_csrf_token", "password", "token", "current_user"]:
+                if isinstance(value, (str, int, float, bool, type(None))):
+                    filtered_context[key] = value
+                else:
+                    filtered_context[key] = f"<{type(value).__name__}>"
+    
+    error_details = {
+        "error_type": "template_error",
+        "template_name": template_name,
+        "error_message": error_message,
+        "view_function": view_function.__name__ if view_function else None,
+        "filtered_context": filtered_context
+    }
+    
+    logging.error(f"Template rendering error: {error_message}")
+    logging.error(f"Template: {template_name}")
+    if view_function:
+        logging.error(f"View function: {view_function.__name__}")
+    if filtered_context:
+        logging.error(f"Context keys: {list(filtered_context.keys())}")
+    
+    return error_details
