@@ -4,6 +4,9 @@
 
 {% block content %}
 <div class="container py-4">
+    <!-- Add CSRF token for JavaScript functions -->
+    <input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token() }}">
+    
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <div class="card shadow-sm">
@@ -349,9 +352,14 @@
         });
     }
     
-    // Function to get CSRF token from meta tag
+    // Function to get CSRF token from hidden input
     function getCsrfToken() {
-        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const tokenElement = document.getElementById('csrf_token');
+        if (!tokenElement) {
+            console.error('CSRF token element not found');
+            return '';
+        }
+        return tokenElement.value;
     }
 </script>
 {% endblock %}

@@ -119,12 +119,12 @@ def create_personal_finances():
         from models import UserRole
         owner_role = UserRole.OWNER.value
         
-        # Create the organization
+        # Create the organization (removed parameters that don't exist in the model)
         org = Organization(
             name="Personal Finances",
-            type="PERSONAL",
             description="My personal finances and expenses",
-            created_by_user_id=current_user.id,
+            primary_color="#4a6da7",
+            secondary_color="#f5f8ff",
             created_at=datetime.utcnow()
         )
         db.session.add(org)
