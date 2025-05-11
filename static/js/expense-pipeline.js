@@ -1475,6 +1475,13 @@ function saveReimbursementDetails() {
     // Get CSRF token from page
     const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
     
+    // Check if CSRF token exists
+    if (!csrfToken) {
+        console.error('CSRF token not found in the page');
+        showToast('Error', 'Authentication token missing. Please refresh the page and try again.', 'error');
+        return;
+    }
+    
     // Send request to update expense status
     fetch('/expenses/api/update-expense-status', {
         method: 'POST',
