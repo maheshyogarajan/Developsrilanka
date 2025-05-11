@@ -747,6 +747,152 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
             'message': f"Users with role {user_role} cannot change expense status from {current_status} to {new_status}"
         }
 
+@pipeline_bp.route('/api/pending-receipts', methods=['GET'])
+@ajax_login_required
+def get_pending_receipts():
+    """
+    API endpoint to get all pending receipts for an organization.
+    Used by the batch submission modal.
+    """
+    # Get organization ID from request
+    organization_id = request.args.get('org_id')
+    if not organization_id:
+        return jsonify({
+            'error': 'Missing organization ID',
+            'type': 'api_error'
+        }), 400
+    
+    # Check user has access to this organization
+    if not current_user.has_org_access(organization_id):
+        return jsonify({
+            'error': 'Access denied',
+            'type': 'api_error'
+        }), 403
+    
+    try:
+        # Get pending receipts (those without a company expense associated)
+        receipts = db.session.query(Receipt).filter(
+            Receipt.organization_id == organization_id,
+            ~Receipt.id.in_(
+                db.session.query(CompanyExpense.receipt_id).filter(
+                    CompanyExpense.receipt_id.isnot(None)
+                )
+            )
+        ).order_by(Receipt.purchase_date.desc()).all()
+        
+        # Format receipt data
+        receipt_data = []
+        for receipt in receipts:
+            receipt_data.append({
+                'id': receipt.id,
+                'vendor_name': receipt.vendor_name,
+                'purchase_date': receipt.purchase_date.strftime('%Y-%m-%d') if receipt.purchase_date else None,
+                'total_amount': float(receipt.total_amount) if receipt.total_amount else 0,
+                'has_image': bool(receipt.image_path or receipt.s3_key)
+            })
+        
+        return jsonify({
+            'receipts': receipt_data,
+            'count': len(receipt_data)
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving pending receipts: {str(e)}")
+        return jsonify({
+            'error': 'Error retrieving pending receipts',
+            'details': str(e),
+            'type': 'api_error'
+        }), 500
+
+
+@pipeline_bp.route('/api/batch-submit', methods=['POST'])
+@ajax_login_required
+def batch_submit_receipts():
+    """
+    API endpoint to submit multiple receipts as expenses at once.
+    """
+    data = request.get_json()
+    
+    # Validate request data
+    if not data or 'receipt_ids' not in data or not data['receipt_ids']:
+        return jsonify({
+            'error': 'Invalid request data',
+            'type': 'api_error'
+        }), 400
+    
+    organization_id = data.get('organization_id')
+    if not organization_id:
+        return jsonify({
+            'error': 'Missing organization ID',
+            'type': 'api_error'
+        }), 400
+    
+    # Check user has access to this organization
+    if not current_user.has_org_access(organization_id):
+        return jsonify({
+            'error': 'Access denied',
+            'type': 'api_error'
+        }), 403
+    
+    receipt_ids = data['receipt_ids']
+    submitted_count = 0
+    error_count = 0
+    errors = []
+    
+    try:
+        # Process each receipt ID
+        for receipt_id in receipt_ids:
+            try:
+                # Check if receipt exists and belongs to the specified organization
+                receipt = Receipt.query.filter_by(id=receipt_id, organization_id=organization_id).first()
+                if not receipt:
+                    errors.append(f"Receipt {receipt_id} not found or does not belong to the organization")
+                    error_count += 1
+                    continue
+                
+                # Check if this receipt already has a company expense
+                existing_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
+                if existing_expense:
+                    errors.append(f"Receipt {receipt_id} already has an associated expense")
+                    error_count += 1
+                    continue
+                
+                # Create a new company expense for this receipt
+                expense = CompanyExpense(
+                    user_id=current_user.id,
+                    organization_id=organization_id,
+                    receipt_id=receipt_id,
+                    status=ExpenseStatus.SUBMITTED,
+                    is_reimbursable=True
+                )
+                db.session.add(expense)
+                submitted_count += 1
+                
+            except Exception as e:
+                current_app.logger.error(f"Error processing receipt {receipt_id}: {str(e)}")
+                errors.append(f"Error processing receipt {receipt_id}: {str(e)}")
+                error_count += 1
+        
+        # Commit changes to the database
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'submitted_count': submitted_count,
+            'error_count': error_count,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error batch submitting receipts: {str(e)}")
+        return jsonify({
+            'error': 'Error batch submitting receipts',
+            'details': str(e),
+            'type': 'api_error'
+        }), 500
+
+
 @pipeline_bp.route('/batch-submit', methods=['GET', 'POST'])
 @ajax_login_required
 def batch_submit_expenses():

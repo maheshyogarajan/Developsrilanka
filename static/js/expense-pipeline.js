@@ -101,6 +101,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        // Add event listener for the Submit All button in the batch submission modal
+        const submitBatchButton = document.getElementById('submitBatchButton');
+        if (submitBatchButton) {
+            submitBatchButton.addEventListener('click', function() {
+                submitBatchExpenses();
+            });
+        }
+        
         const exportButton = document.getElementById('exportButton');
         if (exportButton) {
             exportButton.addEventListener('click', function() {
@@ -1824,7 +1832,7 @@ function openBatchSubmissionModal() {
                                                 ${formatDate(receipt.purchase_date)} • ${formatCurrency(receipt.total_amount)}
                                             </div>
                                         </div>
-                                        <a href="#" class="text-decoration-none" onclick="openReceiptPreview(${receipt.id}); return false;">
+                                        <a href="#" class="text-decoration-none" onclick="loadReceiptImage(${receipt.id}, null); return false;">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </div>
