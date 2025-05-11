@@ -143,14 +143,14 @@
                                         <td>
                                             {% if not invitation.accepted and invitation.is_expired() and not invitation.is_existing_user %}
                                                 <form action="{{ url_for('resend_invitation') }}" method="post" class="d-inline">
-                                                    {{ csrf_token() }}
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
                                                     <button type="submit" class="btn btn-sm btn-primary">Resend</button>
                                                 </form>
                                             {% endif %}
                                             {% if not invitation.accepted and not invitation.is_existing_user %}
                                                 <form action="{{ url_for('cancel_invitation') }}" method="post" class="d-inline">
-                                                    {{ csrf_token() }}
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
                                                     <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
                                                 </form>

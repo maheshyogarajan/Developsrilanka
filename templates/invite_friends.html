@@ -64,7 +64,7 @@
                     </div>
                     
                     <form action="{{ url_for('send_invitations') }}" method="post">
-                        {{ csrf_token() }}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-4">
                             <label for="emails" class="form-label">Email Addresses</label>
                             <textarea class="form-control" id="emails" name="emails" rows="3" placeholder="Enter email addresses separated by commas"></textarea>
