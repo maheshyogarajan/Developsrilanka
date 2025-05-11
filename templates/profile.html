@@ -105,21 +105,23 @@
                                         <td>
                                             {% if invitation.accepted %}
                                                 <span class="badge bg-success">Accepted</span>
+                                            {% elif invitation.is_existing_user %}
+                                                <span class="badge bg-info text-dark">Existing User</span>
                                             {% elif invitation.is_expired() %}
-                                                <span class="badge bg-warning text-dark">Already Invited</span>
+                                                <span class="badge bg-warning text-dark">Expired</span>
                                             {% else %}
-                                                <span class="badge bg-info text-dark">Pending</span>
+                                                <span class="badge bg-primary">Pending</span>
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if not invitation.accepted and invitation.is_expired() %}
+                                            {% if not invitation.accepted and invitation.is_expired() and not invitation.is_existing_user %}
                                                 <form action="{{ url_for('resend_invitation') }}" method="post" class="d-inline">
                                                     {{ csrf_token() }}
                                                     <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
                                                     <button type="submit" class="btn btn-sm btn-primary">Resend</button>
                                                 </form>
                                             {% endif %}
-                                            {% if not invitation.accepted %}
+                                            {% if not invitation.accepted and not invitation.is_existing_user %}
                                                 <form action="{{ url_for('cancel_invitation') }}" method="post" class="d-inline">
                                                     {{ csrf_token() }}
                                                     <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
