@@ -29,6 +29,8 @@
                     {% endwith %}
                     
                     <form method="post" action="{{ url_for('organizations.create_organization', modal='true' if is_modal else '') }}">
+                        <!-- Add CSRF token -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="name" class="form-label">Organization Name *</label>
                             <input type="text" class="form-control" id="name" name="name" required>

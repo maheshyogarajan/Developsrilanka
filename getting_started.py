@@ -134,7 +134,7 @@ def create_personal_finances():
             user_id=current_user.id,
             organization_id=org.id,
             role=owner_role,
-            is_primary=True
+            is_default=True
         )
         db.session.add(org_user)
         
