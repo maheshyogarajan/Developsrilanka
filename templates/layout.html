@@ -653,6 +653,9 @@
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     
+    <!-- CSRF Protection for AJAX calls -->
+    <script src="{{ url_for('static', filename='js/fix-csrf.js') }}"></script>
+    
     <!-- Sidebar and Navigation JavaScript -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
