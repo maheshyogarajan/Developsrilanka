@@ -388,7 +388,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const companyExpenseFields = document.getElementById('company-expense-fields');
                 
                 if (expenseTypeToggle && personalLabel && companyLabel && companyExpenseFields) {
-                    expenseTypeToggle.addEventListener('change', function() {
+                    // Remove any existing event listeners by cloning the element
+                    expenseTypeToggle.replaceWith(expenseTypeToggle.cloneNode(true));
+                    
+                    // Get the new reference after replacing
+                    const newExpenseTypeToggle = document.getElementById('expense_type_toggle');
+                    
+                    newExpenseTypeToggle.addEventListener('change', function() {
                         if (this.checked) {
                             personalLabel.classList.remove('active-expense-type');
                             companyLabel.classList.add('active-expense-type');
@@ -570,6 +576,39 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('sscl_tax').value = data.sscl_tax || '';
         document.getElementById('vat_tax').value = data.vat_tax || '';
         
+        // Set up demo organization option
+        const orgSelect = document.getElementById('company_organization_id');
+        if (orgSelect) {
+            // Clear any existing options
+            orgSelect.innerHTML = '';
+            
+            // Add Demo Organization option
+            const demoOption = document.createElement('option');
+            demoOption.value = '999'; // Use a fake ID
+            demoOption.text = 'Demo Organization';
+            demoOption.selected = true;
+            orgSelect.appendChild(demoOption);
+        }
+        
+        // Set up demo client option
+        const clientSelect = document.getElementById('initial_client_id');
+        if (clientSelect) {
+            // Clear any existing options
+            clientSelect.innerHTML = '';
+            
+            // Add blank option
+            const blankOption = document.createElement('option');
+            blankOption.value = '';
+            blankOption.text = 'Select a client...';
+            clientSelect.appendChild(blankOption);
+            
+            // Add Demo Client option
+            const demoOption = document.createElement('option');
+            demoOption.value = '999'; // Use a fake ID
+            demoOption.text = 'Demo Client';
+            clientSelect.appendChild(demoOption);
+        }
+        
         // Set expense categories if they exist
         if (data.expense_major_category) {
             const majorCategorySelect = document.getElementById('expense_major_category');
@@ -653,6 +692,13 @@ document.addEventListener('DOMContentLoaded', function() {
             vat_tax: document.getElementById('vat_tax').value,
             expense_major_category: document.getElementById('expense_major_category').value,
             expense_minor_category: document.getElementById('expense_minor_category').value,
+            
+            // Add organization and client data (for Company-type expense selection)
+            organization_id: document.getElementById('company_organization_id')?.value || '',
+            organization_name: document.getElementById('company_organization_id')?.options[document.getElementById('company_organization_id')?.selectedIndex]?.text || '',
+            client_id: document.getElementById('initial_client_id')?.value || '',
+            client_name: document.getElementById('initial_client_id')?.options[document.getElementById('initial_client_id')?.selectedIndex]?.text || '',
+            
             items: []
         };
         
