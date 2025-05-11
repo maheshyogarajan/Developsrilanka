@@ -920,11 +920,15 @@ function createExpenseFromReceipt(receiptId, targetColumn) {
     // Show loading toast
     showToast('Processing', 'Creating expense from receipt...', 'info');
     
+    // Get CSRF token from page
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+    
     // Send request to create expense
     fetch('/expenses/api/update-expense-status', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({
             expense_id: `receipt_${receiptId}`,
@@ -978,10 +982,14 @@ function updateExpenseStatus(expenseId, newStatus, targetColumn) {
     // For other statuses, make the API call directly
     showToast('Processing', 'Updating expense status...', 'info');
     
+    // Get CSRF token from page
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+    
     fetch('/expenses/api/update-expense-status', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({
             expense_id: expenseId,
@@ -1439,11 +1447,15 @@ function saveReimbursementDetails() {
     // Show loading toast
     showToast('Processing', 'Recording reimbursement...', 'info');
     
+    // Get CSRF token from page
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+    
     // Send request to update expense status
     fetch('/expenses/api/update-expense-status', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({
             expense_id: expenseId,
@@ -1513,10 +1525,14 @@ function confirmRejectExpense() {
     showToast('Processing', 'Rejecting expense...', 'info');
     
     // Send request to update expense status
+    // Get CSRF token from page
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+    
     fetch('/expenses/api/update-expense-status', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({
             expense_id: expenseId,
