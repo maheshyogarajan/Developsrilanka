@@ -409,7 +409,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Setup Next button
                 const nextBtn = document.getElementById('next-btn');
                 if (nextBtn) {
-                    nextBtn.addEventListener('click', function() {
+                    // Remove any existing event listeners
+                    nextBtn.replaceWith(nextBtn.cloneNode(true));
+                    
+                    // Get the new reference after replacing
+                    const newNextBtn = document.getElementById('next-btn');
+                    
+                    newNextBtn.addEventListener('click', function() {
                         // Fade out animation and show details form
                         receiptValueAnimation.querySelector('.card').classList.remove('animate__fadeInUp');
                         receiptValueAnimation.querySelector('.card').classList.add('animate__fadeOutDown');
