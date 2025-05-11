@@ -20,8 +20,8 @@
                                 <div>
                                     <h5 class="mb-1">Your Status</h5>
                                     <div class="d-flex align-items-center">
-                                        <span class="badge bg-primary me-2">{{ current_user.get_trust_level_name() }}</span>
-                                        <small class="text-muted">Trust Level {{ current_user.trust_level }}</small>
+                                        <span class="badge bg-primary me-2">{{ invitation_stats.trust_level_name }}</span>
+                                        <small class="text-muted">Trust Level {{ invitation_stats.trust_level }}</small>
                                     </div>
                                 </div>
                                 <div class="text-end">

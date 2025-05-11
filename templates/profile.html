@@ -164,6 +164,20 @@
                                             </div>
                                         </div>
                                     </div>
+                                    
+                                    {% if recent_activities %}
+                                    <div class="mt-3">
+                                        <h6 class="text-muted">Recent Activity</h6>
+                                        <ul class="list-group list-group-flush">
+                                            {% for activity in recent_activities %}
+                                            <li class="list-group-item px-0 py-2 border-0 d-flex justify-content-between align-items-center">
+                                                <small>{{ activity.description }}</small>
+                                                <span class="badge bg-success">+{{ activity.points }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -181,6 +195,20 @@
                                             <small class="text-muted">Days earned</small>
                                         </div>
                                     </div>
+                                    
+                                    {% if invitation_stats %}
+                                    <div class="mt-3">
+                                        <div class="progress mb-2" style="height: 6px;">
+                                            {% set percent = (invitation_stats.sent_today / invitation_stats.daily_limit * 100)|int if invitation_stats.daily_limit > 0 else 0 %}
+                                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ percent }}%;" 
+                                                aria-valuenow="{{ invitation_stats.sent_today }}" aria-valuemin="0" aria-valuemax="{{ invitation_stats.daily_limit }}"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <small class="text-muted">Invites today: {{ invitation_stats.sent_today }} / {{ invitation_stats.daily_limit }}</small>
+                                            <small class="text-muted">Available: {{ invitation_stats.available }}</small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

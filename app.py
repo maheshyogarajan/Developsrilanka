@@ -2309,7 +2309,38 @@ def profile():
         for invitation in friend_invitations:
             invitation.is_expired = lambda: invitation.expires_at < datetime.utcnow()
         
-        return render_template('profile.html', sent_friend_invitations=friend_invitations)
+        # Get trust activity statistics
+        from models import TrustActivity
+        
+        # Reset the invitation counter if needed (e.g., if it's a new day)
+        current_user.reset_invitation_counter()
+            
+        # Count successful invitations
+        successful_invites = FriendInvitation.query.filter_by(
+            invited_by_user_id=current_user.id,
+            accepted=True
+        ).count()
+        
+        # Get invitation stats
+        invitation_stats = {
+            'sent_total': len(friend_invitations),
+            'sent_today': current_user.invitations_sent_today,
+            'daily_limit': current_user.get_daily_invitation_limit(),
+            'successful': successful_invites,
+            'available': current_user.get_available_invitations()
+        }
+        
+        # Get recently earned trust points
+        recent_activities = TrustActivity.query.filter_by(
+            user_id=current_user.id
+        ).order_by(TrustActivity.created_at.desc()).limit(5).all()
+        
+        return render_template(
+            'profile.html', 
+            sent_friend_invitations=friend_invitations,
+            invitation_stats=invitation_stats,
+            recent_activities=recent_activities
+        )
     except Exception as e:
         logging.error(f"Error rendering profile page: {str(e)}")
         logging.error(traceback.format_exc())
@@ -2319,8 +2350,21 @@ def profile():
 @app.route('/invite-friends')
 @login_required
 def invite_friends():
-    """Show the invite friends page."""
-    return render_template('invite_friends.html')
+    """Show the invite friends page with trust level and invitation quota information."""
+    # Check if we need to reset the daily invitation counter
+    current_user.reset_invitation_counter()
+    
+    # Get invitation stats
+    invitation_stats = {
+        'daily_limit': current_user.get_daily_invitation_limit(),
+        'sent_today': current_user.invitations_sent_today,
+        'available': current_user.get_available_invitations(),
+        'trust_level': current_user.trust_level,
+        'trust_level_name': current_user.get_trust_level_name()
+    }
+    
+    return render_template('invite_friends.html', 
+                          invitation_stats=invitation_stats)
     
 @app.route('/update-trust-ranking-visibility', methods=['POST'])
 @login_required
