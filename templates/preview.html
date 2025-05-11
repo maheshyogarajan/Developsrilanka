@@ -1,5 +1,48 @@
 {% extends 'layout.html' %}
 
+{% block styles %}
+<style>
+    .icon-rounded {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        text-align: center;
+        font-size: 14px;
+    }
+    
+    /* Animation for receipt value */
+    @keyframes countUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-count {
+        animation: countUp 0.8s ease-out forwards;
+    }
+    
+    /* Toggle switch styling */
+    .expense-type-toggle-container {
+        position: relative;
+    }
+    
+    .expense-type-label {
+        color: #6c757d;
+        transition: color 0.3s ease;
+    }
+    
+    .active-expense-type {
+        color: #0d6efd;
+    }
+    
+    .form-check-input:checked + .company-label {
+        color: #0d6efd;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="upload-card">
     <div class="upload-area" id="upload-zone">
@@ -71,6 +114,123 @@
             <span class="visually-hidden">Loading...</span>
         </div>
         <p class="mt-3">Processing receipt...</p>
+    </div>
+
+    <!-- Receipt Value Animation (hidden initially) -->
+    <div id="receipt-value-animation" class="d-none">
+        <div class="card shadow-sm p-4 mb-4 animate__animated animate__fadeInUp">
+            <div class="text-center mb-3">
+                <i class="fas fa-file-invoice-dollar fa-3x text-primary mb-2"></i>
+                <h4 class="mb-4">Receipt Scanned Successfully!</h4>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 border-primary">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Receipt Value</h5>
+                            <h3 class="text-primary mb-0" id="receipt-value-amount">Rs 0.00</h3>
+                            <div class="progress mt-3" style="height: 10px;">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 border-success">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Maximum Saving</h5>
+                            <h3 class="text-success mb-0" id="max-saving-amount">Rs 0.00</h3>
+                            <div class="progress mt-3" style="height: 10px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tax Breakdown -->
+            <div class="row mt-3">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 border" style="border-color: #dc3545 !important;">
+                        <div class="card-body text-center p-3">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div class="icon-rounded bg-danger text-white me-2">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                                <h6 class="mb-0 text-danger">VAT</h6>
+                            </div>
+                            <h5 class="text-danger mt-2" id="vat-amount">Rs 0.00</h5>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 border" style="border-color: #fd7e14 !important;">
+                        <div class="card-body text-center p-3">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div class="icon-rounded" style="background-color: #fd7e14; color: white; margin-right: 0.5rem;">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                                <h6 class="mb-0" style="color: #fd7e14;">SSCL</h6>
+                            </div>
+                            <h5 style="color: #fd7e14; margin-top: 0.5rem;" id="sscl-amount">Rs 0.00</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Demo Organization Selection -->
+            <div class="row mt-3" id="expense-type-container">
+                <div class="col-12">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">Where would you like to save this receipt?</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="expense-type-toggle-container d-flex align-items-center justify-content-center mb-2">
+                                    <span id="personal-label" class="expense-type-label personal-label me-3 fw-bold active-expense-type">Personal Expense</span>
+                                    <div class="form-check form-switch mx-2">
+                                        <input class="form-check-input" type="checkbox" id="expense_type_toggle">
+                                    </div>
+                                    <span id="company-label" class="expense-type-label company-label ms-3 fw-bold">Company Expense</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Company Expense Fields -->
+                            <div id="company-expense-fields" class="d-none">
+                                <div class="row">
+                                    <div class="col-md-7 mb-2">
+                                        <label for="company_organization_id" class="form-label">Organization</label>
+                                        <select class="form-select" id="company_organization_id">
+                                            <option value="demo" selected>Demo Organization</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5 mb-2">
+                                        <label for="initial_client_id" class="form-label">Client (Optional)</label>
+                                        <select class="form-select" id="initial_client_id">
+                                            <option value="" selected>Select Client (Optional)</option>
+                                            <option value="demo">Demo Client</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="row mt-4">
+                <div class="col-12 text-center">
+                    <button type="button" class="btn btn-primary btn-lg" id="next-btn">
+                        <i class="fas fa-arrow-right me-2"></i> Next
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div id="results" class="d-none">
