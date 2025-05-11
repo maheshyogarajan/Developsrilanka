@@ -2037,11 +2037,17 @@ def email_login():
             
             # This is a new registration
             logging.info(f"Creating new user: {email}")
+            # Calculate initial 30-day access period
+            from datetime import datetime, timedelta
+            initial_expiration = datetime.utcnow() + timedelta(days=30)
+            
             new_user = User(
                 email=email,
                 password_hash=generate_password_hash(password),
                 name=email.split('@')[0],  # Use part of email as name
-                role='user'  # Set default role
+                role='user',  # Set default role
+                subscription_status='free_trial',
+                access_expiration_date=initial_expiration  # Set initial 30-day access period
             )
             
             db.session.add(new_user)
