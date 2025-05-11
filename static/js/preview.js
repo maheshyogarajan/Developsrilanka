@@ -308,12 +308,16 @@ document.addEventListener('DOMContentLoaded', function() {
             document.dispatchEvent(new Event('resetFileInput'));
         }
         
+        // Get CSRF token from the page
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+        
         // Send request to server - using the preview endpoint
         fetch('/preview/scan', {
             method: 'POST',
             body: formData,
             headers: {
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-CSRFToken': csrfToken
             }
         })
         .then(response => {
