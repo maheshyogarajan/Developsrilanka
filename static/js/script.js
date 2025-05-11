@@ -94,6 +94,15 @@ function compressImage(file, maxWidth = window.RECEIPT_APP.IMAGE_MAX_WIDTH, maxH
   });
 }
 
+/**
+ * Gets the CSRF token from the hidden input field
+ * @returns {string} The CSRF token value
+ */
+function getCsrfToken() {
+    const tokenField = document.querySelector('input[name="csrf_token"]');
+    return tokenField ? tokenField.value : '';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOMContentLoaded event fired");
     
@@ -290,11 +299,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('receipt', file);
         
-        // Get CSRF token from the form
-        const tokenField = document.querySelector('input[name="csrf_token"]');
-        if (tokenField) {
-            formData.append('csrf_token', tokenField.value);
-        }
+        // Add CSRF token
+        formData.append('csrf_token', getCsrfToken());
         
         // Update header based on the design
         const pageTitleElement = document.querySelector('.page-title');
@@ -674,7 +680,8 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('/update_data', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify(formData)
             })
@@ -688,7 +695,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return fetch('/save', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
                     },
                     body: JSON.stringify({})  // The data is already in the session
                 });
