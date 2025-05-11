@@ -2378,16 +2378,27 @@ def profile():
             invited_by_user_id=current_user.id
         ).order_by(FriendInvitation.created_at.desc()).all()
         
-        # Add method to check if invitation is expired
+        # Process invitations to ensure proper display and status
         for invitation in friend_invitations:
-            # Use a named function instead of a lambda to avoid token display issues
-            def make_is_expired(exp_date):
-                return lambda: exp_date < datetime.utcnow()
-            invitation.is_expired = make_is_expired(invitation.expires_at)
+            # Check if the invited person is an existing user
+            from models import User
+            existing_user = User.query.filter_by(email=invitation.email).first()
+            invitation.is_existing_user = existing_user is not None
             
-            # Store the token in a separate attribute to prevent it from displaying in the template
-            # But don't modify the actual database column since it has a NOT NULL constraint
+            # Fix the is_expired check by using a closure pattern
+            def make_is_expired(inv): 
+                exp_date = inv.expires_at
+                return lambda: datetime.utcnow() > exp_date
+                
+            invitation.is_expired = make_is_expired(invitation)
+            
+            # Hide the token attribute to prevent it from showing in the template
+            # but keep it accessible for backend operations
             invitation._token = invitation.token
+            
+            # Modify how the invitation is rendered in string context to prevent token leakage
+            invitation.__str__ = lambda: f"Invitation to {invitation.email}"
+            invitation.__repr__ = lambda: f"Invitation to {invitation.email}"
         
         # Get trust activity statistics
         from models import TrustActivity
