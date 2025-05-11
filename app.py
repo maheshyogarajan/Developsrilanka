@@ -35,6 +35,10 @@ db = SQLAlchemy(model_class=Base)
 # Initialize Flask app
 app = Flask(__name__)
 
+# Configure template auto-reload and disable caching
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
 # Initialize CSRF Protection
 csrf = CSRFProtect(app)
 
@@ -2453,7 +2457,8 @@ def profile():
                 invitation_stats=invitation_stats,
                 recent_activities=recent_activities,
                 trust_summary=trust_summary,
-                subscription_info=subscription_info
+                subscription_info=subscription_info,
+                debug_timestamp=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             )
         except Exception as template_error:
             # Import here to avoid circular imports
