@@ -166,10 +166,15 @@ class FriendInvitation(db.Model):
     # Track who accepted the invitation and when
     accepted_at = db.Column(db.DateTime, nullable=True)
     accepted_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    # New fields for tracking conversions and rewards
+    converted_to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    reward_days_granted = db.Column(db.Integer, default=0)
+    reward_granted_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
     invited_by = db.relationship('User', foreign_keys=[invited_by_user_id], backref='sent_friend_invitations')
     accepted_by = db.relationship('User', foreign_keys=[accepted_by_user_id], backref='accepted_friend_invitations')
+    converted_to_user = db.relationship('User', foreign_keys=[converted_to_user_id], backref='converted_from_invitation')
     
     def is_expired(self):
         """Check if the invitation is expired."""
@@ -197,7 +202,71 @@ class FriendInvitation(db.Model):
             result['accepted_by_user_id'] = self.accepted_by_user_id
             result['accepted_by_name'] = self.accepted_by.name
             
+        # Include new fields for tracking conversions and rewards
+        if self.converted_to_user_id and self.converted_to_user:
+            result['converted_to_user_id'] = self.converted_to_user_id
+            result['converted_to_user_name'] = self.converted_to_user.name
+            
+        if self.reward_days_granted:
+            result['reward_days_granted'] = self.reward_days_granted
+            
+        if self.reward_granted_at:
+            result['reward_granted_at'] = self.reward_granted_at.isoformat()
+            
         return result
+
+
+class TrustActivity(db.Model):
+    """Model for tracking activities that contribute to trust level."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    activity_type = db.Column(db.String(50), nullable=False)
+    points = db.Column(db.Integer, nullable=False, default=0)
+    description = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('trust_activities', lazy='dynamic'))
+    
+    def to_dict(self):
+        """Convert the trust activity to a dictionary."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'user_name': self.user.name if self.user else '',
+            'activity_type': self.activity_type,
+            'points': self.points,
+            'description': self.description or '',
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class TrustRanking(db.Model):
+    """Model for tracking monthly trust rankings for users who opted in."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    ranking_month = db.Column(db.Date, nullable=False)
+    trust_points = db.Column(db.Integer, nullable=False, default=0)
+    rank_position = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('trust_rankings', lazy='dynamic'))
+    
+    # Composite unique constraint
+    __table_args__ = (db.UniqueConstraint('user_id', 'ranking_month', name='unique_user_monthly_ranking'),)
+    
+    def to_dict(self):
+        """Convert the trust ranking to a dictionary."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'user_name': self.user.name if self.user else '',
+            'ranking_month': self.ranking_month.isoformat(),
+            'trust_points': self.trust_points,
+            'rank_position': self.rank_position,
+            'created_at': self.created_at.isoformat()
+        }
 
 
 class OrganizationInvitation(db.Model):
