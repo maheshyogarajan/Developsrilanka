@@ -361,11 +361,56 @@ class User(UserMixin, db.Model):
         org_user = OrganizationUser.query.filter_by(user_id=self.id, is_default=True).first()
         if org_user:
             return org_user.organization
+            
         # If no default is set but user has organizations, return the first
         org_user = OrganizationUser.query.filter_by(user_id=self.id).first()
         if org_user:
             return org_user.organization
-        return None
+            
+    def get_daily_invitation_limit(self):
+        """Calculate the daily invitation limit based on trust level."""
+        # Trust level 0: 3 invitations per day
+        # Trust level 1: 5 invitations per day
+        # Trust level 2: 10 invitations per day
+        # Trust level 3: 20 invitations per day
+        limits = {
+            0: 3,
+            1: 5,
+            2: 10,
+            3: 20
+        }
+        return limits.get(self.trust_level, 3)  # Default to 3 if trust level is invalid
+    
+    def reset_invitation_counter(self):
+        """Reset the daily invitation counter if last invitation was from a previous day."""
+        today = date.today()
+        if self.last_invitation_date is None or self.last_invitation_date < today:
+            self.invitations_sent_today = 0
+            self.last_invitation_date = today
+            db.session.commit()
+    
+    def get_available_invitations(self):
+        """Get the number of invitations still available today."""
+        self.reset_invitation_counter()
+        daily_limit = self.get_daily_invitation_limit()
+        return max(0, daily_limit - self.invitations_sent_today)
+    
+    def track_sent_invitation(self):
+        """Track that an invitation has been sent and update counters."""
+        self.reset_invitation_counter()
+        self.invitations_sent_today += 1
+        self.last_invitation_date = date.today()
+        db.session.commit()
+        
+    def get_trust_level_name(self):
+        """Get the name of the user's trust level."""
+        names = {
+            0: "New Member",
+            1: "Basic Member",
+            2: "Trusted Member",
+            3: "Elite Member"
+        }
+        return names.get(self.trust_level, "Member")
     
     def has_organization_role(self, organization_id, role):
         """Check if user has a specific role in an organization."""
