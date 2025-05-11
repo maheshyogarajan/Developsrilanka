@@ -187,6 +187,26 @@ def create_bank_account():
         )
         
         db.session.add(new_account)
+        
+        # Add trust points for adding a bank account
+        from models import TrustActivity, User
+        
+        # Give 20 points for adding a bank account (highest value activity)
+        trust_activity = TrustActivity(
+            user_id=current_user.id,
+            activity_type='bank_account_added',
+            points=20,  # Highest value among activities (20 vs 15 for invoice, 10 for receipt)
+            description=f'Added bank account for {bank_name}'
+        )
+        db.session.add(trust_activity)
+        
+        # Update user's trust points
+        user = User.query.get(current_user.id)
+        user.trust_points = user.trust_points + 20
+        
+        # Recalculate trust level based on new points
+        user.recalculate_trust_level()
+        
         db.session.commit()
         
         flash('Bank account added successfully.', 'success')

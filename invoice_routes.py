@@ -393,6 +393,25 @@ def create_invoice():
                 'invoice_id': invoice.id
             })
             
+            # Add trust points for creating an invoice
+            from models import TrustActivity, User
+            
+            # Give 15 points for creating an invoice
+            trust_activity = TrustActivity(
+                user_id=current_user.id,
+                activity_type='invoice_created',
+                points=15,  # Higher value than receipt (15 vs 10)
+                description=f'Created invoice {invoice.invoice_number} for {invoice.total} {invoice.currency}'
+            )
+            db.session.add(trust_activity)
+            
+            # Update user's trust points
+            user = User.query.get(current_user.id)
+            user.trust_points = user.trust_points + 15
+            
+            # Recalculate trust level based on new points
+            user.recalculate_trust_level()
+            
             db.session.commit()
             
             flash('Invoice created successfully!', 'success')

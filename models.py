@@ -419,6 +419,54 @@ class User(UserMixin, db.Model):
         self.reset_invitation_counter()
         daily_limit = self.get_daily_invitation_limit()
         return max(0, daily_limit - self.invitations_sent_today)
+        
+    def get_trust_activity_summary(self):
+        """Get a summary of the user's trust activities."""
+        from sqlalchemy import func
+        
+        # Get count and points by activity type
+        activity_stats = db.session.query(
+            TrustActivity.activity_type,
+            func.count(TrustActivity.id).label('count'),
+            func.sum(TrustActivity.points).label('total_points')
+        ).filter(
+            TrustActivity.user_id == self.id
+        ).group_by(
+            TrustActivity.activity_type
+        ).all()
+        
+        # Format into a dictionary
+        summary = {
+            'total_points': self.trust_points,
+            'trust_level': self.trust_level,
+            'activities': {}
+        }
+        
+        for activity in activity_stats:
+            summary['activities'][activity.activity_type] = {
+                'count': activity.count,
+                'points': activity.total_points
+            }
+            
+        # Calculate points needed for next level
+        if self.trust_level < 3:
+            next_level_thresholds = {
+                0: 100,    # Need 100 to reach level 1
+                1: 500,    # Need 500 to reach level 2
+                2: 1000,   # Need 1000 to reach level 3
+            }
+            
+            points_needed = next_level_thresholds[self.trust_level] - self.trust_points
+            if points_needed < 0:
+                points_needed = 0
+                
+            summary['points_needed_for_next_level'] = points_needed
+            summary['next_level'] = self.trust_level + 1
+        else:
+            summary['points_needed_for_next_level'] = 0
+            summary['next_level'] = 3  # Already at max
+            
+        return summary
     
     def track_sent_invitation(self):
         """Track that an invitation has been sent and update counters."""
