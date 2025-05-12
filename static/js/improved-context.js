@@ -291,7 +291,8 @@ function updateReceiptContext() {
     fetch('/api/receipt/save-context', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
         },
         body: JSON.stringify({
             organization_id: organizationId,
