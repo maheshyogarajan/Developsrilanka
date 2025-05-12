@@ -12,6 +12,7 @@ from datetime import datetime, time as datetime_time
 from flask import Blueprint, render_template, request, jsonify, abort, redirect, url_for, flash, current_app
 from flask_login import current_user
 from decorators import ajax_login_required
+from flask_wtf.csrf import csrf_protected
 from sqlalchemy import or_, and_, func, desc, text
 from functools import wraps
 
@@ -749,6 +750,7 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
 
 @pipeline_bp.route('/batch-submit', methods=['GET', 'POST'])
 @ajax_login_required
+@csrf_protected
 def batch_submit_expenses():
     """
     Handle batch submission of expenses.
