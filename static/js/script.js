@@ -406,7 +406,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 return fetch('/save', {
                                     method: 'POST',
                                     headers: {
-                                        'Content-Type': 'application/json'
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': getCsrfToken()
                                     },
                                     body: JSON.stringify({})  // The data is already in the session
                                 });
@@ -544,7 +545,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             fetch('/update_data', {
                                 method: 'POST',
                                 headers: {
-                                    'Content-Type': 'application/json'
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCsrfToken()
                                 },
                                 body: JSON.stringify(formData)
                             })
@@ -558,7 +560,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 return fetch('/save', {
                                     method: 'POST',
                                     headers: {
-                                        'Content-Type': 'application/json'
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': getCsrfToken()
                                     },
                                     body: JSON.stringify({})  // The data is already in the session
                                 });
