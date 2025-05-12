@@ -122,6 +122,8 @@ def view_unified_receipt(receipt_id):
         if company_expense.approved_by_user_id:
             approver = User.query.get(company_expense.approved_by_user_id)
             company_expense.approver_name = approver.name if approver else "Unknown"
+        else:
+            company_expense.approver_name = None
         
         # Add reimburser name if reimbursed
         if company_expense.reimbursed_by_user_id:
