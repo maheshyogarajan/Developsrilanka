@@ -317,6 +317,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Send request to server
         fetch('/scan', {
             method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            },
             body: formData
         })
         .then(response => response.json())
