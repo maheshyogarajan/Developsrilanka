@@ -521,6 +521,15 @@ def history():
                 expense = receipt.business_expense
                 if not hasattr(expense, 'amount'):
                     expense.amount = receipt.total_amount
+                
+                # Add the receipt date to the expense object for template display
+                if hasattr(receipt, 'date') and receipt.date:
+                    expense.date = receipt.date
+                
+                # Ensure expense has a description, use vendor name as fallback
+                if not expense.description or expense.description.strip() == '':
+                    expense.description = f"Expense from {receipt.vendor_name}" if receipt.vendor_name else "Unlabeled Expense"
+                
                 items.append({'type': 'expense', 'expense': expense})
             else:
                 items.append({'type': 'receipt', 'receipt': receipt})
