@@ -1232,7 +1232,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetch('/delete_receipts', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
                     },
                     body: JSON.stringify({
                         receipt_ids: [receiptId]
@@ -1364,7 +1365,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return fetch('/api/receipt/save-context', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
             },
             body: JSON.stringify({
                 organization_id: organizationId,

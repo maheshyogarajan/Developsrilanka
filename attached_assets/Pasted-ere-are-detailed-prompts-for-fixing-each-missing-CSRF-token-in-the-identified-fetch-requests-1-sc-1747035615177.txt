@@ -1,0 +1,179 @@
+ere are detailed prompts for fixing each missing CSRF token in the identified fetch requests:
+1. script.js - Scan Receipt
+File: static/js/script.js
+Lines: 318-321
+Issue: Missing CSRF token in POST request for scanning receipts
+URL: /scan
+Change Required: Add headers with CSRF token to the fetch request
+Update the fetch request at line 318 in script.js to include CSRF protection by:
+1. Retrieving the CSRF token using the existing getCsrfToken() function
+2. Adding headers to the fetch request with 'X-CSRFToken' header
+3. Maintaining the existing form data submission via the body parameter
+ 
+The updated code should look like:
+fetch('/scan', {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': getCsrfToken()
+    },
+    body: formData
+})
+2. script.js - Update Receipt Data (First Workflow)
+File: static/js/script.js
+Lines: 388-394
+Issue: Missing CSRF token in POST request for updating receipt data
+URL: /update_data
+Change Required: Add CSRF token to existing headers object
+Add CSRF protection to the receipt data update fetch request at line 388 in script.js by:
+1. Adding the 'X-CSRFToken' header to the existing headers object
+2. Using the getCsrfToken() function to retrieve the token value
+3. Keeping all other header values and the JSON body intact
+ 
+The updated headers should look like:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+3. script.js - Save Receipt (First Workflow)
+File: static/js/script.js
+Lines: 402-408
+Issue: Missing CSRF token in POST request for saving receipt
+URL: /save
+Change Required: Add CSRF token to existing headers object
+Add CSRF protection to the save receipt fetch request at line 402 in script.js by:
+1. Adding the 'X-CSRFToken' header to the existing headers object
+2. Using the getCsrfToken() function to retrieve the token value
+3. Keeping the Content-Type header and empty JSON body intact
+ 
+The updated headers should look like:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+4. script.js - Update Receipt Data (Second Workflow)
+File: static/js/script.js
+Lines: 540-546
+Issue: Missing CSRF token in POST request for updating receipt data
+URL: /update_data
+Change Required: Add CSRF token to existing headers object
+Add CSRF protection to the second receipt data update fetch request at line 540 in script.js by:
+1. Adding the 'X-CSRFToken' header to the existing headers object
+2. Using the getCsrfToken() function to retrieve the token value
+3. Keeping all other header values and the JSON body intact
+ 
+The updated headers should look like:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+5. script.js - Save Receipt (Second Workflow)
+File: static/js/script.js
+Lines: 554-560
+Issue: Missing CSRF token in POST request for saving receipt
+URL: /save
+Change Required: Add CSRF token to existing headers object
+Add CSRF protection to the second save receipt fetch request at line 554 in script.js by:
+1. Adding the 'X-CSRFToken' header to the existing headers object
+2. Using the getCsrfToken() function to retrieve the token value
+3. Keeping the Content-Type header and empty JSON body intact
+ 
+The updated headers should look like:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+6. script.js - Delete Receipts
+File: static/js/script.js
+Lines: 1225-1233
+Issue: Missing CSRF token in POST request for deleting receipts
+URL: /delete_receipts
+Change Required: Add CSRF token to existing headers object
+Add CSRF protection to the delete receipts fetch request at line 1225 in script.js by:
+1. Adding the 'X-CSRFToken' header to the existing headers object
+2. Using the getCsrfToken() function to retrieve the token value
+3. Keeping the Content-Type header and receipt_ids JSON body intact
+ 
+The updated headers should look like:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+7. script.js - Save Receipt Context
+File: static/js/script.js
+Lines: 1357-1365
+Issue: Missing CSRF token in POST request for saving receipt context
+URL: /api/receipt/save-context
+Change Required: Add CSRF token to existing headers object
+Add CSRF protection to the save receipt context fetch request at line 1357 in script.js by:
+1. Adding the 'X-CSRFToken' header to the existing headers object
+2. Using the getCsrfToken() function to retrieve the token value
+3. Keeping the Content-Type header and organization context JSON body intact
+ 
+The updated headers should look like:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+8. improved-context.js - Save Receipt Context
+File: static/js/improved-context.js
+Lines: 291-300
+Issue: Missing CSRF token in POST request for saving receipt context
+URL: /api/receipt/save-context
+Change Required: Add CSRF token to existing headers object and implement token retrieval
+Add CSRF protection to the save receipt context fetch request at line 291 in improved-context.js by:
+1. Creating a getCsrfToken function (if not already present in this file)
+2. Adding the 'X-CSRFToken' header to the existing headers object
+3. Keeping the Content-Type header and context JSON body intact
+ 
+First, add this function if not already present:
+function getCsrfToken() {
+    const tokenField = document.querySelector('input[name="csrf_token"]');
+    return tokenField ? tokenField.value : '';
+}
+Then update the headers to:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+9. organization-context.js - Save Receipt Context
+File: static/js/organization-context.js
+Lines: 171-178
+Issue: Missing CSRF token in POST request for saving receipt context
+URL: /api/receipt/save-context
+Change Required: Add CSRF token to existing headers object and implement token retrieval
+Add CSRF protection to the save receipt context fetch request at line 171 in organization-context.js by:
+1. Creating a getCsrfToken function (if not already present in this file)
+2. Adding the 'X-CSRFToken' header to the existing headers object
+3. Keeping the Content-Type header and organization_id JSON body intact
+ 
+First, add this function if not already present:
+function getCsrfToken() {
+    const tokenField = document.querySelector('input[name="csrf_token"]');
+    return tokenField ? tokenField.value : '';
+}
+Then update the headers to:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
+10. receipt_history_error_logger.js - Log Client Error
+File: static/js/receipt_history_error_logger.js
+Lines: 69-75
+Issue: Missing CSRF token in POST request for logging client errors
+URL: /api/log_client_error
+Change Required: Add CSRF token to existing headers object and implement token retrieval
+Add CSRF protection to the log client error fetch request at line 69 in receipt_history_error_logger.js by:
+1. Creating a getCsrfToken function (if not already present in this file)
+2. Adding the 'X-CSRFToken' header to the existing headers object
+3. Keeping the Content-Type header and error data JSON body intact
+ 
+First, add this function if not already present:
+function getCsrfToken() {
+    const tokenField = document.querySelector('input[name="csrf_token"]');
+    return tokenField ? tokenField.value : '';
+}
+Then update the headers to:
+headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': getCsrfToken()
+},
