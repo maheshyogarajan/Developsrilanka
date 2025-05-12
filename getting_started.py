@@ -119,12 +119,14 @@ def create_personal_finances():
         from models import UserRole
         owner_role = UserRole.OWNER.value
         
-        # Create the organization (using only valid fields)
+        # Create the organization with complete fields
         org = Organization(
             name="Personal Finances",
+            email=current_user.email,  # Add user's email to avoid database issues
             primary_color="#4a6da7",
             secondary_color="#f5f8ff",
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            email_footer_text="Thank you for your business! This is an automated message from my Personal Finances management system."
         )
         db.session.add(org)
         db.session.flush()  # Get ID without committing
