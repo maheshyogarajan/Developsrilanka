@@ -69,7 +69,8 @@ function logError(error, component = "receipt_history", additionalInfo = {},
         fetch('/api/log_client_error', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
             },
             body: JSON.stringify(errorData)
         }).catch(err => {
