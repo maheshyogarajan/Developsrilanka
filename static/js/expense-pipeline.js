@@ -94,16 +94,28 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        // Batch Submit button - TEMPORARILY DISABLED
         const batchSubmitButton = document.getElementById('batchSubmitButton');
         if (batchSubmitButton) {
             batchSubmitButton.addEventListener('click', function() {
+                // Show a toast notification indicating the feature is coming soon
+                showToast('Coming Soon', 'Batch submit feature will be available in a future update', 'info');
+                console.log("Batch submit feature is temporarily disabled");
+                return; // Early return to prevent further execution
+                // Function call preserved for future implementation
                 openBatchSubmissionModal();
             });
         }
         
+        // Export button - TEMPORARILY DISABLED
         const exportButton = document.getElementById('exportButton');
         if (exportButton) {
             exportButton.addEventListener('click', function() {
+                // Show a toast notification indicating the feature is coming soon
+                showToast('Coming Soon', 'Export feature will be available in a future update', 'info');
+                console.log("Export feature is temporarily disabled");
+                return; // Early return to prevent further execution
+                // Function call preserved for future implementation
                 exportPipelineData();
             });
         }
@@ -1668,7 +1680,21 @@ function confirmRejectExpense() {
  * Batch submit receipts from a column
  * @param {string} columnId - ID of the column
  */
+/**
+ * Batch submit multiple receipts as expenses
+ * 
+ * FEATURE TEMPORARILY DISABLED - Will be implemented in future release
+ * TODO: Re-enable when batch submission functionality is fully tested
+ * 
+ * @param {string} columnId - ID of the column containing receipts to submit
+ */
 function batchSubmitReceipts(columnId) {
+    // DISABLED: Feature temporarily disabled
+    console.log("Batch submit feature is temporarily disabled");
+    showToast('Coming Soon', 'Batch submit feature will be available in a future update', 'info');
+    return;
+    
+    // Code below is preserved for future implementation
     const organizationId = document.getElementById('organizationSelector').value;
     
     // Get all receipt IDs from the column
@@ -1753,7 +1779,19 @@ function scrollToColumn(columnId) {
 /**
  * Export pipeline data as Excel or CSV
  */
+/**
+ * Export expense pipeline data to Excel
+ * 
+ * FEATURE TEMPORARILY DISABLED - Will be implemented in future release
+ * TODO: Re-enable when export functionality is fully tested
+ */
 function exportPipelineData() {
+    // DISABLED: Feature temporarily disabled
+    console.log("Export feature is temporarily disabled");
+    showToast('Coming Soon', 'Export feature will be available in a future update', 'info');
+    return;
+    
+    // Code below is preserved for future implementation
     const organizationId = document.getElementById('organizationSelector').value;
     const viewType = document.getElementById('viewSelector').value;
     
