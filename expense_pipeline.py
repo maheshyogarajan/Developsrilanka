@@ -41,7 +41,7 @@ def get_expense_image(expense_id):
         expense = CompanyExpense.query.get_or_404(expense_id)
         
         # Security: Verify organization access permission
-        if not check_organization_permission(current_user.id, expense.organization_id):
+        if not check_organization_permission(current_user.id, expense.organization_id, required_roles=None):
             logging.warning(f"User {current_user.id} attempted to access image for expense {expense_id} in unauthorized organization {expense.organization_id}")
             return jsonify({'error': 'Access denied'}), 403
         
@@ -589,7 +589,9 @@ def update_expense_status():
         org_id = data.get('organization_id')
         
         # Debug logging
-        logging.info(f"Update expense status request: expense_id={expense_id}, new_status={new_status}, org_id={org_id}, user_id={current_user.id}")
+        org_user = OrganizationUser.query.filter_by(user_id=current_user.id, organization_id=org_id).first()
+        user_role = org_user.role if org_user else "none"
+        logging.info(f"Update expense status request: expense_id={expense_id}, new_status={new_status}, org_id={org_id}, user_id={current_user.id}, user_role={user_role}")
         
         # Validate input
         if not expense_id or not new_status or not org_id:
