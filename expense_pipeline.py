@@ -706,15 +706,14 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
     
     user_role = org_user.role
     
-    # Define allowed transitions based on role
+    # Always allow owners to make any transition between valid statuses
+    if user_role == 'owner':
+        valid_statuses = [status.value for status in ExpenseStatus]
+        if current_status in valid_statuses and new_status in valid_statuses:
+            return {'valid': True}
+    
+    # Define allowed transitions based on role for non-owners
     transitions = {
-        'owner': {
-            # Owners can make any transition
-            ExpenseStatus.SUBMITTED.value: [ExpenseStatus.APPROVED.value, ExpenseStatus.REJECTED.value],
-            ExpenseStatus.APPROVED.value: [ExpenseStatus.REIMBURSED.value, ExpenseStatus.REJECTED.value],  # Fixed: Allow reimbursement transition
-            ExpenseStatus.REJECTED.value: [ExpenseStatus.SUBMITTED.value, ExpenseStatus.APPROVED.value],
-            ExpenseStatus.REIMBURSED.value: []  # Cannot transition from reimbursed
-        },
         'admin': {
             # Admins can approve/reject but not reimburse
             ExpenseStatus.SUBMITTED.value: [ExpenseStatus.APPROVED.value, ExpenseStatus.REJECTED.value],
@@ -735,10 +734,6 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
     }
     
     allowed_transitions = transitions.get(user_role, {}).get(current_status, [])
-    
-    # Special case: Allow owners to transition to REIMBURSED status (matching the comment "Owners can make any transition")
-    if user_role == 'owner' and new_status == ExpenseStatus.REIMBURSED.value and current_status == ExpenseStatus.APPROVED.value:
-        return {'valid': True}
     
     if new_status in allowed_transitions:
         return {'valid': True}
