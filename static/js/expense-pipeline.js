@@ -968,13 +968,13 @@ function createExpenseFromReceipt(receiptId, targetColumn) {
     
     // Convert column to status
     const statusMap = {
-        'submitted': 'SUBMITTED',
-        'approved': 'APPROVED',
-        'reimbursed': 'REIMBURSED',
-        'rejected': 'REJECTED'
+        'submitted': 'submitted',
+        'approved': 'approved',
+        'reimbursed': 'reimbursed',
+        'rejected': 'rejected'
     };
     
-    const newStatus = statusMap[targetColumn] || 'SUBMITTED';
+    const newStatus = statusMap[targetColumn] || 'submitted';
     
     // Show loading toast
     showToast('Processing', 'Creating expense from receipt...', 'info');
@@ -1041,14 +1041,14 @@ function updateExpenseStatus(expenseId, newStatus, targetColumn) {
     const organizationId = document.getElementById('organizationSelector').value;
     
     // Special handling for statuses that need additional info
-    if (newStatus === 'REJECTED') {
+    if (newStatus === 'rejected') {
         // Show rejection reason modal
         openRejectionModal(expenseId);
         loadPipelineData(); // Reload to reset position
         return;
     }
     
-    if (newStatus === 'REIMBURSED') {
+    if (newStatus === 'reimbursed') {
         // Show reimbursement details modal
         openReimbursementModal(null, expenseId);
         loadPipelineData(); // Reload to reset position
@@ -1336,7 +1336,7 @@ function renderExpenseDetail(item, columnId) {
         // Actions for expenses based on status
         if (item.status === 'SUBMITTED') {
             actionsHTML += `
-                <button type="button" class="btn btn-success" onclick="updateExpenseStatus('${item.id}', 'APPROVED', 'approved')">
+                <button type="button" class="btn btn-success" onclick="updateExpenseStatus('${item.id}', 'approved', 'approved')">
                     <i class="fas fa-check"></i> Approve
                 </button>
                 <button type="button" class="btn btn-danger" onclick="openRejectionModal('${item.id}')">
@@ -1354,7 +1354,7 @@ function renderExpenseDetail(item, columnId) {
             `;
         } else if (item.status === 'REJECTED') {
             actionsHTML += `
-                <button type="button" class="btn btn-primary" onclick="updateExpenseStatus('${item.id}', 'SUBMITTED', 'submitted')">
+                <button type="button" class="btn btn-primary" onclick="updateExpenseStatus('${item.id}', 'submitted', 'submitted')">
                     <i class="fas fa-redo"></i> Resubmit
                 </button>
             `;
@@ -1430,7 +1430,7 @@ function renderTimelineSection(item) {
     }
     
     // Add submitted event
-    if (item.status === 'SUBMITTED' || item.status === 'APPROVED' || item.status === 'REIMBURSED') {
+    if (item.status === 'submitted' || item.status === 'approved' || item.status === 'reimbursed') {
         timelineHTML += `
             <div class="timeline-item">
                 <div class="timeline-date">${item.created_at ? formatDate(item.created_at) : 'Unknown date'}</div>
