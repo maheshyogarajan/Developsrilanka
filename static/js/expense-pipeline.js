@@ -1268,7 +1268,7 @@ function renderExpenseDetail(item, columnId) {
                 </script>
                 ` : ''}
                 
-                ${!isReceipt && item.status === 'REIMBURSED' && (item.reimbursement_method || item.reimbursement_reference) ? `
+                ${!isReceipt && item.status === 'reimbursed' && (item.reimbursement_method || item.reimbursement_reference) ? `
                 <div class="card mb-3">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Reimbursement Details</h5>
@@ -1296,7 +1296,7 @@ function renderExpenseDetail(item, columnId) {
                     </div>
                 </div>` : ''}
                 
-                ${!isReceipt && item.status === 'REJECTED' && item.rejection_reason ? `
+                ${!isReceipt && item.status === 'rejected' && item.rejection_reason ? `
                 <div class="card mb-3 border-danger">
                     <div class="card-header bg-danger text-white">
                         <h5 class="card-title mb-0">Rejection Reason</h5>
@@ -1334,7 +1334,7 @@ function renderExpenseDetail(item, columnId) {
         `;
     } else {
         // Actions for expenses based on status
-        if (item.status === 'SUBMITTED') {
+        if (item.status === 'submitted') {
             actionsHTML += `
                 <button type="button" class="btn btn-success" onclick="updateExpenseStatus('${item.id}', 'approved', 'approved')">
                     <i class="fas fa-check"></i> Approve
@@ -1343,7 +1343,7 @@ function renderExpenseDetail(item, columnId) {
                     <i class="fas fa-times"></i> Reject
                 </button>
             `;
-        } else if (item.status === 'APPROVED' && item.is_reimbursable) {
+        } else if (item.status === 'approved' && item.is_reimbursable) {
             actionsHTML += `
                 <button type="button" class="btn btn-primary" onclick="openReimbursementModal(null, '${item.id}')">
                     <i class="fas fa-money-bill-wave"></i> Mark as Reimbursed
@@ -1443,7 +1443,7 @@ function renderTimelineSection(item) {
     }
     
     // Add approved event
-    if ((item.status === 'APPROVED' || item.status === 'REIMBURSED') && item.approved_date) {
+    if ((item.status === 'approved' || item.status === 'reimbursed') && item.approved_date) {
         timelineHTML += `
             <div class="timeline-item">
                 <div class="timeline-date">${formatDate(item.approved_date)}</div>
@@ -1456,7 +1456,7 @@ function renderTimelineSection(item) {
     }
     
     // Add reimbursed event
-    if (item.status === 'REIMBURSED' && item.reimbursed_date) {
+    if (item.status === 'reimbursed' && item.reimbursed_date) {
         timelineHTML += `
             <div class="timeline-item">
                 <div class="timeline-date">${formatDate(item.reimbursed_date)}</div>
@@ -1471,7 +1471,7 @@ function renderTimelineSection(item) {
     }
     
     // Add rejected event
-    if (item.status === 'REJECTED' && item.rejected_date) {
+    if (item.status === 'rejected' && item.rejected_date) {
         timelineHTML += `
             <div class="timeline-item">
                 <div class="timeline-date">${formatDate(item.rejected_date)}</div>
