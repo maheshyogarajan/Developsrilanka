@@ -1352,7 +1352,7 @@ function renderExpenseDetail(item, columnId) {
                     <i class="fas fa-times"></i> Reject
                 </button>
             `;
-        } else if (item.status === 'REJECTED') {
+        } else if (item.status === 'rejected') {
             actionsHTML += `
                 <button type="button" class="btn btn-primary" onclick="updateExpenseStatus('${item.id}', 'submitted', 'submitted')">
                     <i class="fas fa-redo"></i> Resubmit
@@ -1550,7 +1550,7 @@ function saveReimbursementDetails() {
         },
         body: JSON.stringify({
             expense_id: expenseId,
-            new_status: 'REIMBURSED',
+            new_status: 'reimbursed',
             organization_id: organizationId,
             reimbursement_method: method,
             reimbursement_reference: reference,
@@ -1634,7 +1634,7 @@ function confirmRejectExpense() {
         },
         body: JSON.stringify({
             expense_id: expenseId,
-            new_status: 'REJECTED',
+            new_status: 'rejected',
             organization_id: organizationId,
             rejection_reason: reason
         })
@@ -1859,10 +1859,10 @@ function formatCurrency(amount) {
  */
 function getStatusClass(status) {
     switch (status) {
-        case 'SUBMITTED': return 'bg-primary';
-        case 'APPROVED': return 'bg-success';
-        case 'REJECTED': return 'bg-danger';
-        case 'REIMBURSED': return 'bg-purple';
+        case 'submitted': return 'bg-primary';
+        case 'approved': return 'bg-success';
+        case 'rejected': return 'bg-danger';
+        case 'reimbursed': return 'bg-purple';
         default: return 'bg-secondary';
     }
 }
@@ -1874,10 +1874,10 @@ function getStatusClass(status) {
  */
 function getStatusText(status) {
     switch (status) {
-        case 'SUBMITTED': return 'Submitted';
-        case 'APPROVED': return 'Approved';
-        case 'REJECTED': return 'Rejected';
-        case 'REIMBURSED': return 'Reimbursed';
+        case 'submitted': return 'Submitted';
+        case 'approved': return 'Approved';
+        case 'rejected': return 'Rejected';
+        case 'reimbursed': return 'Reimbursed';
         default: return status;
     }
 }
