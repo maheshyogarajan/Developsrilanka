@@ -14,10 +14,21 @@ window.fetch = function(url, options = {}) {
         
         // If not already set, add the CSRF token header
         if (!options.headers['X-CSRFToken']) {
-            // Get the CSRF token from the page
+            // First try to get the CSRF token from a form input field
+            let csrfToken = null;
             const tokenField = document.querySelector('input[name="csrf_token"]');
             if (tokenField) {
-                options.headers['X-CSRFToken'] = tokenField.value;
+                csrfToken = tokenField.value;
+            } else {
+                // Fallback to meta tag if input field is not available
+                const metaToken = document.querySelector('meta[name="csrf-token"]');
+                if (metaToken) {
+                    csrfToken = metaToken.content;
+                }
+            }
+            
+            if (csrfToken) {
+                options.headers['X-CSRFToken'] = csrfToken;
             }
         }
     }

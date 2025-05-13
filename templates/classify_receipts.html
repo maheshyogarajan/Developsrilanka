@@ -36,6 +36,7 @@
                 </div>
                 
                 <form action="{{ url_for('classify.classify_receipt_submit', receipt_id=current_receipt.id) }}" method="post" id="classifyForm" class="needs-validation" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
