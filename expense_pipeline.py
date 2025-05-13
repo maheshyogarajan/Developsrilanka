@@ -31,6 +31,18 @@ FEATURES_DISABLED = {
     'BATCH_SUBMIT': True
 }
 
+@pipeline_bp.route('/export', methods=['GET'])
+@ajax_login_required
+def export_pipeline_data():
+    """
+    Export pipeline data as Excel or CSV.
+    
+    NOTE: TEMPORARILY DISABLED - This feature is currently disabled and will be available in a future release.
+    """
+    # FEATURE DISABLED: Temporarily disable export feature
+    flash('The export feature will be available in a future update.', 'info')
+    return redirect(url_for('pipeline.expense_pipeline', org_id=request.args.get('org_id')))
+
 @pipeline_bp.route('/api/expense-image/<int:expense_id>', methods=['GET'])
 @ajax_login_required
 def get_expense_image(expense_id):
