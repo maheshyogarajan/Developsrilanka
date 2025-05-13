@@ -588,6 +588,9 @@ def update_expense_status():
         new_status = data.get('new_status')
         org_id = data.get('organization_id')
         
+        # Debug logging
+        logging.info(f"Update expense status request: expense_id={expense_id}, new_status={new_status}, org_id={org_id}, user_id={current_user.id}")
+        
         # Validate input
         if not expense_id or not new_status or not org_id:
             return jsonify({'error': 'Missing required parameters'}), 400
