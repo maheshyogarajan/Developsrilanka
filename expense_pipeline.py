@@ -25,6 +25,12 @@ from pipeline_cache import cache_pipeline_data, invalidate_pipeline_cache, calcu
 # Create the blueprint
 pipeline_bp = Blueprint('pipeline', __name__, url_prefix='/expenses')
 
+# Feature flags for temporarily disabled features
+FEATURES_DISABLED = {
+    'EXPORT': True,
+    'BATCH_SUBMIT': True
+}
+
 @pipeline_bp.route('/api/expense-image/<int:expense_id>', methods=['GET'])
 @ajax_login_required
 def get_expense_image(expense_id):
@@ -757,7 +763,14 @@ def validate_status_transition(current_status, new_status, user_id, org_id):
 def batch_submit_expenses():
     """
     Handle batch submission of expenses.
+    
+    NOTE: TEMPORARILY DISABLED - This feature is currently disabled and will be available in a future release.
     """
+    # FEATURE DISABLED: Temporarily disable batch submit feature
+    flash('The batch submit feature will be available in a future update.', 'info')
+    return redirect(url_for('pipeline.expense_pipeline', org_id=request.args.get('org_id')))
+    
+    # Code below is preserved for future implementation
     if request.method == 'GET':
         # Display the batch submission form
         org_id = request.args.get('org_id')
