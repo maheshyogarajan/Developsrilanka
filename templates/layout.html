@@ -438,12 +438,7 @@
                                 <span>Classify</span>
                             </a>
                         </li>
-                        <li>
-                            <a href="{{ url_for('expense.expenses') }}" class="submenu-link {% if '/expenses' in request.path and not '/pipeline' in request.path and not '/reports' in request.path %}active{% endif %}">
-                                <i class="fas fa-clipboard-list submenu-icon"></i>
-                                <span>Expenses</span>
-                            </a>
-                        </li>
+                        <!-- Expenses menu item hidden as requested -->
                         <li>
                             <a href="{{ url_for('pipeline.expense_pipeline') }}" class="submenu-link {% if '/expenses/pipeline' in request.path %}active{% endif %}">
                                 <i class="fas fa-th-list submenu-icon"></i>
