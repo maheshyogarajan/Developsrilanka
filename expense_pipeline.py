@@ -610,8 +610,12 @@ def update_expense_status():
             return jsonify({'error': 'You do not have permission to update this expense'}), 403
         
         # Validate the status transition
+        logging.info(f"Validating transition from {expense.status} to {new_status} for user {current_user.id} (role: {OrganizationUser.query.filter_by(user_id=current_user.id, organization_id=org_id).first().role})")
         valid_transition = validate_status_transition(expense.status, new_status, current_user.id, org_id)
+        logging.info(f"Transition validation result: {valid_transition}")
         if not valid_transition['valid']:
+            # Log error details
+            logging.warning(f"Transition validation failed: {valid_transition['message']}")
             return jsonify({'error': valid_transition['message']}), 400
         
         # Update the expense status

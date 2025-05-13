@@ -929,12 +929,13 @@ function handleItemMove(itemId, itemType, fromColumn, toColumn) {
     console.log(`Moving ${itemType} ${itemId} from ${fromColumn} to ${toColumn}`);
     
     // Convert column IDs to expense statuses
+    // Using lowercase status values to match the backend enum (ExpenseStatus.value)
     const statusMap = {
         'pending_submission': null, // Special case for receipts
-        'submitted': 'SUBMITTED',
-        'approved': 'APPROVED',
-        'reimbursed': 'REIMBURSED',
-        'rejected': 'REJECTED'
+        'submitted': 'submitted',
+        'approved': 'approved',
+        'reimbursed': 'reimbursed',
+        'rejected': 'rejected'
     };
     
     // Handle receipt to expense conversion
