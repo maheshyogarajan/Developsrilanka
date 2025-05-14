@@ -3,7 +3,7 @@ Expense reporting and summarization module.
 Provides aggregated views of expenses and reimbursements with filtering capabilities.
 """
 
-from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, send_file, abort
+from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import func, extract, desc, and_, or_
 from sqlalchemy.orm import joinedload
@@ -11,8 +11,6 @@ from datetime import datetime, timedelta
 import calendar
 from dateutil.relativedelta import relativedelta
 import json
-import os
-import traceback
 
 from app import db
 from models import (
@@ -20,7 +18,6 @@ from models import (
     Organization, OrganizationUser, User, Client, UserRole
 )
 from decorators import role_required, admin_required
-from utils import get_receipt_image_url, check_organization_permission
 
 # Create the blueprint for expense reports with proper URL prefix
 expense_reports_bp = Blueprint('expense_reports', __name__, url_prefix='/reports')
@@ -1013,37 +1010,19 @@ def print_expense_report():
     with its receipt image, designed for printing reimbursement requests.
     """
     try:
-        # Get query parameters for filtering
+        # Get query parameters for filtering - same as in expense_summary
         start_date_str = request.args.get('start_date')
         end_date_str = request.args.get('end_date')
         organization_id = request.args.get('organization_id', type=int)
         client_id = request.args.get('client_id', type=int)
-        
-        # Get status as a list (it can have multiple values)
-        status_values = request.args.getlist('status')
-        # If no list is provided but there's a single status value, use that
-        if not status_values and request.args.get('status'):
-            status_values = [request.args.get('status')]
-        # Convert to lowercase for consistent comparison
-        status_values = [s.lower() for s in status_values if s]
-        
-        # Get category as a list (it can have multiple values)
-        category_values = request.args.getlist('category')
-        # If no list is provided but there's a single category value, use that
-        if not category_values and request.args.get('category'):
-            category_values = [request.args.get('category')]
-        # Convert to lowercase for consistent comparison
-        category_values = [c.lower() for c in category_values if c]
-        
+        status = request.args.get('status', '')
+        category = request.args.get('category', '')
         reimbursable_str = request.args.get('reimbursable')
         
         # Log received filter parameters for debugging
-        current_app.logger.info(f"Print report - Received raw filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
+        current_app.logger.info(f"Print report - Received filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
                                f"organization_id={organization_id}, client_id={client_id}, "
-                               f"status={request.args.getlist('status')}, category={request.args.getlist('category')}, reimbursable={reimbursable_str}")
-        
-        current_app.logger.info(f"Print report - Processed filter parameters: "
-                               f"status_values={status_values}, category_values={category_values}")
+                               f"status=[{status}], category=[{category}], reimbursable={reimbursable_str}")
         
         # Convert reimbursable string parameter to boolean if present
         reimbursable = None
@@ -1096,14 +1075,16 @@ def print_expense_report():
             filters.append(CompanyExpense.client_id == client_id)
         
         # Filter by status if specified
-        if status_values:
-            # Use IN clause for multiple values
-            filters.append(func.lower(CompanyExpense.status).in_(status_values))
+        if status:
+            # Normalize status to lowercase for case-insensitive comparison
+            status_lower = status.lower()
+            filters.append(func.lower(CompanyExpense.status) == status_lower)
         
         # Filter by receipt category if specified
-        if category_values:
-            # Use IN clause for multiple values
-            filters.append(func.lower(Receipt.expense_major_category).in_(category_values))
+        if category:
+            # Normalize category to lowercase for case-insensitive comparison
+            category_lower = category.lower()
+            filters.append(func.lower(Receipt.expense_major_category) == category_lower)
             
         # Filter by reimbursable status if specified
         if reimbursable is not None:
@@ -1139,11 +1120,8 @@ def print_expense_report():
             if client:
                 report_title += f" - {client}"
                 
-        if status_values:
-            if len(status_values) == 1:
-                report_title += f" - {status_values[0].title()} Expenses"
-            else:
-                report_title += f" - Filtered Expenses"
+        if status:
+            report_title += f" - {status.title()} Expenses"
             
         if reimbursable is True:
             report_title += " - Reimbursable Only"
@@ -1171,65 +1149,6 @@ def print_expense_report():
         return render_template('error.html', 
                                error_code=500, 
                                error_message="An error occurred while generating the print-friendly expense report.")
-
-@expense_reports_bp.route('/expense-receipt-image/<int:expense_id>')
-@login_required
-def get_expense_receipt_image(expense_id):
-    """
-    Securely serve receipt images for expense reports with proper authentication and authorization.
-    
-    This route provides a secure, authenticated way to access receipt images
-    while ensuring proper organization access permissions.
-    """
-    try:
-        # Input validation
-        if not expense_id or expense_id <= 0:
-            current_app.logger.warning(f"Invalid expense ID: {expense_id}")
-            return send_file('static/img/receipt-placeholder.svg')
-            
-        # Get the expense
-        expense = CompanyExpense.query.get_or_404(expense_id)
-        
-        # Security: Verify organization access permission
-        if not check_organization_permission(current_user.id, expense.organization_id, required_roles=None):
-            current_app.logger.warning(f"User {current_user.id} attempted to access image for expense {expense_id} in unauthorized organization {expense.organization_id}")
-            abort(403)
-        
-        # Get the receipt
-        if not expense.receipt_id:
-            current_app.logger.info(f"No receipt associated with expense {expense_id}")
-            return send_file('static/img/receipt-placeholder.svg')
-            
-        receipt = Receipt.query.get_or_404(expense.receipt_id)
-        
-        # Security: Ensure receipt belongs to the same organization if possible
-        if hasattr(receipt, 'organization_id') and receipt.organization_id != expense.organization_id:
-            current_app.logger.warning(f"Receipt organization mismatch: receipt {receipt.id} belongs to org {receipt.organization_id}, expense belongs to org {expense.organization_id}")
-            return send_file('static/img/receipt-placeholder.svg')
-        
-        # Use the utility function to get the best image path/URL
-        # This already has fallback to placeholder if no images available
-        image_path_or_url = get_receipt_image_url(receipt)
-        
-        # If it's a URL (S3), redirect to it
-        if image_path_or_url.startswith('http'):
-            return redirect(image_path_or_url)
-        
-        # If it's a static path, serve the file
-        if image_path_or_url.startswith('/static/'):
-            import os
-            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), image_path_or_url.lstrip('/'))
-            if os.path.exists(file_path):
-                return send_file(file_path)
-        
-        # Fallback to placeholder
-        return send_file('static/img/receipt-placeholder.svg')
-        
-    except Exception as e:
-        current_app.logger.error(f"Error serving receipt image for expense {expense_id}: {str(e)}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
-        return send_file('static/img/receipt-placeholder.svg')
 
 def register_routes(app):
     """Register expense report routes with the app."""

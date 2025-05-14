@@ -482,9 +482,13 @@
       {% endif %}
       
       <!-- Receipt Image -->
-      {% if expense.receipt %}
+      {% if expense.receipt and expense.receipt.s3_key %}
       <div class="receipt-section">
-        <img src="{{ url_for('expense_reports.get_expense_receipt_image', expense_id=expense.id) }}" alt="Receipt Image" class="receipt-image">
+        <img src="{{ expense.receipt.s3_direct_url if expense.receipt.s3_direct_url else url_for('get_s3_image', s3_key=expense.receipt.s3_key) }}" alt="Receipt Image" class="receipt-image">
+      </div>
+      {% elif expense.receipt and expense.receipt.image_path %}
+      <div class="receipt-section">
+        <img src="{{ url_for('static', filename='uploads/' + expense.receipt.image_path) }}" alt="Receipt Image" class="receipt-image">
       </div>
       {% endif %}
     </div>
