@@ -1150,6 +1150,65 @@ def print_expense_report():
                                error_code=500, 
                                error_message="An error occurred while generating the print-friendly expense report.")
 
+@expense_reports_bp.route('/expense-receipt-image/<int:expense_id>')
+@login_required
+def get_expense_receipt_image(expense_id):
+    """
+    Securely serve receipt images for expense reports with proper authentication and authorization.
+    
+    This route provides a secure, authenticated way to access receipt images
+    while ensuring proper organization access permissions.
+    """
+    try:
+        # Input validation
+        if not expense_id or expense_id <= 0:
+            current_app.logger.warning(f"Invalid expense ID: {expense_id}")
+            return send_file('static/img/receipt-placeholder.svg')
+            
+        # Get the expense
+        expense = CompanyExpense.query.get_or_404(expense_id)
+        
+        # Security: Verify organization access permission
+        if not check_organization_permission(current_user.id, expense.organization_id, required_roles=None):
+            current_app.logger.warning(f"User {current_user.id} attempted to access image for expense {expense_id} in unauthorized organization {expense.organization_id}")
+            abort(403)
+        
+        # Get the receipt
+        if not expense.receipt_id:
+            current_app.logger.info(f"No receipt associated with expense {expense_id}")
+            return send_file('static/img/receipt-placeholder.svg')
+            
+        receipt = Receipt.query.get_or_404(expense.receipt_id)
+        
+        # Security: Ensure receipt belongs to the same organization if possible
+        if hasattr(receipt, 'organization_id') and receipt.organization_id != expense.organization_id:
+            current_app.logger.warning(f"Receipt organization mismatch: receipt {receipt.id} belongs to org {receipt.organization_id}, expense belongs to org {expense.organization_id}")
+            return send_file('static/img/receipt-placeholder.svg')
+        
+        # Use the utility function to get the best image path/URL
+        # This already has fallback to placeholder if no images available
+        image_path_or_url = get_receipt_image_url(receipt)
+        
+        # If it's a URL (S3), redirect to it
+        if image_path_or_url.startswith('http'):
+            return redirect(image_path_or_url)
+        
+        # If it's a static path, serve the file
+        if image_path_or_url.startswith('/static/'):
+            import os
+            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), image_path_or_url.lstrip('/'))
+            if os.path.exists(file_path):
+                return send_file(file_path)
+        
+        # Fallback to placeholder
+        return send_file('static/img/receipt-placeholder.svg')
+        
+    except Exception as e:
+        current_app.logger.error(f"Error serving receipt image for expense {expense_id}: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return send_file('static/img/receipt-placeholder.svg')
+
 def register_routes(app):
     """Register expense report routes with the app."""
     app.register_blueprint(expense_reports_bp)
