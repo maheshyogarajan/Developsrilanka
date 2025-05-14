@@ -1111,17 +1111,32 @@ def print_expense_report():
         # Pre-generate image URLs to avoid property access in template
         from s3_storage import generate_presigned_url
         receipt_image_urls = {}
+        
+        # Log detailed information for debugging
+        current_app.logger.info(f"Generating pre-signed URLs for {len(expenses)} expenses")
+        
         for expense in expenses:
             if expense.receipt and expense.receipt.s3_key:
+                current_app.logger.info(f"Processing expense {expense.id} with receipt {expense.receipt.id}, s3_key: {expense.receipt.s3_key}")
                 try:
                     # Generate a longer-lived URL for print reports (2 hours)
                     url = generate_presigned_url(expense.receipt.s3_key, expiration=7200)
                     if url:
                         receipt_image_urls[expense.id] = url
+                        current_app.logger.info(f"Generated URL for expense {expense.id}, receipt {expense.receipt.id}")
                     else:
                         current_app.logger.warning(f"No URL generated for receipt {expense.receipt.id} with s3_key: {expense.receipt.s3_key}")
                 except Exception as e:
                     current_app.logger.error(f"Error generating URL for receipt {expense.receipt.id}: {str(e)}")
+                    import traceback
+                    current_app.logger.error(traceback.format_exc())
+            else:
+                if not expense.receipt:
+                    current_app.logger.warning(f"Expense {expense.id} has no receipt")
+                elif not expense.receipt.s3_key:
+                    current_app.logger.warning(f"Receipt {expense.receipt.id} for expense {expense.id} has no s3_key")
+                    
+        current_app.logger.info(f"Generated {len(receipt_image_urls)} image URLs for {len(expenses)} expenses")
         
         # Set the report title based on filters
         report_title = "Expense Report"

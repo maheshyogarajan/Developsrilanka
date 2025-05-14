@@ -484,7 +484,13 @@
       <!-- Receipt Image -->
       {% if expense.receipt and expense.receipt.s3_key %}
       <div class="receipt-section">
-        <img src="{{ expense.receipt.s3_direct_url if expense.receipt.s3_direct_url else url_for('pipeline.get_expense_image', expense_id=expense.id) }}" alt="Receipt Image" class="receipt-image">
+        {% if expense.id in receipt_image_urls %}
+          <img src="{{ receipt_image_urls[expense.id] }}" alt="Receipt Image" class="receipt-image">
+        {% else %}
+          <!-- Fallback when pre-generated URL is not available -->
+          <img src="{{ url_for('static', filename='img/receipt-placeholder.svg') }}" alt="Receipt Image (Loading Failed)" class="receipt-image">
+          <div style="text-align: center; font-size: 12px; color: #666; margin-top: 5px;">Image could not be loaded</div>
+        {% endif %}
       </div>
       {% elif expense.receipt and expense.receipt.image_path %}
       <div class="receipt-section">
