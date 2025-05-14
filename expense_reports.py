@@ -1108,6 +1108,21 @@ def print_expense_report():
         reimbursable_amount = sum(expense.receipt.total_amount for expense in expenses 
                               if expense.receipt and expense.is_reimbursable)
         
+        # Pre-generate image URLs to avoid property access in template
+        from s3_storage import generate_presigned_url
+        receipt_image_urls = {}
+        for expense in expenses:
+            if expense.receipt and expense.receipt.s3_key:
+                try:
+                    # Generate a longer-lived URL for print reports (2 hours)
+                    url = generate_presigned_url(expense.receipt.s3_key, expiration=7200)
+                    if url:
+                        receipt_image_urls[expense.id] = url
+                    else:
+                        current_app.logger.warning(f"No URL generated for receipt {expense.receipt.id} with s3_key: {expense.receipt.s3_key}")
+                except Exception as e:
+                    current_app.logger.error(f"Error generating URL for receipt {expense.receipt.id}: {str(e)}")
+        
         # Set the report title based on filters
         report_title = "Expense Report"
         if organization_id:
@@ -1138,7 +1153,8 @@ def print_expense_report():
             report_title=report_title,
             start_date=start_date.strftime('%Y-%m-%d'),
             end_date=end_date.strftime('%Y-%m-%d'),
-            user=current_user
+            user=current_user,
+            receipt_image_urls=receipt_image_urls
         )
     except Exception as e:
         # Log the error and return a friendly error page
