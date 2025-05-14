@@ -234,6 +234,19 @@
 
 /* Print-specific styles */
 @media print {
+  /* Hide navigation elements */
+  .sidebar, .navbar, .top-navbar, .mobile-nav, .footer, .no-print, 
+  #navbar, .nav, .navigation, .breadcrumb, .dropdown-menu, 
+  header, nav, .admin-menu, .user-menu, #topbar, .mobile-header {
+    display: none !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: portrait;
+    margin: 0.5cm;
+  }
+  
   body {
     background-color: white !important;
     margin: 0;
@@ -250,17 +263,71 @@
     display: none !important;
   }
   
+  /* One expense per page */
   .expense {
-    page-break-inside: avoid;
+    page-break-before: always;
+    page-break-after: always;
+    break-before: page;
+    break-after: page;
     border: 1px solid #ccc;
   }
   
-  .receipt-image {
-    max-height: 180px;
+  /* First expense should not have page break before */
+  .expense:first-of-type {
+    page-break-before: auto;
+    break-before: auto;
   }
   
+  /* Last expense should not have page break after */
+  .expense:last-of-type {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  
+  /* Hide separator lines - not needed with page breaks */
   .separator {
-    background-color: #ddd;
+    display: none;
+  }
+  
+  /* Make receipt images larger for better visibility */
+  .receipt-image {
+    max-height: 400px !important;
+    max-width: 100%;
+  }
+  
+  /* Adjust logo size */
+  .navbar-brand img, .organization-logo {
+    max-height: 50px !important;
+    width: auto !important;
+  }
+  
+  /* Add site URL to header */
+  .report-meta:after {
+    content: "https://developsrilanka.com";
+    display: block;
+    margin-top: 5px;
+    font-size: 11px;
+    color: #666;
+  }
+  
+  /* Ensure all content has proper margins */
+  .content, .container, .content-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Ensure proper color printing */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Hide buttons */
+  button, .btn, .button, input[type="button"] {
+    display: none !important;
   }
 }
 </style>
