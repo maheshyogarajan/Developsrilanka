@@ -165,7 +165,7 @@
 .receipt-image {
   display: block;
   max-width: 100%;
-  max-height: 200px;
+  max-height: 300px; /* Increased from 200px for better visibility */
   margin: 0 auto;
   border: 1px solid #ddd;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -349,7 +349,7 @@
   <div class="report-header">
     <h1 class="report-title">{{ report_title }}</h1>
     <div class="report-meta">
-      Generated on {{ now().strftime('%d %B %Y, %H:%M') }}<br>
+      Generated on {{ start_date }} - {{ end_date }}<br>
       By {{ user.name }}
     </div>
   </div>
@@ -389,6 +389,11 @@
   <!-- Expense entries -->
   {% for expense in expenses %}
   <div class="expense">
+    <!-- Mini header for context on each page when printed -->
+    <div class="expense-mini-header" style="font-size: 10px; color: #666; text-align: right; margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 3px;">
+      {{ report_title }} | Page {{ loop.index }} of {{ expenses|length }} | {{ user.organizations[0].name if user.organizations else 'Personal Finances' }}
+    </div>
+    
     <div class="expense-header">
       <div>{{ expense.receipt.vendor_name or 'Unknown Vendor' if expense.receipt else 'Expense #' ~ expense.id }}</div>
       <div>{{ "%.2f"|format(expense.receipt.total_amount) if expense.receipt and expense.receipt.total_amount else '0.00' }}</div>
@@ -479,7 +484,11 @@
       <!-- Receipt Image -->
       {% if expense.receipt and expense.receipt.s3_key %}
       <div class="receipt-section">
-        <img src="{{ expense.receipt.s3_direct_url }}" alt="Receipt Image" class="receipt-image">
+        <img src="{{ expense.receipt.s3_direct_url if expense.receipt.s3_direct_url else url_for('get_s3_image', s3_key=expense.receipt.s3_key) }}" alt="Receipt Image" class="receipt-image">
+      </div>
+      {% elif expense.receipt and expense.receipt.image_path %}
+      <div class="receipt-section">
+        <img src="{{ url_for('static', filename='uploads/' + expense.receipt.image_path) }}" alt="Receipt Image" class="receipt-image">
       </div>
       {% endif %}
     </div>
