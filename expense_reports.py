@@ -3,7 +3,7 @@ Expense reporting and summarization module.
 Provides aggregated views of expenses and reimbursements with filtering capabilities.
 """
 
-from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, send_file, abort
 from flask_login import login_required, current_user
 from sqlalchemy import func, extract, desc, and_, or_
 from sqlalchemy.orm import joinedload
@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 import calendar
 from dateutil.relativedelta import relativedelta
 import json
+import os
+import traceback
 
 from app import db
 from models import (
@@ -18,6 +20,7 @@ from models import (
     Organization, OrganizationUser, User, Client, UserRole
 )
 from decorators import role_required, admin_required
+from utils import get_receipt_image_url, check_organization_permission
 
 # Create the blueprint for expense reports with proper URL prefix
 expense_reports_bp = Blueprint('expense_reports', __name__, url_prefix='/reports')
@@ -1010,19 +1013,37 @@ def print_expense_report():
     with its receipt image, designed for printing reimbursement requests.
     """
     try:
-        # Get query parameters for filtering - same as in expense_summary
+        # Get query parameters for filtering
         start_date_str = request.args.get('start_date')
         end_date_str = request.args.get('end_date')
         organization_id = request.args.get('organization_id', type=int)
         client_id = request.args.get('client_id', type=int)
-        status = request.args.get('status', '')
-        category = request.args.get('category', '')
+        
+        # Get status as a list (it can have multiple values)
+        status_values = request.args.getlist('status')
+        # If no list is provided but there's a single status value, use that
+        if not status_values and request.args.get('status'):
+            status_values = [request.args.get('status')]
+        # Convert to lowercase for consistent comparison
+        status_values = [s.lower() for s in status_values if s]
+        
+        # Get category as a list (it can have multiple values)
+        category_values = request.args.getlist('category')
+        # If no list is provided but there's a single category value, use that
+        if not category_values and request.args.get('category'):
+            category_values = [request.args.get('category')]
+        # Convert to lowercase for consistent comparison
+        category_values = [c.lower() for c in category_values if c]
+        
         reimbursable_str = request.args.get('reimbursable')
         
         # Log received filter parameters for debugging
-        current_app.logger.info(f"Print report - Received filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
+        current_app.logger.info(f"Print report - Received raw filter parameters: start_date={start_date_str}, end_date={end_date_str}, " 
                                f"organization_id={organization_id}, client_id={client_id}, "
-                               f"status=[{status}], category=[{category}], reimbursable={reimbursable_str}")
+                               f"status={request.args.getlist('status')}, category={request.args.getlist('category')}, reimbursable={reimbursable_str}")
+        
+        current_app.logger.info(f"Print report - Processed filter parameters: "
+                               f"status_values={status_values}, category_values={category_values}")
         
         # Convert reimbursable string parameter to boolean if present
         reimbursable = None
@@ -1075,16 +1096,14 @@ def print_expense_report():
             filters.append(CompanyExpense.client_id == client_id)
         
         # Filter by status if specified
-        if status:
-            # Normalize status to lowercase for case-insensitive comparison
-            status_lower = status.lower()
-            filters.append(func.lower(CompanyExpense.status) == status_lower)
+        if status_values:
+            # Use IN clause for multiple values
+            filters.append(func.lower(CompanyExpense.status).in_(status_values))
         
         # Filter by receipt category if specified
-        if category:
-            # Normalize category to lowercase for case-insensitive comparison
-            category_lower = category.lower()
-            filters.append(func.lower(Receipt.expense_major_category) == category_lower)
+        if category_values:
+            # Use IN clause for multiple values
+            filters.append(func.lower(Receipt.expense_major_category).in_(category_values))
             
         # Filter by reimbursable status if specified
         if reimbursable is not None:
@@ -1120,8 +1139,11 @@ def print_expense_report():
             if client:
                 report_title += f" - {client}"
                 
-        if status:
-            report_title += f" - {status.title()} Expenses"
+        if status_values:
+            if len(status_values) == 1:
+                report_title += f" - {status_values[0].title()} Expenses"
+            else:
+                report_title += f" - Filtered Expenses"
             
         if reimbursable is True:
             report_title += " - Reimbursable Only"
