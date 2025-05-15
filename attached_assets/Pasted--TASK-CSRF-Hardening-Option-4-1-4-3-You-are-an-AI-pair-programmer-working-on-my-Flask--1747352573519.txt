@@ -1,0 +1,68 @@
+### 📌 TASK: CSRF Hardening (Option 4.1 + 4.3)
+
+You are an AI pair-programmer working on my Flask Replit project.  
+Your goal is to **study the entire codebase first**, then propose and implement the minimum set of changes to:
+
+1. **Option 4.1 – Config-only fix**
+   • Confirm no route registered with methods=['GET'] writes to the DB, session, or file system.  
+   • Where such behaviour exists, refactor the route to POST (or DELETE/PUT as semantically correct) and update any template/JS call sites.  
+   • Add/confirm the following in `app.py` or the central config module:
+
+   ```python
+   app.config.update(
+       WTF_CSRF_ENABLED=True,
+       WTF_CSRF_METHODS={'POST', 'PUT', 'PATCH', 'DELETE'},
+       SECRET_KEY=os.getenv("SECRET_KEY"),
+   )
+   csrf = CSRFProtect(app)
+Option 4.3 – Global JavaScript shim
+• Create/locate static/js/csrf-shim.js that:
+– Listens for clicks on <a> tags whose href matches /delete, /cancel, /remove, /logout (extendable list).
+– Prevents the default action, then constructs and submits a hidden <form method="POST"> to the same URL, injecting the current CSRF token read from a <meta name="csrf-token" content="{{ csrf_token() }}"> in the base template.
+• Ensure the base Jinja template adds the <meta> tag and loads the script once.
+
+Safety gates
+• Any route now limited to POST must return 405 Method Not Allowed for a direct GET.
+• Add/confirm SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, and SESSION_COOKIE_SAMESITE='Lax' settings.
+
+Exemptions
+• List existing webhook or API endpoints that must stay token-free; apply @csrf.exempt with a comment linking to the integration doc.
+
+HOW TO PROCEED
+A. Codebase discovery
+
+Run ripgrep -nR "app\\.route" and ripgrep -nR "methods=.*GET" to map all routes.
+
+Produce a table summarising: blueprint/module, endpoint, HTTP methods, and whether it mutates state.
+
+B. Design proposal
+
+Present a markdown report titled “CSRF Hardening Plan” containing:
+• Routes that require verb change.
+• Templates/JS files that need updates.
+• Shim insertion point (template path).
+• Any planned exemptions.
+
+Await my approval before modifying code.
+
+C. Implementation (after approval)
+
+Apply config changes.
+
+Refactor identified routes + templates.
+
+Add the JS shim and <meta> tag.
+
+Run unit tests (or create basic tests) to assert:
+• Protected routes fail without a token.
+• GET requests to those routes return 405.
+
+Commit with message “feat(security): CSRF hardening via config + global shim”.
+
+D. Post-implementation checklist
+
+Provide instructions to regenerate CSRF tokens if SECRET_KEY rotates.
+
+Document how to add new destructive links so they inherit the shim.
+
+Do not start code edits until you have delivered the discovery table and I sign off.
