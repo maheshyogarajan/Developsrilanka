@@ -1,8 +1,10 @@
 import unittest
-from app import app, db, CSRF_HARDENING_ENABLED
-from flask import session, url_for
-import json
+import pytest
 import os
+import json
+from app import app, db
+from flask import session, url_for
+from unittest.mock import patch
 
 class CSRFTest(unittest.TestCase):
     """Test suite for CSRF protection verification"""

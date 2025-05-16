@@ -18,6 +18,10 @@ from authlib.integrations.flask_client import OAuth
 import requests
 from flask_mail import Mail, Message
 from flask_wtf.csrf import CSRFProtect
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import Celery task queue components
 from celery import Celery
@@ -44,7 +48,6 @@ from feature_flags import is_feature_enabled
 
 # CSRF Hardening Configuration
 CSRF_HARDENING_ENABLED = is_feature_enabled("CSRF_HARDENING_ENABLED")
-print(f"DEBUG: CSRF_HARDENING_ENABLED = {CSRF_HARDENING_ENABLED}")
 logging.info(f"CSRF HARDENING {'ACTIVE' if CSRF_HARDENING_ENABLED else 'DISABLED'}")
 
 if CSRF_HARDENING_ENABLED:

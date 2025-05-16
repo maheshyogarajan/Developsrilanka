@@ -1,0 +1,70 @@
+### 📌 FINALISE & PACKAGE: CSRF hardening roll-out
+You’re on branch `csrf-hardening` (no shell-git available).  
+Finish the job, generate an auditable patch, and prove it passes in both modes.
+
+────────────────────────────────────────────────────────
+STEP 1 — Code clean-up
+────────────────────────────────────────────────────────
+1. **Environment loading**
+   ▪ Replace the ad-hoc `check_env.py` and forced flag override with
+     ```python
+     from dotenv import load_dotenv;  load_dotenv()
+     ```
+     at the top of *app.py* so `.env` and `.flaskenv` are auto-loaded
+     (python-dotenv does this once it’s imported).  
+     Reference: python-dotenv auto-load behaviour :contentReference[oaicite:0]{index=0} :contentReference[oaicite:1]{index=1}
+2. **Feature-flag helper**
+   ▪ Delete the temporary `DEBUG: FORCE DISABLING …` branch in
+     *feature_flags.py*; rely solely on `os.getenv`.  
+   ▪ Unit-test via `pytest-env` plugin so tests can flip the flag without
+     editing files (see plugin example). :contentReference[oaicite:2]{index=2}
+3. **Logging + settings**
+   ▪ Remove stray `print()` statements; keep a single `logging.info`
+     showing flag state.  
+   ▪ Ensure secure cookie trio only loads when the flag is **True**  
+     (Flask config refs :contentReference[oaicite:3]{index=3} :contentReference[oaicite:4]{index=4}).
+4. **Route tidy-up**
+   ▪ Verify all four audited routes now accept only the safe verbs
+     (Flask-WTF CSRF docs :contentReference[oaicite:5]{index=5}).  
+   ▪ Remove any “force disable” clauses left in templates or JS.
+
+────────────────────────────────────────────────────────
+STEP 2 — Test matrix
+────────────────────────────────────────────────────────
+1. In *tests/test_csrf.py* parametrize two runs:
+   * `CSRF_HARDENING_ENABLED=True` → expect 405 for GET /logout
+   * `CSRF_HARDENING_ENABLED=False` → expect 302 redirect  
+   (See StackOverflow pattern for toggling CSRF in tests :contentReference[oaicite:6]{index=6})
+2. Add an assertion that SameSite/HttpOnly/Secure are set on the
+   `session` cookie when the flag is on (OWASP cheat sheet :contentReference[oaicite:7]{index=7}).
+3. Run `pytest -q` and post the **summary line**.
+
+────────────────────────────────────────────────────────
+STEP 3 — Portable diff bundle
+────────────────────────────────────────────────────────
+1. Use `diff -uNr original/ current/ > csrf_hardening.patch`
+   (no git needed — Reddit tip :contentReference[oaicite:8]{index=8}).  
+   *original* is a copy of the repo before your edits
+   (`cp -a . ../original` before changes).
+2. Produce a markdown **CSRF_HARDENING_REPORT.md** containing:
+   ▪ Table of modified files & line counts (use `wc -l`).  
+   ▪ High-level change-log (already started in CSRF_CHANGELOG.md).  
+   ▪ Test results for both flag states.  
+   ▪ Exact cURL transcript for:
+     * `GET /logout`              (flag on → 405)  
+     * `POST /logout`             (flag on → 400 CSRF fail)  
+     * `GET  /logout`             (flag off → 302)  
+     * `GET  /invitation/<demo>`  (flag on → 200 confirmation page)
+
+────────────────────────────────────────────────────────
+STEP 4 — Deliverables & hand-off
+────────────────────────────────────────────────────────
+1. Reply with:
+   * ✔  “**BUILD SUCCESS**” or “**TESTS FAILED**”
+   * Link-style paths to:
+     * `csrf_hardening.patch`
+     * `CSRF_HARDENING_REPORT.md`
+   * Next steps if failures occur.
+2. Do **not** start any other refactor; await human review.
+
+Begin with STEP 1 now.
