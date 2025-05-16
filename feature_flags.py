@@ -46,11 +46,15 @@ def get_feature_flag(flag_name: str) -> Any:
     """
     # Check if the flag is set as an environment variable first
     env_flag = os.environ.get(flag_name)
+    print(f"DEBUG: Feature flag {flag_name} from environment: {env_flag}")
+    
     if env_flag is not None:
         # Convert string environment variables to appropriate types
         if env_flag.lower() in ["true", "1", "yes"]:
+            print(f"DEBUG: Feature flag {flag_name} is enabled")
             return True
         elif env_flag.lower() in ["false", "0", "no"]:
+            print(f"DEBUG: Feature flag {flag_name} is disabled")
             return False
         # Try to convert to int if it looks like a number
         elif env_flag.isdigit():
@@ -58,7 +62,9 @@ def get_feature_flag(flag_name: str) -> Any:
         return env_flag
     
     # Fall back to default values
-    return DEFAULT_FLAGS.get(flag_name, False)
+    default_value = DEFAULT_FLAGS.get(flag_name, False)
+    print(f"DEBUG: Feature flag {flag_name} using default value: {default_value}")
+    return default_value
 
 def is_feature_enabled(flag_name: str) -> bool:
     """

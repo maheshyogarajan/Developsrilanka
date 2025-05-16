@@ -44,7 +44,8 @@ from feature_flags import is_feature_enabled
 
 # CSRF Hardening Configuration
 CSRF_HARDENING_ENABLED = is_feature_enabled("CSRF_HARDENING_ENABLED")
-logging.info("CSRF HARDENING ACTIVE" if CSRF_HARDENING_ENABLED else "CSRF HARDENING DISABLED")
+print(f"DEBUG: CSRF_HARDENING_ENABLED = {CSRF_HARDENING_ENABLED}")
+logging.info(f"CSRF HARDENING {'ACTIVE' if CSRF_HARDENING_ENABLED else 'DISABLED'}")
 
 if CSRF_HARDENING_ENABLED:
     app.config.update(
