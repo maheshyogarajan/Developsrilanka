@@ -39,9 +39,12 @@ app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
+# Import feature flags module
+from feature_flags import is_feature_enabled
+
 # CSRF Hardening Configuration
-CSRF_HARDENING_ENABLED = os.getenv("CSRF_HARDENING_ENABLED", "true").lower() == "true"
-print("CSRF HARDENING ACTIVE" if CSRF_HARDENING_ENABLED else "CSRF HARDENING DISABLED")
+CSRF_HARDENING_ENABLED = is_feature_enabled("CSRF_HARDENING_ENABLED")
+logging.info("CSRF HARDENING ACTIVE" if CSRF_HARDENING_ENABLED else "CSRF HARDENING DISABLED")
 
 if CSRF_HARDENING_ENABLED:
     app.config.update(
