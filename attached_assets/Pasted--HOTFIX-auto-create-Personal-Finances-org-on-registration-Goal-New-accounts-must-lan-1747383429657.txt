@@ -1,0 +1,56 @@
+### 🚑  HOTFIX: auto-create “Personal Finances” org on registration
+
+Goal  
+New accounts must land with at least one Organisation so /scan → /classify never hits a null FK.  Implement an automatic “Personal Finances” org creation inside the user-registration flow and remove the crash pathway.
+
+Steps
+
+1. 🔍  **Reverse-engineer existing quick-setup buttons**  
+    • Open `templates/getting_started.html` (and any JS linked)  
+    • Identify the view/route each button calls – likely `@onboarding_bp.post('/quick-personal')` or similar.  
+    • Note which Organisation columns are set (`name`, `owner_id`, flags, default currency, etc.).  
+    • Document the full parameter list and any side-effects (e.g. adding default categories).
+
+2. 🪝  **Insert creation hook**  
+    • In `models/user.py` (or wherever User is declared) add a listener:  
+
+    ```python
+    from sqlalchemy import event
+    from app.models import Organisation
+
+    @event.listens_for(User, "after_insert")
+    def seed_personal_finances(mapper, connection, target):
+        org = Organisation(
+            name="Personal Finances",
+            owner_id=target.id,
+            is_personal=True,
+            currency="LKR",   # match the quick-setup defaults
+        )
+        db.session.add(org)
+        db.session.flush()  # so FK is immediately available
+    ```
+    • If the app already uses Flask-Security, prefer the `user_registered` signal instead.
+
+3. ⛔  **Block Scan until org exists (defence-in-depth)**  
+    • In the `/scan` route add a guard:
+
+    ```python
+    if not current_user.organisations.first():
+        return redirect(url_for('onboarding.getting_started'))
+    ```
+
+4. 🧪  **Test matrix**  
+    • **Unit** – register via test-client, assert one org with correct flag.  
+    • **Integration** – curl `/scan` as fresh user; expect 302 to `/getting-started` if the hook is disabled.  
+    • **Regression** – ensure existing users with multiple orgs still pass.
+
+5. 🗃️  **Migration**  
+    • Write a one-off script that back-fills “Personal Finances” for accounts where `users.id NOT IN (SELECT owner_id FROM organisation)`.
+
+Deliverables  
+▪ `models/user.py` listener (or signal receiver)  
+▪ Updated `/scan` guard clause  
+▪ `tests/test_onboarding.py` with new assertions  
+▪ `scripts/backfill_personal_finances.py` plus docstring
+
+Wait for my 👍 before touching prod database.
