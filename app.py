@@ -249,7 +249,7 @@ def preview():
 def index():
     """Render the receipt scanning page of the application."""
     # Check if user has any organizations
-    if hasattr(current_user, 'organizations') and not current_user.organizations:
+    if not current_user.organizations:
         # Redirect to getting started if no organizations exist
         flash("Please set up an organization before scanning receipts.", "warning")
         return redirect(url_for('getting_started.wizard'))
