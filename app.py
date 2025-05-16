@@ -39,6 +39,19 @@ app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
+# CSRF Hardening Configuration
+CSRF_HARDENING_ENABLED = os.getenv("CSRF_HARDENING_ENABLED", "true").lower() == "true"
+print("CSRF HARDENING ACTIVE" if CSRF_HARDENING_ENABLED else "CSRF HARDENING DISABLED")
+
+if CSRF_HARDENING_ENABLED:
+    app.config.update(
+        WTF_CSRF_ENABLED=True,
+        WTF_CSRF_METHODS={'POST', 'PUT', 'PATCH', 'DELETE'},
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax'
+    )
+
 # Initialize CSRF Protection
 csrf = CSRFProtect(app)
 
@@ -2369,7 +2382,7 @@ def facebook_callback():
         flash('Failed to log in with Facebook.', 'danger')
         return redirect(url_for('login'))
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     """Log the user out."""
