@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+
+{% block title %}Confirm Friend Invitation{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Friend Invitation</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">You've been invited to join as a friend</h5>
+                    
+                    <p class="card-text">
+                        You have been invited by <strong>{{ invitation.invited_by.name }}</strong> to connect as a friend in our application.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <strong>Note:</strong> By accepting this invitation, you will increase your trust level and enable sharing features.
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('accept_friend_invitation', token=token) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('home') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-success">Accept Invitation</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

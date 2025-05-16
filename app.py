@@ -2742,7 +2742,7 @@ def send_invitations():
     return redirect(url_for('invite_friends'))
 
 # Email sending function for invitations
-@app.route('/accept-invitation/<token>')
+@app.route('/accept-invitation/<token>', methods=['GET', 'POST'])
 def accept_friend_invitation(token):
     """Handle friend invitation acceptance via unique token."""
     try:
@@ -2766,21 +2766,27 @@ def accept_friend_invitation(token):
             flash("You have already accepted this invitation. Please log in to continue.", "info")
             return redirect(url_for('login'))
             
-        # If user is logged in, mark as accepted
-        if current_user.is_authenticated:
-            invitation.accepted = True
-            invitation.accepted_at = datetime.utcnow()
-            invitation.accepted_by_user_id = current_user.id
-            db.session.commit()
-            
-            # Access invited_by relationship instead of sender (which doesn't exist)
-            flash(f"You've successfully accepted the invitation from {invitation.invited_by.name}!", "success")
-            return redirect(url_for('profile'))
-        else:
-            # Store token in session for after registration/login
-            session['invitation_token'] = token
-            flash("Please sign up or log in to accept the invitation.", "info")
-            return redirect(url_for('register', invitation=token))
+        # If it's a GET request, show the confirmation page
+        if request.method == 'GET':
+            return render_template('confirm_friend_invitation.html', invitation=invitation, token=token)
+        
+        # If it's a POST request, process the acceptance
+        elif request.method == 'POST':
+            # If user is logged in, mark as accepted
+            if current_user.is_authenticated:
+                invitation.accepted = True
+                invitation.accepted_at = datetime.utcnow()
+                invitation.accepted_by_user_id = current_user.id
+                db.session.commit()
+                
+                # Access invited_by relationship instead of sender (which doesn't exist)
+                flash(f"You've successfully accepted the invitation from {invitation.invited_by.name}!", "success")
+                return redirect(url_for('profile'))
+            else:
+                # Store token in session for after registration/login
+                session['invitation_token'] = token
+                flash("Please sign up or log in to accept the invitation.", "info")
+                return redirect(url_for('register', invitation=token))
     
     except Exception as e:
         logging.error(f"Error processing invitation acceptance: {str(e)}")
