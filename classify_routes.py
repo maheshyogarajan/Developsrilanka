@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import text
 
@@ -184,12 +184,16 @@ def classify_receipt_submit(receipt_id):
         # Validate the receipt belongs to the user
         receipt = Receipt.query.filter_by(id=receipt_id, user_id=current_user.id).first()
         if not receipt:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Receipt not found or access denied'}), 403
             flash('Receipt not found or access denied', 'danger')
             return redirect(url_for('classify.classify_receipts'))
         
         # Get form data
         organization_id = request.form.get('organization_id')
         if not organization_id or not organization_id.isdigit():
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Invalid organization selected'}), 400
             flash('Invalid organization selected', 'danger')
             return redirect(url_for('classify.classify_receipts', page='next', receipt_id=receipt_id))
         
@@ -203,6 +207,8 @@ def classify_receipt_submit(receipt_id):
         """), {'user_id': current_user.id, 'org_id': organization_id}).first()
         
         if not user_org:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'You do not have access to the selected organization'}), 403
             flash('You do not have access to the selected organization', 'danger')
             return redirect(url_for('classify.classify_receipts', page='next', receipt_id=receipt_id))
         
@@ -211,6 +217,10 @@ def classify_receipt_submit(receipt_id):
         description = request.form.get('description', '').strip()
         is_reimbursable = request.form.get('is_reimbursable') == 'true'
         notes = request.form.get('notes', '').strip()
+        
+        # Get category data - new fields
+        expense_major_category = request.form.get('expense_major_category', '').strip()
+        expense_minor_category = request.form.get('expense_minor_category', '').strip()
         
         # Process tax deductible items
         tax_deductible_items = {}
@@ -226,6 +236,8 @@ def classify_receipt_submit(receipt_id):
             # Verify client belongs to organization
             client = Client.query.filter_by(id=client_id, organization_id=organization_id).first()
             if not client:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'error': 'Selected client not found or does not belong to the selected organization'}), 400
                 flash('Selected client not found or does not belong to the selected organization', 'danger')
                 return redirect(url_for('classify.classify_receipts', page='next', receipt_id=receipt_id))
         else:
@@ -233,6 +245,10 @@ def classify_receipt_submit(receipt_id):
         
         # Check if this receipt is already processed
         existing_expense = CompanyExpense.query.filter_by(receipt_id=receipt_id).first()
+        
+        # Update receipt categories
+        receipt.expense_major_category = expense_major_category
+        receipt.expense_minor_category = expense_minor_category
         
         if existing_expense:
             # Update existing expense
@@ -243,6 +259,12 @@ def classify_receipt_submit(receipt_id):
             existing_expense.notes = notes
             existing_expense.submitted_date = datetime.utcnow()
             
+            # Also update categories in company expense if these fields exist
+            if hasattr(existing_expense, 'expense_major_category'):
+                existing_expense.expense_major_category = expense_major_category
+            if hasattr(existing_expense, 'expense_minor_category'):
+                existing_expense.expense_minor_category = expense_minor_category
+            
             # Update tax deductible status for receipt items
             if tax_deductible_items:
                 receipt_items = ReceiptItem.query.filter_by(receipt_id=receipt_id).all()
@@ -251,7 +273,7 @@ def classify_receipt_submit(receipt_id):
                         item.tax_deductible = tax_deductible_items[item.id]
                 
             db.session.commit()
-            flash('Expense updated successfully', 'success')
+            message = 'Expense updated successfully'
         else:
             # Create new company expense
             company_expense = CompanyExpense(
@@ -266,6 +288,12 @@ def classify_receipt_submit(receipt_id):
                 submitted_date=datetime.utcnow()
             )
             
+            # Add category fields if they exist in the model
+            if hasattr(CompanyExpense, 'expense_major_category'):
+                company_expense.expense_major_category = expense_major_category
+            if hasattr(CompanyExpense, 'expense_minor_category'):
+                company_expense.expense_minor_category = expense_minor_category
+            
             db.session.add(company_expense)
             
             # Update tax deductible status for receipt items
@@ -276,25 +304,40 @@ def classify_receipt_submit(receipt_id):
                         item.tax_deductible = tax_deductible_items[item.id]
             
             db.session.commit()
-            flash('Receipt classified as an expense successfully', 'success')
+            message = 'Receipt classified as an expense successfully'
         
-        # Get next unclassified receipt if any
+        # Calculate remaining unclassified receipts for counter update
         unclassified_query = text("""
-            SELECT r.id
+            SELECT COUNT(r.id)
             FROM receipt r
             LEFT JOIN company_expense e ON r.id = e.receipt_id
             WHERE r.user_id = :user_id AND e.id IS NULL
-            ORDER BY r.date DESC
-            LIMIT 1
         """)
         
-        next_receipt = db.session.execute(unclassified_query, {'user_id': current_user.id}).first()
+        remaining_to_classify = db.session.execute(unclassified_query, {'user_id': current_user.id}).scalar() or 0
         
-        # Redirect to next receipt
-        return redirect(url_for('classify.classify_receipts', page='next', receipt_id=receipt_id))
+        # Get next receipt for redirect
+        next_url = url_for('classify.classify_receipts', page='next', receipt_id=receipt_id)
+        
+        # For AJAX requests, return JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': message,
+                'remaining_to_classify': remaining_to_classify,
+                'next_url': next_url
+            })
+        
+        # For regular form submissions, show flash message and redirect
+        flash(message, 'success')
+        return redirect(next_url)
     
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error classifying receipt: {str(e)}")
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': f'Error classifying receipt: {str(e)}'}), 500
+            
         flash(f'Error classifying receipt: {str(e)}', 'danger')
         return redirect(url_for('classify.classify_receipts'))

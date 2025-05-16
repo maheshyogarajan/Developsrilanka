@@ -16,7 +16,7 @@
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Receipt {{ receipt_position }} of {{ total_receipts }}</strong>
-                    <span class="ms-2">({{ remaining_to_classify }} left to classify)</span>
+                    <span class="ms-2" id="receipts-counter">({{ remaining_to_classify }} left to classify)</span>
                     {% if current_receipt.is_processed %}
                     <span class="badge bg-success ms-2">Processed</span>
                     {% else %}
@@ -95,6 +95,40 @@
                             </div>
                             
                             <div class="mb-3">
+                                <label for="expense_major_category" class="form-label">Expense Major Category <span class="text-danger">*</span></label>
+                                <select class="form-select" id="expense_major_category" name="expense_major_category" required>
+                                    <option value="">-- Select Major Category --</option>
+                                    <option value="Administrative Expenses" {% if current_receipt.expense_major_category == 'Administrative Expenses' %}selected{% endif %}>Administrative Expenses</option>
+                                    <option value="Cost of Goods Sold" {% if current_receipt.expense_major_category == 'Cost of Goods Sold' %}selected{% endif %}>Cost of Goods Sold</option>
+                                    <option value="Marketing Expenses" {% if current_receipt.expense_major_category == 'Marketing Expenses' %}selected{% endif %}>Marketing Expenses</option>
+                                    <option value="Operating Expenses" {% if current_receipt.expense_major_category == 'Operating Expenses' %}selected{% endif %}>Operating Expenses</option>
+                                    <option value="Travel and Entertainment" {% if current_receipt.expense_major_category == 'Travel and Entertainment' %}selected{% endif %}>Travel and Entertainment</option>
+                                    <option value="Other Expenses" {% if current_receipt.expense_major_category == 'Other Expenses' %}selected{% endif %}>Other Expenses</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Please select a major category.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="expense_minor_category" class="form-label">Expense Minor Category</label>
+                                <select class="form-select" id="expense_minor_category" name="expense_minor_category">
+                                    <option value="">-- Select Minor Category --</option>
+                                    <option value="Advertising" {% if current_receipt.expense_minor_category == 'Advertising' %}selected{% endif %}>Advertising</option>
+                                    <option value="Bank Fees" {% if current_receipt.expense_minor_category == 'Bank Fees' %}selected{% endif %}>Bank Fees</option>
+                                    <option value="Meals" {% if current_receipt.expense_minor_category == 'Meals' %}selected{% endif %}>Meals</option>
+                                    <option value="Office Supplies" {% if current_receipt.expense_minor_category == 'Office Supplies' %}selected{% endif %}>Office Supplies</option>
+                                    <option value="Professional Services" {% if current_receipt.expense_minor_category == 'Professional Services' %}selected{% endif %}>Professional Services</option>
+                                    <option value="Rent" {% if current_receipt.expense_minor_category == 'Rent' %}selected{% endif %}>Rent</option>
+                                    <option value="Software" {% if current_receipt.expense_minor_category == 'Software' %}selected{% endif %}>Software</option>
+                                    <option value="Subscription" {% if current_receipt.expense_minor_category == 'Subscription' %}selected{% endif %}>Subscription</option>
+                                    <option value="Travel and Transportation" {% if current_receipt.expense_minor_category == 'Travel and Transportation' %}selected{% endif %}>Travel and Transportation</option>
+                                    <option value="Utilities" {% if current_receipt.expense_minor_category == 'Utilities' %}selected{% endif %}>Utilities</option>
+                                    <option value="Other" {% if current_receipt.expense_minor_category == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
                                 <label for="notes" class="form-label">Notes</label>
                                 <textarea class="form-control" id="notes" name="notes" rows="3">{% if current_receipt.is_processed %}{{ current_receipt.notes }}{% endif %}</textarea>
                             </div>
@@ -109,7 +143,8 @@
                                     <p class="mb-2"><strong>Vendor:</strong> {{ current_receipt.vendor_name or 'Unknown' }}</p>
                                     <p class="mb-2"><strong>Date:</strong> {{ current_receipt.date.strftime('%Y-%m-%d') if current_receipt.date else 'Unknown' }}</p>
                                     <p class="mb-2"><strong>Total:</strong> {{ current_receipt.total_amount|currency }}</p>
-                                    <p class="mb-0"><strong>Category:</strong> {{ current_receipt.expense_major_category or 'Uncategorized' }}</p>
+                                    <p class="mb-0"><strong>Major Category:</strong> {{ current_receipt.expense_major_category or 'Uncategorized' }}</p>
+                                    <p class="mb-0"><strong>Minor Category:</strong> {{ current_receipt.expense_minor_category or 'Uncategorized' }}</p>
                                 </div>
                             </div>
                             
@@ -285,15 +320,113 @@ document.addEventListener('DOMContentLoaded', function() {
         organizationSelect.addEventListener('change', filterClients);
     }
     
-    // Form validation
+    // Enhanced form submission with AJAX
     const form = document.getElementById('classifyForm');
     if (form) {
         form.addEventListener('submit', function(event) {
+            // Standard validation
             if (!form.checkValidity()) {
                 event.preventDefault();
                 event.stopPropagation();
+                form.classList.add('was-validated');
+                return;
             }
-            form.classList.add('was-validated');
+            
+            // Prevent default form submission
+            event.preventDefault();
+            
+            // Show processing state
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+            
+            // Create FormData
+            const formData = new FormData(form);
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
+            // Submit via fetch with proper CSRF protection
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Show success message
+                if (data.message) {
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            ${data.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    // Safer element selection for alert insertion
+                    const alertContainer = document.querySelector('.card-body') || document.querySelector('main') || document.body;
+                    alertContainer.insertAdjacentHTML('afterbegin', alertHtml);
+                }
+                
+                // Update the counter
+                const counter = document.getElementById('receipts-counter');
+                if (counter && data.remaining_to_classify !== undefined) {
+                    // Highlight counter change with a brief animation
+                    counter.classList.add('text-success');
+                    counter.textContent = `(${data.remaining_to_classify} left to classify)`;
+                    
+                    setTimeout(() => {
+                        counter.classList.remove('text-success');
+                    }, 1500);
+                    
+                    // Show completion message if all receipts are classified
+                    if (data.remaining_to_classify === 0) {
+                        const completionHtml = `
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                All receipts have been classified! Great job!
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        `;
+                        const alertContainer = document.querySelector('.card-body') || document.querySelector('main') || document.body;
+                        alertContainer.insertAdjacentHTML('afterbegin', completionHtml);
+                    }
+                }
+                
+                // Load the next receipt
+                if (data.next_url) {
+                    window.location.href = data.next_url;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Show error message
+                const alertHtml = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        ${error.message || 'An error occurred while processing your request'}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                const alertContainer = document.querySelector('.card-body') || document.querySelector('main') || document.body;
+                alertContainer.insertAdjacentHTML('afterbegin', alertHtml);
+                
+                // Reset button
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+            });
         });
     }
 });
