@@ -1,7 +1,8 @@
 import unittest
-from app import app, db
+from app import app, db, CSRF_HARDENING_ENABLED
 from flask import session, url_for
 import json
+import os
 
 class CSRFTest(unittest.TestCase):
     """Test suite for CSRF protection verification"""
@@ -10,6 +11,8 @@ class CSRFTest(unittest.TestCase):
         app.config['TESTING'] = True
         app.config['WTF_CSRF_ENABLED'] = True  # Keep CSRF enabled for testing
         app.config['SERVER_NAME'] = 'localhost'
+        self.csrf_hardening_enabled = CSRF_HARDENING_ENABLED
+        print(f"CSRF Hardening is {'ENABLED' if self.csrf_hardening_enabled else 'DISABLED'} for tests")
         self.app = app.test_client()
         self.app_context = app.app_context()
         self.app_context.push()
@@ -34,17 +37,29 @@ class CSRFTest(unittest.TestCase):
     
     def test_state_changing_get_routes_blocked(self):
         """Test that state-changing GET routes now require POST with CSRF token"""
-        # Test logout route (should be POST now)
+        # Test logout route
         response = self.app.get('/logout')
-        self.assertNotEqual(response.status_code, 302)  # Should not redirect immediately
         
-        # Test friend invitation acceptance (should display confirmation page or redirect to login)
+        # With CSRF hardening enabled: Should not redirect immediately (405 Method Not Allowed)
+        # With CSRF hardening disabled: Should redirect to login or home (302 Found)
+        if self.csrf_hardening_enabled:
+            print("Testing with CSRF hardening ENABLED")
+            self.assertNotEqual(response.status_code, 302)  # Should not redirect immediately
+        else:
+            print("Testing with CSRF hardening DISABLED")
+            self.assertEqual(response.status_code, 302)  # Should redirect
+        
+        # Test friend invitation acceptance
         response = self.app.get('/accept-invitation/test-token')
-        self.assertIn(response.status_code, [200, 302])  # Should show confirmation page or redirect to login
+        # Should show confirmation page or redirect to login regardless of flag
+        self.assertIn(response.status_code, [200, 302])
         
-        # Test organization invitation cancellation (should require POST)
+        # Test organization invitation cancellation
         response = self.app.get('/organizations/1/cancel-invitation/1')
-        self.assertNotEqual(response.status_code, 302)  # Should not redirect immediately
+        # With CSRF hardening enabled: Should not redirect immediately
+        # With CSRF hardening disabled: May redirect
+        if self.csrf_hardening_enabled:
+            self.assertNotEqual(response.status_code, 302)  # Should not redirect immediately
     
     def test_api_routes_csrf_protection(self):
         """Test that API routes are protected against CSRF"""

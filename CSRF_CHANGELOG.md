@@ -7,7 +7,10 @@ This update implements comprehensive Cross-Site Request Forgery (CSRF) protectio
 
 ### Core Framework Changes
 - Added `CSRF_HARDENING_ENABLED` feature flag to control the enhanced CSRF protection
-- Implemented secure cookie settings:
+  - Set via environment variable or .env file
+  - Controls whether state-changing GET routes are disabled
+  - Allows toggling CSRF protection for compatibility testing
+- Implemented secure cookie settings (when CSRF hardening is enabled):
   - `SESSION_COOKIE_SECURE = True`: Ensures cookies are only sent over HTTPS
   - `SESSION_COOKIE_HTTPONLY = True`: Prevents JavaScript from accessing cookies
   - `SESSION_COOKIE_SAMESITE = 'Lax'`: Restricts cookie sending to same-site contexts
@@ -38,6 +41,10 @@ This update implements comprehensive Cross-Site Request Forgery (CSRF) protectio
   - Verifying that POST requests without CSRF tokens are rejected
   - Confirming that state-changing operations require proper tokens
   - Testing API routes for CSRF protection
+  - Added feature flag-aware test mechanisms to handle both enabled and disabled states
+- Implemented conditional assertions based on the CSRF hardening flag status:
+  - When enabled: GET state-changing routes should return 405 Method Not Allowed
+  - When disabled: GET state-changing routes maintain backward compatibility
 
 ## Security Benefits
 - Protection against CSRF attacks that could force users to perform unwanted actions
@@ -50,3 +57,11 @@ The changes follow the principle of requiring explicit user actions (clicking a 
 
 ## Migration Notes
 All destructive links in client-side JavaScript that were previously using GET methods should be updated to use POST methods with CSRF tokens. The JavaScript shim (`fix-csrf.js`) helps with automatic conversion for most cases, but custom implementations may need manual updates.
+
+## Configuration Options
+- Environment Variable: `CSRF_HARDENING_ENABLED` (default: true)
+  - When set to `true`: Enhanced CSRF protection is enabled
+  - When set to `false`: Legacy behavior maintained for backward compatibility
+  - Usage: Add to environment or .env file: `CSRF_HARDENING_ENABLED=false`
+  
+- The feature flag system can be used to temporarily disable CSRF hardening for testing or to resolve compatibility issues, but it is recommended to keep CSRF hardening enabled for production environments.
