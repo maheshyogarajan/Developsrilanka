@@ -156,6 +156,7 @@
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-right">
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="leave">
                                                     <button type="submit" class="dropdown-item text-danger">
                                                         <i class="fas fa-sign-out-alt"></i> Leave Organization
@@ -208,6 +209,7 @@
                                             <div class="dropdown-menu dropdown-menu-right">
                                                 {% if current_user_role == UserRole.OWNER.value %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="change_role">
                                                     <input type="hidden" name="role" value="{{ UserRole.MEMBER.value }}">
                                                     <button type="submit" class="dropdown-item">
@@ -215,6 +217,7 @@
                                                     </button>
                                                 </form>
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="change_role">
                                                     <input type="hidden" name="role" value="{{ UserRole.VIEWER.value }}">
                                                     <button type="submit" class="dropdown-item">
@@ -222,6 +225,7 @@
                                                     </button>
                                                 </form>
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="transfer_ownership">
                                                     <button type="submit" class="dropdown-item">
                                                         <i class="fas fa-crown"></i> Transfer Ownership
@@ -229,6 +233,7 @@
                                                 </form>
                                                 <div class="dropdown-divider"></div>
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="remove">
                                                     <button type="submit" class="dropdown-item text-danger">
                                                         <i class="fas fa-trash"></i> Remove from Organization
@@ -238,6 +243,7 @@
                                                 
                                                 {% if current_user.id == member.user_id %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="leave">
                                                     <button type="submit" class="dropdown-item text-danger">
                                                         <i class="fas fa-sign-out-alt"></i> Leave Organization
@@ -291,6 +297,7 @@
                                             <div class="dropdown-menu dropdown-menu-right">
                                                 {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="change_role">
                                                     <input type="hidden" name="role" value="{{ UserRole.ADMIN.value }}">
                                                     <button type="submit" class="dropdown-item">
@@ -298,6 +305,7 @@
                                                     </button>
                                                 </form>
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="change_role">
                                                     <input type="hidden" name="role" value="{{ UserRole.VIEWER.value }}">
                                                     <button type="submit" class="dropdown-item">
@@ -308,6 +316,7 @@
                                                 
                                                 {% if current_user_role == UserRole.OWNER.value %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="transfer_ownership">
                                                     <button type="submit" class="dropdown-item">
                                                         <i class="fas fa-crown"></i> Transfer Ownership
@@ -318,6 +327,7 @@
                                                 {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
                                                 <div class="dropdown-divider"></div>
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="remove">
                                                     <button type="submit" class="dropdown-item text-danger">
                                                         <i class="fas fa-trash"></i> Remove from Organization
@@ -327,6 +337,7 @@
                                                 
                                                 {% if current_user.id == member.user_id %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="leave">
                                                     <button type="submit" class="dropdown-item text-danger">
                                                         <i class="fas fa-sign-out-alt"></i> Leave Organization
@@ -380,6 +391,7 @@
                                             <div class="dropdown-menu dropdown-menu-right">
                                                 {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="change_role">
                                                     <input type="hidden" name="role" value="{{ UserRole.MEMBER.value }}">
                                                     <button type="submit" class="dropdown-item">
@@ -390,6 +402,7 @@
                                                 
                                                 {% if current_user_role == UserRole.OWNER.value %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="change_role">
                                                     <input type="hidden" name="role" value="{{ UserRole.ADMIN.value }}">
                                                     <button type="submit" class="dropdown-item">
@@ -397,6 +410,7 @@
                                                     </button>
                                                 </form>
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="transfer_ownership">
                                                     <button type="submit" class="dropdown-item">
                                                         <i class="fas fa-crown"></i> Transfer Ownership
@@ -407,6 +421,7 @@
                                                 {% if current_user_role in [UserRole.OWNER.value, UserRole.ADMIN.value] %}
                                                 <div class="dropdown-divider"></div>
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="remove">
                                                     <button type="submit" class="dropdown-item text-danger">
                                                         <i class="fas fa-trash"></i> Remove from Organization
@@ -416,6 +431,7 @@
                                                 
                                                 {% if current_user.id == member.user_id %}
                                                 <form action="{{ url_for('team.manage_member', org_id=active_org.id, member_id=member.id) }}" method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="leave">
                                                     <button type="submit" class="dropdown-item text-danger">
                                                         <i class="fas fa-sign-out-alt"></i> Leave Organization
