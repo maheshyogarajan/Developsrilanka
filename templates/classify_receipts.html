@@ -321,113 +321,15 @@ document.addEventListener('DOMContentLoaded', function() {
         organizationSelect.addEventListener('change', filterClients);
     }
     
-    // Enhanced form submission with AJAX
+    // Standard form validation (restored original navigation behavior)
     const form = document.getElementById('classifyForm');
     if (form) {
         form.addEventListener('submit', function(event) {
-            // Standard validation
             if (!form.checkValidity()) {
                 event.preventDefault();
                 event.stopPropagation();
-                form.classList.add('was-validated');
-                return;
             }
-            
-            // Prevent default form submission
-            event.preventDefault();
-            
-            // Show processing state
-            const submitButton = form.querySelector('button[type="submit"]');
-            const originalButtonText = submitButton.innerHTML;
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-            
-            // Create FormData
-            const formData = new FormData(form);
-            
-            // Get CSRF token
-            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-            
-            // Submit via fetch with proper CSRF protection
-            fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': csrfToken
-                },
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Server error: ' + response.status);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                // Show success message
-                if (data.message) {
-                    const alertHtml = `
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            ${data.message}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    `;
-                    // Safer element selection for alert insertion
-                    const alertContainer = document.querySelector('.card-body') || document.querySelector('main') || document.body;
-                    alertContainer.insertAdjacentHTML('afterbegin', alertHtml);
-                }
-                
-                // Update the counter
-                const counter = document.getElementById('receipts-counter');
-                if (counter && data.remaining_to_classify !== undefined) {
-                    // Highlight counter change with a brief animation
-                    counter.classList.add('text-success');
-                    counter.textContent = `(${data.remaining_to_classify} left to classify)`;
-                    
-                    setTimeout(() => {
-                        counter.classList.remove('text-success');
-                    }, 1500);
-                    
-                    // Show completion message if all receipts are classified
-                    if (data.remaining_to_classify === 0) {
-                        const completionHtml = `
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                All receipts have been classified! Great job!
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        `;
-                        const alertContainer = document.querySelector('.card-body') || document.querySelector('main') || document.body;
-                        alertContainer.insertAdjacentHTML('afterbegin', completionHtml);
-                    }
-                }
-                
-                // Load the next receipt
-                if (data.next_url) {
-                    window.location.href = data.next_url;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                
-                // Show error message
-                const alertHtml = `
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        ${error.message || 'An error occurred while processing your request'}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                `;
-                const alertContainer = document.querySelector('.card-body') || document.querySelector('main') || document.body;
-                alertContainer.insertAdjacentHTML('afterbegin', alertHtml);
-                
-                // Reset button
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalButtonText;
-            });
+            form.classList.add('was-validated');
         });
     }
 });
