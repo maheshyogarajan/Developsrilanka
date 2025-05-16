@@ -373,7 +373,7 @@ def invite_team_member(org_id):
                           organization=organization,
                           roles=roles)
 
-@organizations_bp.route('/invitation/<token>')
+@organizations_bp.route('/invitation/<token>', methods=['GET', 'POST'])
 def accept_invitation(token):
     """Accept an organization invitation."""
     # Import the OrganizationInvitation model
@@ -396,45 +396,61 @@ def accept_invitation(token):
         flash('This invitation has already been accepted.', 'warning')
         return redirect(url_for('home'))
     
-    # If user is not logged in, redirect to login
-    if not current_user.is_authenticated:
-        logger.info(f"User not authenticated for organization invitation: {token}, storing in session")
-        flash('Please log in or create an account to accept this invitation.', 'info')
-        # Store invitation token in session to redirect back after login
-        # FIXED: Use Flask's session object instead of creating a new dictionary
-        from flask import session
-        session['invitation_token'] = token
-        return redirect(url_for('login'))
+    # If it's a GET request, show the confirmation page
+    if request.method == 'GET':
+        organization = Organization.query.get(invitation.organization_id)
+        if not organization:
+            flash('The organization no longer exists.', 'danger')
+            return redirect(url_for('home'))
+        
+        return render_template('organizations/confirm_invitation.html', 
+                              invitation=invitation,
+                              organization=organization,
+                              token=token)
     
-    # Check if user is already a member
-    existing_member = OrganizationUser.query.filter_by(
-        user_id=current_user.id,
-        organization_id=invitation.organization_id
-    ).first()
-    
-    if existing_member:
-        flash('You are already a member of this organization.', 'warning')
+    # Handle POST request for accepting the invitation
+    if request.method == 'POST':
+        # Check if user is not logged in, redirect to login
+        if not current_user.is_authenticated:
+            logger.info(f"User not authenticated for organization invitation: {token}, storing in session")
+            flash('Please log in or create an account to accept this invitation.', 'info')
+            # Store invitation token in session to redirect back after login
+            from flask import session
+            session['invitation_token'] = token
+            return redirect(url_for('login'))
+        
+        # Check if user is already a member
+        existing_member = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=invitation.organization_id
+        ).first()
+        
+        if existing_member:
+            flash('You are already a member of this organization.', 'warning')
+            invitation.accepted = True
+            db.session.commit()
+            return redirect(url_for('organizations.view_organization', org_id=invitation.organization_id))
+        
+        # Create organization membership
+        is_first_org = OrganizationUser.query.filter_by(user_id=current_user.id).count() == 0
+        org_user = OrganizationUser(
+            user_id=current_user.id,
+            organization_id=invitation.organization_id,
+            role=invitation.role,
+            is_default=is_first_org  # First organization is default
+        )
+        
+        # Mark invitation as accepted
         invitation.accepted = True
+        
+        db.session.add(org_user)
         db.session.commit()
+        
+        flash(f'You have joined {invitation.organization.name} successfully!', 'success')
         return redirect(url_for('organizations.view_organization', org_id=invitation.organization_id))
     
-    # Create organization membership
-    is_first_org = OrganizationUser.query.filter_by(user_id=current_user.id).count() == 0
-    org_user = OrganizationUser(
-        user_id=current_user.id,
-        organization_id=invitation.organization_id,
-        role=invitation.role,
-        is_default=is_first_org  # First organization is default
-    )
-    
-    # Mark invitation as accepted
-    invitation.accepted = True
-    
-    db.session.add(org_user)
-    db.session.commit()
-    
-    flash(f'You have joined {invitation.organization.name} successfully!', 'success')
-    return redirect(url_for('organizations.view_organization', org_id=invitation.organization_id))
+    # This shouldn't happen - redirect back to the confirmation page
+    return redirect(url_for('organizations.accept_invitation', token=token))
 
 @organizations_bp.route('/<int:org_id>/member/<int:user_id>/role', methods=['POST'])
 @login_required

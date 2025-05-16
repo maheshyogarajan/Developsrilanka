@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+
+{% block title %}Confirm Organization Invitation{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Organization Invitation</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">You've been invited to join {{ organization.name }}</h5>
+                    
+                    <p class="card-text">
+                        You have been invited to join this organization as a <strong>{{ invitation.role }}</strong>.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <strong>Note:</strong> By accepting this invitation, you will be added to the organization's team.
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('organizations.accept_invitation', token=token) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('home') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-success">Accept Invitation</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

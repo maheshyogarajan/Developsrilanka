@@ -235,6 +235,7 @@
                                             <td>
                                                 {% if org_user.role in ['owner', 'admin'] or current_user.is_admin() %}
                                                     <form action="{{ url_for('organizations.cancel_invitation', org_id=organization.id, invitation_id=invitation.id) }}" method="post" class="d-inline">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger">
                                                             <i class="fas fa-times"></i> Cancel
                                                         </button>
