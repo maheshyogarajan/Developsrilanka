@@ -28,6 +28,7 @@
     {% endwith %}
 
     <form method="POST" action="{{ url_for('create_invoice') }}" id="invoiceForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-transparent">
                 <h5 class="mb-0">Invoice Information</h5>
