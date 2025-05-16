@@ -71,6 +71,7 @@
                                                     </a>
                                                     {% if not account.is_default %}
                                                     <form method="POST" action="{{ url_for('delete_organization_bank_account', org_id=organization.id, account_id=account.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this bank account? This action cannot be undone.');">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                         <button type="submit" class="btn btn-outline-danger">
                                                             <i class="fas fa-trash-alt"></i> Delete
                                                         </button>
