@@ -34,6 +34,7 @@
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('clients.edit_client', client_id=client.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label for="name" class="form-label">Client Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="name" name="name" value="{{ client.name }}" required>
