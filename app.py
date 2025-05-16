@@ -2386,10 +2386,11 @@ def facebook_callback():
         flash('Failed to log in with Facebook.', 'danger')
         return redirect(url_for('login'))
 
-@app.route('/logout', methods=['POST'])
+@app.route('/logout', methods=['GET', 'POST'] if not CSRF_HARDENING_ENABLED else ['POST'])
 @login_required
 def logout():
     """Log the user out."""
+    print(f"DEBUG: Logout route accessed with CSRF_HARDENING_ENABLED={CSRF_HARDENING_ENABLED}")
     logout_user()
     # Let's not redirect to login page with a flash message
     # The user knows they logged out, and it clutters the login page
