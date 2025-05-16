@@ -36,6 +36,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('record_payment', invoice_id=invoice.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3 mb-md-0">
                                 <label for="payment_date" class="form-label">Payment Date <span class="text-danger">*</span></label>
