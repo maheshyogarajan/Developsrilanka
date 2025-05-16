@@ -674,6 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             window.savingReceipt = true;
+            window.saveError = false;
             
             // Show loading state on button
             const originalButtonText = saveButton.innerHTML;
@@ -733,14 +734,26 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error:', error);
                 showError(error.message || 'An error occurred while saving the receipt');
+                window.saveError = true;
             })
             .finally(() => {
-                // Restore button state
-                saveButton.disabled = false;
-                saveButton.innerHTML = originalButtonText;
+                // Only re-enable the button if there was an error
+                // For successful saves, keep it disabled to prevent duplicate submissions
+                if (window.saveError) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = originalButtonText;
+                    window.saveError = false;
+                } else {
+                    // For successful saves, change button text to indicate success
+                    saveButton.innerHTML = '<i class="fas fa-check me-2"></i>Saved';
+                    saveButton.classList.add('btn-success');
+                    saveButton.classList.remove('btn-primary');
+                }
                 
-                // Reset saving flag
-                window.savingReceipt = false;
+                // Reset saving flag but only if there was an error
+                if (window.saveError) {
+                    window.savingReceipt = false;
+                }
             });
         });
     }
