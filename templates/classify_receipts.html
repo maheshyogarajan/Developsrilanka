@@ -145,8 +145,7 @@
                                     <p class="mb-2"><strong>Vendor:</strong> {{ current_receipt.vendor_name or 'Unknown' }}</p>
                                     <p class="mb-2"><strong>Date:</strong> {{ current_receipt.date.strftime('%Y-%m-%d') if current_receipt.date else 'Unknown' }}</p>
                                     <p class="mb-2"><strong>Total:</strong> {{ current_receipt.total_amount|currency }}</p>
-                                    <p class="mb-0"><strong>Major Category:</strong> {{ current_receipt.expense_major_category or 'Uncategorized' }}</p>
-                                    <p class="mb-0"><strong>Minor Category:</strong> {{ current_receipt.expense_minor_category or 'Uncategorized' }}</p>
+                                    <!-- Category information moved to form fields only -->
                                 </div>
                             </div>
                             
