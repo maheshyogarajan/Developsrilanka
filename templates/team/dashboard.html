@@ -462,11 +462,13 @@
                                     </small>
                                     <div class="invitation-actions">
                                         <form action="{{ url_for('team.resend_invitation', org_id=active_org.id, invitation_id=invitation.id) }}" method="post">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-paper-plane"></i>
                                             </button>
                                         </form>
                                         <form action="{{ url_for('team.cancel_invitation', org_id=active_org.id, invitation_id=invitation.id) }}" method="post">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                 <i class="fas fa-times"></i>
                                             </button>
