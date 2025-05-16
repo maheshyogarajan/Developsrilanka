@@ -19,28 +19,26 @@ def create_personal_finances_organization(mapper, connection, target):
     """Create a Personal Finances organization for newly registered users."""
     try:
         # Create Organization with complete fields matching the quick setup
-        org = Organization(
-            name="Personal Finances",
-            email=target.email,  # Use the user's email
-            primary_color="#4a6da7",  # Default blue from quick setup
-            secondary_color="#f5f8ff",  # Light blue from quick setup
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            email_footer_text="Thank you for your business! This is an automated message from my Personal Finances management system."
-        )
+        org = Organization()
+        org.name = "Personal Finances"
+        org.email = target.email  # Use the user's email
+        org.primary_color = "#4a6da7"  # Default blue from quick setup
+        org.secondary_color = "#f5f8ff"  # Light blue from quick setup
+        org.created_at = datetime.utcnow()
+        org.updated_at = datetime.utcnow()
+        org.email_footer_text = "Thank you for your business! This is an automated message from my Personal Finances management system."
         
         db.session.add(org)
         db.session.flush()  # Get ID without committing
         
         # Create owner relationship with default flag
-        org_user = OrganizationUser(
-            user_id=target.id,
-            organization_id=org.id,
-            role=UserRole.OWNER.value,
-            is_default=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+        org_user = OrganizationUser()
+        org_user.user_id = target.id
+        org_user.organization_id = org.id
+        org_user.role = UserRole.OWNER.value
+        org_user.is_default = True
+        org_user.created_at = datetime.utcnow()
+        org_user.updated_at = datetime.utcnow()
         
         db.session.add(org_user)
         

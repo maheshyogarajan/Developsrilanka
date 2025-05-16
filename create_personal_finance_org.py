@@ -55,28 +55,26 @@ def create_personal_finances_org(user_id):
     
     try:
         # Create Organization with proper fields
-        org = Organization(
-            name="Personal Finances",
-            email=user.email,
-            primary_color="#4a6da7",
-            secondary_color="#f5f8ff",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            email_footer_text="Thank you for your business! This is an automated message from my Personal Finances management system."
-        )
+        org = Organization()
+        org.name = "Personal Finances"
+        org.email = user.email
+        org.primary_color = "#4a6da7"
+        org.secondary_color = "#f5f8ff"
+        org.created_at = datetime.utcnow()
+        org.updated_at = datetime.utcnow()
+        org.email_footer_text = "Thank you for your business! This is an automated message from my Personal Finances management system."
         
         db.session.add(org)
         db.session.flush()  # Get ID without committing
         
         # Create owner relationship
-        org_user = OrganizationUser(
-            user_id=user_id,
-            organization_id=org.id,
-            role=UserRole.OWNER.value,
-            is_default=not has_default,  # Only set as default if user has no default org
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+        org_user = OrganizationUser()
+        org_user.user_id = user_id
+        org_user.organization_id = org.id
+        org_user.role = UserRole.OWNER.value
+        org_user.is_default = not has_default  # Only set as default if user has no default org
+        org_user.created_at = datetime.utcnow()
+        org_user.updated_at = datetime.utcnow()
         
         db.session.add(org_user)
         

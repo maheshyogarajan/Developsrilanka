@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 # Import models to ensure they're registered with SQLAlchemy
 import models
 
+# Import model event listeners (for auto-creating Personal Finances organization)
+try:
+    import models_event_listener
+    logger.info("Model event listeners loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading model event listeners: {str(e)}")
+
 # Import and initialize template filters
 try:
     import template_filters
