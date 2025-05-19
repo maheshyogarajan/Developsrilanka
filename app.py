@@ -2057,50 +2057,79 @@ def email_login():
             return redirect(url_for('index'))
             
         elif action == 'register':
-            # Registration and password reset flow
-            existing_user = User.query.filter_by(email=email).first()
-            
-            if existing_user:
-                # We no longer allow password resets through this route
-                logging.warning(f"Attempted to register with existing email: {email}")
-                flash('An account with this email already exists. Please sign in with your password or contact an administrator for assistance.', 'warning')
-                return redirect(url_for('register'))
-            
-            # This is a new registration
-            logging.info(f"Creating new user: {email}")
-            # Calculate initial 30-day access period
-            from datetime import datetime, timedelta
-            initial_expiration = datetime.utcnow() + timedelta(days=30)
-            
-            new_user = User(
-                email=email,
-                password_hash=generate_password_hash(password),
-                name=email.split('@')[0],  # Use part of email as name
-                role='user',  # Set default role
-                subscription_status='free_trial',
-                access_expiration_date=initial_expiration  # Set initial 30-day access period
+            # Import enhanced registration logger
+            from registration_logger import (
+                log_registration_start, 
+                log_registration_success, 
+                log_registration_error,
+                log_organization_creation
             )
             
-            db.session.add(new_user)
-            db.session.commit()
+            # Log start of registration process
+            log_registration_start(email, 'standard')
             
-            # Create Personal Finances organization for the new user
-            from user_organization_helper import create_personal_finances_organization
-            create_personal_finances_organization(new_user)
-            
-            # Log in the new user
-            login_user(new_user)
-            
-            # Display welcome message on first login - different from login success message
-            flash('Account verification complete! Your account has been created and you are now logged in.', 'success')
-            
-            # Create Personal Finances organization for the new user
             try:
-                from user_utils import create_personal_finances_for_new_user
-                create_personal_finances_for_new_user(new_user.id)
-                logging.info(f"Created Personal Finances organization for new user {new_user.id}")
+                # Registration and password reset flow
+                existing_user = User.query.filter_by(email=email).first()
+                
+                if existing_user:
+                    # We no longer allow password resets through this route
+                    log_registration_error(email, "Attempted to register with existing email", 'standard', False)
+                    flash('An account with this email already exists. Please sign in with your password or contact an administrator for assistance.', 'warning')
+                    return redirect(url_for('register'))
+                
+                # This is a new registration
+                logging.info(f"Creating new user: {email}")
+                # Calculate initial 30-day access period
+                from datetime import datetime, timedelta
+                initial_expiration = datetime.utcnow() + timedelta(days=30)
+                
+                new_user = User(
+                    email=email,
+                    password_hash=generate_password_hash(password),
+                    name=email.split('@')[0],  # Use part of email as name
+                    role='user',  # Set default role
+                    subscription_status='free_trial',
+                    access_expiration_date=initial_expiration  # Set initial 30-day access period
+                )
+                
+                db.session.add(new_user)
+                db.session.commit()
+                
+                # Log successful user creation
+                log_registration_success(new_user.id, email, 'standard')
+                
+                # Create Personal Finances organization for the new user
+                try:
+                    log_organization_creation(new_user.id, email, status="started")
+                    from user_organization_helper import create_personal_finances_organization
+                    org = create_personal_finances_organization(new_user)
+                    if org:
+                        log_organization_creation(new_user.id, email, org.id, "success")
+                    else:
+                        log_organization_creation(new_user.id, email, status="failed")
+                except Exception as org_error:
+                    log_registration_error(email, org_error, 'standard')
+                    log_organization_creation(new_user.id, email, status="failed")
+                    # Continue without org creation - the event listener might still create it
+                    logging.error(f"Error creating Personal Finances organization: {str(org_error)}")
+                
+                # Log in the new user
+                login_user(new_user)
+                
+                # Display welcome message on first login - different from login success message
+                flash('Account verification complete! Your account has been created and you are now logged in.', 'success')
+            
             except Exception as e:
-                logging.error(f"Error creating Personal Finances organization: {str(e)}")
+                # Log full registration error details
+                log_registration_error(email, e, 'standard')
+                
+                # Clean up partial user data if needed
+                db.session.rollback()
+                
+                # Show user-friendly error message
+                flash('We encountered a problem creating your account. Please try again or contact support if the issue persists.', 'danger')
+                return redirect(url_for('register'))
             
             # Check if there's a pending invitation token in the session
             invitation_token = session.get('invitation_token')
