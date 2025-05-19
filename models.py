@@ -322,6 +322,12 @@ class User(UserMixin, db.Model):
     social_provider = db.Column(db.String(50), nullable=True)  # 'google', 'facebook', etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Email verification fields
+    is_email_verified = db.Column(db.Boolean, default=False)
+    email_verification_token = db.Column(db.String(100), nullable=True)
+    email_verification_salt = db.Column(db.String(100), nullable=True)
+    email_verification_sent_at = db.Column(db.DateTime, nullable=True)
+    
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
     access_expiration_date = db.Column(db.DateTime, nullable=True)

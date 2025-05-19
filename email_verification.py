@@ -9,6 +9,7 @@ from flask import url_for, render_template
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 
 from app import app, db
+from sendgrid_logger import log_email_attempt, log_email_success, log_email_error
 
 logger = logging.getLogger(__name__)
 
