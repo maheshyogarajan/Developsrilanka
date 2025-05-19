@@ -5,11 +5,8 @@ import logging
 import secrets
 from datetime import datetime
 
-from flask import url_for, render_template
+from flask import url_for, render_template, current_app
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-
-from app import app, db
-from sendgrid_logger import log_email_attempt, log_email_success, log_email_error
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +22,7 @@ def generate_verification_token(email):
     """
     # Create a unique salt for each token generation to increase security
     unique_salt = f"email-verification-{secrets.token_hex(8)}"
-    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     return serializer.dumps(email, salt=unique_salt), unique_salt
 
 def verify_token(token, salt, max_age=86400):
@@ -44,7 +41,7 @@ def verify_token(token, salt, max_age=86400):
         SignatureExpired: If the token is expired
         BadSignature: If the token is invalid
     """
-    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     return serializer.loads(token, salt=salt, max_age=max_age)
 
 def send_verification_email(user):
@@ -63,7 +60,7 @@ def send_verification_email(user):
     # Store token and salt in user record
     user.email_verification_token = token
     user.email_verification_salt = salt
-    user.email_verification_sent_at = datetime.utcnow()
+    user.email_verification_sent_at = datetime.now()
     
     # Don't commit here - let the caller handle the transaction
     
@@ -80,8 +77,12 @@ def send_verification_email(user):
     
     # Log and send
     try:
-        # Use the existing email sending function from app
-        from app import mail
+        # Get mail from current_app
+        mail = current_app.extensions.get('mail')
+        if not mail:
+            logger.error("Mail extension not found in current_app")
+            return False
+            
         from flask_mail import Message
         
         # Create a Flask-Mail message
