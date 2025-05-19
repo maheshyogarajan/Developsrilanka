@@ -2100,19 +2100,36 @@ def email_login():
                 log_registration_success(new_user.id, email, 'standard')
                 
                 # Create Personal Finances organization for the new user
+                # We're using a single database transaction for both the user and organization
                 try:
                     log_organization_creation(new_user.id, email, status="started")
                     from user_organization_helper import create_personal_finances_organization
-                    org = create_personal_finances_organization(new_user)
+                    
+                    # Pass commit=False to use our current transaction
+                    org = create_personal_finances_organization(new_user, commit=False)
+                    
+                    # Now commit the entire transaction (both user and organization)
+                    db.session.commit()
+                    
                     if org:
                         log_organization_creation(new_user.id, email, org.id, "success")
                     else:
+                        # This shouldn't happen since we're raising exceptions now
                         log_organization_creation(new_user.id, email, status="failed")
+                        
                 except Exception as org_error:
+                    # Log the error with details
                     log_registration_error(email, org_error, 'standard')
                     log_organization_creation(new_user.id, email, status="failed")
-                    # Continue without org creation - the event listener might still create it
+                    
+                    # Rollback the transaction
+                    db.session.rollback()
+                    
+                    # Since organization creation failed, we should also rollback the user
+                    # and report a complete error to the user
+                    flash('We encountered a problem creating your account. Please try again or contact support if the issue persists.', 'danger')
                     logging.error(f"Error creating Personal Finances organization: {str(org_error)}")
+                    return redirect(url_for('register'))
                 
                 # Log in the new user
                 login_user(new_user)
