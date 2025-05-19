@@ -2334,8 +2334,8 @@ def facebook_callback():
             
             # Create Personal Finances organization for new Facebook OAuth users
             try:
-                from user_utils import create_personal_finances_for_new_user
-                create_personal_finances_for_new_user(user.id)
+                from user_organization_helper import create_personal_finances_organization
+                create_personal_finances_organization(user)
                 logging.info(f"Created Personal Finances organization for new Facebook OAuth user {user.id}")
             except Exception as e:
                 logging.error(f"Error creating Personal Finances organization for Facebook OAuth user: {str(e)}")
