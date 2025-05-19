@@ -14,6 +14,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text  # Add SQLAlchemy text support for direct queries
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from itsdangerous import SignatureExpired, BadSignature
 from authlib.integrations.flask_client import OAuth
 import requests
 from flask_mail import Mail, Message
@@ -1938,6 +1939,98 @@ def register():
     
     return render_template('register.html')
 
+@app.route('/verify-email/<token>')
+def verify_email(token):
+    """Verify a user's email address using a verification token."""
+    try:
+        # Get the user based on the token
+        from models import User
+        user = User.query.filter_by(email_verification_token=token).first()
+        if not user:
+            flash('Invalid or expired verification link. Please request a new one.', 'danger')
+            return redirect(url_for('login'))
+            
+        # Verify the token
+        from email_verification import verify_token
+        try:
+            email = verify_token(token, user.email_verification_salt)
+            
+            # Check if the email matches the user's email
+            if email != user.email:
+                flash('Invalid verification link. Please request a new one.', 'danger')
+                return redirect(url_for('login'))
+                
+            # Mark the user as verified
+            user.is_email_verified = True
+            user.email_verification_token = None
+            user.email_verification_salt = None
+            db.session.commit()
+            
+            # If user is logged in, redirect to dashboard
+            if current_user.is_authenticated:
+                flash('Your email has been verified! You now have access to all features.', 'success')
+                return redirect(url_for('index'))
+            else:
+                flash('Your email has been verified! Please log in to continue.', 'success')
+                return redirect(url_for('login'))
+                
+        except SignatureExpired:
+            flash('The verification link has expired. Please request a new one.', 'warning')
+            return redirect(url_for('verify_email_reminder'))
+            
+        except BadSignature:
+            flash('Invalid verification link. Please request a new one.', 'danger')
+            return redirect(url_for('login'))
+            
+    except Exception as e:
+        logging.error(f"Error verifying email: {str(e)}")
+        flash('An error occurred while verifying your email. Please try again.', 'danger')
+        return redirect(url_for('login'))
+
+@app.route('/verify-email-reminder')
+@login_required
+def verify_email_reminder():
+    """Show a reminder page for email verification."""
+    return render_template('verify_email_reminder.html')
+
+@app.route('/resend-verification-email')
+@login_required
+def resend_verification_email():
+    """Resend the verification email."""
+    try:
+        # Don't allow resending if already verified
+        if current_user.is_email_verified:
+            flash('Your email is already verified!', 'info')
+            return redirect(url_for('index'))
+        
+        # Check if we sent an email recently (within 15 minutes)
+        if current_user.email_verification_sent_at:
+            last_sent = current_user.email_verification_sent_at
+            now = datetime.now()
+            time_diff = (now - last_sent).total_seconds() / 60  # Minutes
+            
+            if time_diff < 15:
+                minutes_left = int(15 - time_diff)
+                flash(f'Please wait {minutes_left} more minutes before requesting another verification email.', 'warning')
+                return redirect(url_for('verify_email_reminder'))
+        
+        # Send a new verification email
+        from email_verification import send_verification_email
+        success = send_verification_email(current_user)
+        
+        if success:
+            db.session.commit()  # Save the new token and timestamp
+            flash('A new verification email has been sent. Please check your inbox.', 'success')
+        else:
+            flash('Failed to send verification email. Please try again later.', 'danger')
+            
+        return redirect(url_for('verify_email_reminder'))
+        
+    except Exception as e:
+        logging.error(f"Error resending verification email: {str(e)}")
+        flash('An error occurred. Please try again later.', 'danger')
+        return redirect(url_for('verify_email_reminder'))
+
 @app.route('/email_login', methods=['POST'])
 def email_login():
     """Handle email-based login, registration, and password reset."""
@@ -2107,6 +2200,15 @@ def email_login():
                     
                     # Pass commit=False to use our current transaction
                     org = create_personal_finances_organization(new_user, commit=False)
+                    
+                    # Send email verification
+                    try:
+                        from email_verification import send_verification_email
+                        send_verification_email(new_user)
+                        logging.info(f"Verification email sent to {email}")
+                    except Exception as email_error:
+                        logging.error(f"Failed to send verification email to {email}: {str(email_error)}")
+                        # Continue with registration even if email fails
                     
                     # Now commit the entire transaction (both user and organization)
                     db.session.commit()

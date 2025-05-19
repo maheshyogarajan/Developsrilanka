@@ -57,9 +57,6 @@ def send_verification_email(user):
     Returns:
         Boolean indicating success or failure
     """
-    # Import here to avoid circular imports
-    from sendgrid_logger import log_email_attempt, log_email_success, log_email_error
-    
     # Generate token with unique salt
     token, salt = generate_verification_token(user.email)
     
@@ -83,26 +80,23 @@ def send_verification_email(user):
     
     # Log and send
     try:
-        # Use the existing email sending function
-        from app import send_email
+        # Use the existing email sending function from app
+        from app import mail
+        from flask_mail import Message
         
-        log_email_attempt(user.email, 'email_verification')
-        
-        success = send_email(
-            to_email=user.email,
-            from_email='noreply@developsrilanka.com',
+        # Create a Flask-Mail message
+        msg = Message(
             subject='Verify Your Email - Receipt Scanner',
-            html_content=email_html
+            recipients=[user.email],
+            html=email_html,
+            sender='noreply@developsrilanka.com'
         )
         
-        if success:
-            log_email_success(user.email, 'email_verification')
-            return True
-        else:
-            log_email_error(user.email, 'email_verification', 'Failed to send email')
-            return False
+        # Send the email
+        mail.send(msg)
+        logger.info(f"Verification email sent to {user.email}")
+        return True
             
     except Exception as e:
-        log_email_error(user.email, 'email_verification', str(e))
         logger.error(f"Email verification error: {str(e)}")
         return False
