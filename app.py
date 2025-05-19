@@ -108,7 +108,29 @@ login_manager.login_message = 'Please log in to access this page.'
 def load_user(user_id):
     # Import here to avoid circular imports
     from models import User, FriendInvitation
-    return User.query.get(int(user_id))
+    
+    try:
+        # Attempt to get the user
+        return User.query.get(int(user_id))
+    except Exception as e:
+        # Log the error
+        import logging
+        logging.error(f"Error loading user {user_id}: {str(e)}")
+        
+        # Try to recover from a transaction error
+        try:
+            from sqlalchemy import text
+            # Close the current session
+            db.session.rollback()
+            db.session.close()
+            # Reconnect and try a simple query
+            db.session.execute(text("SELECT 1"))
+            # Try again to get the user after recovery
+            return User.query.get(int(user_id))
+        except Exception as recovery_error:
+            logging.error(f"Failed to recover DB connection: {str(recovery_error)}")
+            # Return None instead of raising an exception
+            return None
 
 # Add CSRF token to all templates
 @app.context_processor
