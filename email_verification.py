@@ -3,10 +3,13 @@ Email verification utilities for user account verification.
 """
 import logging
 import secrets
+import os
 from datetime import datetime
 
 from flask import url_for, render_template, current_app
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email, To, Content
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +49,7 @@ def verify_token(token, salt, max_age=86400):
 
 def send_verification_email(user):
     """
-    Send verification email to a user.
+    Send verification email to a user using SendGrid.
     
     Args:
         user: User object with email address
@@ -75,28 +78,62 @@ def send_verification_email(user):
         logger.error(f"Email template error: {str(e)}")
         return False
     
+    # Import SendGrid logger for detailed logging
+    from sendgrid_logger import log_api_request
+    
     # Log and send
     try:
-        # Get mail from current_app
-        mail = current_app.extensions.get('mail')
-        if not mail:
-            logger.error("Mail extension not found in current_app")
-            return False
-            
-        from flask_mail import Message
+        sender_email = "info@developsrilanka.com"
+        sender_name = "Team Developsrilanka.com"
+        subject = "Verify Your Email - Developsrilanka.com"
         
-        # Create a Flask-Mail message
-        msg = Message(
-            subject='Verify Your Email - Developsrilanka.com',
-            recipients=[user.email],
-            html=email_html,
-            sender='noreply@developsrilanka.com'
+        # Log email sending details
+        logger.info(f"Preparing to send verification email with SendGrid:")
+        logger.info(f"From: {sender_name} <{sender_email}>")
+        logger.info(f"To: {user.email}")
+        logger.info(f"Subject: {subject}")
+        
+        # Use detailed SendGrid logger to log the API request
+        log_api_request(
+            recipient_email=user.email, 
+            sender_email=sender_email,
+            sender_name=sender_name,
+            subject=subject
         )
         
-        # Send the email
-        mail.send(msg)
-        logger.info(f"Verification email sent to {user.email}")
-        return True
+        # Get the SendGrid API key
+        sendgrid_api_key = os.environ.get('SENDGRID_API_KEY')
+        if not sendgrid_api_key:
+            logger.error("SendGrid API key not found in environment")
+            return False
+        
+        # Create SendGrid mail message
+        message = Mail(
+            from_email=Email(sender_email),
+            to_emails=To(user.email),
+            subject=subject,
+            html_content=Content("text/html", email_html)
+        )
+        
+        # Set the friendly display name separately for better compatibility
+        message.from_email.name = sender_name
+        
+        # Send the email using SendGrid
+        sg = SendGridAPIClient(sendgrid_api_key)
+        response = sg.send(message)
+        
+        # Check if the email was sent successfully
+        status_code = response.status_code
+        if status_code >= 200 and status_code < 300:
+            logger.info(f"Verification email sent to {user.email}")
+            return True
+        else:
+            logger.error(f"Failed to send verification email: {status_code}")
+            # Handle response body safely
+            response_body = getattr(response, 'body', None)
+            if response_body:
+                logger.error(f"Response body: {response_body}")
+            return False
             
     except Exception as e:
         logger.error(f"Email verification error: {str(e)}")
