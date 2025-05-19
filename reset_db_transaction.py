@@ -1,71 +1,70 @@
 """
-One-time script to reset any aborted database transactions.
-This should be run when the application is having database transaction issues.
+Database Transaction Reset Script
+
+This script contains functions to reset an aborted database transaction.
+It provides a utility function that can be imported in any route to
+recover from InFailedSqlTransaction errors.
+
+Usage:
+from reset_db_transaction import reset_db_session
+
+# In a route handler
+try:
+    # Database operation
+    db.session.commit()
+except Exception as e:
+    reset_db_session()
+    # Handle error
 """
-import os
-import sys
+
 import logging
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
+from app import db
+import psycopg2
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def reset_db_transactions():
+def reset_db_session():
     """
-    Reset any aborted database transactions.
+    Reset the Flask-SQLAlchemy session to recover from aborted transactions.
+    
+    This function:
+    1. Rolls back any pending transaction
+    2. Removes the current session
+    3. Creates a new session connection
+    
+    Returns:
+        bool: True if successful, False otherwise
     """
-    database_url = os.environ.get("DATABASE_URL")
-    
-    if not database_url:
-        logger.error("DATABASE_URL environment variable not found!")
-        return False
-    
-    # Fix potential "postgres://" vs "postgresql://" issue
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    
     try:
-        # Create an engine with the database URL
-        engine = create_engine(database_url)
+        # First try SQLAlchemy's methods
+        db.session.rollback()
+        db.session.remove()
+        logging.info("Database session has been reset via SQLAlchemy")
         
-        # Create a connection
-        with engine.connect() as conn:
-            # Check if there are any in-doubt transactions
-            in_doubt_result = conn.execute(text("SELECT * FROM pg_prepared_xacts"))
-            in_doubt_transactions = in_doubt_result.fetchall()
-            
-            if in_doubt_transactions:
-                logger.info(f"Found {len(in_doubt_transactions)} in-doubt transactions")
-                for tx in in_doubt_transactions:
-                    logger.info(f"Rolling back in-doubt transaction: {tx}")
-                    conn.execute(text(f"ROLLBACK PREPARED '{tx[0]}'"))
-            else:
-                logger.info("No in-doubt transactions found")
-                
-            # Execute rollback to clear any active transactions
-            conn.execute(text("ROLLBACK"))
-            logger.info("Successfully executed ROLLBACK")
-            
-            # Test a simple query to verify database is working
-            test_result = conn.execute(text("SELECT 1 as test"))
-            if test_result.fetchone()[0] == 1:
-                logger.info("Database is working correctly")
-                return True
-            else:
-                logger.error("Database test query failed")
-                return False
-    
+        # Force a simple query to check connection
+        db.session.execute(text("SELECT 1"))
+        
+        return True
     except Exception as e:
-        logger.error(f"Error resetting database transactions: {str(e)}")
+        logging.error(f"Error resetting database session: {e}")
         return False
 
-if __name__ == "__main__":
-    logger.info("Starting database transaction reset...")
-    success = reset_db_transactions()
-    if success:
-        logger.info("Successfully reset database transactions")
-        sys.exit(0)
-    else:
-        logger.error("Failed to reset database transactions")
-        sys.exit(1)
+def hard_reset_connection():
+    """
+    A more drastic approach to reset the database connection
+    when the regular reset doesn't work.
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Close all connections and create new ones
+        db.engine.dispose()
+        logging.info("Database engine connections have been disposed")
+        
+        # Force a simple query to verify connection
+        db.session.execute(text("SELECT 1"))
+        
+        return True
+    except Exception as e:
+        logging.error(f"Error during hard reset of database connection: {e}")
+        return False

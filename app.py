@@ -230,6 +230,33 @@ def health_check():
             'timestamp': datetime.utcnow().isoformat()
         }), 500
 
+@app.route('/db-recovery')
+def db_recovery():
+    """
+    Special recovery route to reset database connections.
+    This is used to recover from database transaction errors.
+    """
+    from reset_db_transaction import reset_db_session, hard_reset_connection
+    
+    success = False
+    try:
+        # Try normal reset first
+        success = reset_db_session()
+        
+        # If that doesn't work, try hard reset
+        if not success:
+            success = hard_reset_connection()
+            
+        if success:
+            flash("Database connection has been successfully reset.", "success")
+        else:
+            flash("Could not reset database connection. Please restart the application.", "warning")
+            
+    except Exception as e:
+        flash(f"Error during recovery: {str(e)}", "danger")
+    
+    return redirect(url_for('home'))
+
 @app.route('/')
 def home():
     """Render the homepage with welcome message and features."""
@@ -249,17 +276,6 @@ def preview():
 @login_required
 def index():
     """Render the receipt scanning page of the application."""
-    # Check if email verification is required
-    try:
-        # Safely check email verification status
-        if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
-            flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
-            return redirect(url_for('verify_email_reminder'))
-    except Exception as e:
-        # Log the error but don't break the app
-        logging.error(f"Error checking email verification: {str(e)}")
-        # Clean up the session if there was a transaction error
-        db.session.rollback()
     # Check if user has any organizations
     if not current_user.organizations:
         # Redirect to getting started if no organizations exist
