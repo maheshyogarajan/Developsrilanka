@@ -304,6 +304,11 @@ def index():
         flash("Please set up an organization before scanning receipts.", "warning")
         return redirect(url_for('getting_started.wizard'))
     
+    # Check if email is verified
+    if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
+        flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
+        return redirect(url_for('verify_email_reminder'))
+    
     return render_template('index.html')
 
 @app.route('/history')
@@ -681,6 +686,13 @@ def preview_scan_receipt():
 @login_required
 def scan_receipt():
     """Process the uploaded receipt image and extract data using Gemini Vision."""
+    # Check if email is verified
+    if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
+        return jsonify({
+            'error': 'Email verification is required before scanning receipts', 
+            'redirect': url_for('verify_email_reminder')
+        }), 403
+    
     if 'receipt' not in request.files:
         response = jsonify({'error': 'No receipt image uploaded'})
         response.headers.set('Content-Type', 'application/json')
