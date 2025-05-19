@@ -87,7 +87,7 @@ def send_verification_email(user):
         
         # Create a Flask-Mail message
         msg = Message(
-            subject='Verify Your Email - Receipt Scanner',
+            subject='Verify Your Email - Developsrilanka.com',
             recipients=[user.email],
             html=email_html,
             sender='noreply@developsrilanka.com'
