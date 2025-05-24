@@ -89,15 +89,18 @@
                                 <tr class="table-light">
                                     <td colspan="2"><strong>REVENUE</strong></td>
                                 </tr>
-                                {% for account in report_data.revenue_accounts %}
+                                {% for client in report_data.revenue_by_client %}
                                 <tr>
-                                    <td class="ps-4">{{ account.account_name }}</td>
-                                    <td class="text-end">{{ "{:,.2f}".format(account.balance) }}</td>
+                                    <td class="ps-4">
+                                        {{ client.client_name }}
+                                        <small class="text-muted ms-2">({{ client.invoice_count }} invoices)</small>
+                                    </td>
+                                    <td class="text-end">{{ "{:,.2f}".format(client.revenue) }}</td>
                                 </tr>
                                 {% endfor %}
-                                {% if not report_data.revenue_accounts %}
+                                {% if not report_data.revenue_by_client %}
                                 <tr>
-                                    <td class="ps-4 text-muted">No revenue accounts found</td>
+                                    <td class="ps-4 text-muted">No revenue found</td>
                                     <td class="text-end">0.00</td>
                                 </tr>
                                 {% endif %}
@@ -110,15 +113,26 @@
                                 <tr class="table-light">
                                     <td colspan="2"><strong>EXPENSES</strong></td>
                                 </tr>
-                                {% for category in report_data.expense_categories %}
+                                {% for major_category, category_data in report_data.expense_hierarchy.items() %}
+                                <!-- Major Category Header -->
                                 <tr>
-                                    <td class="ps-4">{{ category.category_name }}</td>
-                                    <td class="text-end">{{ "{:,.2f}".format(category.balance) }}</td>
+                                    <td class="ps-4 fw-bold">{{ major_category }}</td>
+                                    <td class="text-end fw-bold">{{ "{:,.2f}".format(category_data.total) }}</td>
+                                </tr>
+                                <!-- Subcategories -->
+                                {% for minor_category, subcat_data in category_data.subcategories.items() %}
+                                <tr>
+                                    <td class="ps-5 text-muted">
+                                        <span class="subcategory-indent">├─ {{ minor_category }}</span>
+                                        <small class="ms-2">({{ subcat_data.count }} receipts)</small>
+                                    </td>
+                                    <td class="text-end text-muted">{{ "{:,.2f}".format(subcat_data.amount) }}</td>
                                 </tr>
                                 {% endfor %}
-                                {% if not report_data.expense_categories %}
+                                {% endfor %}
+                                {% if not report_data.expense_hierarchy %}
                                 <tr>
-                                    <td class="ps-4 text-muted">No expense categories found</td>
+                                    <td class="ps-4 text-muted">No expenses found</td>
                                     <td class="text-end">0.00</td>
                                 </tr>
                                 {% endif %}
@@ -250,10 +264,46 @@ function setQuickPeriod(period) {
 </script>
 
 <style>
+.subcategory-indent {
+    font-family: monospace;
+    color: #6c757d;
+}
+
+.expense-major-category {
+    background-color: #f8f9fa;
+    border-left: 3px solid #007bff;
+}
+
+.revenue-client {
+    padding-left: 1.5rem;
+}
+
+.subcategory-row {
+    background-color: #fefefe;
+}
+
+.subcategory-row td {
+    border-top: none !important;
+    font-size: 0.9rem;
+}
+
 @media print {
     .btn, .card-header .btn, .dropdown, .modal { display: none !important; }
     .card { border: none !important; box-shadow: none !important; }
     .container-fluid { margin: 0; padding: 0; }
+}
+
+@media (max-width: 768px) {
+    .ps-5 {
+        padding-left: 1rem !important;
+    }
+    .subcategory-indent {
+        font-size: 0.8rem;
+    }
+    small {
+        display: block;
+        margin-top: 0.2rem;
+    }
 }
 </style>
 {% endblock %}

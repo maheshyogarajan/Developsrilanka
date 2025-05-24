@@ -373,61 +373,99 @@ class FinancialReportService:
     
     @staticmethod
     def generate_profit_loss(organization_id, start_date, end_date):
-        """Generate Profit & Loss statement for organization and period."""
+        """Enhanced P&L with client revenue and expense subcategory breakdown."""
         try:
-            from models import Receipt
+            from models import Receipt, Invoice, Client
             
-            # Initialize report structure with expense categories
+            # Initialize enhanced report structure
             report = {
                 'organization_id': organization_id,
                 'period': f"{start_date} to {end_date}",
-                'revenue_accounts': [],
-                'expense_categories': [],
+                'revenue_by_client': [],
+                'expense_hierarchy': {},
                 'total_revenue': Decimal('0'),
                 'total_expenses': Decimal('0'),
                 'net_income': Decimal('0')
             }
             
-            # Get revenue accounts
-            revenue_accounts = Account.query.filter_by(
-                organization_id=organization_id,
-                account_type='revenue',
-                is_active=True
-            ).all()
+            # Get detailed revenue breakdown by client
+            client_revenue_query = db.session.query(
+                Client.name.label('client_name'),
+                func.sum(Invoice.total).label('client_total'),
+                func.count(Invoice.id).label('invoice_count')
+            ).join(Invoice, Client.id == Invoice.client_id).filter(
+                Invoice.organization_id == organization_id,
+                Invoice.issue_date >= start_date,
+                Invoice.issue_date <= end_date,
+                Invoice.status.in_(['sent', 'paid', 'partially_paid', 'overdue'])
+            ).group_by(Client.id, Client.name).order_by(func.sum(Invoice.total).desc()).all()
             
-            for account in revenue_accounts:
-                balance = FinancialReportService.get_account_balance_for_period(
-                    account.id, start_date, end_date
-                )
-                if balance != 0:  # Only show accounts with activity
-                    account_data = {
-                        'account_code': account.account_code,
-                        'account_name': account.account_name,
-                        'balance': float(abs(balance))  # Revenue shows as positive
-                    }
-                    report['revenue_accounts'].append(account_data)
-                    report['total_revenue'] += abs(balance)
+            # Process client revenue
+            for client_data in client_revenue_query:
+                client_info = {
+                    'client_name': client_data.client_name,
+                    'revenue': float(client_data.client_total),
+                    'invoice_count': client_data.invoice_count
+                }
+                report['revenue_by_client'].append(client_info)
+                report['total_revenue'] += Decimal(str(client_data.client_total))
             
-            # Get expenses by major category from receipts
-            expense_query = db.session.query(
+            # Get detailed expense breakdown with subcategories
+            expense_detail_query = db.session.query(
                 Receipt.expense_major_category,
-                func.sum(Receipt.total_amount).label('total_amount')
+                Receipt.expense_minor_category,
+                func.sum(Receipt.total_amount).label('subcategory_total'),
+                func.count(Receipt.id).label('receipt_count')
             ).filter(
                 Receipt.organization_id == organization_id,
                 Receipt.date >= start_date,
                 Receipt.date <= end_date,
                 Receipt.expense_major_category.isnot(None)
-            ).group_by(Receipt.expense_major_category).all()
+            ).group_by(
+                Receipt.expense_major_category,
+                Receipt.expense_minor_category
+            ).order_by(
+                Receipt.expense_major_category,
+                Receipt.expense_minor_category
+            ).all()
             
-            # Add expense categories to report
-            for category, amount in expense_query:
-                if amount and amount > 0:
-                    category_data = {
-                        'category_name': category,
-                        'balance': float(amount)
+            # Structure expense data hierarchically
+            expense_hierarchy = {}
+            total_expenses = Decimal('0')
+            
+            for row in expense_detail_query:
+                major_cat = row.expense_major_category
+                minor_cat = row.expense_minor_category or 'Uncategorized'
+                amount = Decimal(str(row.subcategory_total))
+                
+                if major_cat not in expense_hierarchy:
+                    expense_hierarchy[major_cat] = {
+                        'total': Decimal('0'),
+                        'subcategories': {}
                     }
-                    report['expense_categories'].append(category_data)
-                    report['total_expenses'] += Decimal(str(amount))
+                
+                expense_hierarchy[major_cat]['subcategories'][minor_cat] = {
+                    'amount': amount,
+                    'count': row.receipt_count
+                }
+                expense_hierarchy[major_cat]['total'] += amount
+                total_expenses += amount
+            
+            # Convert Decimal amounts to float for template rendering
+            processed_hierarchy = {}
+            for major_cat, data in expense_hierarchy.items():
+                processed_hierarchy[major_cat] = {
+                    'total': float(data['total']),
+                    'subcategories': {}
+                }
+                for minor_cat, subdata in data['subcategories'].items():
+                    processed_hierarchy[major_cat]['subcategories'][minor_cat] = {
+                        'amount': float(subdata['amount']),
+                        'count': subdata['count']
+                    }
+            
+            report['expense_hierarchy'] = processed_hierarchy
+            report['total_expenses'] = total_expenses
             
             # Calculate net income
             report['net_income'] = report['total_revenue'] - report['total_expenses']
