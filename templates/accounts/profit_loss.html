@@ -92,18 +92,18 @@
                                 {% for account in report_data.revenue_accounts %}
                                 <tr>
                                     <td class="ps-4">{{ account.account_name }}</td>
-                                    <td class="text-end">${{ "{:,.2f}".format(account.balance) }}</td>
+                                    <td class="text-end">{{ "{:,.2f}".format(account.balance) }}</td>
                                 </tr>
                                 {% endfor %}
                                 {% if not report_data.revenue_accounts %}
                                 <tr>
                                     <td class="ps-4 text-muted">No revenue accounts found</td>
-                                    <td class="text-end">$0.00</td>
+                                    <td class="text-end">0.00</td>
                                 </tr>
                                 {% endif %}
                                 <tr class="fw-bold border-top">
                                     <td class="ps-4">Total Revenue</td>
-                                    <td class="text-end">${{ "{:,.2f}".format(report_data.total_revenue) }}</td>
+                                    <td class="text-end">{{ "{:,.2f}".format(report_data.total_revenue) }}</td>
                                 </tr>
                                 
                                 <!-- Expenses Section -->
@@ -131,7 +131,7 @@
                                 <tr class="table-success fw-bold border-top border-bottom">
                                     <td><strong>NET INCOME</strong></td>
                                     <td class="text-end">
-                                        <strong>${{ "{:,.2f}".format(report_data.net_income) }}</strong>
+                                        <strong>{{ "{:,.2f}".format(report_data.net_income) }}</strong>
                                     </td>
                                 </tr>
                             </tbody>
