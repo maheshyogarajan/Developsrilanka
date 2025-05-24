@@ -167,7 +167,7 @@ def migrate_existing_invoices(organization_id, accounts):
             reference_id=invoice.id,
             description=f"Invoice #{invoice.invoice_number} - {invoice.client.name if invoice.client else 'Unknown Client'}",
             total_amount=invoice.total,
-            created_by=invoice.created_by
+            created_by=invoice.user_id
         )
         db.session.add(journal_entry)
         db.session.flush()  # Get the ID
