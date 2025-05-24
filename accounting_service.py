@@ -375,30 +375,31 @@ class FinancialReportService:
     def generate_profit_loss(organization_id, start_date, end_date):
         """Generate Profit & Loss statement for organization and period."""
         try:
-            # Get all accounts for the organization
-            accounts = Account.query.filter_by(
-                organization_id=organization_id,
-                is_active=True
-            ).all()
+            from models import Receipt
             
-            # Initialize report structure
+            # Initialize report structure with expense categories
             report = {
                 'organization_id': organization_id,
                 'period': f"{start_date} to {end_date}",
                 'revenue_accounts': [],
-                'expense_accounts': [],
+                'expense_categories': [],
                 'total_revenue': Decimal('0'),
                 'total_expenses': Decimal('0'),
                 'net_income': Decimal('0')
             }
             
-            # Calculate balances for each account
-            for account in accounts:
-                if account.account_type == 'revenue':
-                    balance = FinancialReportService.get_account_balance_for_period(
-                        account.id, start_date, end_date
-                    )
-                    # Include all revenue accounts, even with zero balance
+            # Get revenue accounts
+            revenue_accounts = Account.query.filter_by(
+                organization_id=organization_id,
+                account_type='revenue',
+                is_active=True
+            ).all()
+            
+            for account in revenue_accounts:
+                balance = FinancialReportService.get_account_balance_for_period(
+                    account.id, start_date, end_date
+                )
+                if balance != 0:  # Only show accounts with activity
                     account_data = {
                         'account_code': account.account_code,
                         'account_name': account.account_name,
@@ -406,19 +407,27 @@ class FinancialReportService:
                     }
                     report['revenue_accounts'].append(account_data)
                     report['total_revenue'] += abs(balance)
-                
-                elif account.account_type == 'expense':
-                    balance = FinancialReportService.get_account_balance_for_period(
-                        account.id, start_date, end_date
-                    )
-                    # Include all expense accounts, even with zero balance  
-                    account_data = {
-                        'account_code': account.account_code,
-                        'account_name': account.account_name,
-                        'balance': float(abs(balance))  # Expenses show as positive
+            
+            # Get expenses by major category from receipts
+            expense_query = db.session.query(
+                Receipt.expense_major_category,
+                func.sum(Receipt.total_amount).label('total_amount')
+            ).filter(
+                Receipt.organization_id == organization_id,
+                Receipt.date >= start_date,
+                Receipt.date <= end_date,
+                Receipt.expense_major_category.isnot(None)
+            ).group_by(Receipt.expense_major_category).all()
+            
+            # Add expense categories to report
+            for category, amount in expense_query:
+                if amount and amount > 0:
+                    category_data = {
+                        'category_name': category,
+                        'balance': float(amount)
                     }
-                    report['expense_accounts'].append(account_data)
-                    report['total_expenses'] += abs(balance)
+                    report['expense_categories'].append(category_data)
+                    report['total_expenses'] += amount
             
             # Calculate net income
             report['net_income'] = report['total_revenue'] - report['total_expenses']
