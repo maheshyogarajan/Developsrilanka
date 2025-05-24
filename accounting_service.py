@@ -385,8 +385,8 @@ class FinancialReportService:
             report = {
                 'organization_id': organization_id,
                 'period': f"{start_date} to {end_date}",
-                'revenue': [],
-                'expenses': [],
+                'revenue_accounts': [],
+                'expense_accounts': [],
                 'total_revenue': Decimal('0'),
                 'total_expenses': Decimal('0'),
                 'net_income': Decimal('0')
@@ -398,25 +398,27 @@ class FinancialReportService:
                     balance = FinancialReportService.get_account_balance_for_period(
                         account.id, start_date, end_date
                     )
-                    if balance != 0:
-                        report['revenue'].append({
-                            'account_code': account.account_code,
-                            'account_name': account.account_name,
-                            'amount': float(balance)
-                        })
-                        report['total_revenue'] += balance
+                    # Include all revenue accounts, even with zero balance
+                    account_data = {
+                        'account_code': account.account_code,
+                        'account_name': account.account_name,
+                        'balance': float(abs(balance))  # Revenue shows as positive
+                    }
+                    report['revenue_accounts'].append(account_data)
+                    report['total_revenue'] += abs(balance)
                 
                 elif account.account_type == 'expense':
                     balance = FinancialReportService.get_account_balance_for_period(
                         account.id, start_date, end_date
                     )
-                    if balance != 0:
-                        report['expenses'].append({
-                            'account_code': account.account_code,
-                            'account_name': account.account_name,
-                            'amount': float(balance)
-                        })
-                        report['total_expenses'] += balance
+                    # Include all expense accounts, even with zero balance  
+                    account_data = {
+                        'account_code': account.account_code,
+                        'account_name': account.account_name,
+                        'balance': float(abs(balance))  # Expenses show as positive
+                    }
+                    report['expense_accounts'].append(account_data)
+                    report['total_expenses'] += abs(balance)
             
             # Calculate net income
             report['net_income'] = report['total_revenue'] - report['total_expenses']

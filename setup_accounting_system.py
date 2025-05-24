@@ -166,7 +166,7 @@ def migrate_existing_invoices(organization_id, accounts):
             reference_type='invoice',
             reference_id=invoice.id,
             description=f"Invoice #{invoice.invoice_number} - {invoice.client.name if invoice.client else 'Unknown Client'}",
-            total_amount=invoice.total_amount,
+            total_amount=invoice.total,
             created_by=invoice.created_by
         )
         db.session.add(journal_entry)
@@ -176,7 +176,7 @@ def migrate_existing_invoices(organization_id, accounts):
         debit_line = JournalEntryLine(
             ledger_entry_id=journal_entry.id,
             account_id=accounts_receivable.id,
-            debit_amount=invoice.total_amount,
+            debit_amount=invoice.total,
             credit_amount=Decimal('0'),
             description=f"Invoice #{invoice.invoice_number}",
             line_number=1
@@ -188,7 +188,7 @@ def migrate_existing_invoices(organization_id, accounts):
             ledger_entry_id=journal_entry.id,
             account_id=service_revenue.id,
             debit_amount=Decimal('0'),
-            credit_amount=invoice.total_amount,
+            credit_amount=invoice.total,
             description=f"Invoice #{invoice.invoice_number}",
             line_number=2
         )
