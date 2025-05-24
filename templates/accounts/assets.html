@@ -183,6 +183,7 @@
             </div>
             <form method="POST" action="{{ url_for('accounts.add_asset') }}">
                 <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="organization_id" value="{{ selected_org.id if selected_org }}">
                     
                     <div class="row">
@@ -217,13 +218,24 @@
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="asset_category_id" class="form-label">Asset Category</label>
+                                <select class="form-select" id="asset_category_id" name="asset_category_id">
+                                    <option value="">Select Category</option>
+                                    {% for category in asset_categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="useful_life_years" class="form-label">Useful Life (Years)</label>
                                 <input type="number" class="form-control" id="useful_life_years" name="useful_life_years" value="5">
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="salvage_value" class="form-label">Salvage Value</label>
                                 <input type="number" step="0.01" class="form-control" id="salvage_value" name="salvage_value" value="0">
