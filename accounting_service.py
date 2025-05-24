@@ -427,7 +427,7 @@ class FinancialReportService:
                         'balance': float(amount)
                     }
                     report['expense_categories'].append(category_data)
-                    report['total_expenses'] += amount
+                    report['total_expenses'] += Decimal(str(amount))
             
             # Calculate net income
             report['net_income'] = report['total_revenue'] - report['total_expenses']
