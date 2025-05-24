@@ -482,6 +482,46 @@
                     </ul>
                 </li>
                 
+                <!-- Accounts group -->
+                <li class="menu-item {% if '/accounts' in request.path %}open{% endif %}">
+                    <a href="#" class="menu-link has-submenu {% if '/accounts' in request.path %}active{% endif %}">
+                        <i class="fas fa-calculator menu-icon"></i>
+                        <span class="menu-text">Accounts</span>
+                    </a>
+                    <ul class="submenu">
+                        <li>
+                            <a href="{{ url_for('accounts.dashboard') }}" class="submenu-link {% if request.path == '/accounts/' %}active{% endif %}">
+                                <i class="fas fa-tachometer-alt submenu-icon"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('accounts.chart_of_accounts') }}" class="submenu-link {% if '/accounts/chart-of-accounts' in request.path %}active{% endif %}">
+                                <i class="fas fa-list submenu-icon"></i>
+                                <span>Chart of Accounts</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('accounts.profit_loss') }}" class="submenu-link {% if '/accounts/profit-loss' in request.path %}active{% endif %}">
+                                <i class="fas fa-chart-line submenu-icon"></i>
+                                <span>Profit & Loss</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('accounts.assets') }}" class="submenu-link {% if '/accounts/assets' in request.path %}active{% endif %}">
+                                <i class="fas fa-building submenu-icon"></i>
+                                <span>Asset Register</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('accounts.journal_entries') }}" class="submenu-link {% if '/accounts/journal-entries' in request.path %}active{% endif %}">
+                                <i class="fas fa-book submenu-icon"></i>
+                                <span>Journal Entries</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                
                 <!-- Who (Organizations/Team/Bank) group -->
                 <li class="menu-item {% if '/organizations' in request.path or '/team' in request.path or '/bank-accounts' in request.path %}open{% endif %}">
                     <a href="#" class="menu-link has-submenu {% if '/organizations' in request.path or '/team' in request.path or '/bank-accounts' in request.path %}active{% endif %}">

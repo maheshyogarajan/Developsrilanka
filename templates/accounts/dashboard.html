@@ -1,0 +1,172 @@
+{% extends "layout.html" %}
+
+{% block title %}Accounts Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-calculator text-primary me-2"></i>
+            Accounts Dashboard
+        </h2>
+        
+        {% if organizations|length > 1 %}
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-building me-2"></i>
+                {{ default_org.name if default_org else 'Select Organization' }}
+            </button>
+            <ul class="dropdown-menu">
+                {% for org in organizations %}
+                <li><a class="dropdown-item" href="{{ url_for('accounts.dashboard') }}?org_id={{ org.id }}">{{ org.name }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not organizations %}
+    <div class="alert alert-warning">
+        <h4>No Organizations Found</h4>
+        <p>You need to set up an organization before accessing accounting features.</p>
+        <a href="{{ url_for('getting_started.wizard') }}" class="btn btn-primary">Get Started</a>
+    </div>
+    {% else %}
+    
+    <!-- Quick Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-list fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.total_accounts or 0 }}</h3>
+                    <p class="text-muted mb-0">Chart of Accounts</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-building fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.total_assets or 0 }}</h3>
+                    <p class="text-muted mb-0">Fixed Assets</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">P&L</h3>
+                    <p class="text-muted mb-0">Current Month</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-book fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.recent_entries|length or 0 }}</h3>
+                    <p class="text-muted mb-0">Recent Entries</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('accounts.chart_of_accounts') }}{% if default_org %}?org_id={{ default_org.id }}{% endif %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-list me-2"></i>
+                                Chart of Accounts
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('accounts.profit_loss') }}{% if default_org %}?org_id={{ default_org.id }}{% endif %}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Profit & Loss
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('accounts.assets') }}{% if default_org %}?org_id={{ default_org.id }}{% endif %}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-building me-2"></i>
+                                Asset Register
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('accounts.journal_entries') }}{% if default_org %}?org_id={{ default_org.id }}{% endif %}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-book me-2"></i>
+                                Journal Entries
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Journal Entries -->
+    {% if stats.recent_entries %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Journal Entries</h5>
+                    <a href="{{ url_for('accounts.journal_entries') }}{% if default_org %}?org_id={{ default_org.id }}{% endif %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Entry #</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in stats.recent_entries %}
+                                <tr>
+                                    <td><code>{{ entry.entry_number }}</code></td>
+                                    <td>{{ entry.transaction_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ entry.description|truncate(50) }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ entry.reference_type or 'Manual' }}</span>
+                                    </td>
+                                    <td class="text-end">${{ "{:,.2f}".format(entry.total_amount) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% endif %}
+</div>
+{% endblock %}
