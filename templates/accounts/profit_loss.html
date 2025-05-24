@@ -1,0 +1,259 @@
+{% extends "layout.html" %}
+
+{% block title %}Profit & Loss Statement{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-chart-line text-success me-2"></i>
+            Profit & Loss Statement
+        </h2>
+        
+        <div class="d-flex gap-2">
+            {% if organizations|length > 1 %}
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-building me-2"></i>
+                    {{ selected_org.name if selected_org else 'Select Organization' }}
+                </button>
+                <ul class="dropdown-menu">
+                    {% for org in organizations %}
+                    <li><a class="dropdown-item" href="{{ url_for('accounts.profit_loss', org_id=org.id) }}">{{ org.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#periodModal">
+                <i class="fas fa-calendar me-2"></i>Change Period
+            </button>
+        </div>
+    </div>
+
+    <!-- Period Selection Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="GET" class="row g-3 align-items-end">
+                        {% if selected_org %}
+                        <input type="hidden" name="org_id" value="{{ selected_org.id }}">
+                        {% endif %}
+                        
+                        <div class="col-md-4">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if report_data %}
+    <!-- P&L Report -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        {% if selected_org %}{{ selected_org.name }}{% endif %} - Profit & Loss
+                        {% if start_date and end_date %}
+                        <br><small class="text-muted">{{ start_date.strftime('%B %d, %Y') }} to {{ end_date.strftime('%B %d, %Y') }}</small>
+                        {% endif %}
+                    </h5>
+                    <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Print
+                    </button>
+                </div>
+                
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <!-- Revenue Section -->
+                                <tr class="table-light">
+                                    <td colspan="2"><strong>REVENUE</strong></td>
+                                </tr>
+                                {% for account in report_data.revenue_accounts %}
+                                <tr>
+                                    <td class="ps-4">{{ account.account_name }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(account.balance) }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if not report_data.revenue_accounts %}
+                                <tr>
+                                    <td class="ps-4 text-muted">No revenue accounts found</td>
+                                    <td class="text-end">$0.00</td>
+                                </tr>
+                                {% endif %}
+                                <tr class="fw-bold border-top">
+                                    <td class="ps-4">Total Revenue</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(report_data.total_revenue) }}</td>
+                                </tr>
+                                
+                                <!-- Expenses Section -->
+                                <tr class="table-light">
+                                    <td colspan="2"><strong>EXPENSES</strong></td>
+                                </tr>
+                                {% for account in report_data.expense_accounts %}
+                                <tr>
+                                    <td class="ps-4">{{ account.account_name }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(account.balance) }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if not report_data.expense_accounts %}
+                                <tr>
+                                    <td class="ps-4 text-muted">No expense accounts found</td>
+                                    <td class="text-end">$0.00</td>
+                                </tr>
+                                {% endif %}
+                                <tr class="fw-bold border-top">
+                                    <td class="ps-4">Total Expenses</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(report_data.total_expenses) }}</td>
+                                </tr>
+                                
+                                <!-- Net Income -->
+                                <tr class="table-success fw-bold border-top border-bottom">
+                                    <td><strong>NET INCOME</strong></td>
+                                    <td class="text-end">
+                                        <strong>${{ "{:,.2f}".format(report_data.net_income) }}</strong>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Data Message -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Data Available</h5>
+                    <p class="text-muted">Select a date range and organization to generate your Profit & Loss statement.</p>
+                    {% if not selected_org %}
+                    <a href="{{ url_for('organizations.organizations') }}" class="btn btn-primary">
+                        <i class="fas fa-building me-2"></i>Set Up Organization
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Period Selection Modal -->
+<div class="modal fade" id="periodModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Period Selection</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickPeriod('current_month')">
+                            Current Month
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickPeriod('last_month')">
+                            Last Month
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickPeriod('current_quarter')">
+                            Current Quarter
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickPeriod('current_year')">
+                            Current Year
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickPeriod('last_year')">
+                            Last Year
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickPeriod('ytd')">
+                            Year to Date
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setQuickPeriod(period) {
+    const today = new Date();
+    let startDate, endDate;
+    
+    switch(period) {
+        case 'current_month':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+        case 'last_month':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+        case 'current_quarter':
+            const quarter = Math.floor(today.getMonth() / 3);
+            startDate = new Date(today.getFullYear(), quarter * 3, 1);
+            endDate = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
+            break;
+        case 'current_year':
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = new Date(today.getFullYear(), 11, 31);
+            break;
+        case 'last_year':
+            startDate = new Date(today.getFullYear() - 1, 0, 1);
+            endDate = new Date(today.getFullYear() - 1, 11, 31);
+            break;
+        case 'ytd':
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = today;
+            break;
+    }
+    
+    document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+    document.getElementById('end_date').value = endDate.toISOString().split('T')[0];
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('periodModal'));
+    modal.hide();
+}
+</script>
+
+<style>
+@media print {
+    .btn, .card-header .btn, .dropdown, .modal { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    .container-fluid { margin: 0; padding: 0; }
+}
+</style>
+{% endblock %}

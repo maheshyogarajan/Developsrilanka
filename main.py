@@ -176,6 +176,15 @@ try:
 except Exception as e:
     logger.error(f"Error registering Expense Pipeline blueprint: {str(e)}")
 
+# Import accounting routes
+try:
+    import accounts_routes
+    # Register accounting routes
+    accounts_routes.register_routes(app)
+    logger.info("Accounting routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading accounting routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
