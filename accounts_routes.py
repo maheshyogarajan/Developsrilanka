@@ -139,12 +139,16 @@ def profit_loss():
         
         selected_org = Organization.query.get(org_id) if org_id else None
         
+        # Convert strings back to date objects for template
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+        
         return render_template('accounts/profit_loss.html',
                              report_data=report_data,
                              organizations=organizations,
                              selected_org=selected_org,
-                             start_date=start_date,
-                             end_date=end_date)
+                             start_date=start_date_obj,
+                             end_date=end_date_obj)
     except Exception as e:
         logger.error(f"Error in profit_loss route: {str(e)}")
         flash('Error loading Profit & Loss page.', 'danger')

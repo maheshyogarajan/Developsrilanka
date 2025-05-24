@@ -1,0 +1,247 @@
+{% extends "layout.html" %}
+
+{% block title %}Asset Register{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-building text-info me-2"></i>
+            Asset Register
+        </h2>
+        
+        <div class="d-flex gap-2">
+            {% if organizations|length > 1 %}
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-building me-2"></i>
+                    {{ selected_org.name if selected_org else 'Select Organization' }}
+                </button>
+                <ul class="dropdown-menu">
+                    {% for org in organizations %}
+                    <li><a class="dropdown-item" href="{{ url_for('accounts.assets', org_id=org.id) }}">{{ org.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                <i class="fas fa-plus me-2"></i>Add Asset
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-building fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.total_assets }}</h3>
+                    <p class="text-muted mb-0">Total Assets</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">${{ "{:,.0f}".format(stats.total_cost) }}</h3>
+                    <p class="text-muted mb-0">Total Cost</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-chart-line-down fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">${{ "{:,.0f}".format(stats.total_depreciation) }}</h3>
+                    <p class="text-muted mb-0">Depreciation</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-calculator fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">${{ "{:,.0f}".format(stats.total_book_value) }}</h3>
+                    <p class="text-muted mb-0">Book Value</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assets Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Fixed Assets</h5>
+                </div>
+                <div class="card-body">
+                    {% if assets %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Asset #</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th>Purchase Date</th>
+                                    <th class="text-end">Cost</th>
+                                    <th class="text-end">Depreciation</th>
+                                    <th class="text-end">Book Value</th>
+                                    <th>Status</th>
+                                    <th width="120">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for asset in assets %}
+                                <tr>
+                                    <td><code>{{ asset.asset_number or 'A' + asset.id|string }}</code></td>
+                                    <td>
+                                        <strong>{{ asset.description|truncate(40) }}</strong>
+                                        {% if asset.location %}
+                                        <br><small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ asset.location }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if asset.category %}
+                                        <span class="badge bg-secondary">{{ asset.category.name }}</span>
+                                        {% else %}
+                                        <span class="text-muted">Uncategorized</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ asset.purchase_date.strftime('%Y-%m-%d') }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(asset.purchase_price) }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(asset.accumulated_depreciation) }}</td>
+                                    <td class="text-end">
+                                        <strong>${{ "{:,.2f}".format(asset.get_current_book_value()) }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if asset.status == 'active' %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% elif asset.status == 'disposed' %}
+                                        <span class="badge bg-danger">Disposed</span>
+                                        {% elif asset.status == 'sold' %}
+                                        <span class="badge bg-warning">Sold</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ asset.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                    data-bs-toggle="tooltip" title="Edit Asset">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm"
+                                                    data-bs-toggle="tooltip" title="Depreciation Schedule">
+                                                <i class="fas fa-chart-line"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Assets Found</h5>
+                        <p class="text-muted">Add your first asset to start tracking depreciation and book values.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                            <i class="fas fa-plus me-2"></i>Add First Asset
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Asset Modal -->
+<div class="modal fade" id="addAssetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Asset</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('accounts.add_asset') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="organization_id" value="{{ selected_org.id if selected_org }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Asset Description *</label>
+                                <input type="text" class="form-control" id="description" name="description" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="asset_number" class="form-label">Asset Number</label>
+                                <input type="text" class="form-control" id="asset_number" name="asset_number">
+                                <div class="form-text">Optional unique identifier</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="purchase_date" class="form-label">Purchase Date *</label>
+                                <input type="date" class="form-control" id="purchase_date" name="purchase_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="purchase_price" class="form-label">Purchase Price *</label>
+                                <input type="number" step="0.01" class="form-control" id="purchase_price" name="purchase_price" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="useful_life_years" class="form-label">Useful Life (Years)</label>
+                                <input type="number" class="form-control" id="useful_life_years" name="useful_life_years" value="5">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="salvage_value" class="form-label">Salvage Value</label>
+                                <input type="number" step="0.01" class="form-control" id="salvage_value" name="salvage_value" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="location" name="location">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Asset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
