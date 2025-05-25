@@ -208,6 +208,9 @@ class AccountMappingService:
             
             account_code = cls.get_account_code_for_category(category, minor_category)
             
+            # Debug logging
+            logger.info(f"Mapping expense: category='{category}', minor='{minor_category}' -> account={account_code}")
+            
             if account_code not in account_totals:
                 account_totals[account_code] = Decimal('0')
             account_totals[account_code] += amount
