@@ -233,76 +233,49 @@ def upload_statement():
         db.session.rollback()
         flash('Upload failed. Please try again.', 'error')
         return redirect(url_for('enhanced_bank.upload_form'))
-        db.session.commit()
-        
-        logger.info(f"Bank statement uploaded successfully: {statement.id}")
-        
-        return jsonify({
-            'success': True,
-            'statement_id': statement.id,
-            'message': 'Bank statement uploaded successfully',
-            'next_step': 'processing'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error uploading bank statement: {str(e)}")
-        return jsonify({'error': 'Upload failed. Please try again.'}), 500
 
 @enhanced_bank.route('/statement/<int:statement_id>')
 @login_required
 def view_statement(statement_id):
-    """View bank statement details and reconciliation status."""
+    """View bank statement details with transactions."""
     try:
-        statement = BankStatement.query.get_or_404(statement_id)
-        
-        # Check user access
-        user_org = OrganizationUser.query.filter_by(
-            user_id=current_user.id,
-            organization_id=statement.organization_id
+        # Get statement with organization check
+        statement = db.session.query(BankStatement).join(
+            OrganizationUser,
+            OrganizationUser.organization_id == BankStatement.organization_id
+        ).filter(
+            BankStatement.id == statement_id,
+            OrganizationUser.user_id == current_user.id
         ).first()
         
-        if not user_org:
-            flash('Access denied', 'error')
+        if not statement:
+            flash('Statement not found or access denied', 'error')
             return redirect(url_for('enhanced_bank.list_statements'))
         
-        # Get processing logs
-        processing_logs = BankStatementProcessingLog.query.filter_by(
-            bank_statement_id=statement_id
-        ).order_by(BankStatementProcessingLog.created_at.desc()).all()
-        
-        # Get statement pages
-        pages = BankStatementPage.query.filter_by(
-            bank_statement_id=statement_id
-        ).order_by(BankStatementPage.page_number).all()
-        
         # Get transactions
-        transactions = db.session.query(FinancialTransaction).join(
-            TransactionMetaBank
-        ).filter(
-            TransactionMetaBank.bank_statement_id == statement_id
-        ).order_by(FinancialTransaction.transaction_date.desc()).all()
+        transactions = db.session.query(FinancialTransaction)\
+            .outerjoin(TransactionMetaBank)\
+            .filter(FinancialTransaction.bank_statement_id == statement_id)\
+            .order_by(FinancialTransaction.transaction_date.desc())\
+            .all()
         
-        # Get reconciliation audit
-        reconciliation_audit = ReconciliationAudit.query.filter_by(
-            bank_statement_id=statement_id
-        ).order_by(ReconciliationAudit.created_at.desc()).first()
+        # Get reconciliation summary
+        total_transactions = len(transactions)
+        reconciled_count = sum(1 for t in transactions if hasattr(t, 'receipt_id') and t.receipt_id or hasattr(t, 'expense_id') and t.expense_id)
         
-        # Get exceptions
-        exceptions = ReconciliationException.query.filter_by(
-            bank_statement_id=statement_id
-        ).order_by(ReconciliationException.created_at.desc()).all()
+        reconciliation_summary = {
+            'total_transactions': total_transactions,
+            'reconciled_count': reconciled_count,
+            'reconciliation_rate': reconciled_count / total_transactions if total_transactions > 0 else 0
+        }
         
-        return render_template('enhanced_bank/statement_detail.html',
+        return render_template('enhanced_bank/view_statement.html',
                              statement=statement,
-                             processing_logs=processing_logs,
-                             pages=pages,
                              transactions=transactions,
-                             reconciliation_audit=reconciliation_audit,
-                             exceptions=exceptions)
-                             
+                             reconciliation_summary=reconciliation_summary)
+        
     except Exception as e:
-        logger.error(f"Error viewing statement {statement_id}: {str(e)}")
+        logger.error(f"Error viewing statement: {str(e)}")
         flash('Error loading statement details', 'error')
         return redirect(url_for('enhanced_bank.list_statements'))
 

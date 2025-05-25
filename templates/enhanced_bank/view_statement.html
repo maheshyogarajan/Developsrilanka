@@ -1,0 +1,202 @@
+{% extends "layout.html" %}
+
+{% block title %}Bank Statement Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Bank Statement Details</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('enhanced_bank.list_statements') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Statements
+            </a>
+            {% if statement.processing_status == 'completed' %}
+            <a href="{{ url_for('enhanced_bank.reconcile_statement', statement_id=statement.id) }}" 
+               class="btn btn-primary">
+                <i class="fas fa-balance-scale me-2"></i>Start Reconciliation
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Statement Summary -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Statement Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Bank:</strong> {{ statement.bank_name or 'Unknown' }}</p>
+                            <p><strong>Account:</strong> ****{{ statement.account_number[-4:] if statement.account_number else 'N/A' }}</p>
+                            <p><strong>Period:</strong> 
+                                {% if statement.statement_period_from and statement.statement_period_to %}
+                                {{ statement.statement_period_from.strftime('%d %b %Y') }} - {{ statement.statement_period_to.strftime('%d %b %Y') }}
+                                {% else %}
+                                Not available
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Currency:</strong> {{ statement.base_currency or 'LKR' }}</p>
+                            <p><strong>Transactions:</strong> {{ statement.total_transactions or 0 }}</p>
+                            <p><strong>Status:</strong> 
+                                {% if statement.processing_status == 'completed' %}
+                                <span class="badge bg-success">Processed</span>
+                                {% elif statement.processing_status == 'processing' %}
+                                <span class="badge bg-warning">Processing</span>
+                                {% else %}
+                                <span class="badge bg-danger">Failed</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if statement.opening_balance or statement.closing_balance %}
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            {% if statement.opening_balance %}
+                            <p><strong>Opening Balance:</strong> {{ statement.base_currency }} {{ "{:,.2f}"|format(statement.opening_balance) }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if statement.closing_balance %}
+                            <p><strong>Closing Balance:</strong> {{ statement.base_currency }} {{ "{:,.2f}"|format(statement.closing_balance) }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reconciliation Summary -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Reconciliation Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if reconciliation_summary %}
+                    <div class="text-center">
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-success" style="width: {{ (reconciliation_summary.reconciled_count / reconciliation_summary.total_transactions * 100) if reconciliation_summary.total_transactions > 0 else 0 }}%"></div>
+                        </div>
+                        <p><strong>{{ reconciliation_summary.reconciled_count }}</strong> of <strong>{{ reconciliation_summary.total_transactions }}</strong> reconciled</p>
+                        <small class="text-muted">{{ "%.1f"|format(reconciliation_summary.reconciliation_rate * 100) }}% complete</small>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No reconciliation data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Transactions Table -->
+    {% if transactions %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Transactions ({{ transactions|length }})</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Balance After</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.transaction_date.strftime('%d %b %Y') }}</td>
+                            <td>{{ transaction.description[:50] }}{% if transaction.description|length > 50 %}...{% endif %}</td>
+                            <td>
+                                <span class="{% if transaction.bank_meta and transaction.bank_meta.is_debit %}text-danger{% else %}text-success{% endif %}">
+                                    {% if transaction.bank_meta and transaction.bank_meta.is_debit %}-{% endif %}{{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.amount) }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if transaction.bank_meta and transaction.bank_meta.is_debit %}
+                                <span class="badge bg-danger">Debit</span>
+                                {% else %}
+                                <span class="badge bg-success">Credit</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if hasattr(transaction, 'receipt_id') and transaction.receipt_id or hasattr(transaction, 'expense_id') and transaction.expense_id %}
+                                <span class="badge bg-success">Reconciled</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if transaction.bank_meta and transaction.bank_meta.balance_after %}
+                                {{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.bank_meta.balance_after) }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not (hasattr(transaction, 'receipt_id') and transaction.receipt_id or hasattr(transaction, 'expense_id') and transaction.expense_id) %}
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="showReconcileModal({{ transaction.id }})">
+                                    <i class="fas fa-link"></i> Match
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center">
+            <h5>No Transactions Found</h5>
+            <p class="text-muted">
+                {% if statement.processing_status == 'processing' %}
+                Statement is still being processed. Please check back in a few moments.
+                {% elif statement.processing_status == 'failed' %}
+                Statement processing failed. Please try uploading again.
+                {% else %}
+                No transactions were extracted from this statement.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Reconciliation Modal -->
+<div class="modal fade" id="reconcileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Match Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Manual reconciliation interface will be available in the next update.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showReconcileModal(transactionId) {
+    // Placeholder for reconciliation functionality
+    $('#reconcileModal').modal('show');
+}
+</script>
+{% endblock %}
