@@ -124,20 +124,48 @@ def upload_statement():
             flash('File size must be under 10MB', 'error')
             return redirect(url_for('enhanced_bank.upload_form'))
         
-        # Parse statement dates for required fields
+        # Auto-extract statement period dates from PDF content
         try:
-            statement_start = request.form.get('statement_start')
-            statement_end = request.form.get('statement_end')
-            if statement_start and statement_end:
-                period_from = datetime.strptime(statement_start, '%Y-%m-%d').date()
-                period_to = datetime.strptime(statement_end, '%Y-%m-%d').date()
-            else:
-                # Default to current month if not provided
-                today = date.today()
-                period_from = today.replace(day=1)
-                period_to = today
-        except ValueError:
-            # Fallback to current month if date parsing fails
+            # First try to extract dates from the PDF content itself
+            processor = BankStatementProcessor()
+            result = processor.process_pdf(pdf_data, bank_hint=request.form.get('bank_name', ''))
+            
+            # Get dates from PDF processing
+            info = result.get('statement_info', {})
+            period_from = info.get('start_date')
+            period_to = info.get('end_date')
+            
+            # If PDF extraction didn't provide dates, try manual form input as fallback
+            if not period_from or not period_to:
+                statement_start = request.form.get('statement_start')
+                statement_end = request.form.get('statement_end')
+                if statement_start and statement_end:
+                    period_from = datetime.strptime(statement_start, '%Y-%m-%d').date()
+                    period_to = datetime.strptime(statement_end, '%Y-%m-%d').date()
+                else:
+                    # Extract from filename if possible (e.g., Current-1000120800-20250508.pdf)
+                    filename = statement_file.filename.lower()
+                    import re
+                    date_match = re.search(r'(\d{8})', filename)
+                    if date_match:
+                        date_str = date_match.group(1)
+                        try:
+                            period_to = datetime.strptime(date_str, '%Y%m%d').date()
+                            period_from = period_to.replace(day=1)  # Start of month
+                        except ValueError:
+                            period_to = date.today()
+                            period_from = period_to.replace(day=1)
+                    else:
+                        # Use current month as last resort
+                        today = date.today()
+                        period_from = today.replace(day=1)
+                        period_to = today
+                        
+            logger.info(f"Auto-extracted statement period: {period_from} to {period_to}")
+            
+        except Exception as date_error:
+            logger.warning(f"Date extraction failed: {date_error}, using defaults")
+            # Fallback to current month if all extraction methods fail
             today = date.today()
             period_from = today.replace(day=1)
             period_to = today
