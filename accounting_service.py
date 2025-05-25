@@ -437,8 +437,8 @@ class FinancialReportService:
             
             for row in expense_category_query:
                 category_data = {
-                    'category': row.expense_major_category,
-                    'minor_category': row.expense_minor_category,
+                    'category': row.expense_major_category or '',
+                    'minor_category': row.expense_minor_category or '',
                     'amount': float(row.category_total),
                     'count': row.receipt_count
                 }
