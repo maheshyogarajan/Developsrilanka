@@ -18,12 +18,16 @@ from enhanced_reconciliation_models import (
 from enhanced_financial_services import (
     UniversalGLService, EnhancedMatchingEngine, BalanceSheetService
 )
+from bank_statement_processor import BankStatementProcessor
+from smart_reconciliation_service import SmartReconciliationService
 import hashlib
 import os
 import logging
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import json
+import boto3
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -85,119 +89,150 @@ def upload_form():
 @enhanced_bank.route('/upload', methods=['POST'])
 @login_required
 def upload_statement():
-    """Handle bank statement upload with progress tracking."""
+    """Handle bank statement upload with complete processing pipeline."""
     try:
-        # Validate form data
+        # Validate inputs
         organization_id = request.form.get('organization_id', type=int)
-        if not organization_id:
-            return jsonify({'error': 'Organization is required'}), 400
+        statement_file = request.files.get('statement_file')
         
-        # Check user access to organization
+        if not organization_id:
+            flash('Please select an organization', 'error')
+            return redirect(url_for('enhanced_bank.upload_form'))
+            
+        if not statement_file or not statement_file.filename:
+            flash('Please select a PDF file', 'error')
+            return redirect(url_for('enhanced_bank.upload_form'))
+            
+        # Verify user has access to organization
         user_org = OrganizationUser.query.filter_by(
             user_id=current_user.id,
             organization_id=organization_id
         ).first()
         
         if not user_org:
-            return jsonify({'error': 'Access denied to organization'}), 403
+            flash('Access denied to selected organization', 'error')
+            return redirect(url_for('enhanced_bank.upload_form'))
         
-        # Validate file upload
-        if 'statement_file' not in request.files:
-            return jsonify({'error': 'No file uploaded'}), 400
+        # Read and validate PDF
+        pdf_data = statement_file.read()
+        if len(pdf_data) == 0:
+            flash('Uploaded file is empty', 'error')
+            return redirect(url_for('enhanced_bank.upload_form'))
+            
+        if len(pdf_data) > 10 * 1024 * 1024:  # 10MB limit
+            flash('File size must be under 10MB', 'error')
+            return redirect(url_for('enhanced_bank.upload_form'))
         
-        file = request.files['statement_file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-        
-        if not file.filename.lower().endswith('.pdf'):
-            return jsonify({'error': 'Only PDF files are allowed'}), 400
-        
-        # Read file content for hashing
-        file_content = file.read()
-        file_size = len(file_content)
-        file.seek(0)  # Reset file pointer
-        
-        # Extract metadata from form
-        account_number = request.form.get('account_number', '').strip()
-        bank_name = request.form.get('bank_name', '').strip()
-        period_from = request.form.get('period_from')
-        period_to = request.form.get('period_to')
-        
-        if not all([account_number, period_from, period_to]):
-            return jsonify({'error': 'Account number and statement period are required'}), 400
-        
-        # Parse dates
-        try:
-            period_from_date = datetime.strptime(period_from, '%Y-%m-%d').date()
-            period_to_date = datetime.strptime(period_to, '%Y-%m-%d').date()
-        except ValueError:
-            return jsonify({'error': 'Invalid date format'}), 400
-        
-        # Generate content hash for duplicate detection
-        content_hash = BankStatement.generate_content_hash(
-            file_content, file_size, account_number, period_from_date, period_to_date
-        )
-        
-        # Check for duplicates
-        existing_statement = BankStatement.query.filter_by(
-            content_sha256=content_hash
-        ).first()
-        
-        if existing_statement:
-            return jsonify({
-                'error': 'This bank statement has already been uploaded',
-                'existing_statement_id': existing_statement.id
-            }), 409
-        
-        # Check for overlapping periods
-        overlapping = BankStatement.query.filter(
-            BankStatement.organization_id == organization_id,
-            BankStatement.account_number == account_number,
-            BankStatement.statement_period_from <= period_to_date,
-            BankStatement.statement_period_to >= period_from_date
-        ).first()
-        
-        if overlapping:
-            return jsonify({
-                'warning': f'Statement period overlaps with existing statement from {overlapping.statement_period_from} to {overlapping.statement_period_to}',
-                'existing_statement_id': overlapping.id,
-                'can_proceed': True
-            }), 200
-        
-        # Create bank statement record
+        # Create statement record
         statement = BankStatement(
             organization_id=organization_id,
-            content_sha256=content_hash,
-            file_size_bytes=file_size,
-            page_count=0,  # Will be updated after PDF processing
-            bank_name=bank_name,
-            account_number=account_number,
-            statement_period_from=period_from_date,
-            statement_period_to=period_to_date,
-            statement_currency=request.form.get('currency', 'USD'),
-            processing_status='uploaded',
+            filename=secure_filename(statement_file.filename),
+            bank_name=request.form.get('bank_name', ''),
+            account_number=request.form.get('account_number', ''),
+            base_currency=request.form.get('base_currency', 'LKR'),
+            file_size_bytes=len(pdf_data),
+            processing_status='processing',
+            created_at=datetime.now(),
             uploaded_by=current_user.id
         )
-        
         db.session.add(statement)
-        db.session.flush()
+        db.session.flush()  # Get ID for S3 key
         
-        # Store file in S3
-        filename = secure_filename(file.filename) or f"statement_{statement.id}.pdf"
-        s3_key = f"bank-statements/org_{organization_id}/{period_from_date.year}/{period_from_date.month:02d}/{filename}"
+        # Store in S3 (using existing infrastructure)
+        try:
+            s3_client = boto3.client('s3')
+            s3_key = f"bank-statements/{statement.id}/{statement.filename}"
+            s3_client.upload_fileobj(
+                BytesIO(pdf_data),
+                os.environ.get('AWS_S3_BUCKET_NAME'),
+                s3_key
+            )
+            statement.original_pdf_s3_key = s3_key
+        except Exception as s3_error:
+            logger.warning(f"S3 upload failed: {s3_error}")
+            # Continue processing without S3 - store locally if needed
         
-        # TODO: Upload to S3 here
-        statement.original_pdf_s3_key = s3_key
-        
-        # Create initial processing log
-        processing_log = BankStatementProcessingLog(
-            bank_statement_id=statement.id,
-            processing_stage='upload',
-            stage_status='completed',
-            progress_percentage=10
-        )
-        
-        db.session.add(processing_log)
+        # Process PDF
+        try:
+            processor = BankStatementProcessor()
+            result = processor.process_pdf(pdf_data, statement.bank_name)
+            
+            if result['validation']['is_valid']:
+                # Update statement with extracted info
+                info = result['statement_info']
+                statement.statement_period_from = info.get('statement_period_start')
+                statement.statement_period_to = info.get('statement_period_end')
+                statement.opening_balance = info.get('opening_balance')
+                statement.closing_balance = info.get('closing_balance')
+                statement.total_transactions = len(result['transactions'])
+                statement.processing_status = 'completed'
+                
+                # Create transactions
+                for txn_data in result['transactions']:
+                    transaction = FinancialTransaction(
+                        organization_id=organization_id,
+                        bank_statement_id=statement.id,
+                        transaction_type='bank',
+                        amount=Decimal(str(txn_data['amount'])),
+                        transaction_date=txn_data['transaction_date'],
+                        description=txn_data['description'],
+                        reference_number=txn_data.get('reference_number'),
+                        created_at=datetime.now()
+                    )
+                    db.session.add(transaction)
+                    db.session.flush()
+                    
+                    # Add bank metadata
+                    bank_meta = TransactionMetaBank(
+                        transaction_id=transaction.id,
+                        balance_after=txn_data.get('balance_after'),
+                        is_debit=txn_data['is_debit'],
+                        raw_description=txn_data.get('raw_line', ''),
+                        bank_reference=txn_data.get('reference_number')
+                    )
+                    db.session.add(bank_meta)
+                
+                db.session.commit()
+                
+                # Trigger reconciliation if requested
+                if request.form.get('auto_reconcile'):
+                    try:
+                        reconciler = SmartReconciliationService()
+                        reconciliation_result = reconciler.reconcile_statement(
+                            statement.id, organization_id
+                        )
+                        flash(f'Statement processed successfully! {reconciliation_result["auto_matched"]} transactions auto-matched.', 'success')
+                    except Exception as recon_error:
+                        logger.error(f"Reconciliation failed: {recon_error}")
+                        flash('Statement processed but auto-reconciliation had issues.', 'warning')
+                else:
+                    flash(f'Statement processed successfully! Found {statement.total_transactions} transactions.', 'success')
+                
+                return redirect(url_for('enhanced_bank.view_statement', statement_id=statement.id))
+                
+            else:
+                # Processing failed
+                statement.processing_status = 'failed'
+                statement.processing_error = '; '.join(result['validation']['errors'])
+                db.session.commit()
+                
+                flash('PDF processing failed. Please check the file format.', 'error')
+                return redirect(url_for('enhanced_bank.view_statement', statement_id=statement.id))
+                
+        except Exception as process_error:
+            logger.error(f"PDF processing error: {process_error}")
+            statement.processing_status = 'failed'
+            statement.processing_error = str(process_error)
+            db.session.commit()
+            
+            flash('Error processing PDF. Please ensure it\'s a valid bank statement.', 'error')
+            return redirect(url_for('enhanced_bank.list_statements'))
+    
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        db.session.rollback()
+        flash('Upload failed. Please try again.', 'error')
+        return redirect(url_for('enhanced_bank.upload_form'))
         db.session.commit()
         
         logger.info(f"Bank statement uploaded successfully: {statement.id}")
