@@ -634,9 +634,9 @@ def dashboard():
 # Register error handlers
 @enhanced_bank.errorhandler(404)
 def not_found_error(error):
-    return render_template('errors/404.html'), 404
+    return f"<h1>Page Not Found</h1><p>The requested bank statement page could not be found.</p>", 404
 
 @enhanced_bank.errorhandler(500)
 def internal_error(error):
     db.session.rollback()
-    return render_template('errors/500.html'), 500
+    return f"<h1>Server Error</h1><p>An error occurred while processing your bank statement request.</p>", 500
