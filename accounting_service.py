@@ -445,6 +445,9 @@ class FinancialReportService:
                     'amount': float(row.category_total),
                     'count': row.receipt_count
                 }
+                
+                # Debug what we're actually passing to the mapping service
+                logger.info(f"Passing to mapping: category='{category_data['category']}', minor='{category_data['minor_category']}')")
                 category_breakdown.append(category_data)
                 total_expenses += Decimal(str(row.category_total))
             
