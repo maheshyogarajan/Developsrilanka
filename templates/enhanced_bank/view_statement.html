@@ -57,12 +57,12 @@
                     <div class="row mt-3">
                         <div class="col-md-6">
                             {% if statement.opening_balance %}
-                            <p><strong>Opening Balance:</strong> {{ statement.base_currency }} {{ "{:,.2f}"|format(statement.opening_balance) }}</p>
+                            <p><strong>Opening Balance:</strong> {{ statement.base_currency }} {{ statement.opening_balance|round(2) }}</p>
                             {% endif %}
                         </div>
                         <div class="col-md-6">
                             {% if statement.closing_balance %}
-                            <p><strong>Closing Balance:</strong> {{ statement.base_currency }} {{ "{:,.2f}"|format(statement.closing_balance) }}</p>
+                            <p><strong>Closing Balance:</strong> {{ statement.base_currency }} {{ statement.closing_balance|round(2) }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -84,7 +84,7 @@
                             <div class="progress-bar bg-success" style="width: {{ (reconciliation_summary.reconciled_count / reconciliation_summary.total_transactions * 100) if reconciliation_summary.total_transactions > 0 else 0 }}%"></div>
                         </div>
                         <p><strong>{{ reconciliation_summary.reconciled_count }}</strong> of <strong>{{ reconciliation_summary.total_transactions }}</strong> reconciled</p>
-                        <small class="text-muted">{{ "%.1f"|format(reconciliation_summary.reconciliation_rate * 100) }}% complete</small>
+                        <small class="text-muted">{{ (reconciliation_summary.reconciliation_rate * 100)|round(1) }}% complete</small>
                     </div>
                     {% else %}
                     <p class="text-muted text-center">No reconciliation data available</p>
@@ -121,7 +121,7 @@
                             <td>{{ transaction.description[:50] }}{% if transaction.description|length > 50 %}...{% endif %}</td>
                             <td>
                                 <span class="{% if transaction.bank_meta and transaction.bank_meta.is_debit %}text-danger{% else %}text-success{% endif %}">
-                                    {% if transaction.bank_meta and transaction.bank_meta.is_debit %}-{% endif %}{{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.amount|float) }}
+                                    {% if transaction.bank_meta and transaction.bank_meta.is_debit %}-{% endif %}{{ statement.base_currency }} {{ transaction.amount|round(2) }}
                                 </span>
                             </td>
                             <td>
@@ -140,7 +140,7 @@
                             </td>
                             <td>
                                 {% if transaction.bank_meta and transaction.bank_meta.balance_after %}
-                                {{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.bank_meta.balance_after) }}
+                                {{ statement.base_currency }} {{ transaction.bank_meta.balance_after|round(2) }}
                                 {% else %}
                                 -
                                 {% endif %}
