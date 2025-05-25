@@ -672,6 +672,63 @@ def dashboard():
         flash('Error loading dashboard', 'error')
         return redirect(url_for('index'))
 
+@enhanced_bank.route('/reconcile')
+@login_required
+def reconciliation_center():
+    """Central reconciliation hub showing statements needing attention."""
+    try:
+        # Get user's organizations
+        user_orgs = db.session.query(OrganizationUser.organization_id)\
+            .filter_by(user_id=current_user.id).subquery()
+        
+        # Get all completed statements for user's organizations
+        completed_statements = db.session.query(BankStatement)\
+            .filter(BankStatement.organization_id.in_(user_orgs))\
+            .filter(BankStatement.processing_status == 'completed')\
+            .order_by(BankStatement.created_at.desc())\
+            .all()
+        
+        # Calculate reconciliation status for each statement
+        reconciliation_summary = []
+        for statement in completed_statements:
+            # Count total transactions
+            total_transactions = db.session.query(FinancialTransaction)\
+                .filter(FinancialTransaction.bank_statement_id == statement.id)\
+                .count()
+            
+            # Count reconciled transactions (those with audit records)
+            reconciled_transactions = db.session.query(FinancialTransaction)\
+                .join(ReconciliationAudit, 
+                      ReconciliationAudit.bank_statement_id == statement.id)\
+                .filter(FinancialTransaction.bank_statement_id == statement.id)\
+                .distinct()\
+                .count()
+            
+            unmatched_count = total_transactions - reconciled_transactions
+            reconciliation_percentage = (reconciled_transactions / total_transactions * 100) if total_transactions > 0 else 100
+            
+            # Only include statements that need reconciliation or recently completed
+            if unmatched_count > 0 or statement.created_at > datetime.utcnow() - timedelta(days=7):
+                reconciliation_summary.append({
+                    'statement': statement,
+                    'total_transactions': total_transactions,
+                    'reconciled_transactions': reconciled_transactions,
+                    'unmatched_count': unmatched_count,
+                    'reconciliation_percentage': reconciliation_percentage,
+                    'needs_attention': unmatched_count > 0
+                })
+        
+        # Sort by priority (unmatched first, then by date)
+        reconciliation_summary.sort(key=lambda x: (not x['needs_attention'], -x['unmatched_count']))
+        
+        return render_template('enhanced_bank/reconciliation_center.html',
+                             reconciliation_summary=reconciliation_summary)
+                             
+    except Exception as e:
+        logger.error(f"Error loading reconciliation center: {str(e)}")
+        flash('Error loading reconciliation center', 'error')
+        return redirect(url_for('enhanced_bank.dashboard'))
+
 # Register error handlers
 @enhanced_bank.errorhandler(404)
 def not_found_error(error):

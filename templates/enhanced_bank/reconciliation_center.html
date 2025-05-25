@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+
+{% block title %}Reconciliation Center{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Reconciliation Center</h2>
+            <p class="text-muted mb-0">Manage transaction matching across all bank statements</p>
+        </div>
+        <a href="{{ url_for('enhanced_bank.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+    
+    {% if reconciliation_summary %}
+        <!-- Priority Section: Statements Needing Attention -->
+        {% set needs_attention = reconciliation_summary|selectattr('needs_attention')|list %}
+        {% if needs_attention %}
+        <div class="mb-4">
+            <h4 class="text-warning mb-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>Needs Attention ({{ needs_attention|length }})
+            </h4>
+            <div class="row">
+                {% for item in needs_attention %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card border-warning">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.statement.bank_name }}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    {{ item.statement.statement_period_start.strftime('%d %b %Y') if item.statement.statement_period_start else 'N/A' }} - 
+                                    {{ item.statement.statement_period_end.strftime('%d %b %Y') if item.statement.statement_period_end else 'N/A' }}
+                                </small>
+                            </p>
+                            
+                            <!-- Progress Bar -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Reconciliation Progress</span>
+                                    <span class="text-muted">{{ "%.0f"|format(item.reconciliation_percentage) }}%</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-warning" style="width: {{ item.reconciliation_percentage }}%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-warning">{{ item.unmatched_count }} Unmatched</span>
+                                <small class="text-muted">{{ item.total_transactions }} total</small>
+                            </div>
+                            
+                            <a href="{{ url_for('enhanced_bank.reconcile_statement', statement_id=item.statement.id) }}" 
+                               class="btn btn-warning w-100">
+                                <i class="fas fa-balance-scale me-2"></i>Continue Reconciliation
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Completed Section -->
+        {% set completed = reconciliation_summary|rejectattr('needs_attention')|list %}
+        {% if completed %}
+        <div class="mb-4">
+            <h4 class="text-success mb-3">
+                <i class="fas fa-check-circle me-2"></i>Recently Completed ({{ completed|length }})
+            </h4>
+            <div class="row">
+                {% for item in completed %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card border-success">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.statement.bank_name }}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    {{ item.statement.statement_period_start.strftime('%d %b %Y') if item.statement.statement_period_start else 'N/A' }} - 
+                                    {{ item.statement.statement_period_end.strftime('%d %b %Y') if item.statement.statement_period_end else 'N/A' }}
+                                </small>
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-success">100% Complete</span>
+                                <small class="text-muted">{{ item.total_transactions }} transactions</small>
+                            </div>
+                            <a href="{{ url_for('enhanced_bank.view_statement', statement_id=item.statement.id) }}" 
+                               class="btn btn-outline-success w-100">
+                                <i class="fas fa-eye me-2"></i>View Statement
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-university fa-4x text-muted mb-3"></i>
+            <h3>No Bank Statements</h3>
+            <p class="text-muted">Upload your first bank statement to get started with reconciliation.</p>
+            <a href="{{ url_for('enhanced_bank.upload_form') }}" class="btn btn-primary">
+                <i class="fas fa-upload me-2"></i>Upload Statement
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
