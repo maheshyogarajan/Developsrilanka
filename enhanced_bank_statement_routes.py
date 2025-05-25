@@ -10,7 +10,7 @@ from app import db
 from models import Organization, User, OrganizationUser, Receipt
 from enhanced_financial_models import (
     BankStatement, BankStatementPage, BankStatementProcessingLog,
-    FinancialTransaction, TransactionMetaBank
+    FinancialTransaction, TransactionMetaBank, SourceType, TransactionStatus
 )
 from enhanced_reconciliation_models import (
     SmartMatchingRules, ReconciliationAudit, ReconciliationException
@@ -193,37 +193,52 @@ def upload_statement():
             if result['validation']['is_valid']:
                 # Update statement with extracted info
                 info = result['statement_info']
-                statement.statement_period_from = info.get('statement_period_start')
-                statement.statement_period_to = info.get('statement_period_end')
+                statement.statement_period_from = info.get('statement_period_start') or period_from
+                statement.statement_period_to = info.get('statement_period_end') or period_to
                 statement.opening_balance = info.get('opening_balance')
                 statement.closing_balance = info.get('closing_balance')
                 statement.total_transactions = len(result['transactions'])
                 statement.processing_status = 'completed'
                 
+                # Get currency with fallback
+                currency = statement.statement_currency or 'LKR'
+                
                 # Create transactions
                 for txn_data in result['transactions']:
                     transaction = FinancialTransaction(
                         organization_id=organization_id,
-                        bank_statement_id=statement.id,
-                        transaction_type='bank',
-                        amount=Decimal(str(txn_data['amount'])),
                         transaction_date=txn_data['transaction_date'],
+                        amount=Decimal(str(txn_data['amount'])),
                         description=txn_data['description'],
-                        reference_number=txn_data.get('reference_number'),
-                        created_at=datetime.now()
+                        currency_code=currency,
+                        fx_rate=Decimal('1.000000'),
+                        source_type=SourceType.BANK_STATEMENT.value,
+                        source_id=0,  # Will be updated after metadata creation
+                        status=TransactionStatus.PENDING.value,
+                        created_by=current_user.id
                     )
+                    
+                    # Auto-calculate derived fields
+                    transaction.base_currency_amount = transaction.amount * transaction.fx_rate
+                    transaction.net_amount = transaction.amount
+                    
                     db.session.add(transaction)
                     db.session.flush()
                     
-                    # Add bank metadata
+                    # Create bank metadata
                     bank_meta = TransactionMetaBank(
                         transaction_id=transaction.id,
-                        balance_after=txn_data.get('balance_after'),
-                        is_debit=txn_data['is_debit'],
-                        raw_description=txn_data.get('raw_line', ''),
-                        bank_reference=txn_data.get('reference_number')
+                        bank_statement_id=statement.id,
+                        bank_reference_number=txn_data.get('reference_number', ''),
+                        statement_line_number=txn_data.get('line_number'),
+                        running_balance=Decimal(str(txn_data.get('balance_after', 0))) if txn_data.get('balance_after') else None,
+                        extraction_confidence=txn_data.get('extraction_confidence')
                     )
                     db.session.add(bank_meta)
+                    db.session.flush()
+                    
+                    # Update source_id to reference metadata
+                    transaction.source_id = bank_meta.transaction_id
                 
                 db.session.commit()
                 
