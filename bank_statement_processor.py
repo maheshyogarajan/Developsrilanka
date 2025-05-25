@@ -13,6 +13,266 @@ from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
+class TransactionValidation:
+    """Validation result for a single transaction"""
+    def __init__(self):
+        self.is_valid = True
+        self.rejection_reason = None
+        self.warnings = []
+        self.transaction_type = None  # 'payment' or 'receipt'
+        self.is_bank_charge = False
+
+class EnhancedBankStatementProcessor:
+    """Enhanced processor with improved validation and transaction type detection"""
+    
+    def __init__(self):
+        self.detected_account_numbers = set()
+        
+        # More precise summary patterns to avoid false positives
+        self.summary_patterns = [
+            r'^TOTAL\s+(DEPOSITS?|WITHDRAWALS?|CREDITS?|DEBITS?)\s*[-\s]*\s*\d+\s*ITEMS?',
+            r'^CLOSING\s+BALANCE\s*$',
+            r'^OPENING\s+BALANCE\s*$',
+            r'^BROUGHT\s+FORWARD\s*$',
+            r'^CARRIED\s+FORWARD\s*$',
+            r'^\d+\s+ITEMS?\s*$'  # Standalone "10 ITEMS"
+        ]
+        
+        self.bank_charge_patterns = [
+            r'\bEFT-?CHG?\b',
+            r'\bEFT\s*CHARGE\b',
+            r'\bBANK\s*CHARGE\b',
+            r'\bSERVICE\s*FEE\b',
+            r'\bMONTHLY\s*FEE\b'
+        ]
+        
+    def extract_account_numbers_from_statement(self, full_text: str) -> List[str]:
+        """Extract account numbers from complete statement text"""
+        patterns = [
+            r'ACCOUNT\s+(\d{10,15})',
+            r'A/?C\s*NO\s*[:\s]*(\d{10,15})',
+            r'Account\s*Number[:\s]+(\d{10,15})'
+        ]
+        
+        found_numbers = set()
+        for pattern in patterns:
+            matches = re.findall(pattern, full_text, re.IGNORECASE)
+            found_numbers.update(matches)
+        
+        # Store for validation
+        self.detected_account_numbers = found_numbers
+        logger.info(f"Detected account numbers: {list(found_numbers)}")
+        return list(found_numbers)
+    
+    def is_summary_or_total_row(self, description: str, full_row_text: str) -> bool:
+        """Check if row is a summary/total that should be excluded"""
+        # Check the full row context, not just description
+        combined_text = f"{description} {full_row_text}".upper().strip()
+        
+        for pattern in self.summary_patterns:
+            if re.match(pattern, combined_text):
+                return True
+        
+        return False
+    
+    def detect_column_positions(self, header_row: List[str]) -> Dict[str, int]:
+        """Detect column positions with flexible matching"""
+        positions = {}
+        
+        for i, header in enumerate(header_row):
+            header_clean = header.upper().strip()
+            
+            # Payment/Debit column detection
+            if any(word in header_clean for word in ['PAYMENT', 'DEBIT', 'WITHDRAWAL']):
+                positions['payments_col'] = i
+            
+            # Receipt/Credit column detection  
+            elif any(word in header_clean for word in ['RECEIPT', 'CREDIT', 'DEPOSIT']):
+                positions['receipts_col'] = i
+            
+            # Balance column
+            elif 'BALANCE' in header_clean:
+                positions['balance_col'] = i
+            
+            # Date column
+            elif 'DATE' in header_clean:
+                positions['date_col'] = i
+            
+            # Description column (flexible matching)
+            elif any(word in header_clean for word in ['PARTICULAR', 'DESCRIPTION', 'DETAIL', 'NARRATIVE']):
+                positions['description_col'] = i
+        
+        logger.info(f"Detected column positions: {positions}")
+        return positions
+    
+    def extract_amount_and_type(self, row: List[str], column_positions: Dict) -> Tuple[Optional[Decimal], Optional[str]]:
+        """Extract amount and determine transaction type from appropriate column"""
+        payments_col = column_positions.get('payments_col')
+        receipts_col = column_positions.get('receipts_col')
+        
+        # Check payments column first (money going out)
+        if payments_col is not None and payments_col < len(row):
+            payment_value = row[payments_col].strip()
+            if payment_value and self._is_numeric_value(payment_value):
+                try:
+                    amount = Decimal(payment_value.replace(',', ''))
+                    return amount, 'payment'
+                except (InvalidOperation, ValueError):
+                    pass
+        
+        # Check receipts column (money coming in)
+        if receipts_col is not None and receipts_col < len(row):
+            receipt_value = row[receipts_col].strip()
+            if receipt_value and self._is_numeric_value(receipt_value):
+                try:
+                    amount = Decimal(receipt_value.replace(',', ''))
+                    return amount, 'receipt'
+                except (InvalidOperation, ValueError):
+                    pass
+        
+        return None, None
+    
+    def _is_numeric_value(self, value: str) -> bool:
+        """Check if string represents a valid numeric amount"""
+        if not value or value.isspace():
+            return False
+        
+        # Remove common formatting
+        clean_value = value.replace(',', '').replace('(', '').replace(')', '').strip()
+        
+        try:
+            float(clean_value)
+            return True
+        except ValueError:
+            return False
+    
+    def validate_transaction(self, amount: Decimal, description: str, full_row: str, transaction_type: str) -> TransactionValidation:
+        """Comprehensive transaction validation"""
+        validation = TransactionValidation()
+        validation.transaction_type = transaction_type
+        
+        amount_str = str(amount)
+        
+        # Rule 1: Skip summary rows
+        if self.is_summary_or_total_row(description, full_row):
+            validation.is_valid = False
+            validation.rejection_reason = "Summary/total row excluded"
+            return validation
+        
+        # Rule 2: Reject account numbers as amounts
+        if amount_str in self.detected_account_numbers:
+            validation.is_valid = False
+            validation.rejection_reason = f"Amount matches account number: {amount_str}"
+            return validation
+        
+        # Rule 3: Reject date patterns
+        if re.match(r'^\d{2}/\d{2}$', amount_str):
+            validation.is_valid = False
+            validation.rejection_reason = f"Amount appears to be date: {amount_str}"
+            return validation
+        
+        # Rule 4: Reject year patterns  
+        if re.match(r'^20\d{2}$', amount_str):
+            validation.is_valid = False
+            validation.rejection_reason = f"Amount appears to be year: {amount_str}"
+            return validation
+        
+        # Rule 5: Amount limits
+        if amount > Decimal('1000000000'):
+            validation.is_valid = False
+            validation.rejection_reason = f"Amount exceeds reasonable limit: {amount_str}"
+            return validation
+        
+        if amount < Decimal('0.01'):
+            validation.is_valid = False
+            validation.rejection_reason = f"Amount below minimum threshold: {amount_str}"
+            return validation
+        
+        # Detect bank charges
+        full_text = f"{description} {full_row}".upper()
+        for pattern in self.bank_charge_patterns:
+            if re.search(pattern, full_text):
+                validation.is_bank_charge = True
+                validation.warnings.append("Bank charge - reconciliation not required")
+                break
+        
+        return validation
+    
+    def process_table_data(self, table_data: List[List[str]]) -> Dict:
+        """Process bank statement table with enhanced validation"""
+        if not table_data or len(table_data) < 2:
+            return {'transactions': [], 'rejected': [], 'summary': {}}
+        
+        # Detect columns
+        header_row = table_data[0]
+        column_positions = self.detect_column_positions(header_row)
+        
+        if not column_positions.get('payments_col') and not column_positions.get('receipts_col'):
+            logger.warning("Could not detect payment or receipt columns")
+        
+        valid_transactions = []
+        rejected_transactions = []
+        summary_rows_skipped = 0
+        
+        for row_idx, row in enumerate(table_data[1:], 1):
+            if len(row) < len(header_row):
+                continue  # Skip incomplete rows
+            
+            # Extract amount and type
+            amount, txn_type = self.extract_amount_and_type(row, column_positions)
+            
+            if amount is None or txn_type is None:
+                continue  # No valid amount found
+            
+            # Get description
+            desc_col = column_positions.get('description_col', 1)  # Default to column 1
+            description = row[desc_col] if desc_col < len(row) else ' '.join(row)
+            full_row_text = ' '.join(row)
+            
+            # Validate transaction
+            validation = self.validate_transaction(amount, description, full_row_text, txn_type)
+            
+            if not validation.is_valid:
+                if "Summary/total row" in validation.rejection_reason:
+                    summary_rows_skipped += 1
+                else:
+                    rejected_transactions.append({
+                        'row_number': row_idx,
+                        'amount': str(amount),
+                        'description': description,
+                        'rejection_reason': validation.rejection_reason,
+                        'original_row': row
+                    })
+                continue
+            
+            # Create valid transaction
+            # Convert to standard format expected by existing system
+            final_amount = amount if txn_type == 'receipt' else -amount
+            
+            transaction = {
+                'amount': final_amount,
+                'description': description,
+                'transaction_type': txn_type,
+                'is_bank_charge': validation.is_bank_charge,
+                'row_number': row_idx
+            }
+            
+            if validation.warnings:
+                transaction['validation_warnings'] = validation.warnings
+            
+            valid_transactions.append(transaction)
+        
+        return {
+            'transactions': valid_transactions,
+            'rejected_transactions': rejected_transactions,
+            'summary': {
+                'total_processed': len(valid_transactions),
+                'total_rejected': len(rejected_transactions),
+                'summary_rows_skipped': summary_rows_skipped,
+                'detected_columns': column_positions
+            }
+        }
+
 class BankStatementProcessor:
     """Process bank statement PDFs and extract transaction data."""
     
@@ -26,6 +286,8 @@ class BankStatementProcessor:
             'dfcc': 'DFCC Bank',
             'generic': 'Generic Bank Parser'
         }
+        # Initialize enhanced processor
+        self.enhanced_processor = EnhancedBankStatementProcessor()
     
     def process_pdf(self, pdf_file_data: bytes, bank_hint: str = None) -> Dict[str, Any]:
         """
