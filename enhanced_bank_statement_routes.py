@@ -174,7 +174,7 @@ def upload_statement():
         # Store in S3 (using existing infrastructure)
         try:
             s3_client = boto3.client('s3')
-            s3_key = f"bank-statements/{statement.id}/{statement.filename}"
+            s3_key = f"bank-statements/{statement.id}/statement.pdf"
             s3_client.upload_fileobj(
                 BytesIO(pdf_data),
                 os.environ.get('AWS_S3_BUCKET_NAME'),
