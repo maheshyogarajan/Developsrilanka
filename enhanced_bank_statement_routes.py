@@ -762,6 +762,45 @@ def reconciliation_center():
         flash('Error loading reconciliation center', 'error')
         return redirect(url_for('enhanced_bank.dashboard'))
 
+@enhanced_bank.route('/api/bank-accounts/<int:org_id>')
+@login_required
+def get_bank_accounts(org_id):
+    """Get bank accounts for organization dropdown."""
+    try:
+        # Verify user access to organization
+        user_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=org_id
+        ).first()
+        
+        if not user_org:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Get bank accounts for this organization
+        from models import BankAccount
+        bank_accounts = BankAccount.query.filter_by(
+            organization_id=org_id
+        ).order_by(BankAccount.bank_name, BankAccount.account_number).all()
+        
+        return jsonify({
+            'success': True,
+            'accounts': [
+                {
+                    'id': account.id,
+                    'bank_name': account.bank_name,
+                    'account_number': account.account_number,
+                    'account_type': getattr(account, 'account_type', 'Unknown'),
+                    'currency': getattr(account, 'currency', 'LKR'),
+                    'display_name': f"{account.bank_name} - ****{account.account_number[-4:] if len(account.account_number) >= 4 else account.account_number}"
+                }
+                for account in bank_accounts
+            ]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching bank accounts for org {org_id}: {str(e)}")
+        return jsonify({'error': 'Failed to load bank accounts', 'accounts': []}), 200
+
 # Register error handlers
 @enhanced_bank.errorhandler(404)
 def not_found_error(error):

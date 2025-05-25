@@ -28,6 +28,16 @@
                                 {% endfor %}
                             </select>
                         </div>
+
+                        <!-- Bank Account Selection -->
+                        <div class="mb-3">
+                            <label for="bank_account_id" class="form-label">Bank Account</label>
+                            <select class="form-select" id="bank_account_id" name="bank_account_id">
+                                <option value="">Select existing account or enter new details below</option>
+                                <!-- Populated via JavaScript when organization is selected -->
+                            </select>
+                            <div class="form-text">Choose an existing bank account or leave blank to add new account details below.</div>
+                        </div>
                         
                         <!-- File Upload -->
                         <div class="mb-3">
@@ -39,20 +49,23 @@
                             </div>
                         </div>
                         
-                        <!-- Statement Details -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="bank_name" class="form-label">Bank Name</label>
-                                    <input type="text" class="form-control" id="bank_name" name="bank_name" 
-                                           placeholder="e.g., Commercial Bank of Ceylon">
+                        <!-- Manual Bank Details (shown when no account selected) -->
+                        <div id="manualBankDetails" class="border rounded p-3 mb-3">
+                            <h6 class="mb-3">New Bank Account Details</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="bank_name" class="form-label">Bank Name</label>
+                                        <input type="text" class="form-control" id="bank_name" name="bank_name" 
+                                               placeholder="e.g., Commercial Bank of Ceylon" required>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="account_number" class="form-label">Account Number (Last 4 digits)</label>
-                                    <input type="text" class="form-control" id="account_number" name="account_number" 
-                                           placeholder="e.g., 1234" maxlength="4">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="account_number" class="form-label">Account Number (Last 4 digits)</label>
+                                        <input type="text" class="form-control" id="account_number" name="account_number" 
+                                               placeholder="e.g., 1234" maxlength="4" required>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -60,14 +73,14 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="statement_start_date" class="form-label">Statement Start Date</label>
-                                    <input type="date" class="form-control" id="statement_start_date" name="statement_start_date">
+                                    <label for="statement_start" class="form-label">Statement Start Date</label>
+                                    <input type="date" class="form-control" id="statement_start" name="statement_start" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="statement_end_date" class="form-label">Statement End Date</label>
-                                    <input type="date" class="form-control" id="statement_end_date" name="statement_end_date">
+                                    <label for="statement_end" class="form-label">Statement End Date</label>
+                                    <input type="date" class="form-control" id="statement_end" name="statement_end" required>
                                 </div>
                             </div>
                         </div>
@@ -131,6 +144,72 @@
 </div>
 
 <script>
+// Bank account dropdown functionality
+document.getElementById('organization_id').addEventListener('change', function() {
+    const orgId = this.value;
+    const bankAccountSelect = document.getElementById('bank_account_id');
+    const manualDetails = document.getElementById('manualBankDetails');
+    
+    if (orgId) {
+        // Fetch bank accounts for selected organization
+        fetch(`/enhanced-bank/api/bank-accounts/${orgId}`)
+            .then(response => response.json())
+            .then(data => {
+                bankAccountSelect.innerHTML = '<option value="">Select existing account or enter new details below</option>';
+                
+                if (data.success && data.accounts && data.accounts.length > 0) {
+                    data.accounts.forEach(account => {
+                        bankAccountSelect.innerHTML += 
+                            `<option value="${account.id}">${account.display_name}</option>`;
+                    });
+                }
+                
+                // Show manual details by default
+                manualDetails.style.display = 'block';
+                updateFieldRequirements(false);
+            })
+            .catch(error => {
+                console.error('Error loading bank accounts:', error);
+                bankAccountSelect.innerHTML = '<option value="">Failed to load accounts - enter details below</option>';
+                manualDetails.style.display = 'block';
+                updateFieldRequirements(false);
+            });
+    } else {
+        bankAccountSelect.innerHTML = '<option value="">Select organization first</option>';
+        manualDetails.style.display = 'block';
+        updateFieldRequirements(false);
+    }
+});
+
+// Bank account selection handling
+document.getElementById('bank_account_id').addEventListener('change', function() {
+    const manualDetails = document.getElementById('manualBankDetails');
+    const isExistingAccount = this.value !== '';
+    
+    if (isExistingAccount) {
+        manualDetails.style.display = 'none';
+        updateFieldRequirements(true);
+    } else {
+        manualDetails.style.display = 'block';
+        updateFieldRequirements(false);
+    }
+});
+
+// Update field requirements based on account selection
+function updateFieldRequirements(isExistingAccount) {
+    const bankNameField = document.getElementById('bank_name');
+    const accountNumberField = document.getElementById('account_number');
+    
+    if (isExistingAccount) {
+        bankNameField.required = false;
+        accountNumberField.required = false;
+    } else {
+        bankNameField.required = true;
+        accountNumberField.required = true;
+    }
+}
+
+// Form submission handling
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     const progressCard = document.getElementById('progressCard');
     const uploadBtn = document.getElementById('uploadBtn');
@@ -138,6 +217,15 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     progressCard.style.display = 'block';
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+});
+
+// Initialize form state
+document.addEventListener('DOMContentLoaded', function() {
+    // Trigger organization change if one is pre-selected
+    const orgSelect = document.getElementById('organization_id');
+    if (orgSelect.value) {
+        orgSelect.dispatchEvent(new Event('change'));
+    }
 });
 </script>
 {% endblock %}
