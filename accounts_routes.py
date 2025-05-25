@@ -83,13 +83,13 @@ def chart_of_accounts():
             is_active=True
         ).order_by(Account.account_code).all()
         
-        # Group accounts by type
+        # Group accounts by type and convert to dictionaries for JSON serialization
         grouped_accounts = {
-            'asset': [a for a in accounts if a.account_type == 'asset'],
-            'liability': [a for a in accounts if a.account_type == 'liability'],
-            'equity': [a for a in accounts if a.account_type == 'equity'],
-            'revenue': [a for a in accounts if a.account_type == 'revenue'],
-            'expense': [a for a in accounts if a.account_type == 'expense']
+            'asset': [a.to_dict() for a in accounts if a.account_type == 'asset'],
+            'liability': [a.to_dict() for a in accounts if a.account_type == 'liability'],
+            'equity': [a.to_dict() for a in accounts if a.account_type == 'equity'],
+            'revenue': [a.to_dict() for a in accounts if a.account_type == 'revenue'],
+            'expense': [a.to_dict() for a in accounts if a.account_type == 'expense']
         }
         
         selected_org = Organization.query.get(org_id)
