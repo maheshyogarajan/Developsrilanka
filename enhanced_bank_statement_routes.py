@@ -123,16 +123,49 @@ def upload_statement():
             flash('File size must be under 10MB', 'error')
             return redirect(url_for('enhanced_bank.upload_form'))
         
-        # Create statement record
+        # Parse statement dates for required fields
+        try:
+            statement_start = request.form.get('statement_start')
+            statement_end = request.form.get('statement_end')
+            if statement_start and statement_end:
+                period_from = datetime.strptime(statement_start, '%Y-%m-%d').date()
+                period_to = datetime.strptime(statement_end, '%Y-%m-%d').date()
+            else:
+                # Default to current month if not provided
+                today = date.today()
+                period_from = today.replace(day=1)
+                period_to = today
+        except ValueError:
+            # Fallback to current month if date parsing fails
+            today = date.today()
+            period_from = today.replace(day=1)
+            period_to = today
+        
+        account_number = request.form.get('account_number', '')
+        
+        # Generate content hash for duplicate detection
+        content_hash = BankStatement.generate_content_hash(
+            pdf_data, len(pdf_data), account_number, period_from, period_to
+        )
+        
+        # Check for duplicates
+        existing = BankStatement.query.filter_by(content_sha256=content_hash).first()
+        if existing:
+            flash('This statement has already been uploaded', 'warning')
+            return redirect(url_for('enhanced_bank.view_statement', statement_id=existing.id))
+        
+        # Create statement record with correct fields
         statement = BankStatement(
             organization_id=organization_id,
-            filename=secure_filename(statement_file.filename),
-            bank_name=request.form.get('bank_name', ''),
-            account_number=request.form.get('account_number', ''),
-            base_currency=request.form.get('base_currency', 'LKR'),
+            content_sha256=content_hash,
             file_size_bytes=len(pdf_data),
+            page_count=1,  # Will be updated by processor
+            bank_name=request.form.get('bank_name', ''),
+            account_number=account_number,
+            statement_period_from=period_from,
+            statement_period_to=period_to,
+            statement_currency=request.form.get('base_currency', 'LKR'),
             processing_status='processing',
-            created_at=datetime.now(),
             uploaded_by=current_user.id
         )
         db.session.add(statement)
