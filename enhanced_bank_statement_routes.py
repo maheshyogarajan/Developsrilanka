@@ -300,16 +300,24 @@ def view_statement(statement_id):
             flash('Statement not found or access denied', 'error')
             return redirect(url_for('enhanced_bank.list_statements'))
         
-        # Get transactions
+        # FIXED: Use correct source pattern instead of bank_statement_id
         transactions = db.session.query(FinancialTransaction)\
-            .outerjoin(TransactionMetaBank)\
-            .filter(FinancialTransaction.bank_statement_id == statement_id)\
+            .outerjoin(TransactionMetaBank, TransactionMetaBank.transaction_id == FinancialTransaction.id)\
+            .filter(
+                FinancialTransaction.source_type == 'bank_statement',
+                FinancialTransaction.source_id == statement_id,
+                FinancialTransaction.organization_id == statement.organization_id
+            )\
             .order_by(FinancialTransaction.transaction_date.desc())\
             .all()
         
-        # Get reconciliation summary
+        # FIXED: Calculate reconciliation based on actual status values
         total_transactions = len(transactions)
-        reconciled_count = sum(1 for t in transactions if hasattr(t, 'receipt_id') and t.receipt_id or hasattr(t, 'expense_id') and t.expense_id)
+        reconciled_count = 0
+        
+        for t in transactions:
+            if t.reconciliation_status in ['auto_matched', 'manual_matched', 'confirmed']:
+                reconciled_count += 1
         
         reconciliation_summary = {
             'total_transactions': total_transactions,
@@ -317,10 +325,16 @@ def view_statement(statement_id):
             'reconciliation_rate': reconciled_count / total_transactions if total_transactions > 0 else 0
         }
         
+        # FIXED: Include organization context for navigation
+        user_orgs = db.session.query(OrganizationUser).filter_by(user_id=current_user.id).all()
+        organizations = Organization.query.filter(Organization.id.in_([uo.organization_id for uo in user_orgs])).all()
+        
         return render_template('enhanced_bank/view_statement.html',
                              statement=statement,
                              transactions=transactions,
-                             reconciliation_summary=reconciliation_summary)
+                             reconciliation_summary=reconciliation_summary,
+                             organizations=organizations,
+                             selected_org_id=statement.organization_id)
         
     except Exception as e:
         logger.error(f"Error viewing statement: {str(e)}")
@@ -349,10 +363,14 @@ def reconcile_statement(statement_id):
             flash('Statement must be fully processed before reconciliation', 'warning')
             return redirect(url_for('enhanced_bank.view_statement', statement_id=statement_id))
         
-        # Get all transactions for this statement
+        # FIXED: Get all transactions for this statement using correct source pattern
         transactions = db.session.query(FinancialTransaction)\
-            .outerjoin(TransactionMetaBank)\
-            .filter(FinancialTransaction.bank_statement_id == statement_id)\
+            .outerjoin(TransactionMetaBank, TransactionMetaBank.transaction_id == FinancialTransaction.id)\
+            .filter(
+                FinancialTransaction.source_type == 'bank_statement',
+                FinancialTransaction.source_id == statement_id,
+                FinancialTransaction.organization_id == statement.organization_id
+            )\
             .order_by(FinancialTransaction.transaction_date.desc())\
             .all()
         
@@ -368,10 +386,16 @@ def reconcile_statement(statement_id):
                 Receipt.date <= date_range_end
             ).order_by(Receipt.date.desc()).all()
         
+        # FIXED: Include organization context for navigation
+        user_orgs = db.session.query(OrganizationUser).filter_by(user_id=current_user.id).all()
+        organizations = Organization.query.filter(Organization.id.in_([uo.organization_id for uo in user_orgs])).all()
+        
         return render_template('enhanced_bank/reconcile_statement.html',
                              statement=statement,
                              transactions=transactions,
-                             potential_receipts=potential_receipts)
+                             potential_receipts=potential_receipts,
+                             organizations=organizations,
+                             selected_org_id=statement.organization_id)
         
     except Exception as e:
         logger.error(f"Error loading reconciliation interface: {str(e)}")
