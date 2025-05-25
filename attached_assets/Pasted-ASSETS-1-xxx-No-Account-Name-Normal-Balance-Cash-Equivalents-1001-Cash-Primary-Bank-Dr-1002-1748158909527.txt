@@ -1,0 +1,95 @@
+ASSETS (1 xxx)
+No.	Account Name	Normal Balance
+Cash & Equivalents		
+1001	Cash – Primary Bank	Dr
+1002	Cash – Business Savings	Dr
+1005	Petty Cash	Dr
+1050	Short-Term Investments	Dr
+Receivables & Other Current Assets		
+1100	Accounts Receivable	Dr
+1110	Allowance for Doubtful Accounts	Cr (contra)
+1200	Inventory	Dr
+1300	Prepaid Expenses	Dr
+1350	Input VAT / GST Receivable	Dr
+1400	Security Deposits & Advances	Dr
+Fixed Assets – Tangible		
+1500	Office Equipment	Dr
+1550	Accum. Depreciation – Office Equipment	Cr (contra)
+1600	Computer Equipment & Software	Dr
+1650	Accum. Depreciation – Computer Equipment & Software	Cr (contra)
+1700	Vehicles	Dr
+1750	Accum. Depreciation – Vehicles	Cr (contra)
+1800	Buildings / Leasehold Improvements	Dr
+1850	Accum. Depreciation – Buildings & Leasehold Improvements	Cr (contra)
+1900	Furniture & Fixtures	Dr
+1950	Accum. Depreciation – Furniture & Fixtures	Cr (contra)
+Fixed Assets – Intangible		
+1970	Intangible Assets (Licences, IP)	Dr
+1980	Accum. Amortisation – Intangibles	Cr (contra)
+
+LIABILITIES (2 xxx)
+No.	Account Name
+Current Liabilities	
+2001	Accounts Payable
+2050	Credit Cards Payable
+2100	Accrued Expenses
+2150	Sales Tax / VAT Payable
+2200	Payroll Liabilities (PAYE, EPF/ETF, etc.)
+2250	Income Tax Payable
+2300	Other Taxes & Levies Payable
+2350	Customer Deposits / Deferred Revenue
+Interest-Bearing Debt	
+2400	Loan – Current Portion
+2450	Loan – Long-Term
+2500	Lease Liabilities
+2550	Shareholder / Director Loans
+
+EQUITY (3 xxx)
+No.	Account Name
+3001	Share / Owner Capital
+3002	Retained Earnings
+3005	Additional Paid-In Capital
+3010	Dividends / Owner Draws
+3020	Treasury Shares (contra-equity)
+
+COST OF GOODS SOLD (31 xx – 33 xx)
+No.	Account Name
+3100	COGS – Materials / Merchandise
+3200	COGS – Direct Labour
+3300	COGS – Freight In & Import Duty
+
+REVENUE (4 xxx)
+No.	Account Name
+4001	Service Revenue
+4002	Consulting Revenue
+4003	Product Sales
+4100	Subscription / Recurring Revenue
+4200	Interest Income
+4300	Sales Returns & Allowances (contra-revenue)
+4900	Other Income
+
+EXPENSES (5 xxx)
+No.	Account Name
+5001	Operating Expenses – General
+5002	Meals & Entertainment
+5003	Transport & Travel
+5004	Office Supplies
+5005	Professional Services
+5006	Marketing & Advertising
+5007	Utilities
+5008	Rent & Facilities
+5009	Insurance
+5010	Software & SaaS
+5011	Bank & Merchant Fees
+5012	Depreciation Expense
+5013	Payroll – Wages & Salaries
+5014	Employee Benefits (EPF/ETF employer share, health)
+5015	Training & Development
+5016	Legal & Accounting
+5020	Subscriptions & Memberships
+5030	Repairs & Maintenance
+5040	Telephone & Internet
+5050	Bad Debt Expense
+5060	Interest Expense
+5080	Licences, Permits & Government Fees
+5900	Other Expenses / Miscellaneous
