@@ -3,6 +3,9 @@
 {% block title %}Reconcile Statement{% endblock %}
 
 {% block content %}
+<script>
+const csrf_token = "{{ csrf_token() }}";
+</script>
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Reconcile Statement - {{ statement.bank_name }}</h2>
@@ -265,26 +268,62 @@ function createMatch(receiptId) {
 
 document.getElementById('confirm-match-btn').addEventListener('click', function() {
     if (selectedTransaction && selectedReceipt) {
-        // In Phase 2, this will make an API call
-        // For now, show success message
-        showAlert('success', `Match created successfully! Transaction ${selectedTransaction} linked with Receipt ${selectedReceipt}.`);
+        // Show loading state
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
         
-        // Hide the matched items
-        document.querySelector(`[data-transaction-id="${selectedTransaction}"]`).style.opacity = '0.5';
-        document.querySelector(`[data-receipt-id="${selectedReceipt}"]`).style.opacity = '0.5';
-        
-        // Reset selection
-        selectedTransaction = null;
-        selectedReceipt = null;
-        
-        // Close modal
-        bootstrap.Modal.getInstance(document.getElementById('matchingModal')).hide();
-        
-        // Clear highlights
-        document.querySelectorAll('.transaction-item, .receipt-item').forEach(el => {
-            el.classList.remove('border-primary', 'border-success', 'bg-light');
+        // Make API call to save the match
+        fetch('/enhanced-bank/api/reconcile/match', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf_token
+            },
+            body: JSON.stringify({
+                transaction_id: selectedTransaction,
+                receipt_id: selectedReceipt
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showAlert('success', 'Match saved successfully! Transaction permanently linked with receipt.');
+                
+                // Mark items as reconciled
+                const transactionEl = document.querySelector(`[data-transaction-id="${selectedTransaction}"]`);
+                const receiptEl = document.querySelector(`[data-receipt-id="${selectedReceipt}"]`);
+                
+                transactionEl.style.opacity = '0.5';
+                receiptEl.style.opacity = '0.5';
+                
+                // Add reconciled badge
+                transactionEl.innerHTML += '<span class="badge bg-success ms-2">Reconciled</span>';
+                
+                // Reset selection
+                selectedTransaction = null;
+                selectedReceipt = null;
+                
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('matchingModal')).hide();
+            } else {
+                showAlert('error', 'Failed to save match: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Network error:', error);
+            showAlert('error', 'Network error occurred. Please try again.');
+        })
+        .finally(() => {
+            // Restore button state
+            this.disabled = false;
+            this.innerHTML = 'Confirm Match';
+            
+            // Clear highlights
+            document.querySelectorAll('.transaction-item, .receipt-item').forEach(el => {
+                el.classList.remove('border-primary', 'border-success', 'bg-light');
+            });
+            document.querySelectorAll('.confidence-badge').forEach(badge => badge.remove());
         });
-        document.querySelectorAll('.confidence-badge').forEach(badge => badge.remove());
     }
 });
 

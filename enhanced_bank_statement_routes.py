@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
-from models import Organization, User, OrganizationUser
+from models import Organization, User, OrganizationUser, Receipt
 from enhanced_financial_models import (
     BankStatement, BankStatementPage, BankStatementProcessingLog,
     FinancialTransaction, TransactionMetaBank
@@ -329,6 +329,71 @@ def reconcile_statement(statement_id):
         logger.error(f"Error loading reconciliation interface: {str(e)}")
         flash('Error loading reconciliation interface', 'error')
         return redirect(url_for('enhanced_bank.view_statement', statement_id=statement_id))
+
+@enhanced_bank.route('/api/reconcile/match', methods=['POST'])
+@login_required
+def save_reconciliation_match():
+    """Save a manual reconciliation match between transaction and receipt."""
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+        receipt_id = data.get('receipt_id')
+        
+        if not transaction_id or not receipt_id:
+            return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
+        
+        # Get transaction with organization check
+        transaction = db.session.query(FinancialTransaction).join(
+            BankStatement,
+            BankStatement.id == FinancialTransaction.bank_statement_id
+        ).join(
+            OrganizationUser,
+            OrganizationUser.organization_id == BankStatement.organization_id
+        ).filter(
+            FinancialTransaction.id == transaction_id,
+            OrganizationUser.user_id == current_user.id
+        ).first()
+        
+        if not transaction:
+            return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
+        
+        # Get receipt with organization check
+        receipt = Receipt.query.filter_by(
+            id=receipt_id,
+            organization_id=transaction.bank_statement.organization_id
+        ).first()
+        
+        if not receipt:
+            return jsonify({'status': 'error', 'message': 'Receipt not found'}), 404
+        
+        # Create reconciliation audit record
+        audit = ReconciliationAudit(
+            organization_id=transaction.bank_statement.organization_id,
+            bank_statement_id=transaction.bank_statement_id,
+            reconciliation_type='manual_match',
+            confidence_score=100.0,
+            created_by=current_user.id,
+            notes=f"Manual match: Transaction {transaction_id} with Receipt {receipt_id}"
+        )
+        
+        db.session.add(audit)
+        db.session.commit()
+        
+        logger.info(f"Reconciliation match saved: Transaction {transaction_id} with Receipt {receipt_id}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Transaction reconciled successfully',
+            'audit_id': audit.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving reconciliation: {str(e)}")
+        return jsonify({
+            'status': 'error', 
+            'message': 'Failed to save reconciliation'
+        }), 500
 
 @enhanced_bank.route('/api/reconcile', methods=['POST'])
 @login_required
