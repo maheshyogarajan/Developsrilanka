@@ -297,7 +297,11 @@ class AccountMappingService:
         """
         # Convert to format expected by group_expenses_by_accounts
         expense_data = [
-            {'category': item['category'], 'amount': item['amount']}
+            {
+                'category': item['category'], 
+                'minor_category': item.get('minor_category', ''),
+                'amount': item['amount']
+            }
             for item in category_breakdown
         ]
         
