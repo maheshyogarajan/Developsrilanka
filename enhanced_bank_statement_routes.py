@@ -351,10 +351,10 @@ def reconcile_statement(statement_id):
         statement = db.session.query(BankStatement).join(
             OrganizationUser,
             OrganizationUser.organization_id == BankStatement.organization_id
-        ).filter(
+        ).filter(and_(
             BankStatement.id == statement_id,
             OrganizationUser.user_id == current_user.id
-        ).first()
+        )).first()
         
         if not statement:
             flash('Statement not found or access denied', 'error')
