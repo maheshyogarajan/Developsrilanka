@@ -61,9 +61,17 @@ class AccountMappingService:
         'Banking': '5011',         # Bank & Merchant Fees
         'Transaction Fees': '5011', # Bank & Merchant Fees
         
+        'Training, Education and Development': '5015',  # Training & Development
         'Training': '5015',        # Training & Development
         'Education': '5015',       # Training & Development
         'Development': '5015',     # Training & Development
+        'Educational': '5015',     # Training & Development
+        'Learning': '5015',        # Training & Development
+        'Course': '5015',          # Training & Development
+        'Workshop': '5015',        # Training & Development
+        'Seminar': '5015',         # Training & Development
+        'Certification': '5015',   # Training & Development
+        'Professional Development': '5015',  # Training & Development
         
         'Maintenance': '5030',     # Repairs & Maintenance
         'Repairs': '5030',         # Repairs & Maintenance

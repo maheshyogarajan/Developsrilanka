@@ -1934,7 +1934,7 @@ def process_receipt_with_gemini(image):
           "sscl_tax": "number",
           "vat_registration_number": "string",
           "expense_major_category": "Operating Expenses | Administrative Expenses | Cost of Goods Sold | Employee Benefits | Finance Costs",
-          "expense_minor_category": "Meals and Entertainment | Travel and Transportation | Professional Services | Office Supplies | Marketing and Advertising | Utilities | Rent and Facilities | Software and SaaS | Bank and Merchant Fees | Repairs and Maintenance | Training and Development | Legal and Accounting | Telecommunications | Administrative and General"
+          "expense_minor_category": "Meals and Entertainment | Travel and Transportation | Professional Services | Office Supplies | Marketing and Advertising | Utilities | Rent and Facilities | Software and SaaS | Bank and Merchant Fees | Repairs and Maintenance | Training, Education and Development | Legal and Accounting | Telecommunications | Administrative and General"
         }
 
         CLASSIFICATION EXAMPLES (must follow exactly):
@@ -1943,6 +1943,9 @@ def process_receipt_with_gemini(image):
         - Software/subscriptions → "Operating Expenses" + "Software and SaaS"
         - Professional services → "Operating Expenses" + "Professional Services"
         - Office supplies → "Operating Expenses" + "Office Supplies"
+        - Training/courses/education → "Administrative Expenses" + "Training, Education and Development"
+        - Professional certifications → "Administrative Expenses" + "Training, Education and Development"
+        - Workshops/seminars → "Administrative Expenses" + "Training, Education and Development"
         - Bank fees → "Finance Costs" + "Bank and Merchant Fees"
         - Unknown/unclear → "Administrative Expenses" + "Administrative and General"
 
