@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Bank Statement Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-university text-primary me-2"></i>
+                    Enhanced Bank Reconciliation
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('enhanced_bank.upload_form') }}" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>
+                        Upload Statement
+                    </a>
+                    <a href="{{ url_for('enhanced_bank.list_statements') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-1"></i>
+                        View All
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organization Selector -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Organization</h6>
+                    <select class="form-select" onchange="window.location.href='{{ url_for('enhanced_bank.dashboard') }}?org_id=' + this.value">
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if org.id == selected_org_id %}selected{% endif %}>
+                            {{ org.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ total_statements }}</h4>
+                            <p class="mb-0">Total Statements</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-file-pdf fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ pending_reconciliation }}</h4>
+                            <p class="mb-0">Need Review</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ unmatched_transactions }}</h4>
+                            <p class="mb-0">Unmatched</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-question-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">
+                                {% if balance_sheet and balance_sheet.balanced %}
+                                <i class="fas fa-check-circle me-1"></i>
+                                Balanced
+                                {% else %}
+                                <i class="fas fa-times-circle me-1"></i>
+                                Check
+                                {% endif %}
+                            </h4>
+                            <p class="mb-0">Books Status</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-balance-scale fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Statements -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Recent Bank Statements
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_statements %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Period</th>
+                                    <th>Bank</th>
+                                    <th>Status</th>
+                                    <th>Transactions</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for statement in recent_statements %}
+                                <tr>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ statement.statement_period_from.strftime('%Y-%m-%d') }} to<br>
+                                            {{ statement.statement_period_to.strftime('%Y-%m-%d') }}
+                                        </small>
+                                    </td>
+                                    <td>{{ statement.bank_name or 'Unknown' }}</td>
+                                    <td>
+                                        {% if statement.processing_status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% elif statement.processing_status == 'needs_review' %}
+                                        <span class="badge bg-warning">Needs Review</span>
+                                        {% elif statement.processing_status == 'error' %}
+                                        <span class="badge bg-danger">Error</span>
+                                        {% else %}
+                                        <span class="badge bg-info">{{ statement.processing_status.title() }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <div>Total: {{ statement.total_transactions or 0 }}</div>
+                                            <div class="text-success">Auto: {{ statement.auto_matched_count or 0 }}</div>
+                                            <div class="text-warning">Review: {{ statement.exception_count or 0 }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('enhanced_bank.view_statement', statement_id=statement.id) }}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if statement.processing_status == 'needs_review' %}
+                                            <a href="{{ url_for('enhanced_bank.reconcile_statement', statement_id=statement.id) }}" 
+                                               class="btn btn-outline-warning" title="Reconcile">
+                                                <i class="fas fa-balance-scale"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No bank statements uploaded yet</h5>
+                        <p class="text-muted">Upload your first bank statement to get started with smart reconciliation.</p>
+                        <a href="{{ url_for('enhanced_bank.upload_form') }}" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i>
+                            Upload Statement
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Balance Sheet Summary -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Financial Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if balance_sheet %}
+                    <div class="mb-3">
+                        <h6 class="text-primary">Assets</h6>
+                        <div class="d-flex justify-content-between">
+                            <span>Total Assets</span>
+                            <span class="fw-bold">${{ "%.2f"|format(balance_sheet.assets.total) }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-danger">Liabilities</h6>
+                        <div class="d-flex justify-content-between">
+                            <span>Total Liabilities</span>
+                            <span class="fw-bold">${{ "%.2f"|format(balance_sheet.liabilities.total) }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-success">Equity</h6>
+                        <div class="d-flex justify-content-between">
+                            <span>Total Equity</span>
+                            <span class="fw-bold">${{ "%.2f"|format(balance_sheet.equity.total) }}</span>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-bold">Balance Check</span>
+                        {% if balance_sheet.balanced %}
+                        <span class="text-success fw-bold">
+                            <i class="fas fa-check-circle me-1"></i>
+                            Balanced
+                        </span>
+                        {% else %}
+                        <span class="text-danger fw-bold">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Variance: ${{ "%.2f"|format(balance_sheet.variance) }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-chart-pie fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">Balance sheet not available</p>
+                        <small class="text-muted">Upload bank statements to generate reports</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Enhanced Features Info -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-star me-2"></i>
+                        Smart Features
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="feature-list">
+                        <div class="feature-item mb-2">
+                            <i class="fas fa-robot text-primary me-2"></i>
+                            <span>AI-Powered Matching</span>
+                        </div>
+                        <div class="feature-item mb-2">
+                            <i class="fas fa-brain text-success me-2"></i>
+                            <span>Learning Algorithms</span>
+                        </div>
+                        <div class="feature-item mb-2">
+                            <i class="fas fa-shield-alt text-info me-2"></i>
+                            <span>Duplicate Prevention</span>
+                        </div>
+                        <div class="feature-item mb-2">
+                            <i class="fas fa-coins text-warning me-2"></i>
+                            <span>Multi-Currency Support</span>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-history text-secondary me-2"></i>
+                            <span>Complete Audit Trail</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.opacity-75 {
+    opacity: 0.75;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}

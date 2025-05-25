@@ -185,6 +185,14 @@ try:
 except Exception as e:
     logger.error(f"Error loading accounting routes: {str(e)}")
 
+# Import enhanced bank statement routes
+try:
+    from enhanced_bank_statement_routes import enhanced_bank
+    app.register_blueprint(enhanced_bank)
+    logger.info("Enhanced bank statement routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading enhanced bank statement routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
