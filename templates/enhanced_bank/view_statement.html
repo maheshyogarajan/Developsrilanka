@@ -132,7 +132,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if hasattr(transaction, 'receipt_id') and transaction.receipt_id or hasattr(transaction, 'expense_id') and transaction.expense_id %}
+                                {% if transaction.receipt_id or transaction.expense_id %}
                                 <span class="badge bg-success">Reconciled</span>
                                 {% else %}
                                 <span class="badge bg-warning">Pending</span>
@@ -146,7 +146,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if not (hasattr(transaction, 'receipt_id') and transaction.receipt_id or hasattr(transaction, 'expense_id') and transaction.expense_id) %}
+                                {% if not (transaction.receipt_id or transaction.expense_id) %}
                                 <button class="btn btn-sm btn-outline-primary" 
                                         onclick="showReconcileModal({{ transaction.id }})">
                                     <i class="fas fa-link"></i> Match
