@@ -292,10 +292,10 @@ def view_statement(statement_id):
         statement = db.session.query(BankStatement).join(
             OrganizationUser,
             OrganizationUser.organization_id == BankStatement.organization_id
-        ).filter(
+        ).filter(and_(
             BankStatement.id == statement_id,
             OrganizationUser.user_id == current_user.id
-        ).first()
+        )).first()
         
         if not statement:
             flash('Statement not found or access denied', 'error')
@@ -381,11 +381,11 @@ def reconcile_statement(statement_id):
             date_range_start = min(t.transaction_date for t in transactions) - timedelta(days=7)
             date_range_end = max(t.transaction_date for t in transactions) + timedelta(days=7)
             
-            potential_receipts = Receipt.query.filter(
+            potential_receipts = Receipt.query.filter(and_(
                 Receipt.organization_id == statement.organization_id,
                 Receipt.date >= date_range_start,
                 Receipt.date <= date_range_end
-            ).order_by(Receipt.date.desc()).all()
+            )).order_by(Receipt.date.desc()).all()
         
         # FIXED: Include organization context for navigation
         user_orgs = db.session.query(OrganizationUser).filter_by(user_id=current_user.id).all()
