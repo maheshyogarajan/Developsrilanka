@@ -1141,12 +1141,41 @@ def save_receipt():
             except ValueError:
                 logging.warning(f"Invalid date format: {receipt_data['date']}")
         
-        # Get the user's organization
-        default_org = None
-        if hasattr(current_user, 'get_default_organization'):
-            default_org = current_user.get_default_organization()
-            
-        organization_id = default_org.id if default_org else None
+        # Get organization ID with comprehensive fallback logic
+        organization_id = None
+
+        # Priority 1: From receipt data (if organization was embedded during processing)
+        if receipt_data.get('organization_id'):
+            organization_id = receipt_data.get('organization_id')
+            logging.info(f"Using organization_id from receipt_data: {organization_id}")
+
+        # Priority 2: From session context (most common case)
+        if not organization_id and session.get('receipt_organization_id'):
+            organization_id = session.get('receipt_organization_id')
+            logging.info(f"Using organization_id from session: {organization_id}")
+
+        # Convert to int if string (handle frontend string values)
+        if organization_id and isinstance(organization_id, str) and organization_id.isdigit():
+            organization_id = int(organization_id)
+
+        # Priority 3: Default organization as last resort with explicit warning
+        if not organization_id:
+            default_org = None
+            if hasattr(current_user, 'get_default_organization'):
+                default_org = current_user.get_default_organization()
+                if default_org:
+                    organization_id = default_org.id
+                    logging.warning(f"No organization context found, falling back to default organization: {organization_id}")
+                else:
+                    logging.error("No default organization found for user")
+                    return jsonify({'error': 'No organization context available'}), 400
+
+        # Final validation
+        if not organization_id:
+            logging.error("Could not determine organization for receipt")
+            return jsonify({'error': 'Organization context required for receipt saving'}), 400
+
+        logging.info(f"Final organization_id for receipt: {organization_id}")
         
         # Get the S3 key if available in the receipt data
         s3_key = receipt_data.get('s3_key', '')
