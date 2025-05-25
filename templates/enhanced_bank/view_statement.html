@@ -121,7 +121,7 @@
                             <td>{{ transaction.description[:50] }}{% if transaction.description|length > 50 %}...{% endif %}</td>
                             <td>
                                 <span class="{% if transaction.bank_meta and transaction.bank_meta.is_debit %}text-danger{% else %}text-success{% endif %}">
-                                    {% if transaction.bank_meta and transaction.bank_meta.is_debit %}-{% endif %}{{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.amount) }}
+                                    {% if transaction.bank_meta and transaction.bank_meta.is_debit %}-{% endif %}{{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.amount|float) }}
                                 </span>
                             </td>
                             <td>
