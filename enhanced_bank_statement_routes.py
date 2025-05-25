@@ -32,7 +32,7 @@ from io import BytesIO
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-enhanced_bank = Blueprint('enhanced_bank', __name__, url_prefix='/enhanced-bank')
+enhanced_bank = Blueprint('enhanced_bank', __name__, url_prefix='/enhanced_bank')
 
 @enhanced_bank.route('/statements')
 @login_required
