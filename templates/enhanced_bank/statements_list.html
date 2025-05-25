@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+
+{% block title %}Bank Statements{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Bank Statements</h2>
+                <a href="{{ url_for('enhanced_bank.upload_form') }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>Upload New Statement
+                </a>
+            </div>
+            
+            <!-- Organization Filter -->
+            {% if organizations|length > 1 %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <select name="org_id" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Organizations</option>
+                                {% for org in organizations %}
+                                <option value="{{ org.id }}" {% if org.id == selected_org_id %}selected{% endif %}>
+                                    {{ org.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Statements List -->
+            {% if statements %}
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Bank Name</th>
+                                    <th>Account</th>
+                                    <th>Period</th>
+                                    <th>Transactions</th>
+                                    <th>Status</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for statement in statements %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ statement.bank_name or 'Unknown Bank' }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ statement.account_number[-4:] if statement.account_number else 'N/A' }}
+                                    </td>
+                                    <td>
+                                        {% if statement.statement_start_date and statement.statement_end_date %}
+                                        {{ statement.statement_start_date.strftime('%d %b') }} - 
+                                        {{ statement.statement_end_date.strftime('%d %b %Y') }}
+                                        {% else %}
+                                        Date range not available
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ statement.total_transactions or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        {% if statement.processing_status == 'completed' %}
+                                        <span class="badge bg-success">Processed</span>
+                                        {% elif statement.processing_status == 'processing' %}
+                                        <span class="badge bg-warning">Processing</span>
+                                        {% elif statement.processing_status == 'failed' %}
+                                        <span class="badge bg-danger">Failed</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ statement.created_at.strftime('%d %b %Y at %I:%M %p') }}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('enhanced_bank.view_statement', statement_id=statement.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            {% if statement.processing_status == 'completed' %}
+                                            <a href="{{ url_for('enhanced_bank.reconcile_statement', statement_id=statement.id) }}" 
+                                               class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-balance-scale"></i> Reconcile
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>
+                    <h4>No Bank Statements Yet</h4>
+                    <p class="text-muted mb-4">Upload your first bank statement to get started with automatic reconciliation.</p>
+                    <a href="{{ url_for('enhanced_bank.upload_form') }}" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>Upload Statement
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
