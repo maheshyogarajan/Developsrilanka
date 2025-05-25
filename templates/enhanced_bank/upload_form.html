@@ -152,7 +152,7 @@ document.getElementById('organization_id').addEventListener('change', function()
     
     if (orgId) {
         // Fetch bank accounts for selected organization
-        fetch(`/enhanced-bank/api/bank-accounts/${orgId}`)
+        fetch(`/enhanced_bank/api/bank-accounts/${orgId}`)
             .then(response => response.json())
             .then(data => {
                 bankAccountSelect.innerHTML = '<option value="">Select existing account or enter new details below</option>';
