@@ -557,6 +557,34 @@
                     </ul>
                 </li>
                 
+                <!-- Enhanced Bank Statements group -->
+                <li class="menu-item {% if '/enhanced-bank' in request.path %}open{% endif %}">
+                    <a href="#" class="menu-link has-submenu {% if '/enhanced-bank' in request.path %}active{% endif %}">
+                        <i class="fas fa-file-pdf menu-icon"></i>
+                        <span class="menu-text">Bank Statements</span>
+                    </a>
+                    <ul class="submenu">
+                        <li>
+                            <a href="{{ url_for('enhanced_bank.dashboard') }}" class="submenu-link {% if '/enhanced-bank/dashboard' in request.path %}active{% endif %}">
+                                <i class="fas fa-tachometer-alt submenu-icon"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('enhanced_bank.upload_form') }}" class="submenu-link {% if '/enhanced-bank/upload' in request.path %}active{% endif %}">
+                                <i class="fas fa-upload submenu-icon"></i>
+                                <span>Upload Statement</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('enhanced_bank.list_statements') }}" class="submenu-link {% if '/enhanced-bank/statements' in request.path %}active{% endif %}">
+                                <i class="fas fa-list submenu-icon"></i>
+                                <span>View All</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                
                 <li class="menu-item">
                     <a href="{{ url_for('profile') }}" class="menu-link {% if request.path == '/profile' %}active{% endif %}">
                         <i class="fas fa-user menu-icon"></i>
