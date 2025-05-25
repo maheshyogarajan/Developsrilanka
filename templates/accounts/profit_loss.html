@@ -109,28 +109,50 @@
                                     <td class="text-end">{{ "{:,.2f}".format(report_data.total_revenue) }}</td>
                                 </tr>
                                 
-                                <!-- Expenses Section -->
+                                <!-- Enhanced Expenses Section with Chart of Accounts -->
                                 <tr class="table-light">
                                     <td colspan="2"><strong>EXPENSES</strong></td>
                                 </tr>
-                                {% for major_category, category_data in report_data.expense_hierarchy.items() %}
-                                <!-- Major Category Header -->
-                                <tr>
-                                    <td class="ps-4 fw-bold">{{ major_category }}</td>
-                                    <td class="text-end fw-bold">{{ "{:,.2f}".format(category_data.total) }}</td>
-                                </tr>
-                                <!-- Subcategories -->
-                                {% for minor_category, subcat_data in category_data.subcategories.items() %}
-                                <tr>
-                                    <td class="ps-5 text-muted">
-                                        <span class="subcategory-indent">├─ {{ minor_category }}</span>
-                                        <small class="ms-2">({{ subcat_data.count }} receipts)</small>
-                                    </td>
-                                    <td class="text-end text-muted">{{ "{:,.2f}".format(subcat_data.amount) }}</td>
-                                </tr>
-                                {% endfor %}
-                                {% endfor %}
-                                {% if not report_data.expense_hierarchy %}
+                                {% if report_data.expense_by_accounts %}
+                                    <!-- Display expenses by chart of accounts hierarchy -->
+                                    {% for group_key, group_data in report_data.expense_by_accounts.items() %}
+                                    <tr class="expense-group-header">
+                                        <td class="ps-3 fw-bold text-primary">
+                                            <i class="fas fa-folder-open me-2"></i>{{ group_data.name }}
+                                        </td>
+                                        <td class="text-end fw-bold text-primary">{{ "{:,.2f}".format(group_data.total) }}</td>
+                                    </tr>
+                                    {% for account in group_data.accounts %}
+                                    <tr class="account-detail-row">
+                                        <td class="ps-5">
+                                            <span class="account-code">{{ account.account_code }}</span>
+                                            <span class="account-name">{{ account.name }}</span>
+                                        </td>
+                                        <td class="text-end">{{ "{:,.2f}".format(account.amount) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% endfor %}
+                                {% else %}
+                                    <!-- Fallback to traditional category display -->
+                                    {% for major_category, category_data in report_data.expense_hierarchy.items() %}
+                                    <!-- Major Category Header -->
+                                    <tr>
+                                        <td class="ps-4 fw-bold">{{ major_category }}</td>
+                                        <td class="text-end fw-bold">{{ "{:,.2f}".format(category_data.total) }}</td>
+                                    </tr>
+                                    <!-- Subcategories -->
+                                    {% for minor_category, subcat_data in category_data.subcategories.items() %}
+                                    <tr>
+                                        <td class="ps-5 text-muted">
+                                            <span class="subcategory-indent">├─ {{ minor_category }}</span>
+                                            <small class="ms-2">({{ subcat_data.count }} receipts)</small>
+                                        </td>
+                                        <td class="text-end text-muted">{{ "{:,.2f}".format(subcat_data.amount) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
+                                {% if not report_data.expense_hierarchy and not report_data.expense_by_accounts %}
                                 <tr>
                                     <td class="ps-4 text-muted">No expenses found</td>
                                     <td class="text-end">0.00</td>
@@ -272,6 +294,40 @@ function setQuickPeriod(period) {
 .expense-major-category {
     background-color: #f8f9fa;
     border-left: 3px solid #007bff;
+}
+
+.expense-group-header {
+    background-color: #f8f9fa;
+    border-left: 3px solid #0d6efd;
+}
+
+.expense-group-header td {
+    font-weight: 600;
+    color: #0d6efd !important;
+}
+
+.account-detail-row {
+    background-color: #fdfdfd;
+}
+
+.account-detail-row:hover {
+    background-color: #f8f9fa;
+}
+
+.account-code {
+    font-family: 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
+    font-size: 0.85rem;
+    background-color: #e9ecef;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    margin-right: 0.5rem;
+    color: #495057;
+    font-weight: 600;
+}
+
+.account-name {
+    color: #495057;
+    font-weight: 500;
 }
 
 .revenue-client {

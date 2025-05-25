@@ -373,15 +373,17 @@ class FinancialReportService:
     
     @staticmethod
     def generate_profit_loss(organization_id, start_date, end_date):
-        """Enhanced P&L with client revenue and expense subcategory breakdown."""
+        """Enhanced P&L with client revenue and chart of accounts expense breakdown."""
         try:
             from models import Receipt, Invoice, Client
+            from account_mapping_service import AccountMappingService
             
             # Initialize enhanced report structure
             report = {
                 'organization_id': organization_id,
                 'period': f"{start_date} to {end_date}",
                 'revenue_by_client': [],
+                'expense_by_accounts': {},
                 'expense_hierarchy': {},
                 'total_revenue': Decimal('0'),
                 'total_expenses': Decimal('0'),
@@ -410,7 +412,39 @@ class FinancialReportService:
                 report['revenue_by_client'].append(client_info)
                 report['total_revenue'] += Decimal(str(client_data.client_total))
             
-            # Get detailed expense breakdown with subcategories
+            # Get detailed expense breakdown for account mapping
+            expense_category_query = db.session.query(
+                Receipt.expense_major_category,
+                func.sum(Receipt.total_amount).label('category_total'),
+                func.count(Receipt.id).label('receipt_count')
+            ).filter(
+                Receipt.organization_id == organization_id,
+                Receipt.date >= start_date,
+                Receipt.date <= end_date,
+                Receipt.expense_major_category.isnot(None)
+            ).group_by(
+                Receipt.expense_major_category
+            ).order_by(
+                Receipt.expense_major_category
+            ).all()
+            
+            # Prepare data for account mapping
+            category_breakdown = []
+            total_expenses = Decimal('0')
+            
+            for row in expense_category_query:
+                category_data = {
+                    'category': row.expense_major_category,
+                    'amount': float(row.category_total),
+                    'count': row.receipt_count
+                }
+                category_breakdown.append(category_data)
+                total_expenses += Decimal(str(row.category_total))
+            
+            # Use AccountMappingService to enhance expense breakdown
+            enhanced_expenses = AccountMappingService.enhance_expense_breakdown(category_breakdown)
+            
+            # Also get detailed subcategory breakdown for legacy display
             expense_detail_query = db.session.query(
                 Receipt.expense_major_category,
                 Receipt.expense_minor_category,
@@ -429,9 +463,8 @@ class FinancialReportService:
                 Receipt.expense_minor_category
             ).all()
             
-            # Structure expense data hierarchically
+            # Structure traditional expense data hierarchically (for backward compatibility)
             expense_hierarchy = {}
-            total_expenses = Decimal('0')
             
             for row in expense_detail_query:
                 major_cat = row.expense_major_category
@@ -449,7 +482,6 @@ class FinancialReportService:
                     'count': row.receipt_count
                 }
                 expense_hierarchy[major_cat]['total'] += amount
-                total_expenses += amount
             
             # Convert Decimal amounts to float for template rendering
             processed_hierarchy = {}
@@ -465,6 +497,7 @@ class FinancialReportService:
                     }
             
             report['expense_hierarchy'] = processed_hierarchy
+            report['expense_by_accounts'] = enhanced_expenses
             report['total_expenses'] = total_expenses
             
             # Calculate net income
