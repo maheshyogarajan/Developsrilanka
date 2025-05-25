@@ -224,14 +224,17 @@ def upload_statement():
             logger.error(f"S3 upload failed for statement {statement.id}: {s3_error}")
             # Continue processing without S3 - store locally if needed
         
-        # Process PDF
+        # Process PDF with comprehensive error logging
+        logger.info(f"Starting PDF processing for statement ID: {statement.id}")
         try:
             processor = BankStatementProcessor()
             result = processor.process_pdf(pdf_data, statement.bank_name)
+            logger.info(f"PDF processing result - Valid: {result['validation']['is_valid']}, Transactions found: {len(result.get('transactions', []))}")
             
             if result['validation']['is_valid']:
                 # Update statement with extracted info
                 info = result['statement_info']
+                logger.info(f"Updating statement info: periods, balances, transaction count")
                 statement.statement_period_from = info.get('statement_period_start') or period_from
                 statement.statement_period_to = info.get('statement_period_end') or period_to
                 statement.opening_balance = info.get('opening_balance')
@@ -241,24 +244,30 @@ def upload_statement():
                 
                 # Get currency with fallback
                 currency = statement.statement_currency or 'LKR'
+                logger.info(f"Processing {len(result['transactions'])} transactions with currency: {currency}")
                 
-                # Create transactions with proper error handling
+                # Create transactions with detailed logging
                 transactions_created = 0
+                transactions_failed = 0
                 try:
                     for i, txn_data in enumerate(result['transactions']):
                         try:
+                            logger.debug(f"Processing transaction {i+1}/{len(result['transactions'])}: {txn_data.get('amount', 'N/A')} {currency}")
                             # Validate and sanitize transaction amount
                             raw_amount = Decimal(str(txn_data['amount']))
                             
                             # Skip transactions with impossible amounts (likely parsing errors)
                             if abs(raw_amount) > Decimal('1000000000'):  # 1 billion limit
-                                logger.warning(f"Skipping transaction with invalid amount: {raw_amount}")
+                                logger.warning(f"Skipping transaction {i+1} with invalid amount: {raw_amount}")
+                                transactions_failed += 1
                                 continue
                                 
                             if abs(raw_amount) < Decimal('0.01'):  # Skip tiny amounts
-                                logger.warning(f"Skipping transaction with tiny amount: {raw_amount}")
+                                logger.warning(f"Skipping transaction {i+1} with tiny amount: {raw_amount}")
+                                transactions_failed += 1
                                 continue
                             
+                            logger.debug(f"Creating financial transaction record for transaction {i+1}")
                             transaction = FinancialTransaction(
                                 organization_id=organization_id,
                                 transaction_date=txn_data['transaction_date'],
@@ -278,8 +287,10 @@ def upload_statement():
                             
                             db.session.add(transaction)
                             db.session.flush()
+                            logger.debug(f"Financial transaction created with ID: {transaction.id}")
                             
-                            # Create bank metadata
+                            # Create bank metadata with detailed logging
+                            logger.debug(f"Creating metadata record for transaction {transaction.id}")
                             bank_meta = TransactionMetaBank(
                                 transaction_id=transaction.id,
                                 bank_statement_id=statement.id,
@@ -290,11 +301,13 @@ def upload_statement():
                             )
                             db.session.add(bank_meta)
                             db.session.flush()
+                            logger.debug(f"Metadata record created for transaction {transaction.id}")
                             
                             transactions_created += 1
                             
                         except Exception as txn_error:
-                            logger.error(f"Failed to create transaction {i+1}: {txn_error}")
+                            logger.error(f"Failed to create transaction {i+1}: {txn_error}", exc_info=True)
+                            transactions_failed += 1
                             # Continue processing other transactions rather than failing completely
                             continue
                     
@@ -302,10 +315,13 @@ def upload_statement():
                     statement.total_transactions = transactions_created
                     db.session.commit()
                     
-                    logger.info(f"Successfully created {transactions_created} of {len(result['transactions'])} transactions")
+                    logger.info(f"Processing complete - Created: {transactions_created}, Failed: {transactions_failed}, Total extracted: {len(result['transactions'])}")
+                    
+                    if transactions_failed > 0:
+                        logger.warning(f"{transactions_failed} transactions failed validation and were skipped")
                     
                 except Exception as e:
-                    logger.error(f"Transaction creation failed: {e}")
+                    logger.error(f"Critical transaction creation error: {e}", exc_info=True)
                     db.session.rollback()
                     statement.processing_status = 'failed'
                     statement.total_transactions = 0
