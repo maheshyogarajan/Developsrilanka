@@ -344,6 +344,7 @@ def view_statement(statement_id):
         flash('Error loading statement details', 'error')
         return redirect(url_for('enhanced_bank.list_statements'))
 
+@enhanced_bank.route('/reconcile/<int:statement_id>')
 @enhanced_bank.route('/statement/<int:statement_id>/reconcile')
 @login_required
 def reconcile_statement(statement_id):
