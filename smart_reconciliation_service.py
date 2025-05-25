@@ -59,7 +59,8 @@ class SmartReconciliationService:
             
             # Get all bank transactions for this statement
             bank_transactions = FinancialTransaction.query.filter_by(
-                bank_statement_id=statement_id
+                source_type='BANK_STATEMENT',
+                source_id=statement_id
             ).all()
             
             # Get existing receipts and expenses in date range
