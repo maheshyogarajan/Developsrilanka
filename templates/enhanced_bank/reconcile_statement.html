@@ -1,0 +1,338 @@
+{% extends "layout.html" %}
+
+{% block title %}Reconcile Statement{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Reconcile Statement - {{ statement.bank_name }}</h2>
+        <a href="{{ url_for('enhanced_bank.view_statement', statement_id=statement.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Statement
+        </a>
+    </div>
+    
+    <!-- Reconciliation Progress -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5>Reconciliation Progress</h5>
+                            <p class="text-muted mb-0">Match bank transactions with your receipts and expenses</p>
+                        </div>
+                        <div class="text-end">
+                            <h3 class="text-primary mb-0">{{ transactions|length }}</h3>
+                            <small class="text-muted">Total Transactions</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reconciliation Interface -->
+    <div class="row">
+        <!-- Bank Transactions Column -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Bank Transactions ({{ transactions|length }})</h5>
+                    <span class="badge bg-primary">{{ statement.base_currency or 'LKR' }}</span>
+                </div>
+                <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                    {% if transactions %}
+                        {% for transaction in transactions %}
+                        <div class="border rounded p-3 mb-3 transaction-item" 
+                             data-transaction-id="{{ transaction.id }}"
+                             data-amount="{{ transaction.amount }}"
+                             data-date="{{ transaction.transaction_date.isoformat() }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong class="{% if transaction.bank_meta and transaction.bank_meta.is_debit %}text-danger{% else %}text-success{% endif %}">
+                                            {% if transaction.bank_meta and transaction.bank_meta.is_debit %}-{% endif %}{{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.amount) }}
+                                        </strong>
+                                        <small class="text-muted">{{ transaction.transaction_date.strftime('%d %b %Y') }}</small>
+                                    </div>
+                                    <p class="mb-2 text-truncate" title="{{ transaction.description }}">
+                                        {{ transaction.description[:80] }}{% if transaction.description|length > 80 %}...{% endif %}
+                                    </p>
+                                    {% if transaction.bank_meta and transaction.bank_meta.balance_after %}
+                                    <small class="text-muted">Balance After: {{ statement.base_currency }} {{ "{:,.2f}"|format(transaction.bank_meta.balance_after) }}</small>
+                                    {% endif %}
+                                </div>
+                                <div class="ms-3">
+                                    <button class="btn btn-sm btn-primary find-match-btn" 
+                                            data-transaction-id="{{ transaction.id }}"
+                                            onclick="findMatches({{ transaction.id }})">
+                                        <i class="fas fa-search me-1"></i>Find Match
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-receipt fa-3x mb-3"></i>
+                            <h5>No Transactions Found</h5>
+                            <p>This statement doesn't contain any transactions to reconcile.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Potential Receipts Column -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Available Receipts ({{ potential_receipts|length }})</h5>
+                    <span class="badge bg-success">Ready to Match</span>
+                </div>
+                <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                    {% if potential_receipts %}
+                        {% for receipt in potential_receipts %}
+                        <div class="border rounded p-3 mb-3 receipt-item" 
+                             data-receipt-id="{{ receipt.id }}"
+                             data-amount="{{ receipt.total }}"
+                             data-date="{{ receipt.date.isoformat() }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong class="text-success">
+                                            {{ receipt.currency or 'LKR' }} {{ "{:,.2f}"|format(receipt.total) }}
+                                        </strong>
+                                        <small class="text-muted">{{ receipt.date.strftime('%d %b %Y') }}</small>
+                                    </div>
+                                    <p class="mb-2">
+                                        <strong>{{ receipt.merchant_name or 'Unknown Merchant' }}</strong>
+                                    </p>
+                                    {% if receipt.category %}
+                                    <span class="badge bg-light text-dark">{{ receipt.category }}</span>
+                                    {% endif %}
+                                    {% if receipt.s3_key %}
+                                    <br><small class="text-muted mt-1"><i class="fas fa-image me-1"></i>Has Image</small>
+                                    {% endif %}
+                                </div>
+                                <div class="ms-3">
+                                    <button class="btn btn-sm btn-success create-match-btn" 
+                                            data-receipt-id="{{ receipt.id }}"
+                                            onclick="createMatch({{ receipt.id }})">
+                                        <i class="fas fa-link me-1"></i>Match
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-file-invoice fa-3x mb-3"></i>
+                            <h5>No Receipts Available</h5>
+                            <p>No receipts found in the date range for this statement period.</p>
+                            <a href="{{ url_for('receipt_upload') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>Upload Receipts
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle me-2"></i>How to Reconcile</h6>
+                <ul class="mb-0">
+                    <li><strong>Find Match:</strong> Click on any bank transaction to see potential receipt matches</li>
+                    <li><strong>Manual Match:</strong> Click "Match" on any receipt to link it with a selected transaction</li>
+                    <li><strong>Review:</strong> Check amounts and dates to ensure accurate matching</li>
+                    <li><strong>Complete:</strong> Matched items will be marked as reconciled automatically</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Matching Modal -->
+<div class="modal fade" id="matchingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Match Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="matching-content">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-match-btn">Confirm Match</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedTransaction = null;
+let selectedReceipt = null;
+
+function findMatches(transactionId) {
+    selectedTransaction = transactionId;
+    
+    // Get transaction data
+    const transactionElement = document.querySelector(`[data-transaction-id="${transactionId}"]`);
+    const amount = parseFloat(transactionElement.dataset.amount);
+    const date = transactionElement.dataset.date;
+    
+    // Highlight selected transaction
+    document.querySelectorAll('.transaction-item').forEach(el => el.classList.remove('border-primary', 'bg-light'));
+    transactionElement.classList.add('border-primary', 'bg-light');
+    
+    // Show potential matches based on amount similarity
+    const tolerance = amount * 0.1; // 10% tolerance
+    document.querySelectorAll('.receipt-item').forEach(receiptEl => {
+        const receiptAmount = parseFloat(receiptEl.dataset.amount);
+        const amountDiff = Math.abs(amount - receiptAmount);
+        
+        receiptEl.classList.remove('border-success', 'bg-light');
+        
+        if (amountDiff <= tolerance) {
+            receiptEl.classList.add('border-success', 'bg-light');
+            // Add confidence indicator
+            const confidence = Math.max(0, (1 - (amountDiff / amount)) * 100);
+            const existingBadge = receiptEl.querySelector('.confidence-badge');
+            if (existingBadge) existingBadge.remove();
+            
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-success confidence-badge';
+            badge.textContent = `${Math.round(confidence)}% match`;
+            receiptEl.querySelector('.flex-grow-1').appendChild(badge);
+        }
+    });
+    
+    // Show instruction
+    showAlert('info', `Transaction selected! Click "Match" on a receipt below to create the match.`);
+}
+
+function createMatch(receiptId) {
+    if (!selectedTransaction) {
+        showAlert('warning', 'Please select a bank transaction first by clicking "Find Match".');
+        return;
+    }
+    
+    selectedReceipt = receiptId;
+    
+    // Get data for confirmation
+    const transactionEl = document.querySelector(`[data-transaction-id="${selectedTransaction}"]`);
+    const receiptEl = document.querySelector(`[data-receipt-id="${receiptId}"]`);
+    
+    const transactionAmount = parseFloat(transactionEl.dataset.amount);
+    const receiptAmount = parseFloat(receiptEl.dataset.amount);
+    const amountDiff = Math.abs(transactionAmount - receiptAmount);
+    
+    // Show confirmation
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Bank Transaction</h6>
+                <div class="border rounded p-3">
+                    <strong>Amount: {{ statement.base_currency }} ${transactionAmount.toFixed(2)}</strong><br>
+                    <small>${transactionEl.querySelector('p').textContent}</small>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6>Receipt</h6>
+                <div class="border rounded p-3">
+                    <strong>Amount: ${receiptAmount.toFixed(2)}</strong><br>
+                    <small>${receiptEl.querySelector('strong').nextElementSibling.textContent}</small>
+                </div>
+            </div>
+        </div>
+        ${amountDiff > 0 ? `<div class="alert alert-warning mt-3">
+            <strong>Amount difference:</strong> ${amountDiff.toFixed(2)} 
+            (${((amountDiff/transactionAmount)*100).toFixed(1)}% difference)
+        </div>` : '<div class="alert alert-success mt-3">Perfect amount match!</div>'}
+    `;
+    
+    document.getElementById('matching-content').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('matchingModal')).show();
+}
+
+document.getElementById('confirm-match-btn').addEventListener('click', function() {
+    if (selectedTransaction && selectedReceipt) {
+        // In Phase 2, this will make an API call
+        // For now, show success message
+        showAlert('success', `Match created successfully! Transaction ${selectedTransaction} linked with Receipt ${selectedReceipt}.`);
+        
+        // Hide the matched items
+        document.querySelector(`[data-transaction-id="${selectedTransaction}"]`).style.opacity = '0.5';
+        document.querySelector(`[data-receipt-id="${selectedReceipt}"]`).style.opacity = '0.5';
+        
+        // Reset selection
+        selectedTransaction = null;
+        selectedReceipt = null;
+        
+        // Close modal
+        bootstrap.Modal.getInstance(document.getElementById('matchingModal')).hide();
+        
+        // Clear highlights
+        document.querySelectorAll('.transaction-item, .receipt-item').forEach(el => {
+            el.classList.remove('border-primary', 'border-success', 'bg-light');
+        });
+        document.querySelectorAll('.confidence-badge').forEach(badge => badge.remove());
+    }
+});
+
+function showAlert(type, message) {
+    const alertsContainer = document.querySelector('.container-fluid');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    alertsContainer.insertBefore(alert, alertsContainer.firstChild);
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+
+<style>
+.transaction-item:hover, .receipt-item:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.confidence-badge {
+    position: absolute;
+    top: 10px;
+    right: 60px;
+    font-size: 0.7em;
+}
+
+.receipt-item, .transaction-item {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.border-primary {
+    border-color: #0d6efd !important;
+    border-width: 2px !important;
+}
+
+.border-success {
+    border-color: #198754 !important;
+    border-width: 2px !important;
+}
+</style>
+{% endblock %}

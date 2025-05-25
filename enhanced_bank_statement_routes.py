@@ -284,81 +284,49 @@ def view_statement(statement_id):
 def reconcile_statement(statement_id):
     """Show reconciliation interface for manual review."""
     try:
-        statement = BankStatement.query.get_or_404(statement_id)
-        
-        # Check user access
-        user_org = OrganizationUser.query.filter_by(
-            user_id=current_user.id,
-            organization_id=statement.organization_id
+        # Get statement with proper access control
+        statement = db.session.query(BankStatement).join(
+            OrganizationUser,
+            OrganizationUser.organization_id == BankStatement.organization_id
+        ).filter(
+            BankStatement.id == statement_id,
+            OrganizationUser.user_id == current_user.id
         ).first()
         
-        if not user_org:
-            flash('Access denied', 'error')
+        if not statement:
+            flash('Statement not found or access denied', 'error')
             return redirect(url_for('enhanced_bank.list_statements'))
         
-        # Get unmatched transactions
-        unmatched_bank_txns = db.session.query(FinancialTransaction).join(
-            TransactionMetaBank
-        ).filter(
-            TransactionMetaBank.bank_statement_id == statement_id,
-            FinancialTransaction.reconciliation_status == 'unmatched'
-        ).all()
+        if statement.processing_status != 'completed':
+            flash('Statement must be fully processed before reconciliation', 'warning')
+            return redirect(url_for('enhanced_bank.view_statement', statement_id=statement_id))
         
-        # Get potential receipt matches
-        date_range_start = statement.statement_period_from - timedelta(days=5)
-        date_range_end = statement.statement_period_to + timedelta(days=5)
+        # Get all transactions for this statement
+        transactions = db.session.query(FinancialTransaction)\
+            .outerjoin(TransactionMetaBank)\
+            .filter(FinancialTransaction.bank_statement_id == statement_id)\
+            .order_by(FinancialTransaction.transaction_date.desc())\
+            .all()
         
-        potential_receipts = FinancialTransaction.query.filter(
-            FinancialTransaction.organization_id == statement.organization_id,
-            FinancialTransaction.source_type == 'receipt_scan',
-            FinancialTransaction.reconciliation_status == 'unmatched',
-            FinancialTransaction.transaction_date >= date_range_start,
-            FinancialTransaction.transaction_date <= date_range_end
-        ).all()
-        
-        # Get matching rules for confidence calculations
-        rules = SmartMatchingRules.query.filter_by(
-            organization_id=statement.organization_id
-        ).first()
-        
-        if not rules:
-            rules = SmartMatchingRules(organization_id=statement.organization_id)
-            db.session.add(rules)
-            db.session.commit()
-        
-        # Calculate potential matches for each bank transaction
-        reconciliation_items = []
-        for bank_txn in unmatched_bank_txns:
-            potential_matches = []
+        # Get potential receipts within date range for matching
+        potential_receipts = []
+        if transactions:
+            date_range_start = min(t.transaction_date for t in transactions) - timedelta(days=7)
+            date_range_end = max(t.transaction_date for t in transactions) + timedelta(days=7)
             
-            for receipt in potential_receipts:
-                confidence = EnhancedMatchingEngine._calculate_match_confidence(
-                    bank_txn, receipt, rules
-                )
-                
-                if confidence >= 30:  # Show matches with at least 30% confidence
-                    potential_matches.append({
-                        'receipt': receipt,
-                        'confidence': round(confidence, 1),
-                        'amount_diff': float(abs(bank_txn.amount - receipt.amount)),
-                        'date_diff': abs((bank_txn.transaction_date - receipt.transaction_date).days)
-                    })
-            
-            # Sort by confidence
-            potential_matches.sort(key=lambda x: x['confidence'], reverse=True)
-            
-            reconciliation_items.append({
-                'bank_transaction': bank_txn,
-                'potential_matches': potential_matches[:5]  # Top 5 matches
-            })
+            potential_receipts = Receipt.query.filter(
+                Receipt.organization_id == statement.organization_id,
+                Receipt.date >= date_range_start,
+                Receipt.date <= date_range_end
+            ).order_by(Receipt.date.desc()).all()
         
-        return render_template('enhanced_bank/reconcile.html',
+        return render_template('enhanced_bank/reconcile_statement.html',
                              statement=statement,
-                             reconciliation_items=reconciliation_items,
-                             rules=rules)
-                             
+                             transactions=transactions,
+                             potential_receipts=potential_receipts)
+        
     except Exception as e:
-        logger.error(f"Error showing reconciliation for statement {statement_id}: {str(e)}")
+        logger.error(f"Error loading reconciliation interface: {str(e)}")
         flash('Error loading reconciliation interface', 'error')
         return redirect(url_for('enhanced_bank.view_statement', statement_id=statement_id))
 
