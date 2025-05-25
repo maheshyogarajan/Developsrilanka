@@ -412,9 +412,10 @@ class FinancialReportService:
                 report['revenue_by_client'].append(client_info)
                 report['total_revenue'] += Decimal(str(client_data.client_total))
             
-            # Get detailed expense breakdown for account mapping
+            # Get detailed expense breakdown for account mapping with minor categories
             expense_category_query = db.session.query(
                 Receipt.expense_major_category,
+                Receipt.expense_minor_category,
                 func.sum(Receipt.total_amount).label('category_total'),
                 func.count(Receipt.id).label('receipt_count')
             ).filter(
@@ -423,18 +424,21 @@ class FinancialReportService:
                 Receipt.date <= end_date,
                 Receipt.expense_major_category.isnot(None)
             ).group_by(
-                Receipt.expense_major_category
+                Receipt.expense_major_category,
+                Receipt.expense_minor_category
             ).order_by(
-                Receipt.expense_major_category
+                Receipt.expense_major_category,
+                Receipt.expense_minor_category
             ).all()
             
-            # Prepare data for account mapping
+            # Prepare data for account mapping with minor category information
             category_breakdown = []
             total_expenses = Decimal('0')
             
             for row in expense_category_query:
                 category_data = {
                     'category': row.expense_major_category,
+                    'minor_category': row.expense_minor_category,
                     'amount': float(row.category_total),
                     'count': row.receipt_count
                 }

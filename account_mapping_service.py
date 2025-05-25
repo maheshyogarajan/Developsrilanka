@@ -17,9 +17,11 @@ class AccountMappingService:
         'Meals': '5002',  # Meals & Entertainment
         'Food': '5002',   # Meals & Entertainment
         'Entertainment': '5002',  # Meals & Entertainment
+        'Meals and Entertainment': '5002',  # Meals & Entertainment
         
         'Travel': '5003',      # Transport & Travel
         'Transport': '5003',   # Transport & Travel
+        'Travel and Transportation': '5003',  # Transport & Travel
         'Accommodation': '5003',  # Transport & Travel
         'Fuel': '5003',        # Transport & Travel
         
@@ -34,6 +36,7 @@ class AccountMappingService:
         
         'Marketing': '5006',        # Marketing & Advertising
         'Advertising': '5006',      # Marketing & Advertising
+        'Marketing and Advertising': '5006',  # Marketing & Advertising
         'Promotion': '5006',        # Marketing & Advertising
         
         'Utilities': '5007',        # Utilities
@@ -75,6 +78,30 @@ class AccountMappingService:
         'Salaries': '5013',        # Payroll – Wages & Salaries
         'Benefits': '5014',        # Employee Benefits
         
+        # Additional common categories
+        'Administrative Expenses': '5001',  # Operating Expenses – General
+        'Administration': '5001',           # Operating Expenses – General
+        'Office Expenses': '5004',          # Office Supplies
+        'Equipment': '5030',                # Repairs & Maintenance
+        'Computers': '5010',                # Software & SaaS
+        'Medical': '5014',                  # Employee Benefits
+        'Health': '5014',                   # Employee Benefits
+        'Telecommunications': '5040',       # Telephone & Internet
+        'Communication': '5040',            # Telephone & Internet
+        'Vehicle': '5003',                  # Transport & Travel
+        'Auto': '5003',                     # Transport & Travel
+        'Automobile': '5003',               # Transport & Travel
+        'Postage': '5001',                  # Operating Expenses – General
+        'Shipping': '5003',                 # Transport & Travel
+        'Cleaning': '5008',                 # Rent & Facilities
+        'Security': '5008',                 # Rent & Facilities
+        'Office Equipment': '5004',         # Office Supplies
+        'Computer Equipment': '5010',       # Software & SaaS
+        'Office Furniture': '5008',         # Rent & Facilities
+        'Research': '5015',                 # Training & Development
+        'Books': '5015',                    # Training & Development
+        'Publications': '5015',             # Training & Development
+        
         # Default fallbacks
         'Operating Expenses': '5001',  # Operating Expenses – General
         'General': '5001',             # Operating Expenses – General
@@ -106,37 +133,57 @@ class AccountMappingService:
     }
     
     @classmethod
-    def get_account_code_for_category(cls, category: str) -> str:
+    def get_account_code_for_category(cls, category: str, minor_category: Optional[str] = None) -> str:
         """
         Map a receipt category to an account code.
         
         Args:
-            category: The expense category from receipt scanning
+            category: The major expense category from receipt scanning
+            minor_category: The minor expense category (more specific)
             
         Returns:
             Account code (e.g., '5002') or default '5001' for unmapped categories
         """
+        # Prioritize minor category if available
+        if minor_category:
+            # Try exact match on minor category first
+            account_code = cls.CATEGORY_TO_ACCOUNT_MAP.get(minor_category)
+            if account_code:
+                return account_code
+                
+            # Try case-insensitive match on minor category
+            minor_lower = minor_category.lower()
+            for cat, code in cls.CATEGORY_TO_ACCOUNT_MAP.items():
+                if cat.lower() == minor_lower:
+                    return code
+                    
+            # Try partial match on minor category
+            for cat, code in cls.CATEGORY_TO_ACCOUNT_MAP.items():
+                if cat.lower() in minor_lower or minor_lower in cat.lower():
+                    return code
+        
+        # Fall back to major category if minor category didn't match
         if not category:
             return '5001'  # Default to Operating Expenses - General
             
-        # Try exact match first
+        # Try exact match on major category
         account_code = cls.CATEGORY_TO_ACCOUNT_MAP.get(category)
         if account_code:
             return account_code
             
-        # Try case-insensitive match
+        # Try case-insensitive match on major category
         category_lower = category.lower()
         for cat, code in cls.CATEGORY_TO_ACCOUNT_MAP.items():
             if cat.lower() == category_lower:
                 return code
                 
-        # Try partial match for compound categories
+        # Try partial match on major category
         for cat, code in cls.CATEGORY_TO_ACCOUNT_MAP.items():
             if cat.lower() in category_lower or category_lower in cat.lower():
                 return code
                 
         # Default fallback
-        logger.warning(f"No account mapping found for category: {category}")
+        logger.warning(f"No account mapping found for category: {category}, minor: {minor_category}")
         return '5001'  # Operating Expenses - General
     
     @classmethod
@@ -156,9 +203,10 @@ class AccountMappingService:
         # Process each expense
         for expense in expense_data:
             category = expense.get('category', '')
+            minor_category = expense.get('minor_category', '')
             amount = Decimal(str(expense.get('amount', 0)))
             
-            account_code = cls.get_account_code_for_category(category)
+            account_code = cls.get_account_code_for_category(category, minor_category)
             
             if account_code not in account_totals:
                 account_totals[account_code] = Decimal('0')
