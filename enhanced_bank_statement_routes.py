@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
-from models import Organization, User, OrganizationUser, Receipt
+from models import Organization, User, OrganizationUser, Receipt, BankAccount
 from enhanced_financial_models import (
     BankStatement, BankStatementPage, BankStatementProcessingLog,
     FinancialTransaction, TransactionMetaBank, SourceType, TransactionStatus
@@ -792,7 +792,6 @@ def get_bank_accounts(org_id):
             return jsonify({'error': 'Access denied'}), 403
         
         # Get bank accounts for this organization
-        from models import BankAccount
         bank_accounts = BankAccount.query.filter_by(
             organization_id=org_id
         ).order_by(BankAccount.bank_name, BankAccount.account_number).all()
