@@ -301,14 +301,14 @@ def view_statement(statement_id):
             flash('Statement not found or access denied', 'error')
             return redirect(url_for('enhanced_bank.list_statements'))
         
-        # FIXED: Use correct source pattern instead of bank_statement_id
+        # FIXED: Use and_() to prevent string formatting errors
         transactions = db.session.query(FinancialTransaction)\
             .outerjoin(TransactionMetaBank, TransactionMetaBank.transaction_id == FinancialTransaction.id)\
-            .filter(
+            .filter(and_(
                 FinancialTransaction.source_type == 'bank_statement',
                 FinancialTransaction.source_id == statement_id,
                 FinancialTransaction.organization_id == statement.organization_id
-            )\
+            ))\
             .order_by(FinancialTransaction.transaction_date.desc())\
             .all()
         
@@ -367,11 +367,11 @@ def reconcile_statement(statement_id):
         # FIXED: Get all transactions for this statement using correct source pattern
         transactions = db.session.query(FinancialTransaction)\
             .outerjoin(TransactionMetaBank, TransactionMetaBank.transaction_id == FinancialTransaction.id)\
-            .filter(
+            .filter(and_(
                 FinancialTransaction.source_type == 'bank_statement',
                 FinancialTransaction.source_id == statement_id,
                 FinancialTransaction.organization_id == statement.organization_id
-            )\
+            ))\
             .order_by(FinancialTransaction.transaction_date.desc())\
             .all()
         
