@@ -183,24 +183,33 @@ def upload_statement():
             flash('This statement has already been uploaded', 'warning')
             return redirect(url_for('enhanced_bank.view_statement', statement_id=existing.id))
         
-        # Create statement record with correct fields
-        statement = BankStatement(
-            organization_id=organization_id,
-            content_sha256=content_hash,
-            file_size_bytes=len(pdf_data),
-            page_count=1,  # Will be updated by processor
-            bank_name=request.form.get('bank_name', ''),
-            account_number=account_number,
-            statement_period_from=period_from,
-            statement_period_to=period_to,
-            statement_currency=request.form.get('base_currency', 'LKR'),
-            processing_status='processing',
-            uploaded_by=current_user.id
-        )
-        db.session.add(statement)
-        db.session.flush()  # Get ID for S3 key
+        # Create statement record with detailed logging
+        logger.info(f"Creating bank statement record - Org: {organization_id}, Size: {len(pdf_data)} bytes")
+        try:
+            statement = BankStatement(
+                organization_id=organization_id,
+                content_sha256=content_hash,
+                file_size_bytes=len(pdf_data),
+                page_count=1,  # Will be updated by processor
+                bank_name=request.form.get('bank_name', ''),
+                account_number=account_number,
+                statement_period_from=period_from,
+                statement_period_to=period_to,
+                statement_currency=request.form.get('base_currency', 'LKR'),
+                processing_status='processing',
+                uploaded_by=current_user.id
+            )
+            db.session.add(statement)
+            db.session.flush()  # Get ID for S3 key
+            logger.info(f"Statement record created successfully with ID: {statement.id}")
+        except Exception as e:
+            logger.error(f"Failed to create statement record: {e}")
+            db.session.rollback()
+            flash(f'Failed to create statement record: {e}', 'error')
+            return redirect(url_for('enhanced_bank.upload_form'))
         
-        # Store in S3 (using existing infrastructure)
+        # Store in S3 with detailed logging
+        logger.info(f"Uploading PDF to S3 for statement ID: {statement.id}")
         try:
             s3_client = boto3.client('s3')
             s3_key = f"bank-statements/{statement.id}/statement.pdf"
@@ -210,8 +219,9 @@ def upload_statement():
                 s3_key
             )
             statement.original_pdf_s3_key = s3_key
+            logger.info(f"S3 upload successful: {s3_key}")
         except Exception as s3_error:
-            logger.warning(f"S3 upload failed: {s3_error}")
+            logger.error(f"S3 upload failed for statement {statement.id}: {s3_error}")
             # Continue processing without S3 - store locally if needed
         
         # Process PDF
