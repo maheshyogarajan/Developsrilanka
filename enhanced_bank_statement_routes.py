@@ -19,7 +19,7 @@ from enhanced_reconciliation_models import (
 from enhanced_financial_services import (
     UniversalGLService, EnhancedMatchingEngine, BalanceSheetService
 )
-from bank_statement_processor import BankStatementProcessor
+from bank_statement_processor import BankStatementProcessor, EnhancedBankStatementProcessor
 from smart_reconciliation_service import SmartReconciliationService
 import hashlib
 import os
@@ -224,14 +224,95 @@ def upload_statement():
             logger.error(f"S3 upload failed for statement {statement.id}: {s3_error}")
             # Continue processing without S3 - store locally if needed
         
-        # Process PDF with comprehensive error logging
-        logger.info(f"Starting PDF processing for statement ID: {statement.id}")
+        # Process PDF with enhanced validation and logging
+        logger.info(f"Starting enhanced PDF processing for statement ID: {statement.id}")
         try:
-            processor = BankStatementProcessor()
-            result = processor.process_pdf(pdf_data, statement.bank_name)
-            logger.info(f"PDF processing result - Valid: {result['validation']['is_valid']}, Transactions found: {len(result.get('transactions', []))}")
+            # First extract full text for account number detection
+            from PyPDF2 import PdfReader
+            from io import BytesIO
+            
+            pdf_reader = PdfReader(BytesIO(pdf_data))
+            full_text = ""
+            for page in pdf_reader.pages:
+                full_text += page.extract_text() + "\n"
+            
+            # Initialize enhanced processor and detect account numbers
+            enhanced_processor = EnhancedBankStatementProcessor()
+            enhanced_processor.extract_account_numbers_from_statement(full_text)
+            
+            # Use legacy processor for basic extraction, then enhance validation
+            legacy_processor = BankStatementProcessor()
+            result = legacy_processor.process_pdf(pdf_data, statement.bank_name)
+            logger.info(f"Legacy PDF processing - Valid: {result['validation']['is_valid']}, Raw transactions found: {len(result.get('transactions', []))}")
             
             if result['validation']['is_valid']:
+                # Apply enhanced validation to extracted transactions
+                logger.info("Applying enhanced validation to extracted transactions")
+                
+                # Process transactions through enhanced validation
+                enhanced_result = {
+                    'transactions': [],
+                    'rejected_transactions': [],
+                    'summary': {
+                        'total_processed': 0,
+                        'total_rejected': 0,
+                        'summary_rows_skipped': 0
+                    }
+                }
+                
+                for i, txn_data in enumerate(result['transactions']):
+                    try:
+                        raw_amount = Decimal(str(txn_data['amount']))
+                        description = txn_data.get('description', '')
+                        
+                        # Determine transaction type based on amount sign
+                        transaction_type = 'receipt' if raw_amount > 0 else 'payment'
+                        
+                        # Apply enhanced validation
+                        validation = enhanced_processor.validate_transaction(
+                            abs(raw_amount), description, description, transaction_type
+                        )
+                        
+                        if validation.is_valid:
+                            # Add enhanced metadata to transaction
+                            enhanced_txn = txn_data.copy()
+                            enhanced_txn['transaction_type'] = transaction_type
+                            enhanced_txn['is_bank_charge'] = validation.is_bank_charge
+                            if validation.warnings:
+                                enhanced_txn['validation_warnings'] = validation.warnings
+                            enhanced_result['transactions'].append(enhanced_txn)
+                            enhanced_result['summary']['total_processed'] += 1
+                        else:
+                            # Track rejected transaction
+                            enhanced_result['rejected_transactions'].append({
+                                'row_number': i + 1,
+                                'amount': str(raw_amount),
+                                'description': description,
+                                'rejection_reason': validation.rejection_reason,
+                                'original_data': txn_data
+                            })
+                            enhanced_result['summary']['total_rejected'] += 1
+                            
+                    except Exception as validation_error:
+                        logger.error(f"Enhanced validation failed for transaction {i+1}: {validation_error}")
+                        enhanced_result['rejected_transactions'].append({
+                            'row_number': i + 1,
+                            'amount': str(txn_data.get('amount', 'N/A')),
+                            'description': txn_data.get('description', ''),
+                            'rejection_reason': f"Validation error: {validation_error}",
+                            'original_data': txn_data
+                        })
+                        enhanced_result['summary']['total_rejected'] += 1
+                
+                logger.info(f"Enhanced validation complete - Valid: {enhanced_result['summary']['total_processed']}, "
+                           f"Rejected: {enhanced_result['summary']['total_rejected']}")
+                
+                # Log detailed rejection reasons for analysis
+                for rejected in enhanced_result['rejected_transactions']:
+                    logger.warning(f"Rejected transaction - Line: {rejected['row_number']}, "
+                                  f"Amount: {rejected['amount']}, Reason: {rejected['rejection_reason']}, "
+                                  f"Description: {rejected['description'][:100]}")
+                
                 # Update statement with extracted info
                 info = result['statement_info']
                 logger.info(f"Updating statement info: periods, balances, transaction count")
@@ -239,33 +320,21 @@ def upload_statement():
                 statement.statement_period_to = info.get('statement_period_end') or period_to
                 statement.opening_balance = info.get('opening_balance')
                 statement.closing_balance = info.get('closing_balance')
-                statement.total_transactions = len(result['transactions'])
+                statement.total_transactions = enhanced_result['summary']['total_processed']
                 statement.processing_status = 'completed'
                 
                 # Get currency with fallback
                 currency = statement.statement_currency or 'LKR'
-                logger.info(f"Processing {len(result['transactions'])} transactions with currency: {currency}")
+                logger.info(f"Processing {len(enhanced_result['transactions'])} validated transactions with currency: {currency}")
                 
-                # Create transactions with detailed logging
+                # Create transactions with enhanced data
                 transactions_created = 0
                 transactions_failed = 0
                 try:
-                    for i, txn_data in enumerate(result['transactions']):
+                    for i, txn_data in enumerate(enhanced_result['transactions']):
                         try:
-                            logger.debug(f"Processing transaction {i+1}/{len(result['transactions'])}: {txn_data.get('amount', 'N/A')} {currency}")
-                            # Validate and sanitize transaction amount
+                            logger.debug(f"Creating transaction {i+1}/{len(enhanced_result['transactions'])}: {txn_data.get('amount', 'N/A')} {currency}")
                             raw_amount = Decimal(str(txn_data['amount']))
-                            
-                            # Skip transactions with impossible amounts (likely parsing errors)
-                            if abs(raw_amount) > Decimal('1000000000'):  # 1 billion limit
-                                logger.warning(f"Skipping transaction {i+1} with invalid amount: {raw_amount}")
-                                transactions_failed += 1
-                                continue
-                                
-                            if abs(raw_amount) < Decimal('0.01'):  # Skip tiny amounts
-                                logger.warning(f"Skipping transaction {i+1} with tiny amount: {raw_amount}")
-                                transactions_failed += 1
-                                continue
                             
                             logger.debug(f"Creating financial transaction record for transaction {i+1}")
                             transaction = FinancialTransaction(
