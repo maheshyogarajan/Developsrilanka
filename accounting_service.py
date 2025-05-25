@@ -436,6 +436,9 @@ class FinancialReportService:
             total_expenses = Decimal('0')
             
             for row in expense_category_query:
+                # Debug logging to see what SQLAlchemy is returning
+                logger.info(f"Raw SQLAlchemy row: major='{row.expense_major_category}', minor='{row.expense_minor_category}', amount={row.category_total}")
+                
                 category_data = {
                     'category': row.expense_major_category or '',
                     'minor_category': row.expense_minor_category or '',
