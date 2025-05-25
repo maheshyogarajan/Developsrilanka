@@ -1904,31 +1904,49 @@ def process_receipt_with_gemini(image):
             model = genai.GenerativeModel('gemini-pro-vision')
             logging.debug("Using gemini-pro-vision model")
         
-        # Create the prompt for receipt data extraction
+        # Create the enhanced prompt for receipt data extraction with multilingual and bank transfer support
         prompt = """
-        Extract the following information from this receipt image and format it as a JSON object:
-        - vendor_name: The name of the store or business
-        - vendor_address: The full address of the business (empty string if none)
-        - vendor_contact: Phone number, email, or website of the business (empty string if none)
-        - date: The date of purchase (format: YYYY-MM-DD)
-        - items: An array of objects, each with "name", "quantity", "price", and "tax_deductible" fields (tax_deductible should be a boolean)
-        - total_amount: The total amount paid
-        - service_charge: Any service charge mentioned (0 if none)
-        - vat_registration_number: The VAT registration number if present (empty string if none)
-        - sscl_tax: Social Security Contribution Levy amount if present (0 if none)
-        - vat_tax: The VAT tax amount if present (0 if none)
-        - expense_major_category: The primary IFRS expense category this receipt belongs to
-        - expense_minor_category: The subcategory within the major expense category
-        
-        For IFRS expense categories, analyze the vendor name, items, and overall receipt to determine appropriate classifications.
-        Major categories include: Operating Expenses, Cost of Goods Sold, Administrative Expenses, Selling Expenses, Research and Development, Finance Costs, Employee Benefits.
-        Minor categories include: Office Supplies, Travel and Transportation, Meals and Entertainment, Utilities, Rent, Professional Services, Marketing and Advertising, Repairs and Maintenance, IT Services, Telecommunications.
-        
-        For tax_deductible field, determine if each item would likely be tax deductible as a business expense. 
-        Common tax deductible items include: business supplies, equipment, travel for business purposes, professional services, etc. 
-        Items that are personal in nature or primarily for enjoyment/entertainment should be marked as not tax deductible.
-        
-        Return ONLY the JSON object and nothing else. If you cannot find a particular field, use an empty string or 0 depending on the field type.
+        You are DocParse Pro, a multimodal extraction agent trained on IFRS and global tax rules. 
+        Always follow the "RESPONSE_SCHEMA" exactly—no extra keys, no omissions.
+        Extract information from documents in any language including English, Sinhala (සිංහල), Tamil (தமிழ்), Hindi, and other scripts.
+
+        [IMAGE of one receipt OR bank-transfer screenshot is attached]
+
+        TASK:
+         1. Detect document type internally (receipt vs bank transfer).
+         2. For bank transfers: Use Beneficiary/Recipient/Payee name as vendor_name. Create single item with transfer purpose as name.
+         3. For multilingual content: Convert all text to English/Latin script in response. Convert dates to ISO format regardless of original language.
+         4. For numbers: Always return as numeric values, handle any number format (1,234.56 or 1.234,56 or ១២៣៤.៥៦).
+         5. Populate every field in RESPONSE_SCHEMA. Use "" for missing text and 0 for missing numbers.
+         6. Classification must match existing system categories exactly.
+         7. Return exactly one JSON object—no commentary, no explanations.
+
+        RESPONSE_SCHEMA (exact match to Receipt model):
+        {
+          "vendor_name": "string (converted to English if needed)",
+          "vendor_address": "string (converted to English if needed)", 
+          "vendor_contact": "string",
+          "date": "YYYY-MM-DD (always ISO format)",
+          "items": [{"name": "string", "quantity": "number", "price": "number", "tax_deductible": "boolean"}],
+          "total_amount": "number (never string)",
+          "service_charge": "number",
+          "vat_tax": "number", 
+          "sscl_tax": "number",
+          "vat_registration_number": "string",
+          "expense_major_category": "Operating Expenses | Administrative Expenses | Cost of Goods Sold | Employee Benefits | Finance Costs",
+          "expense_minor_category": "Meals and Entertainment | Travel and Transportation | Professional Services | Office Supplies | Marketing and Advertising | Utilities | Rent and Facilities | Software and SaaS | Bank and Merchant Fees | Repairs and Maintenance | Training and Development | Legal and Accounting | Telecommunications | Administrative and General"
+        }
+
+        CLASSIFICATION EXAMPLES (must follow exactly):
+        - Food/restaurants → "Operating Expenses" + "Meals and Entertainment"
+        - Travel/transport → "Operating Expenses" + "Travel and Transportation"  
+        - Software/subscriptions → "Operating Expenses" + "Software and SaaS"
+        - Professional services → "Operating Expenses" + "Professional Services"
+        - Office supplies → "Operating Expenses" + "Office Supplies"
+        - Bank fees → "Finance Costs" + "Bank and Merchant Fees"
+        - Unknown/unclear → "Administrative Expenses" + "Administrative and General"
+
+        Return ONLY the JSON object and nothing else.
         """
         
         # Generate content with Gemini Vision
