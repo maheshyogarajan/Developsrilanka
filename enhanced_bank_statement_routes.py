@@ -204,44 +204,64 @@ def upload_statement():
                 # Get currency with fallback
                 currency = statement.statement_currency or 'LKR'
                 
-                # Create transactions
-                for txn_data in result['transactions']:
-                    transaction = FinancialTransaction(
-                        organization_id=organization_id,
-                        transaction_date=txn_data['transaction_date'],
-                        amount=Decimal(str(txn_data['amount'])),
-                        description=txn_data['description'],
-                        currency_code=currency,
-                        fx_rate=Decimal('1.000000'),
-                        source_type=SourceType.BANK_STATEMENT.value,
-                        source_id=0,  # Will be updated after metadata creation
-                        status=TransactionStatus.PENDING.value,
-                        created_by=current_user.id
-                    )
+                # Create transactions with proper error handling
+                transactions_created = 0
+                try:
+                    for i, txn_data in enumerate(result['transactions']):
+                        try:
+                            transaction = FinancialTransaction(
+                                organization_id=organization_id,
+                                transaction_date=txn_data['transaction_date'],
+                                amount=Decimal(str(txn_data['amount'])),
+                                description=txn_data['description'],
+                                currency_code=currency,
+                                fx_rate=Decimal('1.000000'),
+                                source_type=SourceType.BANK_STATEMENT.value,
+                                source_id=statement.id,  # Reference the bank statement directly
+                                status=TransactionStatus.PENDING.value,
+                                created_by=current_user.id
+                            )
+                            
+                            # Auto-calculate derived fields
+                            transaction.base_currency_amount = transaction.amount * transaction.fx_rate
+                            transaction.net_amount = transaction.amount
+                            
+                            db.session.add(transaction)
+                            db.session.flush()
+                            
+                            # Create bank metadata
+                            bank_meta = TransactionMetaBank(
+                                transaction_id=transaction.id,
+                                bank_statement_id=statement.id,
+                                bank_reference_number=txn_data.get('reference_number', ''),
+                                statement_line_number=i + 1,  # Use reliable line numbering
+                                running_balance=Decimal(str(txn_data.get('balance_after', 0))) if txn_data.get('balance_after') else None,
+                                extraction_confidence=txn_data.get('extraction_confidence', 0.8)
+                            )
+                            db.session.add(bank_meta)
+                            db.session.flush()
+                            
+                            transactions_created += 1
+                            
+                        except Exception as txn_error:
+                            logger.error(f"Failed to create transaction {i+1}: {txn_error}")
+                            # Continue processing other transactions rather than failing completely
+                            continue
                     
-                    # Auto-calculate derived fields
-                    transaction.base_currency_amount = transaction.amount * transaction.fx_rate
-                    transaction.net_amount = transaction.amount
+                    # Update statement with actual count of created transactions
+                    statement.total_transactions = transactions_created
+                    db.session.commit()
                     
-                    db.session.add(transaction)
-                    db.session.flush()
+                    logger.info(f"Successfully created {transactions_created} of {len(result['transactions'])} transactions")
                     
-                    # Create bank metadata
-                    bank_meta = TransactionMetaBank(
-                        transaction_id=transaction.id,
-                        bank_statement_id=statement.id,
-                        bank_reference_number=txn_data.get('reference_number', ''),
-                        statement_line_number=txn_data.get('line_number'),
-                        running_balance=Decimal(str(txn_data.get('balance_after', 0))) if txn_data.get('balance_after') else None,
-                        extraction_confidence=txn_data.get('extraction_confidence')
-                    )
-                    db.session.add(bank_meta)
-                    db.session.flush()
-                    
-                    # Update source_id to reference metadata
-                    transaction.source_id = bank_meta.transaction_id
-                
-                db.session.commit()
+                except Exception as e:
+                    logger.error(f"Transaction creation failed: {e}")
+                    db.session.rollback()
+                    statement.processing_status = 'failed'
+                    statement.total_transactions = 0
+                    db.session.commit()
+                    flash('Failed to process bank statement transactions', 'error')
+                    return redirect(url_for('enhanced_bank.list_statements'))
                 
                 # Trigger reconciliation if requested
                 if request.form.get('auto_reconcile'):
