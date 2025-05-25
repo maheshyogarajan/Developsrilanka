@@ -6,6 +6,7 @@ This module provides the web interface for bank statement upload and reconciliat
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
+from sqlalchemy import and_
 from app import db
 from models import Organization, User, OrganizationUser, Receipt, BankAccount
 from enhanced_financial_models import (
@@ -414,10 +415,13 @@ def save_reconciliation_match():
         if not transaction_id or not receipt_id:
             return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
         
-        # Get transaction with organization check
+        # FIXED: Get transaction with organization check using correct source pattern
         transaction = db.session.query(FinancialTransaction).join(
             BankStatement,
-            BankStatement.id == FinancialTransaction.bank_statement_id
+            and_(
+                BankStatement.id == FinancialTransaction.source_id,
+                FinancialTransaction.source_type == 'bank_statement'
+            )
         ).join(
             OrganizationUser,
             OrganizationUser.organization_id == BankStatement.organization_id
@@ -429,19 +433,22 @@ def save_reconciliation_match():
         if not transaction:
             return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
         
-        # Get receipt with organization check
+        # FIXED: Get receipt with organization check using transaction's organization
         receipt = Receipt.query.filter_by(
             id=receipt_id,
-            organization_id=transaction.bank_statement.organization_id
+            organization_id=transaction.organization_id
         ).first()
         
         if not receipt:
             return jsonify({'status': 'error', 'message': 'Receipt not found'}), 404
         
-        # Create reconciliation audit record
+        # FIXED: Update transaction reconciliation status
+        transaction.reconciliation_status = 'manual_matched'
+        
+        # FIXED: Create reconciliation audit record
         audit = ReconciliationAudit(
-            organization_id=transaction.bank_statement.organization_id,
-            bank_statement_id=transaction.bank_statement_id,
+            organization_id=transaction.organization_id,
+            bank_statement_id=transaction.source_id,  # Using source_id for bank statement
             reconciliation_type='manual_match',
             confidence_score=100.0,
             created_by=current_user.id,
