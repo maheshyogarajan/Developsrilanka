@@ -579,7 +579,13 @@
                         <li>
                             <a href="{{ url_for('enhanced_bank.list_statements') }}" class="submenu-link {% if '/enhanced-bank/statements' in request.path %}active{% endif %}">
                                 <i class="fas fa-list submenu-icon"></i>
-                                <span>View All</span>
+                                <span>Statement List</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('enhanced_bank.reconciliation_center') }}" class="submenu-link {% if '/enhanced-bank/reconcile' in request.path %}active{% endif %}">
+                                <i class="fas fa-balance-scale submenu-icon"></i>
+                                <span>Reconciliation</span>
                             </a>
                         </li>
                     </ul>
