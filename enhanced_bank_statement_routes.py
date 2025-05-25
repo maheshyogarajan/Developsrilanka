@@ -237,10 +237,22 @@ def upload_statement():
                 try:
                     for i, txn_data in enumerate(result['transactions']):
                         try:
+                            # Validate and sanitize transaction amount
+                            raw_amount = Decimal(str(txn_data['amount']))
+                            
+                            # Skip transactions with impossible amounts (likely parsing errors)
+                            if abs(raw_amount) > Decimal('1000000000'):  # 1 billion limit
+                                logger.warning(f"Skipping transaction with invalid amount: {raw_amount}")
+                                continue
+                                
+                            if abs(raw_amount) < Decimal('0.01'):  # Skip tiny amounts
+                                logger.warning(f"Skipping transaction with tiny amount: {raw_amount}")
+                                continue
+                            
                             transaction = FinancialTransaction(
                                 organization_id=organization_id,
                                 transaction_date=txn_data['transaction_date'],
-                                amount=Decimal(str(txn_data['amount'])),
+                                amount=raw_amount,
                                 description=txn_data['description'],
                                 currency_code=currency,
                                 fx_rate=Decimal('1.000000'),
