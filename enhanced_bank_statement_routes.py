@@ -338,7 +338,9 @@ def view_statement(statement_id):
                              selected_org_id=statement.organization_id)
         
     except Exception as e:
-        logger.error(f"Error viewing statement: {str(e)}")
+        import traceback
+        logger.error(f"Error viewing statement {statement_id}: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         flash('Error loading statement details', 'error')
         return redirect(url_for('enhanced_bank.list_statements'))
 
@@ -425,10 +427,10 @@ def save_reconciliation_match():
         ).join(
             OrganizationUser,
             OrganizationUser.organization_id == BankStatement.organization_id
-        ).filter(
+        ).filter(and_(
             FinancialTransaction.id == transaction_id,
             OrganizationUser.user_id == current_user.id
-        ).first()
+        )).first()
         
         if not transaction:
             return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
