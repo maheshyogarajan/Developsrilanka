@@ -18,6 +18,8 @@ from app import app, db
 from models import User, Receipt, ReceiptItem, UserIncome, AuditLog
 from decorators import admin_required
 from image_processor import cleanup_temp_files
+from audit_timeline_service import AuditTimelineService
+from security_hardening_service import SecurityHardeningService
 
 # Mock data structure for application settings
 # In a real application, these would be stored in the database
@@ -687,6 +689,189 @@ def admin_panel_update_general_settings():
         flash(f'Error updating general settings: {str(e)}', 'danger')
         app.logger.error(f'Admin update general settings error: {str(e)}')
         return redirect(url_for('admin_panel_settings'))
+
+# Audit Timeline Routes
+@app.route('/admin/audit_timeline')
+@admin_required
+def admin_audit_timeline():
+    """Comprehensive audit trail timeline with filtering and analytics."""
+    try:
+        # Get filter parameters
+        event_type = request.args.get('event_type', '')
+        risk_level = request.args.get('risk_level', '')
+        days_back = int(request.args.get('days_back', 7))
+        
+        # Initialize audit timeline service for organization 1 (demo)
+        audit_service = AuditTimelineService(organization_id=1)
+        
+        # Get filtered timeline events
+        event_types = [event_type] if event_type else None
+        timeline_events = audit_service.get_audit_timeline(
+            days_back=days_back,
+            event_types=event_types
+        )
+        
+        # Filter by risk level if specified
+        if risk_level:
+            timeline_events = [
+                event for event in timeline_events 
+                if event.get('risk_level') == risk_level
+            ]
+        
+        # Get audit analytics
+        analytics = audit_service.get_audit_analytics(days_back=days_back)
+        
+        # Format analytics for display
+        analytics_display = {
+            'total_events': sum(summary.get('count', 0) for summary in analytics.get('event_summary', {}).values()),
+            'high_risk_events': analytics.get('risk_distribution', {}).get('high', 0) + 
+                              analytics.get('risk_distribution', {}).get('critical', 0),
+            'avg_confidence': sum(summary.get('avg_confidence', 0) for summary in analytics.get('event_summary', {}).values()) / 
+                            max(len(analytics.get('event_summary', {})), 1) * 100,
+            'extraction_events': analytics.get('event_summary', {}).get('extraction', {}).get('count', 0)
+        }
+        
+        return render_template(
+            'admin/audit_timeline.html',
+            timeline_events=timeline_events,
+            analytics=analytics_display,
+            current_filters={
+                'event_type': event_type,
+                'risk_level': risk_level,
+                'days_back': days_back
+            }
+        )
+        
+    except Exception as e:
+        flash(f'Error loading audit timeline: {str(e)}', 'danger')
+        app.logger.error(f'Audit timeline error: {str(e)}')
+        return redirect(url_for('admin_panel_home'))
+
+@app.route('/admin/audit_timeline/data')
+@admin_required
+def admin_audit_timeline_data():
+    """API endpoint for refreshing audit timeline data."""
+    try:
+        # Get filter parameters
+        event_type = request.args.get('event_type', '')
+        risk_level = request.args.get('risk_level', '')
+        days_back = int(request.args.get('days_back', 7))
+        
+        # Initialize audit timeline service
+        audit_service = AuditTimelineService(organization_id=1)
+        
+        # Get analytics data
+        analytics = audit_service.get_audit_analytics(days_back=days_back)
+        
+        return jsonify({
+            'success': True,
+            'analytics': analytics,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/admin/audit_timeline/export')
+@admin_required
+def admin_audit_timeline_export():
+    """Export audit timeline data as CSV."""
+    try:
+        # Get filter parameters
+        event_type = request.args.get('event_type', '')
+        risk_level = request.args.get('risk_level', '')
+        days_back = int(request.args.get('days_back', 7))
+        
+        # Initialize audit timeline service
+        audit_service = AuditTimelineService(organization_id=1)
+        
+        # Get timeline events
+        event_types = [event_type] if event_type else None
+        timeline_events = audit_service.get_audit_timeline(
+            days_back=days_back,
+            event_types=event_types
+        )
+        
+        # Filter by risk level if specified
+        if risk_level:
+            timeline_events = [
+                event for event in timeline_events 
+                if event.get('risk_level') == risk_level
+            ]
+        
+        # Create CSV data
+        csv_data = []
+        csv_data.append([
+            'Event ID', 'Timestamp', 'Event Type', 'Entity Type', 
+            'Entity ID', 'Action', 'Risk Level', 'Confidence Score', 'User'
+        ])
+        
+        for event in timeline_events:
+            csv_data.append([
+                event.get('event_id', ''),
+                event.get('timestamp', ''),
+                event.get('event_type', ''),
+                event.get('entity_type', ''),
+                event.get('entity_id', ''),
+                event.get('action', ''),
+                event.get('risk_level', ''),
+                event.get('confidence_score', ''),
+                event.get('performed_by', '')
+            ])
+        
+        # Create CSV file in memory
+        output = BytesIO()
+        import csv
+        writer = csv.writer(output.getvalue().decode().splitlines())
+        for row in csv_data:
+            writer.writerow(row)
+        
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'audit_timeline_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        )
+        
+    except Exception as e:
+        flash(f'Error exporting audit data: {str(e)}', 'danger')
+        return redirect(url_for('admin_audit_timeline'))
+
+# Security Hardening Dashboard
+@app.route('/admin/security_scan')
+@admin_required  
+def admin_security_scan():
+    """Security hardening dashboard with compliance checks."""
+    try:
+        # Initialize security service
+        security_service = SecurityHardeningService()
+        
+        # Perform comprehensive security scan for organization 1
+        scan_results = security_service.perform_security_scan(organization_id=1)
+        
+        # Get recent security events (last 7 days)
+        audit_service = AuditTimelineService(organization_id=1)
+        security_events = audit_service.get_audit_timeline(
+            days_back=7,
+            event_types=['security']
+        )
+        
+        return render_template(
+            'admin/security_scan.html',
+            scan_results=scan_results,
+            security_events=security_events,
+            scan_timestamp=datetime.now()
+        )
+        
+    except Exception as e:
+        flash(f'Error performing security scan: {str(e)}', 'danger')
+        app.logger.error(f'Security scan error: {str(e)}')
+        return redirect(url_for('admin_panel_home'))
 
 # System Logs
 @app.route('/admin/v2/logs')
