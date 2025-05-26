@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Decimal as SQLDecimal, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Numeric
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 
@@ -57,7 +57,7 @@ class ExtractionEvent(db.Model):
     # Rule processing
     rule_id = Column(String(50), nullable=False)  # Reference to rule in ruleset.yml
     decision = Column(String(20), nullable=False)  # 'accept', 'reject', 'transform', 'flag'
-    confidence_score = Column(SQLDecimal(5, 4))  # 0.0000 to 1.0000
+    confidence_score = Column(Numeric(5, 4))  # 0.0000 to 1.0000
     
     # Audit information
     message = Column(Text)  # Human-readable reason for decision
