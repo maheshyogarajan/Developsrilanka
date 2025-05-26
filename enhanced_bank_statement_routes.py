@@ -21,6 +21,7 @@ from enhanced_financial_services import (
 )
 from bank_statement_processor import BankStatementProcessor, EnhancedBankStatementProcessor
 from simple_audit_trail import SimpleAuditLogger, SimpleRulesEngine, store_audit_trail_in_statement, load_audit_trail_from_statement
+from enhanced_rules_engine import OrganizationRulesEngine
 from smart_reconciliation_service import SmartReconciliationService
 import hashlib
 import os
@@ -1108,3 +1109,81 @@ def not_found_error(error):
 def internal_error(error):
     db.session.rollback()
     return f"<h1>Server Error</h1><p>An error occurred while processing your bank statement request.</p>", 500
+
+# Phase 2B: Rule Customization Routes
+@enhanced_bank.route('/validation_rules')
+@login_required
+def manage_validation_rules():
+    """Display and manage organization-specific validation rules."""
+    try:
+        # Get current organization from session
+        org_id = session.get('current_organization_id')
+        if not org_id:
+            flash('Please select an organization first', 'warning')
+            return redirect(url_for('enhanced_bank.list_statements'))
+        
+        # Initialize rules engine for this organization
+        rules_engine = OrganizationRulesEngine(org_id)
+        
+        # Get current rules configuration
+        current_rules = rules_engine.get_rules_summary()
+        
+        # Get validation statistics
+        stats = rules_engine.get_validation_statistics(org_id)
+        
+        return render_template('enhanced_bank/rule_customization.html',
+                             current_rules=current_rules,
+                             stats=stats)
+                             
+    except Exception as e:
+        logger.error(f"Error loading validation rules: {str(e)}")
+        flash('Error loading validation rules configuration', 'error')
+        return redirect(url_for('enhanced_bank.list_statements'))
+
+@enhanced_bank.route('/validation_rules', methods=['POST'])
+@login_required
+def update_validation_rules():
+    """Update organization-specific validation rules."""
+    try:
+        # Get current organization from session
+        org_id = session.get('current_organization_id')
+        if not org_id:
+            flash('Please select an organization first', 'warning')
+            return redirect(url_for('enhanced_bank.list_statements'))
+        
+        # Initialize rules engine for this organization
+        rules_engine = OrganizationRulesEngine(org_id)
+        
+        # Parse form data into rules structure
+        new_rules = {
+            'account_number_detection': {
+                'enabled': 'enable_account_detection' in request.form,
+                'patterns': [p.strip() for p in request.form.get('account_patterns', '').split('\n') if p.strip()]
+            },
+            'amount_thresholds': {
+                'enabled': True,  # Always enabled for safety
+                'min_amount': float(request.form.get('min_amount', 0.01)),
+                'max_amount': float(request.form.get('max_amount', 1000000000))
+            },
+            'summary_row_detection': {
+                'enabled': True,  # Always enabled for accuracy
+                'patterns': [p.strip() for p in request.form.get('summary_patterns', '').split('\n') if p.strip()]
+            },
+            'date_pattern_exclusion': {
+                'enabled': True,  # Always enabled for accuracy
+                'patterns': [p.strip() for p in request.form.get('date_patterns', '').split('\n') if p.strip()]
+            }
+        }
+        
+        # Save the new rules
+        if rules_engine.save_organization_rules(new_rules):
+            flash('Validation rules updated successfully! Changes will apply to new statement processing.', 'success')
+        else:
+            flash('Failed to save validation rules. Please try again.', 'error')
+            
+        return redirect(url_for('enhanced_bank.manage_validation_rules'))
+        
+    except Exception as e:
+        logger.error(f"Error updating validation rules: {str(e)}")
+        flash('Error updating validation rules. Please check your input and try again.', 'error')
+        return redirect(url_for('enhanced_bank.manage_validation_rules'))
