@@ -592,6 +592,12 @@ def accept_invitation(token):
 @login_required
 def update_member_role(org_id, user_id):
     """Update a team member's role."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except Exception as e:
+        flash('CSRF token validation failed. Please try again.', 'danger')
+        return redirect(url_for('organizations.view_organization', org_id=org_id))
+    
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
@@ -643,6 +649,12 @@ def update_member_role(org_id, user_id):
 @login_required
 def remove_team_member(org_id, user_id):
     """Remove a team member from the organization."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except Exception as e:
+        flash('CSRF token validation failed. Please try again.', 'danger')
+        return redirect(url_for('organizations.view_organization', org_id=org_id))
+    
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
@@ -680,6 +692,12 @@ def remove_team_member(org_id, user_id):
 @login_required
 def cancel_invitation(org_id, invitation_id):
     """Cancel a pending invitation."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except Exception as e:
+        flash('CSRF token validation failed. Please try again.', 'danger')
+        return redirect(url_for('organizations.view_organization', org_id=org_id))
+    
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
