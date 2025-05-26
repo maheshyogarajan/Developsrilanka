@@ -3,7 +3,7 @@ Enhanced Bank Statement Routes for Universal Transaction System
 This module provides the web interface for bank statement upload and reconciliation.
 """
 
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app, session
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_

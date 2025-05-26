@@ -86,7 +86,7 @@ class OrganizationRulesEngine:
                 db.session.commit()
                 # Reload rules
                 self.rules = self._load_rules()
-                logger.info(f"Saved validation rules for organization {org_id}")
+                logger.info(f"Saved validation rules for organization {self.organization_id}")
                 return True
             return False
         except Exception as e:
