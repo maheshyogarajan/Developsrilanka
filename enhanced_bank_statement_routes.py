@@ -307,11 +307,24 @@ def upload_statement():
                 logger.info(f"Enhanced validation complete - Valid: {enhanced_result['summary']['total_processed']}, "
                            f"Rejected: {enhanced_result['summary']['total_rejected']}")
                 
-                # Log detailed rejection reasons for analysis
-                for rejected in enhanced_result['rejected_transactions']:
-                    logger.warning(f"Rejected transaction - Line: {rejected['row_number']}, "
-                                  f"Amount: {rejected['amount']}, Reason: {rejected['rejection_reason']}, "
-                                  f"Description: {rejected['description'][:100]}")
+                # Log detailed rejection reasons for analysis and user feedback
+                if enhanced_result['rejected_transactions']:
+                    logger.warning(f"ENHANCED VALIDATION REJECTED {len(enhanced_result['rejected_transactions'])} TRANSACTIONS:")
+                    for rejected in enhanced_result['rejected_transactions']:
+                        logger.warning(f"  → Line {rejected['row_number']}: Amount={rejected['amount']}, "
+                                      f"Reason='{rejected['rejection_reason']}', "
+                                      f"Description='{rejected['description'][:80]}...'")
+                else:
+                    logger.info("Enhanced validation: All extracted transactions passed validation rules")
+                
+                # Log detected account numbers for verification
+                if enhanced_processor.detected_account_numbers:
+                    logger.info(f"Detected account numbers (excluded from amounts): {list(enhanced_processor.detected_account_numbers)}")
+                
+                # Log processing summary for user feedback
+                logger.info(f"PROCESSING SUMMARY: Extracted {len(result['transactions'])} raw transactions, "
+                           f"Enhanced validation approved {enhanced_result['summary']['total_processed']}, "
+                           f"rejected {enhanced_result['summary']['total_rejected']}")
                 
                 # Update statement with extracted info
                 info = result['statement_info']

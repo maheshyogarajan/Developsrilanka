@@ -64,8 +64,8 @@ class SmartReconciliationService:
             ).all()
             
             # Get existing receipts and expenses in date range
-            start_date = statement.statement_start_date - timedelta(days=self.date_tolerance_days)
-            end_date = statement.statement_end_date + timedelta(days=self.date_tolerance_days)
+            start_date = statement.statement_period_from - timedelta(days=self.date_tolerance_days)
+            end_date = statement.statement_period_to + timedelta(days=self.date_tolerance_days)
             
             receipts = Receipt.query.filter(
                 Receipt.organization_id == organization_id,
