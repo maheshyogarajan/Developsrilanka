@@ -196,7 +196,8 @@
 <script>
 function showReconcileModal(transactionId) {
     // Placeholder for reconciliation functionality
-    $('#reconcileModal').modal('show');
+    var modal = new bootstrap.Modal(document.getElementById('reconcileModal'));
+    modal.show();
 }
 </script>
 {% endblock %}
