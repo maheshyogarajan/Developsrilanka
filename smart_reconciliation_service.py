@@ -70,15 +70,13 @@ class SmartReconciliationService:
             receipts = Receipt.query.filter(
                 Receipt.organization_id == organization_id,
                 Receipt.date >= start_date,
-                Receipt.date <= end_date,
-                Receipt.reconciliation_status != 'reconciled'
+                Receipt.date <= end_date
             ).all()
             
             expenses = CompanyExpense.query.filter(
                 CompanyExpense.organization_id == organization_id,
                 CompanyExpense.date >= start_date,
-                CompanyExpense.date <= end_date,
-                CompanyExpense.reconciliation_status != 'reconciled'
+                CompanyExpense.date <= end_date
             ).all()
             
             # Perform matching
