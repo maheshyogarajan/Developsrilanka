@@ -7,6 +7,8 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
+from datetime import datetime
+from io import BytesIO
 from app import db
 from models import Organization, User, OrganizationUser, Receipt, BankAccount
 from enhanced_financial_models import (
@@ -285,7 +287,6 @@ def upload_statement():
             # Update statement period if extracted
             if bank_metadata['statement_period_from'] and bank_metadata['statement_period_to']:
                 try:
-                    from datetime import datetime
                     period_from_extracted = datetime.strptime(bank_metadata['statement_period_from'], '%d/%m/%Y').date()
                     period_to_extracted = datetime.strptime(bank_metadata['statement_period_to'], '%d/%m/%Y').date()
                     statement.statement_period_from = period_from_extracted
@@ -297,11 +298,20 @@ def upload_statement():
                         decision='accept',
                         message=f'Extracted statement period: {bank_metadata["statement_period_from"]} to {bank_metadata["statement_period_to"]}'
                     )
-                except:
+                except Exception as e:
+                    logger.warning(f"Failed to parse extracted period dates: {e}")
                     pass  # Keep original dates if parsing fails
             
             # Detect account numbers for validation filtering
             enhanced_processor.extract_account_numbers_from_statement(full_text)
+            
+            # Commit the metadata updates to database immediately
+            try:
+                db.session.commit()
+                logger.info(f"Statement metadata committed to database - Bank: {statement.bank_name}, Account: {statement.account_number}")
+            except Exception as e:
+                logger.error(f"Failed to commit statement metadata: {e}")
+                db.session.rollback()
             
             # Log detected account numbers
             if enhanced_processor.detected_account_numbers:
