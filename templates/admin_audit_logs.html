@@ -84,7 +84,7 @@
                             <td>
                                 <strong>{{ log.entity_type }}</strong> #{{ log.entity_id }}
                                 {% if log.entity_type == 'receipt' %}
-                                    <a href="{{ url_for('unified.view_receipt', receipt_id=log.entity_id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <a href="{{ url_for('unified_view.view_unified_receipt', receipt_id=log.entity_id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
                                         <i class="bi bi-box-arrow-up-right"></i>
                                     </a>
                                 {% endif %}
