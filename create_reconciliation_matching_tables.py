@@ -109,7 +109,7 @@ def create_reconciliation_matching_tables():
             # Indexes for company expenses
             db.session.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_company_expense_org_date 
-                ON company_expense(organization_id, expense_date);
+                ON company_expense(organization_id, submitted_date);
                 
                 CREATE INDEX IF NOT EXISTS idx_company_expense_amount 
                 ON company_expense(amount, organization_id);
