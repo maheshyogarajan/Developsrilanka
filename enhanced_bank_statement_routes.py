@@ -712,6 +712,120 @@ def reconcile_statement(statement_id):
         flash('Error loading reconciliation interface', 'error')
         return redirect(url_for('enhanced_bank.view_statement', statement_id=statement_id))
 
+@enhanced_bank.route('/api/reconcile/approve', methods=['POST'])
+@login_required
+def approve_transaction():
+    """Approve a bank transaction without requiring a match."""
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+        
+        if not transaction_id:
+            return jsonify({'status': 'error', 'message': 'Transaction ID required'}), 400
+        
+        # Get the transaction
+        transaction = FinancialTransaction.query.get(transaction_id)
+        if not transaction:
+            return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
+        
+        # Verify user has access to this organization
+        user_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=transaction.organization_id
+        ).first()
+        
+        if not user_org:
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+        
+        # Update transaction status
+        transaction.status = TransactionStatus.APPROVED.value
+        transaction.reconciliation_status = ReconciliationStatus.MANUAL_MATCHED.value
+        transaction.approved_by = current_user.id
+        transaction.approved_at = datetime.utcnow()
+        
+        # Create audit record
+        audit_record = ReconciliationAudit(
+            bank_statement_id=transaction.bank_meta.bank_statement_id if transaction.bank_meta else None,
+            transaction_id=transaction.id,
+            action_type='approve',
+            performed_by=current_user.id,
+            confidence_score=Decimal('100.00'),  # Manual approval = 100% confidence
+            notes=f'Manually approved by {current_user.username}'
+        )
+        
+        db.session.add(audit_record)
+        db.session.commit()
+        
+        logger.info(f"Transaction {transaction_id} approved by user {current_user.id}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Transaction approved successfully',
+            'transaction_id': transaction_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error approving transaction: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Failed to approve transaction'}), 500
+
+
+@enhanced_bank.route('/api/reconcile/reject', methods=['POST'])
+@login_required
+def reject_transaction():
+    """Reject a bank transaction for later review."""
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+        
+        if not transaction_id:
+            return jsonify({'status': 'error', 'message': 'Transaction ID required'}), 400
+        
+        # Get the transaction
+        transaction = FinancialTransaction.query.get(transaction_id)
+        if not transaction:
+            return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
+        
+        # Verify user has access to this organization
+        user_org = OrganizationUser.query.filter_by(
+            user_id=current_user.id,
+            organization_id=transaction.organization_id
+        ).first()
+        
+        if not user_org:
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+        
+        # Update transaction status
+        transaction.status = TransactionStatus.DISPUTED.value
+        transaction.reconciliation_status = ReconciliationStatus.DISPUTED.value
+        
+        # Create audit record
+        audit_record = ReconciliationAudit(
+            bank_statement_id=transaction.bank_meta.bank_statement_id if transaction.bank_meta else None,
+            transaction_id=transaction.id,
+            action_type='reject',
+            performed_by=current_user.id,
+            confidence_score=Decimal('0.00'),  # Rejection = 0% confidence
+            notes=f'Manually rejected by {current_user.username} for further review'
+        )
+        
+        db.session.add(audit_record)
+        db.session.commit()
+        
+        logger.info(f"Transaction {transaction_id} rejected by user {current_user.id}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Transaction rejected successfully',
+            'transaction_id': transaction_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error rejecting transaction: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Failed to reject transaction'}), 500
+
+
 @enhanced_bank.route('/api/reconcile/match', methods=['POST'])
 @login_required
 def save_reconciliation_match():

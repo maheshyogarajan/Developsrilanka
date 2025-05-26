@@ -68,11 +68,23 @@ const csrf_token = "{{ csrf_token() }}";
                                     {% endif %}
                                 </div>
                                 <div class="ms-3">
-                                    <button class="btn btn-sm btn-primary find-match-btn" 
-                                            data-transaction-id="{{ transaction.id }}"
-                                            onclick="findMatches({{ transaction.id }})">
-                                        <i class="fas fa-search me-1"></i>Find Match
-                                    </button>
+                                    <div class="btn-group-vertical" role="group">
+                                        <button class="btn btn-sm btn-success approve-btn" 
+                                                data-transaction-id="{{ transaction.id }}"
+                                                onclick="approveTransaction({{ transaction.id }})">
+                                            <i class="fas fa-check me-1"></i>Approve
+                                        </button>
+                                        <button class="btn btn-sm btn-primary find-match-btn" 
+                                                data-transaction-id="{{ transaction.id }}"
+                                                onclick="findMatches({{ transaction.id }})">
+                                            <i class="fas fa-search me-1"></i>Find Match
+                                        </button>
+                                        <button class="btn btn-sm btn-danger reject-btn" 
+                                                data-transaction-id="{{ transaction.id }}"
+                                                onclick="rejectTransaction({{ transaction.id }})">
+                                            <i class="fas fa-times me-1"></i>Reject
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -328,6 +340,115 @@ document.getElementById('confirm-match-btn').addEventListener('click', function(
         });
     }
 });
+
+function approveTransaction(transactionId) {
+    const transactionElement = document.querySelector(`[data-transaction-id="${transactionId}"]`);
+    const approveBtn = transactionElement.querySelector('.approve-btn');
+    
+    // Show loading state
+    approveBtn.disabled = true;
+    approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Approving...';
+    
+    // Make API call to approve the transaction
+    fetch('/enhanced-bank/api/reconcile/approve', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf_token
+        },
+        body: JSON.stringify({
+            transaction_id: transactionId,
+            action: 'approve'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showAlert('success', 'Transaction approved successfully!');
+            
+            // Mark transaction as approved
+            transactionElement.classList.add('border-success', 'bg-light');
+            transactionElement.style.opacity = '0.7';
+            
+            // Add approved badge
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-success ms-2';
+            badge.textContent = 'Approved';
+            transactionElement.querySelector('.flex-grow-1').appendChild(badge);
+            
+            // Disable all buttons for this transaction
+            transactionElement.querySelectorAll('button').forEach(btn => btn.disabled = true);
+            
+        } else {
+            showAlert('error', 'Failed to approve transaction: ' + data.message);
+            approveBtn.disabled = false;
+            approveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Approve';
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        showAlert('error', 'Network error occurred. Please try again.');
+        approveBtn.disabled = false;
+        approveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Approve';
+    });
+}
+
+function rejectTransaction(transactionId) {
+    const transactionElement = document.querySelector(`[data-transaction-id="${transactionId}"]`);
+    const rejectBtn = transactionElement.querySelector('.reject-btn');
+    
+    // Show confirmation dialog
+    if (!confirm('Are you sure you want to reject this transaction? This action can be undone later.')) {
+        return;
+    }
+    
+    // Show loading state
+    rejectBtn.disabled = true;
+    rejectBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Rejecting...';
+    
+    // Make API call to reject the transaction
+    fetch('/enhanced-bank/api/reconcile/reject', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf_token
+        },
+        body: JSON.stringify({
+            transaction_id: transactionId,
+            action: 'reject'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showAlert('warning', 'Transaction rejected. You can review rejected transactions later.');
+            
+            // Mark transaction as rejected
+            transactionElement.classList.add('border-danger', 'bg-light');
+            transactionElement.style.opacity = '0.5';
+            
+            // Add rejected badge
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-danger ms-2';
+            badge.textContent = 'Rejected';
+            transactionElement.querySelector('.flex-grow-1').appendChild(badge);
+            
+            // Disable all buttons for this transaction
+            transactionElement.querySelectorAll('button').forEach(btn => btn.disabled = true);
+            
+        } else {
+            showAlert('error', 'Failed to reject transaction: ' + data.message);
+            rejectBtn.disabled = false;
+            rejectBtn.innerHTML = '<i class="fas fa-times me-1"></i>Reject';
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        showAlert('error', 'Network error occurred. Please try again.');
+        rejectBtn.disabled = false;
+        rejectBtn.innerHTML = '<i class="fas fa-times me-1"></i>Reject';
+    });
+}
 
 function showAlert(type, message) {
     const alertsContainer = document.querySelector('.container-fluid');

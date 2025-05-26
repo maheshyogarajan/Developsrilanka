@@ -584,8 +584,8 @@ class BankStatementProcessor:
             if amount is None:
                 return None
             
-            # Determine transaction type
-            is_debit = dr_cr == 'DR' if dr_cr else self._guess_transaction_type(description, amount)
+            # Determine transaction type with enhanced detection
+            is_debit = self._determine_transaction_type(description, amount_str, dr_cr)
             
             # Parse balance if available
             balance = None
@@ -650,16 +650,39 @@ class BankStatementProcessor:
         except (InvalidOperation, ValueError):
             return None
     
+    def _determine_transaction_type(self, description: str, amount_str: str, dr_cr: str = None) -> bool:
+        """Determine if transaction is debit based on multiple indicators."""
+        
+        # Priority 1: Explicit DR/CR indicators
+        if dr_cr:
+            dr_cr_clean = dr_cr.strip().upper()
+            if dr_cr_clean in ['DR', 'DEBIT']:
+                return True
+            elif dr_cr_clean in ['CR', 'CREDIT']:
+                return False
+        
+        # Priority 2: Check for parentheses (indicate debits in many formats)
+        if '(' in amount_str and ')' in amount_str:
+            return True
+        
+        # Priority 3: Check for minus sign
+        if amount_str.strip().startswith('-'):
+            return True
+        
+        # Priority 4: Description-based classification
+        return self._guess_transaction_type(description, Decimal('0'))
+    
     def _guess_transaction_type(self, description: str, amount: Decimal) -> bool:
         """Guess if transaction is debit based on description."""
         debit_keywords = [
             'atm', 'withdrawal', 'purchase', 'fee', 'charge', 'interest charged',
-            'payment', 'transfer out', 'cheque', 'direct debit'
+            'payment', 'transfer out', 'cheque', 'direct debit', 'deduction',
+            'outward', 'outgoing', 'expense', 'withdraw'
         ]
         
         credit_keywords = [
             'deposit', 'credit', 'salary', 'transfer in', 'interest earned',
-            'dividend', 'refund'
+            'dividend', 'refund', 'inward', 'incoming', 'receipt'
         ]
         
         desc_lower = description.lower()
@@ -672,8 +695,8 @@ class BankStatementProcessor:
             if keyword in desc_lower:
                 return False
         
-        # Default: positive amounts are credits, negative are debits
-        return amount < 0
+        # Default: assume credit if no clear indicators
+        return False
     
     def _extract_reference_number(self, description: str) -> Optional[str]:
         """Extract reference number from description."""
