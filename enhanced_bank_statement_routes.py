@@ -20,6 +20,7 @@ from enhanced_financial_services import (
     UniversalGLService, EnhancedMatchingEngine, BalanceSheetService
 )
 from bank_statement_processor import BankStatementProcessor, EnhancedBankStatementProcessor
+from simple_audit_trail import SimpleAuditLogger, SimpleRulesEngine, store_audit_trail_in_statement
 from smart_reconciliation_service import SmartReconciliationService
 import hashlib
 import os
@@ -224,9 +225,16 @@ def upload_statement():
             logger.error(f"S3 upload failed for statement {statement.id}: {s3_error}")
             # Continue processing without S3 - store locally if needed
         
-        # Process PDF with enhanced validation and logging
-        logger.info(f"Starting enhanced PDF processing for statement ID: {statement.id}")
+        # Process PDF with enhanced validation and complete audit trail
+        logger.info(f"Starting enhanced PDF processing with audit trail for statement ID: {statement.id}")
         try:
+            # Initialize audit logging system
+            audit_logger = SimpleAuditLogger()
+            rules_engine = SimpleRulesEngine()
+            
+            # Start audit trail
+            audit_trail = audit_logger.start_processing(statement.id, "enhanced_validation_with_audit")
+            
             # First extract full text for account number detection
             from PyPDF2 import PdfReader
             from io import BytesIO
@@ -236,95 +244,118 @@ def upload_statement():
             for page in pdf_reader.pages:
                 full_text += page.extract_text() + "\n"
             
+            # Log extraction method
+            audit_logger.log_event(
+                data=f"pdf_size:{len(pdf_data)}",
+                stage='extraction',
+                rule_id='pdf_text_extraction',
+                decision='accept',
+                message=f'Extracted text from {len(pdf_reader.pages)} pages using PyPDF2'
+            )
+            
             # Initialize enhanced processor and detect account numbers
             enhanced_processor = EnhancedBankStatementProcessor()
             enhanced_processor.extract_account_numbers_from_statement(full_text)
+            
+            # Log detected account numbers
+            if enhanced_processor.detected_account_numbers:
+                audit_logger.log_event(
+                    data=f"account_numbers:{list(enhanced_processor.detected_account_numbers)}",
+                    stage='extraction',
+                    rule_id='account_number_detection',
+                    decision='flag',
+                    message=f'Detected {len(enhanced_processor.detected_account_numbers)} account numbers for validation filtering'
+                )
             
             # Use legacy processor for basic extraction, then enhance validation
             legacy_processor = BankStatementProcessor()
             result = legacy_processor.process_pdf(pdf_data, statement.bank_name)
             logger.info(f"Legacy PDF processing - Valid: {result['validation']['is_valid']}, Raw transactions found: {len(result.get('transactions', []))}")
             
+            # Log extraction results
+            audit_logger.log_event(
+                data=f"raw_transactions:{len(result.get('transactions', []))}",
+                stage='extraction',
+                rule_id='legacy_processor_extraction',
+                decision='accept' if result['validation']['is_valid'] else 'reject',
+                message=f'Legacy processor extracted {len(result.get("transactions", []))} potential transactions'
+            )
+            
             if result['validation']['is_valid']:
-                # Apply enhanced validation to extracted transactions
-                logger.info("Applying enhanced validation to extracted transactions")
+                # Apply enhanced validation with complete audit trail
+                logger.info("Applying enhanced validation with audit trail to extracted transactions")
                 
-                # Process transactions through enhanced validation
-                enhanced_result = {
-                    'transactions': [],
-                    'rejected_transactions': [],
-                    'summary': {
-                        'total_processed': 0,
-                        'total_rejected': 0,
-                        'summary_rows_skipped': 0
-                    }
-                }
+                # Process transactions through our new rules engine with audit logging
+                validated_transactions = []
                 
                 for i, txn_data in enumerate(result['transactions']):
                     try:
                         raw_amount = Decimal(str(txn_data['amount']))
                         description = txn_data.get('description', '')
                         
-                        # Determine transaction type based on amount sign
-                        transaction_type = 'receipt' if raw_amount > 0 else 'payment'
-                        
-                        # Apply enhanced validation
-                        validation = enhanced_processor.validate_transaction(
-                            abs(raw_amount), description, description, transaction_type
+                        # Log each transaction being processed
+                        audit_logger.log_event(
+                            data=f"txn_{i+1}:amount={raw_amount},desc={description[:50]}",
+                            stage='validation',
+                            rule_id='transaction_processing',
+                            decision='flag',
+                            message=f'Processing transaction {i+1}: {raw_amount} - {description[:50]}...'
                         )
                         
-                        if validation.is_valid:
+                        # Apply rules engine validation with audit logging
+                        is_valid = rules_engine.validate_transaction(
+                            float(raw_amount), description, audit_logger
+                        )
+                        
+                        if is_valid:
+                            # Determine transaction type based on amount sign
+                            transaction_type = 'receipt' if raw_amount > 0 else 'payment'
+                            
                             # Add enhanced metadata to transaction
                             enhanced_txn = txn_data.copy()
                             enhanced_txn['transaction_type'] = transaction_type
-                            enhanced_txn['is_bank_charge'] = validation.is_bank_charge
-                            if validation.warnings:
-                                enhanced_txn['validation_warnings'] = validation.warnings
-                            enhanced_result['transactions'].append(enhanced_txn)
-                            enhanced_result['summary']['total_processed'] += 1
-                        else:
-                            # Track rejected transaction
-                            enhanced_result['rejected_transactions'].append({
-                                'row_number': i + 1,
-                                'amount': str(raw_amount),
-                                'description': description,
-                                'rejection_reason': validation.rejection_reason,
-                                'original_data': txn_data
-                            })
-                            enhanced_result['summary']['total_rejected'] += 1
+                            enhanced_txn['validation_passed'] = True
+                            validated_transactions.append(enhanced_txn)
+                            
+                        # Note: Rejections are already logged by the rules engine
                             
                     except Exception as validation_error:
                         logger.error(f"Enhanced validation failed for transaction {i+1}: {validation_error}")
-                        enhanced_result['rejected_transactions'].append({
-                            'row_number': i + 1,
-                            'amount': str(txn_data.get('amount', 'N/A')),
-                            'description': txn_data.get('description', ''),
-                            'rejection_reason': f"Validation error: {validation_error}",
-                            'original_data': txn_data
-                        })
-                        enhanced_result['summary']['total_rejected'] += 1
+                        audit_logger.log_event(
+                            data=f"txn_{i+1}:error",
+                            stage='validation',
+                            rule_id='validation_error',
+                            decision='reject',
+                            message=f"Validation error for transaction {i+1}: {validation_error}"
+                        )
                 
-                logger.info(f"Enhanced validation complete - Valid: {enhanced_result['summary']['total_processed']}, "
-                           f"Rejected: {enhanced_result['summary']['total_rejected']}")
+                # Complete the audit trail
+                completed_audit_trail = audit_logger.finish_processing()
                 
-                # Log detailed rejection reasons for analysis and user feedback
-                if enhanced_result['rejected_transactions']:
-                    logger.warning(f"ENHANCED VALIDATION REJECTED {len(enhanced_result['rejected_transactions'])} TRANSACTIONS:")
-                    for rejected in enhanced_result['rejected_transactions']:
-                        logger.warning(f"  → Line {rejected['row_number']}: Amount={rejected['amount']}, "
-                                      f"Reason='{rejected['rejection_reason']}', "
-                                      f"Description='{rejected['description'][:80]}...'")
+                # Log enhanced validation summary with audit trail data
+                logger.info(f"Enhanced validation complete - Accepted: {audit_logger.get_acceptance_count()}, "
+                           f"Rejected: {audit_logger.get_rejection_count()}")
+                
+                # Log detailed rejection reasons from audit trail
+                rejection_reasons = audit_logger.get_rejection_summary()
+                if rejection_reasons:
+                    logger.warning(f"AUDIT TRAIL REJECTED {len(rejection_reasons)} TRANSACTIONS:")
+                    for reason in rejection_reasons:
+                        logger.warning(f"  → {reason}")
                 else:
-                    logger.info("Enhanced validation: All extracted transactions passed validation rules")
+                    logger.info("Audit trail: All extracted transactions passed validation rules")
                 
                 # Log detected account numbers for verification
                 if enhanced_processor.detected_account_numbers:
                     logger.info(f"Detected account numbers (excluded from amounts): {list(enhanced_processor.detected_account_numbers)}")
                 
-                # Log processing summary for user feedback
+                # Log processing summary with audit trail data
                 logger.info(f"PROCESSING SUMMARY: Extracted {len(result['transactions'])} raw transactions, "
-                           f"Enhanced validation approved {enhanced_result['summary']['total_processed']}, "
-                           f"rejected {enhanced_result['summary']['total_rejected']}")
+                           f"Audit trail approved {len(validated_transactions)}, "
+                           f"rejected {len(result['transactions']) - len(validated_transactions)}")
+                
+                # Store complete audit trail in statement for user review
+                store_audit_trail_in_statement(statement, completed_audit_trail)
                 
                 # Update statement with extracted info
                 info = result['statement_info']
@@ -333,20 +364,20 @@ def upload_statement():
                 statement.statement_period_to = info.get('statement_period_end') or period_to
                 statement.opening_balance = info.get('opening_balance')
                 statement.closing_balance = info.get('closing_balance')
-                statement.total_transactions = enhanced_result['summary']['total_processed']
+                statement.total_transactions = len(validated_transactions)
                 statement.processing_status = 'completed'
                 
                 # Get currency with fallback
                 currency = statement.statement_currency or 'LKR'
-                logger.info(f"Processing {len(enhanced_result['transactions'])} validated transactions with currency: {currency}")
+                logger.info(f"Processing {len(validated_transactions)} validated transactions with currency: {currency}")
                 
-                # Create transactions with enhanced data
+                # Create transactions with enhanced data and audit trail
                 transactions_created = 0
                 transactions_failed = 0
                 try:
-                    for i, txn_data in enumerate(enhanced_result['transactions']):
+                    for i, txn_data in enumerate(validated_transactions):
                         try:
-                            logger.debug(f"Creating transaction {i+1}/{len(enhanced_result['transactions'])}: {txn_data.get('amount', 'N/A')} {currency}")
+                            logger.debug(f"Creating transaction {i+1}/{len(validated_transactions)}: {txn_data.get('amount', 'N/A')} {currency}")
                             raw_amount = Decimal(str(txn_data['amount']))
                             
                             logger.debug(f"Creating financial transaction record for transaction {i+1}")
