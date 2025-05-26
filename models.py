@@ -83,6 +83,9 @@ class Organization(db.Model):
     secondary_color = db.Column(db.String(20), nullable=True, default="#f5f8ff")
     email_footer_text = db.Column(db.Text, nullable=True)
     
+    # Bank statement validation rules (JSON stored as text)
+    validation_rules = db.Column(db.Text, nullable=True)
+    
     # Relationships
     users = db.relationship('OrganizationUser', back_populates='organization', lazy=True, cascade='all, delete-orphan')
     receipts = db.relationship('Receipt', backref='organization', lazy=True)

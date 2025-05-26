@@ -1,0 +1,163 @@
+{% extends "layout.html" %}
+{% block title %}Validation Rules Configuration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Bank Statement Validation Rules
+                    </h4>
+                    <p class="mb-0 small">Configure how your bank statements are processed and validated</p>
+                </div>
+                <div class="card-body">
+                    <!-- Current Performance Stats -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="text-success">{{ stats.success_rate }}%</h5>
+                                    <small class="text-muted">Current Success Rate</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="text-info">{{ stats.total_processed }}</h5>
+                                    <small class="text-muted">Statements Processed</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="text-warning">{{ stats.avg_transactions }}</h5>
+                                    <small class="text-muted">Avg Transactions/Statement</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('enhanced_bank.update_validation_rules') }}">
+                        {{ csrf_token() }}
+                        
+                        <!-- Account Number Detection Rules -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-shield-alt me-2"></i>Account Number Detection
+                                </h6>
+                                <small class="text-muted">Prevents account numbers from being treated as transaction amounts</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enableAccountDetection" 
+                                           name="enable_account_detection" {{ 'checked' if current_rules.account_detection_enabled }}>
+                                    <label class="form-check-label" for="enableAccountDetection">
+                                        Enable account number detection
+                                    </label>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Known Account Number Patterns</label>
+                                    <textarea class="form-control font-monospace" name="account_patterns" rows="3" 
+                                              placeholder="1000120800&#10;4567891234">{{ current_rules.account_patterns|join('\n') if current_rules.account_patterns else '' }}</textarea>
+                                    <small class="text-muted">One pattern per line. These will be excluded from amount parsing.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amount Validation Rules -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-calculator me-2"></i>Amount Validation
+                                </h6>
+                                <small class="text-muted">Set minimum and maximum transaction amount thresholds</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Minimum Transaction Amount</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">LKR</span>
+                                            <input type="number" class="form-control" name="min_amount" 
+                                                   value="{{ current_rules.min_amount or 0.01 }}" step="0.01" min="0">
+                                        </div>
+                                        <small class="text-muted">Transactions below this amount will be rejected</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Maximum Transaction Amount</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">LKR</span>
+                                            <input type="number" class="form-control" name="max_amount" 
+                                                   value="{{ current_rules.max_amount or 1000000000 }}" step="1" min="1">
+                                        </div>
+                                        <small class="text-muted">Transactions above this amount will be flagged</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Text Pattern Exclusions -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-filter me-2"></i>Text Pattern Exclusions
+                                </h6>
+                                <small class="text-muted">Automatically exclude summary rows and header text</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Summary Row Patterns</label>
+                                    <textarea class="form-control font-monospace" name="summary_patterns" rows="3" 
+                                              placeholder="TOTAL DEPOSITS&#10;CLOSING BALANCE&#10;OPENING BALANCE">{{ current_rules.summary_patterns|join('\n') if current_rules.summary_patterns else '' }}</textarea>
+                                    <small class="text-muted">Patterns that indicate summary/total rows to exclude</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Date Pattern Exclusions</label>
+                                    <textarea class="form-control font-monospace" name="date_patterns" rows="2" 
+                                              placeholder="25/26&#10;26/27">{{ current_rules.date_patterns|join('\n') if current_rules.date_patterns else '' }}</textarea>
+                                    <small class="text-muted">Date-like patterns in descriptions to exclude</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="resetToDefaults()">
+                                    <i class="fas fa-undo me-2"></i>Reset to Defaults
+                                </button>
+                                <a href="{{ url_for('enhanced_bank.list_statements') }}" class="btn btn-outline-info">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Statements
+                                </a>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Configuration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function resetToDefaults() {
+    if (confirm('Reset all rules to default values? This will undo any customizations.')) {
+        // Reset form to default values
+        document.querySelector('[name="enable_account_detection"]').checked = true;
+        document.querySelector('[name="account_patterns"]').value = '1000120800\n4567891234';
+        document.querySelector('[name="min_amount"]').value = '0.01';
+        document.querySelector('[name="max_amount"]').value = '1000000000';
+        document.querySelector('[name="summary_patterns"]').value = 'TOTAL DEPOSITS\nCLOSING BALANCE\nOPENING BALANCE\nBALANCE BROUGHT FORWARD\nBALANCE B/F\nTOTAL WITHDRAWALS';
+        document.querySelector('[name="date_patterns"]').value = '25/26\n26/27\n24/25\n23/24';
+    }
+}
+</script>
+{% endblock %}
