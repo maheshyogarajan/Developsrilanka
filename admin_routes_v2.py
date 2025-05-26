@@ -823,16 +823,21 @@ def admin_audit_timeline_export():
             ])
         
         # Create CSV file in memory
-        output = BytesIO()
         import csv
-        writer = csv.writer(output.getvalue().decode().splitlines())
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
         for row in csv_data:
             writer.writerow(row)
         
-        output.seek(0)
+        # Convert to bytes for download
+        csv_bytes = BytesIO()
+        csv_bytes.write(output.getvalue().encode('utf-8'))
+        csv_bytes.seek(0)
         
         return send_file(
-            output,
+            csv_bytes,
             mimetype='text/csv',
             as_attachment=True,
             download_name=f'audit_timeline_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'

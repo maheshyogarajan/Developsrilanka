@@ -255,7 +255,8 @@ class SecurityHardeningService:
                 OR description LIKE '%credit%card%'
             """), {'org_id': organization_id})
             
-            sensitive_count = sensitive_data_check.fetchone().count
+            sensitive_row = sensitive_data_check.fetchone()
+            sensitive_count = sensitive_row[0] if sensitive_row else 0
             if sensitive_count > 0:
                 scan_results['vulnerabilities'].append({
                     'type': 'sensitive_data_exposure',
@@ -274,7 +275,8 @@ class SecurityHardeningService:
                 AND ou.role = 'owner'
             """), {'org_id': organization_id})
             
-            owner_count = weak_access_check.fetchone().count
+            owner_row = weak_access_check.fetchone()
+            owner_count = owner_row[0] if owner_row else 0
             if owner_count > 3:
                 scan_results['compliance_issues'].append({
                     'type': 'excessive_privileges',
@@ -298,7 +300,8 @@ class SecurityHardeningService:
                 )
             """), {'org_id': organization_id})
             
-            unaudited_count = audit_gap_check.fetchone().count
+            audit_row = audit_gap_check.fetchone()
+            unaudited_count = audit_row[0] if audit_row else 0
             if unaudited_count > 0:
                 scan_results['compliance_issues'].append({
                     'type': 'audit_trail_gaps',

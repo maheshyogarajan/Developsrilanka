@@ -414,7 +414,8 @@ class AuditTimelineService:
                 AND ft.created_at >= NOW() - INTERVAL '30 days'
             """), {'org_id': self.organization_id})
             
-            return result.fetchone()[0]
+            row = result.fetchone()
+            return row[0] if row else 0
         except:
             return 0
     
