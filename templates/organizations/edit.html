@@ -15,6 +15,7 @@
                 </div>
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-4">
                             <label for="logo" class="form-label">Organization Logo</label>
                             {% if organization.logo_url %}
