@@ -633,6 +633,11 @@ class BankStatementProcessor:
                     current_year = datetime.now().year
                     parsed_date = parsed_date.replace(year=current_year)
                 
+                # Fix edge case where year becomes 1000 due to parsing issues
+                if parsed_date.year == 1000:
+                    current_year = datetime.now().year
+                    parsed_date = parsed_date.replace(year=current_year)
+                
                 return parsed_date
             except ValueError:
                 continue
