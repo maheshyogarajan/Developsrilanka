@@ -1,0 +1,114 @@
+# Bank Statement Processing Rules
+# Consumed by durable_rules engine for validation decisions
+
+validation_rules:
+  # Account number detection rules
+  account_number_rules:
+    - rule_id: "reject_account_number_as_amount"
+      priority: 1
+      condition: "amount_matches_account_pattern"
+      action: "reject"
+      message: "Amount appears to be an account number"
+      
+    - rule_id: "flag_suspicious_large_amount"
+      priority: 2
+      condition: "amount_exceeds_threshold"
+      threshold: 1000000000
+      action: "reject"
+      message: "Amount exceeds reasonable threshold"
+
+  # Date pattern rules
+  date_validation_rules:
+    - rule_id: "reject_date_pattern_in_description"
+      priority: 1
+      condition: "description_contains_date_like_pattern"
+      patterns: ["25/26", "26/27", "\\d{2}/\\d{2}"]
+      action: "reject"
+      message: "Description contains date-like pattern, likely header text"
+      
+    - rule_id: "validate_transaction_date_format"
+      priority: 2
+      condition: "transaction_date_valid_format"
+      formats: ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD"]
+      action: "accept_if_valid"
+      message: "Transaction date format validated"
+
+  # Summary row detection
+  summary_detection_rules:
+    - rule_id: "reject_total_deposits"
+      priority: 1
+      condition: "description_matches_summary_pattern"
+      patterns: ["TOTAL DEPOSITS", "CLOSING BALANCE", "OPENING BALANCE", "BALANCE BROUGHT FORWARD"]
+      action: "reject"
+      message: "Row identified as summary/total line"
+      
+    - rule_id: "reject_balance_summary"
+      priority: 2
+      condition: "description_starts_with_balance"
+      patterns: ["BAL ", "BALANCE ", "TOTAL "]
+      action: "reject"
+      message: "Row identified as balance summary"
+
+  # Transaction type classification
+  transaction_type_rules:
+    - rule_id: "classify_payment"
+      priority: 1
+      condition: "amount_is_negative_or_debit_column"
+      action: "classify"
+      classification: "payment"
+      message: "Classified as payment/debit transaction"
+      
+    - rule_id: "classify_receipt"
+      priority: 2
+      condition: "amount_is_positive_or_credit_column"
+      action: "classify"
+      classification: "receipt"
+      message: "Classified as receipt/credit transaction"
+
+  # Bank charge detection
+  bank_charge_rules:
+    - rule_id: "identify_bank_charges"
+      priority: 1
+      condition: "description_matches_bank_charge_pattern"
+      patterns: ["EFT-CHG", "BANK CHARGES", "SERVICE FEE", "MONTHLY FEE"]
+      action: "flag"
+      flag: "bank_charge"
+      message: "Transaction identified as bank charge"
+
+  # Amount validation rules
+  amount_validation_rules:
+    - rule_id: "reject_zero_amounts"
+      priority: 1
+      condition: "amount_is_zero"
+      action: "reject"
+      message: "Zero amount transactions are not valid"
+      
+    - rule_id: "reject_tiny_amounts"
+      priority: 2
+      condition: "amount_below_threshold"
+      threshold: 0.01
+      action: "reject"
+      message: "Amount below minimum threshold"
+
+# Confidence scoring rules
+confidence_rules:
+  high_confidence:
+    - "transaction_date_valid_format AND amount_reasonable AND description_not_empty"
+    - "extracted_from_table_with_high_accuracy"
+    
+  medium_confidence:
+    - "transaction_date_parseable AND amount_numeric"
+    
+  low_confidence:
+    - "missing_date OR missing_amount OR description_empty"
+
+# Learning rules (for future ML integration)
+learning_rules:
+  feedback_incorporation:
+    - rule_id: "learn_from_user_corrections"
+      trigger: "user_overrides_decision"
+      action: "update_confidence_weights"
+      
+    - rule_id: "track_bank_specific_patterns"
+      trigger: "successful_processing"
+      action: "store_bank_pattern"
