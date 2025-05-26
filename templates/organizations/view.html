@@ -145,6 +145,7 @@
                                                                     {% if member.role != role %}
                                                                         <li>
                                                                             <form action="{{ url_for('organizations.update_member_role', org_id=organization.id, user_id=member.user.id) }}" method="post">
+                                                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                                                 <input type="hidden" name="role" value="{{ role }}">
                                                                                 <button type="submit" class="dropdown-item">{{ role|title }}</button>
                                                                             </form>
@@ -154,6 +155,7 @@
                                                                 {% if member.role != 'owner' and (not team_members|selectattr('role', 'equalto', 'owner')|list or current_user.is_admin()) %}
                                                                     <li>
                                                                         <form action="{{ url_for('organizations.update_member_role', org_id=organization.id, user_id=member.user.id) }}" method="post">
+                                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                                             <input type="hidden" name="role" value="owner">
                                                                             <button type="submit" class="dropdown-item">Owner</button>
                                                                         </form>
@@ -183,6 +185,7 @@
                                                                 <div class="modal-footer">
                                                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                                                     <form action="{{ url_for('organizations.remove_team_member', org_id=organization.id, user_id=member.user.id) }}" method="post">
+                                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                                         <button type="submit" class="btn btn-danger">Remove Member</button>
                                                                     </form>
                                                                 </div>
