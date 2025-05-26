@@ -9,6 +9,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from markupsafe import Markup
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
+from flask_wtf.csrf import validate_csrf
 from models import db, Organization, OrganizationUser, OrganizationInvitation, UserRole, Client
 from accounting_models import Account
 from decorators import role_required
@@ -243,6 +244,12 @@ def edit_organization(org_id):
     organization = org_user.organization
     
     if request.method == 'POST':
+        try:
+            validate_csrf(request.form.get('csrf_token'))
+        except Exception as e:
+            flash('CSRF token validation failed. Please try again.', 'danger')
+            return redirect(url_for('organizations.edit_organization', org_id=org_id))
+        
         organization.name = request.form.get('name')
         organization.website = request.form.get('website')
         organization.email = request.form.get('email')
@@ -314,6 +321,12 @@ def edit_organization(org_id):
 @login_required
 def delete_organization(org_id):
     """Delete an organization (owner only)."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except Exception as e:
+        flash('CSRF token validation failed. Please try again.', 'danger')
+        return redirect(url_for('organizations.view_organization', org_id=org_id))
+    
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
         organization_id=org_id
@@ -355,6 +368,12 @@ def delete_organization(org_id):
 @login_required
 def set_default_organization(org_id):
     """Set an organization as the user's default."""
+    try:
+        validate_csrf(request.form.get('csrf_token'))
+    except Exception as e:
+        flash('CSRF token validation failed. Please try again.', 'danger')
+        return redirect(url_for('organizations.view_organization', org_id=org_id))
+    
     # Find the organization and check if user is a member
     org_user = OrganizationUser.query.filter_by(
         user_id=current_user.id, 
@@ -400,6 +419,12 @@ def invite_team_member(org_id):
     organization = org_user.organization
     
     if request.method == 'POST':
+        try:
+            validate_csrf(request.form.get('csrf_token'))
+        except Exception as e:
+            flash('CSRF token validation failed. Please try again.', 'danger')
+            return redirect(url_for('organizations.invite_team_member', org_id=org_id))
+        
         email = request.form.get('email')
         role = request.form.get('role')
         
