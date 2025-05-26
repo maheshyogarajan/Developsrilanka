@@ -22,10 +22,12 @@ def migrate_add_processing_notes():
                 logger.info("Adding processing_notes column to bank_statement table...")
                 
                 # Add column as nullable first (zero-downtime pattern)
-                db.engine.execute('ALTER TABLE bank_statement ADD COLUMN processing_notes TEXT NULL')
-                
-                # Initialize existing rows with empty string
-                db.engine.execute("UPDATE bank_statement SET processing_notes = '' WHERE processing_notes IS NULL")
+                with db.engine.connect() as conn:
+                    conn.execute(db.text('ALTER TABLE bank_statement ADD COLUMN processing_notes TEXT NULL'))
+                    
+                    # Initialize existing rows with empty string
+                    conn.execute(db.text("UPDATE bank_statement SET processing_notes = '' WHERE processing_notes IS NULL"))
+                    conn.commit()
                 
                 logger.info("Successfully added processing_notes column")
                 return True

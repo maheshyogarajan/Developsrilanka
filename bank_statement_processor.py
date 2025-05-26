@@ -611,17 +611,28 @@ class BankStatementProcessor:
         """Parse date string into date object."""
         date_formats = [
             '%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y',
-            '%d/%m', '%d-%m', '%Y-%m-%d', '%m/%d/%Y'
+            '%d/%m', '%d-%m', '%Y-%m-%d', '%m/%d/%Y',
+            '%d %b %Y', '%d %B %Y', '%b %d %Y', '%B %d %Y'
         ]
         
         for fmt in date_formats:
             try:
                 parsed_date = datetime.strptime(date_str.strip(), fmt).date()
-                # Handle two-digit years
-                if parsed_date.year < 50:
-                    parsed_date = parsed_date.replace(year=parsed_date.year + 2000)
-                elif parsed_date.year < 100:
-                    parsed_date = parsed_date.replace(year=parsed_date.year + 1900)
+                
+                # Handle two-digit years properly
+                if parsed_date.year < 100:
+                    # If year is 00-29, assume 2000-2029
+                    # If year is 30-99, assume 1930-1999
+                    if parsed_date.year <= 29:
+                        parsed_date = parsed_date.replace(year=parsed_date.year + 2000)
+                    else:
+                        parsed_date = parsed_date.replace(year=parsed_date.year + 1900)
+                
+                # Handle incomplete dates (month/day only) by using current year
+                if parsed_date.year == 1900:  # Default year from strptime
+                    current_year = datetime.now().year
+                    parsed_date = parsed_date.replace(year=current_year)
+                
                 return parsed_date
             except ValueError:
                 continue
