@@ -20,7 +20,7 @@ from enhanced_financial_services import (
     UniversalGLService, EnhancedMatchingEngine, BalanceSheetService
 )
 from bank_statement_processor import BankStatementProcessor, EnhancedBankStatementProcessor
-from simple_audit_trail import SimpleAuditLogger, SimpleRulesEngine, store_audit_trail_in_statement
+from simple_audit_trail import SimpleAuditLogger, SimpleRulesEngine, store_audit_trail_in_statement, load_audit_trail_from_statement
 from smart_reconciliation_service import SmartReconciliationService
 import hashlib
 import os
@@ -542,6 +542,57 @@ def view_statement(statement_id):
         logger.error(f"Full traceback: {traceback.format_exc()}")
         flash('Error loading statement details', 'error')
         return redirect(url_for('enhanced_bank.list_statements'))
+
+@enhanced_bank.route('/statement/<int:statement_id>/validation_results')
+@login_required
+def view_validation_results(statement_id):
+    """Display detailed validation results with audit trail."""
+    statement = BankStatement.query.get_or_404(statement_id)
+    
+    # Load audit trail from processing_notes
+    audit_data = load_audit_trail_from_statement(statement)
+    
+    if not audit_data:
+        flash('No validation data available for this statement.', 'warning')
+        return redirect(url_for('enhanced_bank.view_statement', statement_id=statement_id))
+    
+    # Parse rejection reasons for user-friendly display
+    rejection_reasons = {}
+    for reason in audit_data.get('rejection_reasons', []):
+        # Group similar reasons for better user experience
+        if 'account number' in reason.lower() or 'account pattern' in reason.lower():
+            key = 'Account numbers detected in amounts'
+        elif 'summary' in reason.lower() or 'total' in reason.lower():
+            key = 'Summary/total rows excluded'
+        elif 'threshold' in reason.lower() or 'below minimum' in reason.lower():
+            key = 'Amount below minimum threshold'
+        elif 'zero amount' in reason.lower():
+            key = 'Zero amount transactions'
+        elif 'date pattern' in reason.lower():
+            key = 'Date-like patterns in descriptions'
+        else:
+            key = reason
+        
+        rejection_reasons[key] = rejection_reasons.get(key, 0) + 1
+    
+    # Calculate processing duration if available
+    processing_duration = None
+    if audit_data.get('start_time') and audit_data.get('end_time'):
+        try:
+            from datetime import datetime
+            start = datetime.fromisoformat(audit_data['start_time'].replace('Z', '+00:00'))
+            end = datetime.fromisoformat(audit_data['end_time'].replace('Z', '+00:00'))
+            processing_duration = round((end - start).total_seconds(), 2)
+        except:
+            processing_duration = None
+    
+    return render_template('enhanced_bank/validation_results.html',
+                         statement=statement,
+                         audit_summary=audit_data.get('summary', {}),
+                         rejection_reasons=rejection_reasons,
+                         audit_events=audit_data.get('events', []),
+                         processing_method=audit_data.get('processing_method'),
+                         processing_duration=processing_duration)
 
 @enhanced_bank.route('/reconcile/<int:statement_id>')
 @enhanced_bank.route('/statement/<int:statement_id>/reconcile')

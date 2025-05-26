@@ -1,0 +1,247 @@
+{% extends "layout.html" %}
+{% block title %}Bank Statement Processing Results{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Processing Summary Dashboard -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Processing Complete - Audit Trail Available
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded">
+                                <h3 class="text-success">{{ audit_summary.accepted_count or 0 }}</h3>
+                                <small class="text-muted">Transactions Accepted</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded">
+                                <h3 class="text-danger">{{ audit_summary.rejected_count or 0 }}</h3>
+                                <small class="text-muted">Transactions Rejected</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded">
+                                <h3 class="text-info">{{ audit_summary.total_events or 0 }}</h3>
+                                <small class="text-muted">Validation Events</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-light p-3 rounded">
+                                {% set total_transactions = (audit_summary.accepted_count or 0) + (audit_summary.rejected_count or 0) %}
+                                {% if total_transactions > 0 %}
+                                <h3 class="text-warning">{{ ((audit_summary.accepted_count or 0) / total_transactions * 100)|round(1) }}%</h3>
+                                {% else %}
+                                <h3 class="text-warning">0%</h3>
+                                {% endif %}
+                                <small class="text-muted">Success Rate</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Method & Timing -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-cog me-2"></i>Processing Method
+                    </h6>
+                    <p class="card-text">
+                        <span class="badge bg-primary">{{ processing_method or 'enhanced_validation_with_audit' }}</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-clock me-2"></i>Processing Time
+                    </h6>
+                    <p class="card-text">
+                        {% if audit_summary.start_time and audit_summary.end_time %}
+                        <span class="badge bg-info">{{ processing_duration }} seconds</span>
+                        {% else %}
+                        <span class="text-muted">Not available</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejection Analysis Section -->
+    {% if rejection_reasons %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Why Were Transactions Rejected?
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for reason, count in rejection_reasons.items() %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center p-3 border rounded">
+                                <div class="flex-grow-1">
+                                    <strong>{{ reason }}</strong>
+                                    <br><small class="text-muted">{{ count }} transaction(s)</small>
+                                    {% if reason == 'Account numbers detected in amounts' %}
+                                    <br><small class="text-info">✓ System prevented false amounts from account numbers</small>
+                                    {% elif reason == 'Summary/total rows excluded' %}
+                                    <br><small class="text-info">✓ System excluded balance and summary lines</small>
+                                    {% elif reason == 'Amount below minimum threshold' %}
+                                    <br><small class="text-info">✓ System filtered out tiny/invalid amounts</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-warning">{{ count }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Statement Navigation -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Statement: {{ statement.bank_name or 'Unknown Bank' }}</h6>
+                            <small class="text-muted">
+                                {% if statement.statement_period_from and statement.statement_period_to %}
+                                {{ statement.statement_period_from.strftime('%d %b %Y') }} - {{ statement.statement_period_to.strftime('%d %b %Y') }}
+                                {% else %}
+                                Period not available
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('enhanced_bank.view_statement', statement_id=statement.id) }}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i>View Statement
+                            </a>
+                            <a href="{{ url_for('enhanced_bank.list_statements') }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-list me-1"></i>All Statements
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete Audit Trail Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list-alt me-2"></i>
+                            Complete Audit Trail
+                        </h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleAuditDetails()">
+                            <i class="fas fa-eye me-1"></i>Show Details
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="audit-trail-summary">
+                        <div class="text-center py-4">
+                            <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                            <p class="text-muted mb-0">
+                                Every validation decision has been logged for complete transparency.<br>
+                                This ensures you know exactly why each transaction was accepted or rejected.
+                            </p>
+                            <small class="text-muted">Click "Show Details" to see the full audit trail.</small>
+                        </div>
+                    </div>
+                    <div id="audit-trail-details" style="display: none;">
+                        {% if audit_events %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Stage</th>
+                                        <th>Rule</th>
+                                        <th>Decision</th>
+                                        <th>Reason</th>
+                                        <th>Confidence</th>
+                                        <th>Data Sample</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in audit_events %}
+                                    <tr class="{% if event.decision == 'reject' %}table-danger{% elif event.decision == 'accept' %}table-success{% else %}table-warning{% endif %}">
+                                        <td><span class="badge bg-secondary">{{ event.stage|title }}</span></td>
+                                        <td><code class="small">{{ event.rule_id }}</code></td>
+                                        <td>
+                                            <span class="badge {% if event.decision == 'reject' %}bg-danger{% elif event.decision == 'accept' %}bg-success{% else %}bg-warning{% endif %}">
+                                                {{ event.decision|upper }}
+                                            </span>
+                                        </td>
+                                        <td class="small">{{ event.message }}</td>
+                                        <td>{{ (event.confidence * 100)|round }}%</td>
+                                        <td class="small text-muted">{{ event.raw_data[:50] }}{% if event.raw_data|length > 50 %}...{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-info-circle fa-2x text-info mb-3"></i>
+                            <p class="text-muted">No detailed audit events available for this statement.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAuditDetails() {
+    const details = document.getElementById('audit-trail-details');
+    const summary = document.getElementById('audit-trail-summary');
+    const button = event.target.closest('button');
+    
+    if (details.style.display === 'none') {
+        details.style.display = 'block';
+        summary.style.display = 'none';
+        button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Details';
+        button.classList.remove('btn-outline-primary');
+        button.classList.add('btn-outline-secondary');
+    } else {
+        details.style.display = 'none';
+        summary.style.display = 'block';
+        button.innerHTML = '<i class="fas fa-eye me-1"></i>Show Details';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-outline-primary');
+    }
+}
+</script>
+{% endblock %}
