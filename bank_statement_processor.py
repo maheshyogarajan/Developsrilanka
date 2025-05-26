@@ -46,6 +46,68 @@ class EnhancedBankStatementProcessor:
             r'\bMONTHLY\s*FEE\b'
         ]
         
+    def extract_bank_metadata(self, full_text: str) -> Dict[str, str]:
+        """Extract bank name, account number, and other metadata from statement header"""
+        metadata = {
+            'bank_name': 'Unknown Bank',
+            'account_number': None,
+            'statement_period_from': None,
+            'statement_period_to': None
+        }
+        
+        # Extract bank name patterns
+        bank_patterns = [
+            r'(Commercial Bank of Ceylon PLC)',
+            r'(Hatton National Bank PLC)',
+            r'(Nations Trust Bank PLC)',
+            r'(Sampath Bank PLC)',
+            r'(Bank of Ceylon)',
+            r'(People\'s Bank)',
+            r'(DFCC Bank)',
+            r'(Standard Chartered Bank)',
+            r'(Seylan Bank PLC)',
+            r'([A-Z][a-zA-Z\s]+Bank[a-zA-Z\s]*(?:PLC|Limited)?)'
+        ]
+        
+        for pattern in bank_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                metadata['bank_name'] = match.group(1).strip()
+                break
+        
+        # Extract account number patterns
+        account_patterns = [
+            r'Account\s*(?:No\.?|Number)\s*:?\s*(\d{4,})',
+            r'A/C\s*(?:No\.?|Number)\s*:?\s*(\d{4,})',
+            r'Account\s*(\d{8,})',
+            r'(?:^|\s)(\d{10,})(?:\s|$)',  # Standalone long numbers
+        ]
+        
+        for pattern in account_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                account_num = match.group(1)
+                # Validate it's not a transaction amount
+                if len(account_num) >= 8:
+                    metadata['account_number'] = account_num
+                    break
+        
+        # Extract statement period
+        period_patterns = [
+            r'Period\s*:?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|-)?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r'From\s*:?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*To\s*:?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*to\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})'
+        ]
+        
+        for pattern in period_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                metadata['statement_period_from'] = match.group(1)
+                metadata['statement_period_to'] = match.group(2)
+                break
+        
+        return metadata
+
     def extract_account_numbers_from_statement(self, full_text: str) -> List[str]:
         """Extract account numbers from complete statement text"""
         patterns = [

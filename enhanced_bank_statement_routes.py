@@ -254,8 +254,53 @@ def upload_statement():
                 message=f'Extracted text from {len(pdf_reader.pages)} pages using PyPDF2'
             )
             
-            # Initialize enhanced processor and detect account numbers
+            # Initialize enhanced processor and extract bank metadata
             enhanced_processor = EnhancedBankStatementProcessor()
+            
+            # Extract bank metadata from PDF text
+            bank_metadata = enhanced_processor.extract_bank_metadata(full_text)
+            logger.info(f"Bank metadata extracted: {bank_metadata}")
+            
+            # Update statement with extracted metadata
+            if bank_metadata['bank_name'] != 'Unknown Bank':
+                statement.bank_name = bank_metadata['bank_name']
+                audit_logger.log_event(
+                    data=f"bank_name:{bank_metadata['bank_name']}",
+                    stage='extraction',
+                    rule_id='bank_name_extraction',
+                    decision='accept',
+                    message=f'Extracted bank name: {bank_metadata["bank_name"]}'
+                )
+            
+            if bank_metadata['account_number']:
+                statement.account_number = bank_metadata['account_number']
+                audit_logger.log_event(
+                    data=f"account_number:{bank_metadata['account_number']}",
+                    stage='extraction',
+                    rule_id='account_number_extraction',
+                    decision='accept',
+                    message=f'Extracted account number: {bank_metadata["account_number"]}'
+                )
+            
+            # Update statement period if extracted
+            if bank_metadata['statement_period_from'] and bank_metadata['statement_period_to']:
+                try:
+                    from datetime import datetime
+                    period_from_extracted = datetime.strptime(bank_metadata['statement_period_from'], '%d/%m/%Y').date()
+                    period_to_extracted = datetime.strptime(bank_metadata['statement_period_to'], '%d/%m/%Y').date()
+                    statement.statement_period_from = period_from_extracted
+                    statement.statement_period_to = period_to_extracted
+                    audit_logger.log_event(
+                        data=f"period:{bank_metadata['statement_period_from']} to {bank_metadata['statement_period_to']}",
+                        stage='extraction',
+                        rule_id='period_extraction',
+                        decision='accept',
+                        message=f'Extracted statement period: {bank_metadata["statement_period_from"]} to {bank_metadata["statement_period_to"]}'
+                    )
+                except:
+                    pass  # Keep original dates if parsing fails
+            
+            # Detect account numbers for validation filtering
             enhanced_processor.extract_account_numbers_from_statement(full_text)
             
             # Log detected account numbers
