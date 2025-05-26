@@ -1,0 +1,44 @@
+🚧 **Phase-3 Hot-Fix Sprint — IMPLEMENTATION REQUIRED**
+
+Context  
+A new PDF scan surfaced four blocking bugs (see Diagnostic Report 26 May 2025):  
+1. Date parser defaulted to 1000-12-01 → 1000-12-08.  
+2. AttributeError: `BankStatement.processing_notes` (audit-trail crash).  
+3. All 53 rows flagged “Credit”.  
+4. Reconciliation UI shows no approve/reject controls.
+
+🔥 **Objectives (deliver in ONE PR, separate commits per objective)**  
+
+### 1. Schema & Migration  
+* Add `processing_notes TEXT` (nullable) to `bank_statements` table.  
+* Post-migration data back-fill: set `processing_notes = ''` for existing rows.  
+* Use zero-downtime pattern (`ALTER TABLE … ADD COLUMN NULL`; then update; then `ALTER … SET NOT NULL`).  
+
+### 2. Date-Extraction Fix  
+* Update the date-regex list in `date_parser.py` to cover formats:  
+  * `DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, and spaced variants.  
+* Write unit test `tests/test_dates.py::test_real_statement_dates` using the failing PDF.  
+* Remove sentinel year 1000 fallback; raise `DateParseError` instead.
+
+### 3. Debit/Credit Classification  
+* Patch `transaction_classifier.py` to detect:  
+  * Leading “CR/DR” tokens.  
+  * Minus sign **or** parentheses for debits.  
+* Unit test `tests/test_txn_type.py` asserts a mix of debit & credit rows.
+
+### 4. Reconciliation UI Hook-up  
+* Front-end: add “Approve / Reject” buttons in `templates/reconcile.html`.  
+* Back-end: expose `/match/queue/<statement_id>` returning JSON `{ row_id, suggestions[] }`.  
+* Web-socket or AJAX post on click updates `match_status` in DB and emits toast.
+
+### 5. Verification Checklist (CI must pass)  
+* All four new tests green.  
+* PDF scan of sample statement completes < 30 s.  
+* Reconciliation page loads < 3 s with 53 rows.  
+* `processing_notes` appears in audit-trail JSON.
+
+Deliverables  
+1. Migration script (`versions/xxxx_processing_notes.py`).  
+2. Updated parsing & classification modules.  
+3. Front-end patch + route handler.  
+4. Markdown release notes summarising fixes and any follow-up tech-debt.  

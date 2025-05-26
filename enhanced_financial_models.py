@@ -296,6 +296,7 @@ class BankStatement(db.Model):
     
     # Processing status
     processing_status = db.Column(db.String(20), default='uploaded')
+    processing_notes = db.Column(db.Text, nullable=True)  # For audit trail storage
     
     # Reconciliation statistics
     total_transactions = db.Column(db.Integer, default=0)
