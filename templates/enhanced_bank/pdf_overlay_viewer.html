@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Storage-Lineage Overlay</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        .pdf-container {
+            position: relative;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+        }
+        
+        .pdf-canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .bbox-overlay {
+            position: absolute;
+            border: 2px solid #007bff;
+            background: rgba(0, 123, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        
+        .bbox-overlay:hover {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .bbox-overlay.selected {
+            border-color: #dc3545;
+            background: rgba(220, 53, 69, 0.2);
+        }
+        
+        .confidence-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 0.75em;
+            z-index: 11;
+        }
+        
+        .transaction-details {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .controls-panel {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="controls-panel">
+                    <h4 class="mb-3">PDF Storage-Lineage Overlay</h4>
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label for="statementSelect" class="form-label">Select Statement:</label>
+                            <select id="statementSelect" class="form-select">
+                                <option value="">Choose a statement...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showAllOverlays" checked>
+                                <label class="form-check-label" for="showAllOverlays">
+                                    Show all transaction overlays
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pdf-container" id="pdfContainer">
+                    <canvas id="pdfCanvas" class="pdf-canvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="transaction-details" id="transactionDetails">
+                    <h5>Transaction Details</h5>
+                    <p class="text-muted">Click on a highlighted area to view extraction details</p>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Legend</h6>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="bbox-overlay" style="width: 20px; height: 15px; position: static; margin-right: 10px;"></div>
+                        <span>Extracted amounts</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-success me-2">95%</span>
+                        <span>High confidence (>90%)</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-warning me-2">75%</span>
+                        <span>Medium confidence (70-90%)</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-danger me-2">45%</span>
+                        <span>Low confidence (<70%)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js worker setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        class PDFOverlayViewer {
+            constructor() {
+                this.pdfDoc = null;
+                this.pageNum = 1;
+                this.scale = 1.2;
+                this.canvas = document.getElementById('pdfCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.container = document.getElementById('pdfContainer');
+                this.currentTransactions = [];
+                this.selectedBbox = null;
+                
+                this.init();
+            }
+            
+            async init() {
+                await this.loadStatements();
+                this.setupEventListeners();
+                
+                // Load demo data for testing
+                await this.loadDemoData();
+            }
+            
+            async loadStatements() {
+                try {
+                    const response = await fetch('/enhanced_bank/statements');
+                    // For demo, use placeholder options
+                    const select = document.getElementById('statementSelect');
+                    select.innerHTML = `
+                        <option value="">Choose a statement...</option>
+                        <option value="demo">Demo Statement (Testing)</option>
+                    `;
+                } catch (error) {
+                    console.error('Failed to load statements:', error);
+                }
+            }
+            
+            async loadDemoData() {
+                try {
+                    const response = await fetch('/api/lineage/overlay/demo');
+                    const data = await response.json();
+                    
+                    this.currentTransactions = data.transactions;
+                    this.renderDemoOverlay();
+                } catch (error) {
+                    console.error('Failed to load demo data:', error);
+                }
+            }
+            
+            renderDemoOverlay() {
+                // Create a demo canvas for testing overlay functionality
+                this.canvas.width = 600;
+                this.canvas.height = 800;
+                
+                // Draw a simple PDF-like background
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.ctx.fillStyle = '#000000';
+                this.ctx.font = '14px Arial';
+                this.ctx.fillText('COMMERCIAL BANK OF CEYLON PLC', 50, 50);
+                this.ctx.fillText('Bank Statement', 50, 80);
+                this.ctx.fillText('Account: 1000120800', 50, 110);
+                
+                // Draw sample transaction rows
+                this.ctx.fillText('Date        Description               Amount', 50, 180);
+                this.ctx.fillText('01/05/2025  SALARY TRANSFER          1,500.00', 50, 220);
+                this.ctx.fillText('02/05/2025  GROCERY PAYMENT            750.50', 50, 260);
+                
+                // Add bounding box overlays
+                this.addBboxOverlays();
+            }
+            
+            addBboxOverlays() {
+                // Clear existing overlays
+                document.querySelectorAll('.bbox-overlay').forEach(el => {
+                    if (el.parentElement === this.container) {
+                        el.remove();
+                    }
+                });
+                
+                this.currentTransactions.forEach((transaction, index) => {
+                    const bbox = transaction.bbox;
+                    const overlay = document.createElement('div');
+                    overlay.className = 'bbox-overlay';
+                    overlay.dataset.transactionId = transaction.id;
+                    
+                    // Position overlay relative to canvas
+                    const canvasRect = this.canvas.getBoundingClientRect();
+                    const containerRect = this.container.getBoundingClientRect();
+                    
+                    overlay.style.left = `${bbox.x0}px`;
+                    overlay.style.top = `${bbox.top}px`;
+                    overlay.style.width = `${bbox.x1 - bbox.x0}px`;
+                    overlay.style.height = `${bbox.bottom - bbox.top}px`;
+                    
+                    // Add confidence badge
+                    const confidenceBadge = document.createElement('span');
+                    confidenceBadge.className = `badge confidence-badge ${this.getConfidenceClass(transaction.confidence)}`;
+                    confidenceBadge.textContent = `${Math.round(transaction.confidence * 100)}%`;
+                    overlay.appendChild(confidenceBadge);
+                    
+                    // Add click handler
+                    overlay.addEventListener('click', () => this.selectTransaction(transaction));
+                    
+                    this.container.appendChild(overlay);
+                });
+            }
+            
+            getConfidenceClass(confidence) {
+                if (confidence >= 0.9) return 'bg-success';
+                if (confidence >= 0.7) return 'bg-warning';
+                return 'bg-danger';
+            }
+            
+            selectTransaction(transaction) {
+                // Remove previous selection
+                document.querySelectorAll('.bbox-overlay.selected').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                
+                // Add selection to current bbox
+                const overlay = document.querySelector(`[data-transaction-id="${transaction.id}"]`);
+                if (overlay) {
+                    overlay.classList.add('selected');
+                }
+                
+                this.selectedBbox = transaction;
+                this.displayTransactionDetails(transaction);
+            }
+            
+            displayTransactionDetails(transaction) {
+                const detailsEl = document.getElementById('transactionDetails');
+                detailsEl.innerHTML = `
+                    <h5>Transaction Details</h5>
+                    <div class="mb-3">
+                        <strong>Amount:</strong> $${transaction.amount.toFixed(2)}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Description:</strong> ${transaction.description}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Confidence:</strong> 
+                        <span class="badge ${this.getConfidenceClass(transaction.confidence)}">
+                            ${Math.round(transaction.confidence * 100)}%
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Page:</strong> ${transaction.page_idx + 1}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Coordinates:</strong>
+                        <small class="d-block text-muted">
+                            x: ${transaction.bbox.x0}-${transaction.bbox.x1}<br>
+                            y: ${transaction.bbox.top}-${transaction.bbox.bottom}
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Parser Method:</strong> 
+                        <span class="badge bg-info">regex_pattern</span>
+                    </div>
+                `;
+            }
+            
+            setupEventListeners() {
+                document.getElementById('showAllOverlays').addEventListener('change', (e) => {
+                    const overlays = document.querySelectorAll('.bbox-overlay');
+                    overlays.forEach(overlay => {
+                        overlay.style.display = e.target.checked ? 'block' : 'none';
+                    });
+                });
+                
+                document.getElementById('statementSelect').addEventListener('change', async (e) => {
+                    if (e.target.value === 'demo') {
+                        await this.loadDemoData();
+                    }
+                });
+            }
+        }
+        
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new PDFOverlayViewer();
+        });
+    </script>
+</body>
+</html>

@@ -193,6 +193,14 @@ try:
 except Exception as e:
     logger.error(f"Error loading enhanced bank statement routes: {str(e)}")
 
+# Import PDF lineage API routes
+try:
+    from lineage_api_routes import lineage_api
+    app.register_blueprint(lineage_api)
+    logger.info("PDF lineage API routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading PDF lineage API routes: {str(e)}")
+
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
