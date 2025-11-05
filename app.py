@@ -1895,14 +1895,20 @@ def process_receipt_with_gemini(image):
         
         # Configure Gemini model - using the latest compatible version
         try:
-            # Try the newer model first (gemini-1.5-flash)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            logging.debug("Using gemini-1.5-flash model")
+            # Try the newer model first (gemini-2.0-flash)
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            logging.info("Using gemini-2.0-flash model for vision processing")
         except Exception as model_error:
-            logging.warning(f"Could not use gemini-1.5-flash, falling back to gemini-pro-vision: {str(model_error)}")
-            # Fall back to the original model if needed
-            model = genai.GenerativeModel('gemini-pro-vision')
-            logging.debug("Using gemini-pro-vision model")
+            logging.warning(f"Could not use gemini-2.0-flash: {str(model_error)}")
+            try:
+                # Fall back to gemini-2.5-flash which is also vision-capable
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                logging.info("Using gemini-2.5-flash model as fallback for vision processing")
+            except Exception as fallback_error:
+                logging.error(f"Could not use gemini-2.5-flash either: {str(fallback_error)}")
+                # Last resort: try older vision model
+                model = genai.GenerativeModel('gemini-1.5-pro')
+                logging.info("Using gemini-1.5-pro model as final fallback")
         
         # Create the enhanced prompt for receipt data extraction with multilingual and bank transfer support
         prompt = """
@@ -1964,9 +1970,14 @@ def process_receipt_with_gemini(image):
         }
         
         # Send the request to Gemini API
-        logging.debug("Sending request to Gemini API")
-        response = model.generate_content([prompt, image_part])
-        logging.debug("Received response from Gemini API")
+        logging.info("Sending request to Gemini API")
+        try:
+            response = model.generate_content([prompt, image_part])
+            logging.info("Received response from Gemini API")
+        except Exception as api_error:
+            logging.error(f"Gemini API call failed: {str(api_error)}")
+            logging.error(f"Error type: {type(api_error).__name__}")
+            raise
         
         # Parse the response to extract JSON
         response_text = response.text

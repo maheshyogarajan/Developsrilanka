@@ -33,12 +33,13 @@ def classify_tax_deductible(item_data, receipt_data):
         # Configure Gemini model
         try:
             # Try the newer model first
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            logging.debug("Using gemini-1.5-flash model")
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            logging.debug("Using gemini-2.0-flash model")
         except Exception as model_error:
-            logging.warning(f"Could not use gemini-1.5-flash, falling back: {str(model_error)}")
-            model = genai.GenerativeModel('gemini-pro')
-            logging.debug("Using gemini-pro model")
+            logging.warning(f"Could not use gemini-2.0-flash, falling back: {str(model_error)}")
+            # Use a text-capable model for tax classification
+            model = genai.GenerativeModel('gemini-1.5-pro')
+            logging.debug("Using gemini-1.5-pro model")
         
         # Create a prompt with the item data
         prompt = f"""

@@ -336,12 +336,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Synchronous processing completed
                 console.log('Synchronous processing completed');
                 
+                // Check if we have valid data
+                if (!data.data || typeof data.data !== 'object') {
+                    throw new Error('Failed to extract receipt data. The AI model may be temporarily unavailable. Please try again in a moment.');
+                }
+                
                 // Fill form with extracted data
                 populateForm(data.data);
                 
                 // Show animation with receipt value and max savings
                 const receiptValueAnimation = document.getElementById('receipt-value-animation');
-                if (receiptValueAnimation) {
+                if (receiptValueAnimation && data.data) {
                     // Get receipt values
                     const receiptTotal = parseFloat(data.data.total_amount) || 0;
                     const vatTax = parseFloat(data.data.vat_tax) || 0;
@@ -490,12 +495,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.state === 'SUCCESS') {
                 console.log('Task completed successfully');
                 
+                // Check if we have valid result data
+                if (!data.result || typeof data.result !== 'object') {
+                    throw new Error('Failed to extract receipt data. The AI model may be temporarily unavailable. Please try again in a moment.');
+                }
+                
                 // Fill form with extracted data
                 populateForm(data.result);
                 
                 // Show animation with receipt value and max savings
                 const receiptValueAnimation = document.getElementById('receipt-value-animation');
-                if (receiptValueAnimation) {
+                if (receiptValueAnimation && data.result) {
                     // Get receipt values
                     const receiptTotal = parseFloat(data.result.total_amount) || 0;
                     const vatTax = parseFloat(data.result.vat_tax) || 0;
@@ -823,6 +833,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to populate the form with extracted data
     function populateForm(data) {
+        // Add null/undefined check at the beginning
+        if (!data || typeof data !== 'object') {
+            console.error('Invalid data passed to populateForm:', data);
+            showError('Failed to process receipt data. Please try again.');
+            return;
+        }
+        
         // Set simple text fields
         document.getElementById('vendor_name').value = data.vendor_name || '';
         document.getElementById('vendor_address').value = data.vendor_address || '';
