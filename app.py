@@ -1882,17 +1882,6 @@ def process_receipt_with_gemini(image):
     try:
         logging.debug("Starting receipt image processing with Gemini Vision")
         
-        # Convert PIL image to bytes for Gemini
-        img_byte_arr = BytesIO()
-        image.save(img_byte_arr, format=image.format if image.format else 'JPEG')
-        img_bytes = img_byte_arr.getvalue()
-        logging.debug(f"Image converted to bytes, size: {len(img_bytes)} bytes")
-        
-        # Use base64 encoding for the image data
-        import base64
-        img_b64 = base64.b64encode(img_bytes).decode('utf-8')
-        logging.debug(f"Image encoded to base64")
-        
         # Configure Gemini model - using the latest compatible version
         try:
             # Try the newer model first (gemini-2.0-flash)
@@ -1958,21 +1947,11 @@ def process_receipt_with_gemini(image):
         Return ONLY the JSON object and nothing else.
         """
         
-        # Generate content with Gemini Vision
-        logging.debug("Preparing to send request to Gemini API")
-        
-        # Create the proper format for the image
-        image_part = {
-            "inline_data": {
-                "mime_type": "image/jpeg",
-                "data": img_b64
-            }
-        }
-        
-        # Send the request to Gemini API
-        logging.info("Sending request to Gemini API")
+        # Send the request to Gemini API with PIL Image directly
+        logging.info("Sending request to Gemini API with image")
         try:
-            response = model.generate_content([prompt, image_part])
+            # Modern Gemini SDK accepts PIL Image directly
+            response = model.generate_content([prompt, image])
             logging.info("Received response from Gemini API")
         except Exception as api_error:
             logging.error(f"Gemini API call failed: {str(api_error)}")
