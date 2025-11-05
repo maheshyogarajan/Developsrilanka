@@ -770,14 +770,23 @@ class Receipt(db.Model):
             return None
 
     def get_tax_deductible_amount(self):
-        """Calculate the total amount for tax deductible items.
+        """Calculate the total amount for tax deductible items using deductibility percentage.
         
         The tax deductible amount should never exceed the total_amount of the receipt.
+        Uses the deductibility_percentage field for partial deductions (e.g., 50% for meals).
         """
         tax_deductible_amount = 0.0
         for item in self.items:
             if item.tax_deductible:
-                tax_deductible_amount += item.price * item.quantity
+                item_total = item.price * item.quantity
+                
+                # Use deductibility_percentage if available (0-100)
+                if item.deductibility_percentage is not None:
+                    deductible_portion = item_total * (item.deductibility_percentage / 100.0)
+                    tax_deductible_amount += deductible_portion
+                else:
+                    # Fall back to 100% if percentage not set
+                    tax_deductible_amount += item_total
         
         # Ensure tax_deductible_amount doesn't exceed total_amount
         return min(tax_deductible_amount, self.total_amount)
@@ -834,6 +843,11 @@ class ReceiptItem(db.Model):
     price = db.Column(db.Float, nullable=False, default=0.0)
     tax_deductible = db.Column(db.Boolean, nullable=False, default=False)
     
+    deductibility_percentage = db.Column(db.Integer, nullable=True, default=None)
+    tax_law_reference = db.Column(db.String(500), nullable=True, default=None)
+    classification_confidence = db.Column(db.Float, nullable=True, default=None)
+    deduction_notes = db.Column(db.Text, nullable=True, default=None)
+    
     def to_dict(self):
         """Convert the receipt item to a dictionary."""
         return {
@@ -841,7 +855,11 @@ class ReceiptItem(db.Model):
             'name': self.name,
             'quantity': self.quantity,
             'price': self.price,
-            'tax_deductible': self.tax_deductible
+            'tax_deductible': self.tax_deductible,
+            'deductibility_percentage': self.deductibility_percentage,
+            'tax_law_reference': self.tax_law_reference,
+            'classification_confidence': self.classification_confidence,
+            'deduction_notes': self.deduction_notes
         }
 
 class Client(db.Model):

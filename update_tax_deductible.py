@@ -6,6 +6,7 @@ from flask import Flask
 import google.generativeai as genai
 from app import app, db
 from models import Receipt, ReceiptItem
+from sri_lanka_tax_rules import get_classifier
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,84 +19,50 @@ except Exception as e:
 
 def classify_tax_deductible(item_data, receipt_data):
     """
-    Use Gemini to classify if an item is tax deductible.
+    Classify item tax deductibility using Sri Lankan tax rules.
     
     Args:
         item_data: Dictionary containing item information
         receipt_data: Dictionary containing parent receipt information
     
     Returns:
-        Boolean indicating if the item is tax deductible
+        Dictionary with comprehensive tax deductibility information:
+        - tax_deductible: Boolean
+        - deductibility_percentage: 0-100
+        - tax_law_reference: String reference to tax law
+        - classification_confidence: 0.0-1.0
+        - deduction_notes: Detailed explanation
     """
     try:
         logging.debug(f"Starting tax deductibility classification for item: {item_data['name']}")
         
-        # Configure Gemini model
-        try:
-            # Try the newer model first
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            logging.debug("Using gemini-2.0-flash model")
-        except Exception as model_error:
-            logging.warning(f"Could not use gemini-2.0-flash, falling back: {str(model_error)}")
-            # Use a text-capable model for tax classification
-            model = genai.GenerativeModel('gemini-1.5-pro')
-            logging.debug("Using gemini-1.5-pro model")
+        # Use the Sri Lankan tax rules classifier
+        classifier = get_classifier()
         
-        # Create a prompt with the item data
-        prompt = f"""
-        Analyze this purchase item and determine if it's tax deductible as a business expense:
+        # Classify the item
+        classification = classifier.classify_item(
+            item_name=item_data.get('name', ''),
+            item_price=item_data.get('price', 0),
+            vendor_name=receipt_data.get('vendor_name', ''),
+            major_category=receipt_data.get('expense_major_category', ''),
+            minor_category=receipt_data.get('expense_minor_category', '')
+        )
         
-        Item Name: {item_data['name']}
-        Item Price: {item_data['price']}
-        Vendor Name: {receipt_data['vendor_name']}
-        Receipt Major Category: {receipt_data['expense_major_category'] or 'Not classified'}
-        Receipt Minor Category: {receipt_data['expense_minor_category'] or 'Not classified'}
+        logging.info(f"Classification result for '{item_data['name']}': {classification['deductibility_percentage']}% deductible, confidence={classification['classification_confidence']:.2f}")
+        logging.debug(f"Tax law reference: {classification['tax_law_reference']}")
         
-        Provide ONLY a JSON response with a single field:
-        - tax_deductible: true/false boolean indicating if this item would likely be tax deductible as a business expense
-        
-        Common tax deductible items include: business supplies, equipment, travel for business purposes, professional services, etc.
-        Items that are personal in nature or primarily for enjoyment/entertainment should be marked as not tax deductible.
-        
-        Return ONLY the JSON object with the boolean field mentioned above and nothing else.
-        """
-        
-        # Generate content with Gemini
-        logging.debug("Sending classification request to Gemini API")
-        response = model.generate_content(prompt)
-        logging.debug("Received response from Gemini API")
-        
-        # Parse the response to extract JSON
-        response_text = response.text
-        logging.debug(f"Raw response text: {response_text[:200]}...")
-        
-        # Extract JSON
-        if "```json" in response_text:
-            json_text = response_text.split("```json")[1].split("```")[0].strip()
-        elif "```" in response_text:
-            json_text = response_text.split("```")[1].strip()
-        else:
-            json_text = response_text.strip()
-        
-        # Check if the response starts with a curly brace (JSON object)
-        if not json_text.startswith('{'):
-            import re
-            json_match = re.search(r'(\{.*\})', json_text, re.DOTALL)
-            if json_match:
-                json_text = json_match.group(1)
-            else:
-                raise ValueError("Could not find valid JSON object in response")
-                
-        # Parse the JSON response
-        classification = json.loads(json_text)
-        is_tax_deductible = classification.get('tax_deductible', False)
-        logging.debug(f"Tax deductibility classification result: {is_tax_deductible}")
-        
-        return is_tax_deductible
+        return classification
         
     except Exception as e:
         logging.error(f"Error in tax deductibility classification: {str(e)}")
-        return False  # Default to not tax deductible if there's an error
+        # Return conservative default classification
+        return {
+            'tax_deductible': False,
+            'deductibility_percentage': 0,
+            'tax_law_reference': 'Section 25 - Inland Revenue Act (error in classification)',
+            'classification_confidence': 0.0,
+            'deduction_notes': f'Classification error: {str(e)}. Defaulting to non-deductible for safety.'
+        }
 
 def update_tax_deductible_status():
     """
@@ -124,18 +91,21 @@ def update_tax_deductible_status():
                 
                 logging.debug(f"Processing item ID {item.id}: '{item.name}' from receipt ID {receipt.id}")
                 
-                # Get classification from Gemini
-                is_tax_deductible = classify_tax_deductible(item_dict, receipt_dict)
+                # Get enhanced classification with Sri Lankan tax rules
+                classification = classify_tax_deductible(item_dict, receipt_dict)
                 
-                # Only update if the classification suggests it's tax deductible
-                # (since the default is already False)
-                if is_tax_deductible:
-                    item.tax_deductible = True
-                    updated_count += 1
-                    logging.info(f"Updated item '{item.name}' to tax_deductible=True")
-                    
-                    # Save changes for this item
-                    db.session.commit()
+                # Update item with comprehensive tax deductibility information
+                item.tax_deductible = classification['tax_deductible']
+                item.deductibility_percentage = classification['deductibility_percentage']
+                item.tax_law_reference = classification['tax_law_reference']
+                item.classification_confidence = classification['classification_confidence']
+                item.deduction_notes = classification['deduction_notes']
+                
+                updated_count += 1
+                logging.info(f"Updated item '{item.name}': {classification['deductibility_percentage']}% deductible (confidence: {classification['classification_confidence']:.2f})")
+                
+                # Save changes for this item
+                db.session.commit()
             
             logging.info(f"Updated {updated_count} items to be tax deductible out of {len(items_to_update)} checked")
             return updated_count

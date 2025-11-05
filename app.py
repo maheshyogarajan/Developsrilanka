@@ -1257,12 +1257,37 @@ def save_receipt():
         # Add receipt items if they exist
         items = receipt_data.get('items', [])
         for item in items:
+            # Safely extract and validate deductibility fields with type coercion
+            deduct_pct = item.get('deductibility_percentage')
+            if deduct_pct is not None:
+                try:
+                    deduct_pct = int(float(deduct_pct))
+                    # Clamp to 0-100 range
+                    deduct_pct = max(0, min(100, deduct_pct))
+                except (ValueError, TypeError):
+                    logging.warning(f"Invalid deductibility_percentage: {deduct_pct}, defaulting to None")
+                    deduct_pct = None
+            
+            confidence = item.get('classification_confidence')
+            if confidence is not None:
+                try:
+                    confidence = float(confidence)
+                    # Clamp to 0.0-1.0 range
+                    confidence = max(0.0, min(1.0, confidence))
+                except (ValueError, TypeError):
+                    logging.warning(f"Invalid classification_confidence: {confidence}, defaulting to None")
+                    confidence = None
+            
             new_item = ReceiptItem(
                 receipt_id=new_receipt.id,
                 name=item.get('name', 'Unknown Item'),
                 quantity=float(item.get('quantity', 1) or 1),
                 price=float(item.get('price', 0) or 0),
-                tax_deductible=bool(item.get('tax_deductible', False))
+                tax_deductible=bool(item.get('tax_deductible', False)),
+                deductibility_percentage=deduct_pct,
+                tax_law_reference=item.get('tax_law_reference'),
+                classification_confidence=confidence,
+                deduction_notes=item.get('deduction_notes')
             )
             db.session.add(new_item)
             
@@ -1922,7 +1947,7 @@ def process_receipt_with_gemini(image):
           "vendor_address": "string (converted to English if needed)", 
           "vendor_contact": "string",
           "date": "YYYY-MM-DD (always ISO format)",
-          "items": [{"name": "string", "quantity": "number", "price": "number", "tax_deductible": "boolean"}],
+          "items": [{"name": "string", "quantity": "number", "price": "number", "tax_deductible": "boolean", "deductibility_percentage": "number 0-100", "tax_law_reference": "string", "deduction_notes": "string"}],
           "total_amount": "number (never string)",
           "service_charge": "number",
           "vat_tax": "number", 
@@ -1932,17 +1957,44 @@ def process_receipt_with_gemini(image):
           "expense_minor_category": "Meals and Entertainment | Travel and Transportation | Professional Services | Office Supplies | Marketing and Advertising | Utilities | Rent and Facilities | Software and SaaS | Bank and Merchant Fees | Repairs and Maintenance | Training, Education and Development | Legal and Accounting | Telecommunications | Administrative and General"
         }
 
+        TAX DEDUCTIBILITY RULES (Sri Lankan Inland Revenue Act No. 24 of 2017):
+        
+        FULLY DEDUCTIBLE (100%):
+        - Operating expenses: salaries, rent, utilities, office supplies, maintenance (Section 25)
+        - Professional services: legal, accounting, consulting fees (Section 25)
+        - Marketing & advertising: ALL marketing costs even if capital in nature (Section 26A)
+        - Research & Development: business upgrading, innovation, product development (Section 26)
+        - Business travel: flights, hotels, transport for business purposes (Section 25)
+        - Software & SaaS: subscriptions, cloud services, business software (Section 25)
+        - Training: employee education, workshops, certifications (Section 25)
+        
+        PARTIALLY DEDUCTIBLE (50%):
+        - Meals & entertainment: limited unless directly client-related and documented
+        
+        NON-DEDUCTIBLE (0%):
+        - Penalties & fines: all violations and late fees (Section 25(2))
+        - Personal expenses: gym, beauty, personal clothing, entertainment
+        - Capital expenditure: equipment, vehicles, property (use depreciation instead)
+        - Provisions & reserves: only actual bad debts written off are deductible
+        - Donations: only to IRD-approved charities (max ⅓ income or Rs. 75,000)
+        
+        For each item, set:
+        - tax_deductible: true if deductibility_percentage > 0
+        - deductibility_percentage: 0, 50, or 100 based on rules above
+        - tax_law_reference: cite specific section (e.g., "Section 25 - IRA 2017")
+        - deduction_notes: brief explanation of classification
+
         CLASSIFICATION EXAMPLES (must follow exactly):
-        - Food/restaurants → "Operating Expenses" + "Meals and Entertainment"
-        - Travel/transport → "Operating Expenses" + "Travel and Transportation"  
-        - Software/subscriptions → "Operating Expenses" + "Software and SaaS"
-        - Professional services → "Operating Expenses" + "Professional Services"
-        - Office supplies → "Operating Expenses" + "Office Supplies"
-        - Training/courses/education → "Administrative Expenses" + "Training, Education and Development"
-        - Professional certifications → "Administrative Expenses" + "Training, Education and Development"
-        - Workshops/seminars → "Administrative Expenses" + "Training, Education and Development"
-        - Bank fees → "Finance Costs" + "Bank and Merchant Fees"
-        - Unknown/unclear → "Administrative Expenses" + "Administrative and General"
+        - Food/restaurants → "Operating Expenses" + "Meals and Entertainment" [50% deductible, entertainment restrictions]
+        - Travel/transport → "Operating Expenses" + "Travel and Transportation" [100% if business purpose]
+        - Software/subscriptions → "Operating Expenses" + "Software and SaaS" [100% deductible]
+        - Professional services → "Operating Expenses" + "Professional Services" [100% deductible]
+        - Office supplies → "Operating Expenses" + "Office Supplies" [100% deductible]
+        - Marketing/ads → "Operating Expenses" + "Marketing and Advertising" [100% even if capital, Section 26A]
+        - Training/courses → "Administrative Expenses" + "Training, Education and Development" [100% deductible]
+        - Bank fees → "Finance Costs" + "Bank and Merchant Fees" [100% deductible]
+        - Penalties/fines → Any category + relevant subcategory [0% non-deductible, Section 25(2)]
+        - Unknown/unclear → "Administrative Expenses" + "Administrative and General" [0% default until verified]
 
         Return ONLY the JSON object and nothing else.
         """
