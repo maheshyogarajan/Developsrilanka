@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+{% block head %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Develop Sri Lanka - Receipt Scanner Preview{% endblock %}</title>
+    
+    <!-- Bootstrap CSS basic -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <!-- Animate.css for animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    
+    <!-- Improved Toggle Styling -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/improved-toggles.css') }}">
+    
+    <!-- Additional page-specific styles -->
+    {% block additional_styles %}{% endblock %}
+    
+    <style>
+        body {
+            overflow-x: hidden;
+            color: #495057;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8f9fa;
+        }
+        
+        .navbar {
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: #6200EA;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin-top: 2rem;
+        }
+    </style>
+    
+    {% block styles %}{% endblock %}
+</head>
+{% endblock %}
+
+<body>
+    <!-- Simple Navigation for Preview -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="40" class="me-2">
+                <span>Develop Sri Lanka</span>
+            </a>
+            <div class="ms-auto">
+                <a href="{{ url_for('login') }}" class="btn btn-outline-primary me-2">Login</a>
+                <a href="{{ url_for('signup') }}" class="btn btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-auto py-3 bg-light text-center">
+        <div class="container">
+            <span class="text-muted">&copy; 2025 Develop Sri Lanka. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- CSRF Token Handler -->
+    <script src="{{ url_for('static', filename='js/fix-csrf.js') }}"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Console log wrapper with timestamps
+            const originalLog = console.log;
+            console.log = function() {
+                const timestamp = Date.now();
+                const args = Array.from(arguments);
+                originalLog.apply(console, [timestamp + " - ", args]);
+            };
+            
+            const originalError = console.error;
+            console.error = function() {
+                const timestamp = Date.now();
+                const args = Array.from(arguments);
+                originalError.apply(console, [timestamp + " - ", args]);
+            };
+            
+            console.log("DOMContentLoaded event fired");
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+    
+    <!-- NOTE: Organization context scripts are NOT included for preview page -->
+</body>
+</html>
