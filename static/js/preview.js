@@ -244,10 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Start compression after preview is shown
                 const compressionStart = Date.now();
-                const loadingText = document.querySelector('#loading p');
-                if (loadingText) {
-                    loadingText.innerHTML = 'Optimizing image for upload... <br>This will improve performance.';
-                }
+                updateProgressMessage('compressing');
                 
                 // Compress the image before sending it for processing
                 compressImage(file)
@@ -260,11 +257,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             console.log(`Original size: ${Math.round(file.size/1024)}KB, Compressed: ${Math.round(compressedFile.size/1024)}KB, Reduction: ${Math.round((1 - (compressedFile.size / file.size)) * 100)}%`);
                         } else {
                             console.log("Image didn't need compression");
-                        }
-                        
-                        // Update loading text for processing
-                        if (loadingText) {
-                            loadingText.innerHTML = 'Processing receipt... <br>This might take a moment.';
                         }
                         
                         // Proceed with the compressed file
@@ -328,11 +320,8 @@ document.addEventListener('DOMContentLoaded', function() {
             pageTitleElement.textContent = 'Processing Receipt';
         }
         
-        // Show a loading message
-        const loadingText = document.querySelector('#loading p');
-        if (loadingText) {
-            loadingText.innerHTML = 'Uploading receipt... <br>This might take a moment.';
-        }
+        // Show uploading message
+        updateProgressMessage('uploading');
         
         // Function to reset the processing state and UI
         function resetProcessingState() {
@@ -363,6 +352,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(response => {
+            // Update to processing stage now that upload is complete
+            updateProgressMessage('processing');
+            
             // Log the response status and headers for debugging
             console.log('Preview scan response status:', response.status);
             console.log('Preview scan response headers:', [...response.headers.entries()].reduce((obj, [key, value]) => {
@@ -398,12 +390,34 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         })
         .then(data => {
+            // Check for structured error response from backend
             if (data.error) {
-                throw new Error(data.error);
+                // If it's a structured error with title/message/suggestions
+                if (data.title || data.message || data.suggestions) {
+                    showRichError(data);
+                    
+                    // Hide loading indicator
+                    loadingElement.classList.add('d-none');
+                    
+                    // Reset processing flag
+                    window.processingReceipt = false;
+                    
+                    // Reset UI to initial state
+                    resetProcessingState();
+                    
+                    // Return early to prevent further processing
+                    return;
+                } else {
+                    // Legacy simple error string
+                    throw new Error(data.error);
+                }
             }
             
             // Synchronous processing completed
             console.log('Synchronous processing completed. Data:', data);
+            
+            // Update to finalizing stage
+            updateProgressMessage('finalizing');
             
             // Get receipt animation elements
             const receiptValueAnimation = document.getElementById('receipt-value-animation');
@@ -577,6 +591,104 @@ document.addEventListener('DOMContentLoaded', function() {
             errorMessageElement.classList.add('d-none');
             errorMessageElement.textContent = '';
         }
+    }
+
+    // Helper function to show rich structured error with title, message, suggestions, and retry countdown
+    function showRichError(errorData) {
+        if (!errorMessageElement) {
+            console.error('Error message element not found');
+            return;
+        }
+
+        // Create structured error HTML
+        let errorHTML = '<div class="structured-error">';
+        
+        // Error title
+        if (errorData.title) {
+            errorHTML += `<h5 class="mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>${errorData.title}</h5>`;
+        }
+        
+        // Error message
+        if (errorData.message) {
+            errorHTML += `<p class="mb-2">${errorData.message}</p>`;
+        }
+        
+        // Suggestions
+        if (errorData.suggestions && errorData.suggestions.length > 0) {
+            errorHTML += '<div class="mt-2 mb-2"><strong>Suggestions:</strong><ul class="mb-0 mt-1">';
+            errorData.suggestions.forEach(suggestion => {
+                errorHTML += `<li>${suggestion}</li>`;
+            });
+            errorHTML += '</ul></div>';
+        }
+        
+        // Retry countdown
+        if (errorData.retry_in && errorData.retry_in > 0) {
+            const retryMinutes = Math.ceil(errorData.retry_in / 60);
+            errorHTML += `<div class="mt-2 alert alert-info mb-0">
+                <i class="bi bi-clock-fill me-2"></i>
+                Please wait <strong id="retry-countdown">${retryMinutes}</strong> minute(s) before trying again.
+            </div>`;
+        }
+        
+        errorHTML += '</div>';
+        
+        // Set the HTML and show
+        errorMessageElement.innerHTML = errorHTML;
+        errorMessageElement.classList.remove('d-none');
+        
+        // Start countdown timer if needed
+        if (errorData.retry_in && errorData.retry_in > 0) {
+            startRetryCountdown(errorData.retry_in);
+        }
+    }
+
+    // Helper function to start retry countdown timer
+    function startRetryCountdown(seconds) {
+        const countdownElement = document.getElementById('retry-countdown');
+        if (!countdownElement) return;
+        
+        let remainingSeconds = seconds;
+        
+        const updateCountdown = () => {
+            const minutes = Math.ceil(remainingSeconds / 60);
+            countdownElement.textContent = minutes;
+            
+            if (remainingSeconds <= 0) {
+                clearInterval(countdownInterval);
+                // Optionally update the message to say retry is now available
+                const alertInfo = countdownElement.closest('.alert-info');
+                if (alertInfo) {
+                    alertInfo.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>You can try again now!';
+                    alertInfo.classList.remove('alert-info');
+                    alertInfo.classList.add('alert-success');
+                }
+            }
+        };
+        
+        const countdownInterval = setInterval(() => {
+            remainingSeconds -= 1;
+            updateCountdown();
+        }, 1000);
+        
+        updateCountdown();
+    }
+
+    // Helper function to update processing progress message
+    function updateProgressMessage(stage, details = '') {
+        const loadingText = document.querySelector('#loading p');
+        if (!loadingText) return;
+        
+        const messages = {
+            'compressing': 'Optimizing image for upload...<br><small class="text-muted">This will improve performance</small>',
+            'uploading': 'Uploading receipt image...<br><small class="text-muted">Please wait a moment</small>',
+            'processing': 'Analyzing receipt with AI...<br><small class="text-muted">Extracting vendor, items, and amounts</small>',
+            'fallback': 'Primary model busy, trying backup...<br><small class="text-muted">This may take a bit longer</small>',
+            'finalizing': 'Finalizing results...<br><small class="text-muted">Almost done!</small>'
+        };
+        
+        const message = messages[stage] || details;
+        loadingText.innerHTML = message;
     }
 
     // Helper function to show alert message
