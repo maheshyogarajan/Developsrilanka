@@ -70,13 +70,14 @@ class GeminiErrorLogger:
         return 'UNKNOWN'
     
     @staticmethod
-    def log_error(error: Exception, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def log_error(error: Exception, context: Optional[Dict[str, Any]] = None, store_in_session: bool = True) -> Dict[str, Any]:
         """
         Log Gemini API error with structured metadata.
         
         Args:
             error: The exception that occurred
             context: Additional context (user_id, organization_id, receipt_id, etc.)
+            store_in_session: If True, store error category in Flask session for API access
             
         Returns:
             Dictionary containing structured error information
@@ -84,6 +85,17 @@ class GeminiErrorLogger:
         error_str = str(error)
         error_type = type(error).__name__
         category = GeminiErrorLogger.categorize_error(error)
+        
+        # Store error category in session for API endpoints to access
+        # Only store category and timestamp, NOT the full error message (security)
+        if store_in_session:
+            try:
+                from flask import session
+                session['last_gemini_error'] = category
+                session['last_gemini_error_time'] = datetime.utcnow().isoformat()
+            except (RuntimeError, ImportError):
+                # Session not available (outside request context or Flask not imported)
+                pass
         
         # Build structured log entry
         log_entry = {

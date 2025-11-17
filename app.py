@@ -35,6 +35,9 @@ from gemini_error_handler import (
     generate_with_retry
 )
 
+# Import user-friendly error messages
+from error_ui_messages import format_error_response
+
 # Import Pydantic schemas for structured outputs
 from receipt_schema import Receipt, ReceiptItem
 
@@ -654,9 +657,15 @@ def preview_scan_receipt():
         extracted_data = process_receipt_with_gemini(img)
         
         if not extracted_data:
-            response = jsonify({'error': 'Failed to extract data from the receipt'})
+            # Get error category from session (stored by GeminiErrorLogger)
+            error_category = session.get('last_gemini_error', 'UNKNOWN')
+            
+            # Format user-friendly error response
+            error_response = format_error_response(error_category, include_technical_details=False)
+            
+            response = jsonify(error_response)
             response.headers.set('Content-Type', 'application/json')
-            return response, 500
+            return response, 422
             
         # For preview, save the image locally
         # Generate a unique filename
@@ -797,6 +806,16 @@ def scan_receipt():
                     logging.warning("No active Celery workers found. Starting background worker...")
                     # For this case, we'll process synchronously as fallback
                     extracted_data = process_receipt_with_gemini(img)
+                    
+                    if not extracted_data:
+                        # Get error category from session (stored by GeminiErrorLogger)
+                        error_category = session.get('last_gemini_error', 'UNKNOWN')
+                        
+                        # Format user-friendly error response
+                        error_response = format_error_response(error_category, include_technical_details=False)
+                        
+                        return jsonify(error_response), 422
+                    
                     session['receipt_data'] = extracted_data
                     return jsonify({'success': True, 'data': extracted_data})
             except Exception as worker_check_error:
@@ -880,7 +899,13 @@ def scan_receipt():
             extracted_data = process_receipt_with_gemini(img)
             
             if not extracted_data:
-                return jsonify({'error': 'Failed to extract data from the receipt'}), 500
+                # Get error category from session (stored by GeminiErrorLogger)
+                error_category = session.get('last_gemini_error', 'UNKNOWN')
+                
+                # Format user-friendly error response
+                error_response = format_error_response(error_category, include_technical_details=False)
+                
+                return jsonify(error_response), 422
                 
             # Now add the image paths to extracted data
             extracted_data['image_path'] = image_path_value if image_path_value else ''
@@ -2064,6 +2089,11 @@ def process_receipt_with_gemini(image):
                         raise
             
             if response is None:
+                # All models failed - ensure error category is set before raising
+                # If generate_with_retry already set a category, keep it; otherwise default to MODEL_OVERLOAD
+                if 'last_gemini_error' not in session:
+                    session['last_gemini_error'] = 'MODEL_OVERLOAD'
+                    session['last_gemini_error_time'] = datetime.utcnow().isoformat()
                 raise Exception("All Gemini models failed or returned None")
             
             logging.info(f"Received response from Gemini API ({model_name})")
@@ -2095,6 +2125,9 @@ def process_receipt_with_gemini(image):
         if not hasattr(response, 'candidates') or not response.candidates:
             logging.error(f"Response has no candidates. Type: {type(response)}")
             logging.error(f"Response attributes: {dir(response)}")
+            # Store error category for API endpoints
+            session['last_gemini_error'] = 'INVALID_REQUEST'
+            session['last_gemini_error_time'] = datetime.utcnow().isoformat()
             return None
         
         # Access the first candidate
@@ -2155,11 +2188,17 @@ def process_receipt_with_gemini(image):
         if not structured_data:
             logging.error("Failed to extract structured data from response - all methods failed")
             logging.error(f"Response has text: {hasattr(response, 'text') and bool(response.text)}")
+            # Store error category for API endpoints
+            session['last_gemini_error'] = 'INVALID_REQUEST'
+            session['last_gemini_error_time'] = datetime.utcnow().isoformat()
             return None
         
         # Validate it's a dict
         if not isinstance(structured_data, dict):
             logging.error(f"Structured data is not a dict: {type(structured_data)}")
+            # Store error category for API endpoints
+            session['last_gemini_error'] = 'INVALID_REQUEST'
+            session['last_gemini_error_time'] = datetime.utcnow().isoformat()
             return None
         
         logging.info(f"Successfully extracted structured output:")
@@ -2180,6 +2219,9 @@ def process_receipt_with_gemini(image):
     
     except Exception as e:
         logging.error(f"Error in Gemini Vision processing: {str(e)}")
+        # Store error category for API endpoints (this catches non-API errors)
+        session['last_gemini_error'] = 'UNKNOWN'
+        session['last_gemini_error_time'] = datetime.utcnow().isoformat()
         return None
 
 # Authentication Routes
