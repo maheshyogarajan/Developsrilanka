@@ -28,6 +28,13 @@ load_dotenv()
 from celery import Celery
 from celery.result import AsyncResult
 
+# Import Gemini error handling utilities
+from gemini_error_handler import (
+    GeminiErrorLogger,
+    gemini_circuit_breaker,
+    generate_with_retry
+)
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -1896,33 +1903,48 @@ def export_excel():
 
 def process_receipt_with_gemini(image):
     """
-    Process the receipt image using Gemini Vision API.
+    Process the receipt image using Gemini Vision API with timeout and retry logic.
     
     Args:
         image: PIL Image object of the receipt
     
     Returns:
-        Dictionary containing extracted receipt data
+        Dictionary containing extracted receipt data, or None on failure
     """
     try:
         logging.debug("Starting receipt image processing with Gemini Vision")
         
-        # Configure Gemini model - using the latest compatible version
-        try:
-            # Try the newer model first (gemini-2.0-flash)
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            logging.info("Using gemini-2.0-flash model for vision processing")
-        except Exception as model_error:
-            logging.warning(f"Could not use gemini-2.0-flash: {str(model_error)}")
+        # Configure request options with a simple timeout (no built-in retry)
+        # Our custom retry logic handles retries, so we don't want Google's retry compounding
+        from google.generativeai.types import RequestOptions
+        
+        # Single request timeout: 60s per attempt
+        # Global timeout will be enforced by generate_with_retry
+        request_options = RequestOptions(
+            timeout=60.0  # 60 seconds per individual request
+        )
+        
+        # Configure Gemini model - using the correct fallback chain
+        # Primary: gemini-2.5-flash (most capable)
+        # Fallback 1: gemini-2.0-flash (faster, good performance)
+        # Fallback 2: gemini-2.0-flash-lite (most cost-efficient)
+        model = None
+        model_name = None
+        
+        for attempt_model in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']:
             try:
-                # Fall back to gemini-2.5-flash which is also vision-capable
-                model = genai.GenerativeModel('gemini-2.5-flash')
-                logging.info("Using gemini-2.5-flash model as fallback for vision processing")
-            except Exception as fallback_error:
-                logging.error(f"Could not use gemini-2.5-flash either: {str(fallback_error)}")
-                # Last resort: try older vision model
-                model = genai.GenerativeModel('gemini-1.5-pro')
-                logging.info("Using gemini-1.5-pro model as final fallback")
+                model = genai.GenerativeModel(attempt_model)
+                model_name = attempt_model
+                logging.info(f"Using {attempt_model} model for vision processing")
+                break
+            except Exception as model_error:
+                logging.warning(f"Could not initialize {attempt_model}: {str(model_error)}")
+                continue
+        
+        if not model:
+            error_msg = "Failed to initialize any Gemini model"
+            logging.error(error_msg)
+            raise Exception(error_msg)
         
         # Create the enhanced prompt for receipt data extraction with multilingual and bank transfer support
         prompt = """
@@ -1999,15 +2021,74 @@ def process_receipt_with_gemini(image):
         Return ONLY the JSON object and nothing else.
         """
         
-        # Send the request to Gemini API with PIL Image directly
-        logging.info("Sending request to Gemini API with image")
+        # Send the request to Gemini API with circuit breaker and retry logic
+        logging.info(f"Sending request to Gemini API ({model_name}) with image")
+        
         try:
-            # Modern Gemini SDK accepts PIL Image directly
-            response = model.generate_content([prompt, image])
-            logging.info("Received response from Gemini API")
+            # Wrap the API call with circuit breaker and retry logic
+            # Global timeout: 180s (3 minutes) total budget for all retries
+            def make_gemini_call():
+                return generate_with_retry(
+                    model=model,
+                    prompt=prompt,
+                    image=image,
+                    max_retries=5,
+                    initial_delay=1.0,
+                    request_options=request_options,
+                    global_timeout=180.0  # 3 minutes max for receipt processing
+                )
+            
+            # Execute with circuit breaker protection
+            response = gemini_circuit_breaker.call(make_gemini_call)
+            
+            # Check if we got a signal to try fallback model (None response from 503)
+            if response is None and model_name != 'gemini-2.0-flash-lite':
+                logging.warning(f"{model_name} overloaded, trying fallback model")
+                # Try next model in fallback chain
+                fallback_models = {
+                    'gemini-2.5-flash': 'gemini-2.0-flash',
+                    'gemini-2.0-flash': 'gemini-2.0-flash-lite'
+                }
+                if model_name in fallback_models:
+                    try:
+                        fallback_name = fallback_models[model_name]
+                        model = genai.GenerativeModel(fallback_name)
+                        model_name = fallback_name
+                        logging.info(f"Retrying with fallback model: {fallback_name}")
+                        response = generate_with_retry(
+                            model,
+                            prompt,
+                            image,
+                            max_retries=3,
+                            request_options=request_options,
+                            global_timeout=90.0  # 90s for fallback model
+                        )
+                    except Exception as fallback_error:
+                        logging.error(f"Fallback model failed: {str(fallback_error)}")
+                        raise
+            
+            if response is None:
+                raise Exception("All Gemini models failed or returned None")
+            
+            logging.info(f"Received response from Gemini API ({model_name})")
+            
         except Exception as api_error:
-            logging.error(f"Gemini API call failed: {str(api_error)}")
-            logging.error(f"Error type: {type(api_error).__name__}")
+            # Use structured error logging
+            error_log = GeminiErrorLogger.log_error(
+                error=api_error,
+                context={
+                    'function': 'process_receipt_with_gemini',
+                    'model': model_name,
+                    'image_size': image.size if hasattr(image, 'size') else None,
+                    'user_id': current_user.id if current_user and hasattr(current_user, 'id') else None
+                }
+            )
+            
+            # Get user-friendly error message
+            error_category = error_log.get('error_category', 'UNKNOWN')
+            user_message = GeminiErrorLogger.get_user_friendly_message(error_category)
+            
+            logging.error(f"Gemini API call failed with category {error_category}: {user_message}")
             raise
         
         # Parse the response to extract JSON

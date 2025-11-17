@@ -201,10 +201,21 @@ def save_uploaded_image(image_data, filename, organization_id=None):
         raise
 
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
+@celery_app.task(
+    bind=True,
+    max_retries=2,  # Reduced since Gemini API has its own retry logic
+    autoretry_for=(Exception,),
+    retry_backoff=True,  # Enable exponential backoff
+    retry_backoff_max=600,  # Max 10 minutes between retries
+    retry_jitter=True  # Add random jitter to prevent thundering herd
+)
 def process_receipt_image(self, image_data_b64, original_filename, gemini_processor_fn, organization_id=None):
     """
     Process a receipt image with Gemini Vision API.
+    
+    This task uses exponential backoff retry strategy for infrastructure failures.
+    Gemini API-specific errors are handled by the generate_with_retry function
+    inside process_receipt_with_gemini.
     
     Args:
         image_data_b64: Base64 encoded image data
@@ -315,17 +326,25 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         logger.error(f"Error processing receipt image: {str(e)}")
         logger.error(traceback.format_exc())
         
-        # Retry the task
+        # Log retry info (autoretry_for handles the actual retry)
         retry_count = self.request.retries
-        logger.info(f"Retrying task, attempt {retry_count + 1} of {self.max_retries + 1}")
+        logger.info(f"Task failed on attempt {retry_count + 1}. Autoretry will handle retry if applicable.")
         
-        raise self.retry(exc=e)
+        # Re-raise to trigger Celery's autoretry mechanism
+        raise
 
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
+@celery_app.task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,  # Enable exponential backoff
+    retry_backoff_max=300,  # Max 5 minutes between retries
+    retry_jitter=True  # Add random jitter
+)
 def save_receipt_to_database(self, receipt_data):
     """
-    Save the receipt data to the database.
+    Save the receipt data to the database with exponential backoff retry.
     
     Args:
         receipt_data: Dictionary containing receipt information
@@ -429,11 +448,12 @@ def save_receipt_to_database(self, receipt_data):
         except:
             logger.warning("Could not rollback database session")
         
-        # Retry the task
+        # Log retry info (autoretry_for handles the actual retry)
         retry_count = self.request.retries
-        logger.info(f"Retrying task, attempt {retry_count + 1} of {self.max_retries + 1}")
+        logger.info(f"Database save failed on attempt {retry_count + 1}. Autoretry will handle retry if applicable.")
         
-        raise self.retry(exc=e)
+        # Re-raise to trigger Celery's autoretry mechanism
+        raise
 
 
 @celery_app.task
