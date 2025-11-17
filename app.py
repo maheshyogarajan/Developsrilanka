@@ -35,6 +35,9 @@ from gemini_error_handler import (
     generate_with_retry
 )
 
+# Import Pydantic schemas for structured outputs
+from receipt_schema import Receipt, ReceiptItem
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -1924,18 +1927,27 @@ def process_receipt_with_gemini(image):
             timeout=60.0  # 60 seconds per individual request
         )
         
-        # Configure Gemini model - using the correct fallback chain
+        # Configure Gemini model with structured outputs
         # Primary: gemini-2.5-flash (most capable)
         # Fallback 1: gemini-2.0-flash (faster, good performance)
         # Fallback 2: gemini-2.0-flash-lite (most cost-efficient)
         model = None
         model_name = None
         
+        # Configure structured output using Pydantic schema
+        generation_config = {
+            "response_mime_type": "application/json",
+            "response_schema": Receipt
+        }
+        
         for attempt_model in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']:
             try:
-                model = genai.GenerativeModel(attempt_model)
+                model = genai.GenerativeModel(
+                    attempt_model,
+                    generation_config=generation_config
+                )
                 model_name = attempt_model
-                logging.info(f"Using {attempt_model} model for vision processing")
+                logging.info(f"Using {attempt_model} model with structured outputs")
                 break
             except Exception as model_error:
                 logging.warning(f"Could not initialize {attempt_model}: {str(model_error)}")
@@ -1947,37 +1959,17 @@ def process_receipt_with_gemini(image):
             raise Exception(error_msg)
         
         # Create the enhanced prompt for receipt data extraction with multilingual and bank transfer support
+        # Note: Structured outputs are configured via generation_config, so we focus on extraction rules
         prompt = """
-        You are DocParse Pro, a multimodal extraction agent trained on IFRS and global tax rules. 
-        Always follow the "RESPONSE_SCHEMA" exactly—no extra keys, no omissions.
-        Extract information from documents in any language including English, Sinhala (සිංහල), Tamil (தமிழ்), Hindi, and other scripts.
+        You are DocParse Pro, a multimodal extraction agent trained on IFRS and global tax rules.
+        Extract receipt information from the attached image.
 
-        [IMAGE of one receipt OR bank-transfer screenshot is attached]
-
-        TASK:
-         1. Detect document type internally (receipt vs bank transfer).
-         2. For bank transfers: Use Beneficiary/Recipient/Payee name as vendor_name. Create single item with transfer purpose as name.
-         3. For multilingual content: Convert all text to English/Latin script in response. Convert dates to ISO format regardless of original language.
-         4. For numbers: Always return as numeric values, handle any number format (1,234.56 or 1.234,56 or ១២៣៤.៥៦).
-         5. Populate every field in RESPONSE_SCHEMA. Use "" for missing text and 0 for missing numbers.
-         6. Classification must match existing system categories exactly.
-         7. Return exactly one JSON object—no commentary, no explanations.
-
-        RESPONSE_SCHEMA (exact match to Receipt model):
-        {
-          "vendor_name": "string (converted to English if needed)",
-          "vendor_address": "string (converted to English if needed)", 
-          "vendor_contact": "string",
-          "date": "YYYY-MM-DD (always ISO format)",
-          "items": [{"name": "string", "quantity": "number", "price": "number", "tax_deductible": "boolean", "deductibility_percentage": "number 0-100", "tax_law_reference": "string", "deduction_notes": "string"}],
-          "total_amount": "number (never string)",
-          "service_charge": "number",
-          "vat_tax": "number", 
-          "sscl_tax": "number",
-          "vat_registration_number": "string",
-          "expense_major_category": "Operating Expenses | Administrative Expenses | Cost of Goods Sold | Employee Benefits | Finance Costs",
-          "expense_minor_category": "Meals and Entertainment | Travel and Transportation | Professional Services | Office Supplies | Marketing and Advertising | Utilities | Rent and Facilities | Software and SaaS | Bank and Merchant Fees | Repairs and Maintenance | Training, Education and Development | Legal and Accounting | Telecommunications | Administrative and General"
-        }
+        DOCUMENT HANDLING:
+        1. Detect document type: receipt vs bank transfer
+        2. Bank transfers: Use Beneficiary/Recipient/Payee as vendor_name, create single item with transfer purpose
+        3. Multilingual: Convert all text to English/Latin script, dates to YYYY-MM-DD format
+        4. Numbers: Parse any format (1,234.56 or 1.234,56) as numeric values
+        5. Missing data: Use "" for text fields, 0 for numeric fields, empty list for items
 
         TAX DEDUCTIBILITY RULES (Sri Lankan Inland Revenue Act No. 24 of 2017):
         
@@ -2006,19 +1998,19 @@ def process_receipt_with_gemini(image):
         - tax_law_reference: cite specific section (e.g., "Section 25 - IRA 2017")
         - deduction_notes: brief explanation of classification
 
-        CLASSIFICATION EXAMPLES (must follow exactly):
-        - Food/restaurants → "Operating Expenses" + "Meals and Entertainment" [50% deductible, entertainment restrictions]
-        - Travel/transport → "Operating Expenses" + "Travel and Transportation" [100% if business purpose]
-        - Software/subscriptions → "Operating Expenses" + "Software and SaaS" [100% deductible]
-        - Professional services → "Operating Expenses" + "Professional Services" [100% deductible]
-        - Office supplies → "Operating Expenses" + "Office Supplies" [100% deductible]
-        - Marketing/ads → "Operating Expenses" + "Marketing and Advertising" [100% even if capital, Section 26A]
-        - Training/courses → "Administrative Expenses" + "Training, Education and Development" [100% deductible]
-        - Bank fees → "Finance Costs" + "Bank and Merchant Fees" [100% deductible]
-        - Penalties/fines → Any category + relevant subcategory [0% non-deductible, Section 25(2)]
-        - Unknown/unclear → "Administrative Expenses" + "Administrative and General" [0% default until verified]
+        CLASSIFICATION EXAMPLES:
+        - Food/restaurants → Operating Expenses + Meals and Entertainment [50% deductible]
+        - Travel/transport → Operating Expenses + Travel and Transportation [100% if business]
+        - Software/subscriptions → Operating Expenses + Software and SaaS [100%]
+        - Professional services → Operating Expenses + Professional Services [100%]
+        - Office supplies → Operating Expenses + Office Supplies [100%]
+        - Marketing/ads → Operating Expenses + Marketing and Advertising [100%, Section 26A]
+        - Training/courses → Administrative Expenses + Training, Education and Development [100%]
+        - Bank fees → Finance Costs + Bank and Merchant Fees [100%]
+        - Penalties/fines → Any category [0%, Section 25(2)]
+        - Unknown/unclear → Administrative Expenses + Administrative and General [0% default]
 
-        Return ONLY the JSON object and nothing else.
+        Extract all visible information accurately and classify according to these rules.
         """
         
         # Send the request to Gemini API with circuit breaker and retry logic
@@ -2052,7 +2044,11 @@ def process_receipt_with_gemini(image):
                 if model_name in fallback_models:
                     try:
                         fallback_name = fallback_models[model_name]
-                        model = genai.GenerativeModel(fallback_name)
+                        # Recreate model with structured output configuration
+                        model = genai.GenerativeModel(
+                            fallback_name,
+                            generation_config=generation_config
+                        )
                         model_name = fallback_name
                         logging.info(f"Retrying with fallback model: {fallback_name}")
                         response = generate_with_retry(
@@ -2091,64 +2087,96 @@ def process_receipt_with_gemini(image):
             logging.error(f"Gemini API call failed with category {error_category}: {user_message}")
             raise
         
-        # Parse the response to extract JSON
-        response_text = response.text
-        logging.debug(f"Raw response text: {response_text[:200]}...")  # Log first 200 chars of response
+        # Extract structured output from response
+        # With response_mime_type='application/json', the SDK returns JSON in response.text
+        structured_data = None
         
-        # Initialize json_text
-        json_text = ""
+        # Check response structure
+        if not hasattr(response, 'candidates') or not response.candidates:
+            logging.error(f"Response has no candidates. Type: {type(response)}")
+            logging.error(f"Response attributes: {dir(response)}")
+            return None
         
-        # If the response contains markdown code blocks, extract just the JSON part
+        # Access the first candidate
+        candidate = response.candidates[0]
+        
+        # Try response.text first (most common for structured outputs)
+        if hasattr(response, 'text') and response.text:
+            try:
+                structured_data = json.loads(response.text)
+                logging.info("Extracted structured data from response.text")
+            except (json.JSONDecodeError, ValueError) as e:
+                logging.warning(f"Failed to parse response.text: {e}")
+                logging.debug(f"Response.text content: {response.text[:500]}")
+        
+        # Fallback: Try parts if response.text didn't work
+        if not structured_data and hasattr(candidate, 'content') and hasattr(candidate.content, 'parts') and candidate.content.parts:
+            part = candidate.content.parts[0]
+            logging.debug(f"Part type: {type(part)}, has data: {hasattr(part, 'data')}, has text: {hasattr(part, 'text')}")
+            
+            # Try part.text
+            if hasattr(part, 'text') and part.text:
+                try:
+                    structured_data = json.loads(part.text)
+                    logging.info("Extracted structured data from part.text")
+                except (json.JSONDecodeError, ValueError) as e:
+                    logging.warning(f"Failed to parse part.text: {e}")
+            
+            # Try part.data (blob)
+            if not structured_data and hasattr(part, 'data') and part.data:
+                try:
+                    blob_data = part.data
+                    
+                    # Handle different blob data types
+                    if isinstance(blob_data, str):
+                        # Try as base64
+                        try:
+                            import base64
+                            decoded_bytes = base64.b64decode(blob_data)
+                            structured_data = json.loads(decoded_bytes.decode('utf-8'))
+                            logging.info("Extracted structured data from part.data (base64)")
+                        except:
+                            # Try as direct JSON string
+                            structured_data = json.loads(blob_data)
+                            logging.info("Extracted structured data from part.data (string)")
+                    
+                    elif isinstance(blob_data, bytes):
+                        structured_data = json.loads(blob_data.decode('utf-8'))
+                        logging.info("Extracted structured data from part.data (bytes)")
+                    
+                    elif isinstance(blob_data, dict):
+                        structured_data = blob_data
+                        logging.info("Extracted structured data from part.data (dict)")
+                        
+                except Exception as e:
+                    logging.error(f"Failed to decode part.data: {e}")
+        
+        # If extraction failed, return None
+        if not structured_data:
+            logging.error("Failed to extract structured data from response - all methods failed")
+            logging.error(f"Response has text: {hasattr(response, 'text') and bool(response.text)}")
+            return None
+        
+        # Validate it's a dict
+        if not isinstance(structured_data, dict):
+            logging.error(f"Structured data is not a dict: {type(structured_data)}")
+            return None
+        
+        logging.info(f"Successfully extracted structured output:")
+        logging.info(f"  - Vendor: {structured_data.get('vendor_name', 'N/A')}")
+        logging.info(f"  - Items: {len(structured_data.get('items', []))}")
+        logging.info(f"  - Total: {structured_data.get('total_amount', 0)}")
+        
+        # Validate against Pydantic schema
         try:
-            if "```json" in response_text:
-                json_text = response_text.split("```json")[1].split("```")[0].strip()
-                logging.debug("Extracted JSON from ```json code block")
-            elif "```" in response_text:
-                json_text = response_text.split("```")[1].strip()
-                logging.debug("Extracted JSON from generic code block")
-            else:
-                json_text = response_text.strip()
-                logging.debug("Using raw response as JSON")
-            
-            # Check if the response starts with a curly brace (JSON object)
-            if not json_text.startswith('{'):
-                # Try to find a JSON object in the text
-                import re
-                json_match = re.search(r'(\{.*\})', json_text, re.DOTALL)
-                if json_match:
-                    json_text = json_match.group(1)
-                    logging.debug("Extracted JSON using regex")
-                else:
-                    raise ValueError("Could not find valid JSON object in response")
-            
-            if not json_text:
-                raise ValueError("Empty JSON response")
-                
-            logging.debug(f"JSON text to parse: {json_text[:200]}...")
-            
-            # Parse the JSON response
-            extracted_data = json.loads(json_text)
-            logging.debug(f"Successfully parsed JSON with keys: {list(extracted_data.keys())}")
-        except (json.JSONDecodeError, ValueError) as err:
-            logging.error(f"JSON parsing error: {str(err)}")
-            if json_text:
-                logging.error(f"Failed JSON content: {json_text}")
-            # Create a basic empty structure as fallback
-            extracted_data = {field: "" if field not in ['items', 'total_amount', 'service_charge', 'sscl_tax', 'vat_tax'] 
-                             else [] if field == 'items' else 0 
-                             for field in RECEIPT_FIELDS}
-        
-        # Ensure all required fields are present
-        for field in RECEIPT_FIELDS:
-            if field not in extracted_data:
-                if field == 'items':
-                    extracted_data[field] = []
-                elif field in ['total_amount', 'service_charge', 'sscl_tax', 'vat_tax']:
-                    extracted_data[field] = 0
-                else:
-                    extracted_data[field] = ""
-        
-        return extracted_data
+            receipt_obj = Receipt.model_validate(structured_data)
+            extracted_data = receipt_obj.model_dump()
+            logging.info("✓ Pydantic validation successful - structured outputs working correctly")
+            return extracted_data
+        except Exception as validation_error:
+            logging.error(f"Pydantic validation failed: {str(validation_error)}")
+            logging.warning("Returning raw structured data without Pydantic validation")
+            return structured_data
     
     except Exception as e:
         logging.error(f"Error in Gemini Vision processing: {str(e)}")
