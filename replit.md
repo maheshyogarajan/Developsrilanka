@@ -173,6 +173,39 @@ Preferred communication style: Simple, everyday language.
 
 **Metadata**: Stores changed fields, confidence scores, IP addresses, and risk levels
 
+### Unified Admin Dashboard (January 2026)
+
+**Problem**: Duplicate admin panels (/admin and /admin/v2) with mock/random data, no real-time insights
+
+**Solution**: Consolidated admin panel at /admin with real analytics from database
+
+**Implementation**:
+- Merged best features from both versions into single `admin_routes.py`
+- Created `admin_analytics.py` for real data queries (users, receipts, engagement metrics)
+- Added `activity_logger.py` service for tracking user actions in real-time
+- Built engagement funnel: registered → first scan → active (30d) → converted to paid
+- Integrated Gemini API performance tracking (success rates, error categories, model usage)
+
+**Activity Logging**:
+- Tracks login, registration, receipt scans, and admin actions
+- Stores IP address and user agent for security auditing
+- Uses existing AuditLog table with entity_type categorization
+- Wrapped in try/except to never break main user flows
+
+**Key Files**:
+- `admin_routes.py`: Unified admin routes with real-time data
+- `admin_analytics.py`: Database queries for platform metrics
+- `activity_logger.py`: Service for logging user activities
+- `templates/admin/`: Consolidated admin templates (dashboard, users, statistics, etc.)
+
+**Routes**:
+- `/admin` or `/admin/dashboard`: Main dashboard with platform stats
+- `/admin/users`: User management and listing
+- `/admin/receipts`: Receipt management
+- `/admin/statistics`: Gemini API stats and engagement funnel
+- `/admin/activity`: Activity logs and audit trail
+- `/admin/v2/*`: Redirects to /admin (backward compatibility)
+
 ## External Dependencies
 
 ### Third-Party APIs
