@@ -206,6 +206,40 @@ Preferred communication style: Simple, everyday language.
 - `/admin/activity`: Activity logs and audit trail
 - `/admin/v2/*`: Redirects to /admin (backward compatibility)
 
+### Anti-Bot & Email Verification Security (January 2026)
+
+**Problem**: 498 unverified accounts with zero activity detected - likely bot-created fake accounts
+
+**Solution**: Multi-layered security approach with email verification enforcement and rate limiting
+
+**Implementation**:
+
+**Email Verification Enforcement**:
+- Login gate: Unverified users redirected to `/verify-email-reminder` page instead of dashboard
+- Registration redirect: New users sent to verification reminder instead of feature pages
+- User fields: `is_email_verified`, `email_verification_token`, `email_verification_salt`, `email_verification_sent_at`
+- Admins bypass verification check to maintain access
+
+**Registration Rate Limiting**:
+- Model: `RegistrationRateLimit` with PostgreSQL atomic upserts (`INSERT...ON CONFLICT`)
+- Limit: 3 registration attempts per IP address per hour
+- Timing: Attempts recorded BEFORE business logic (prevents bots from cycling emails)
+- Thread-safe: Uses database-level atomicity, no application-level race conditions
+
+**Admin Fake Account Tools**:
+- Verification filter: Show only verified or unverified users
+- Activity filter: Show only active (has receipts) or inactive users
+- Bulk cleanup: Delete unverified inactive accounts older than configurable threshold
+- Manual verification: Admin can verify user emails directly
+- Metrics: Dashboard cards for verified/unverified/likely fake counts
+
+**Key Files**:
+- `app.py`: Login gate, registration rate limiting
+- `models.py`: `RegistrationRateLimit` model with `check_rate_limit()` and `record_attempt()`
+- `admin_routes.py`: User filtering, bulk delete, manual verification endpoints
+- `templates/admin/users.html`: Verification stats, filter dropdowns, bulk delete modal
+- `templates/verify_email_reminder.html`: Verification reminder page with resend option
+
 ## External Dependencies
 
 ### Third-Party APIs
