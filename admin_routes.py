@@ -485,8 +485,13 @@ def admin_statistics():
             'avg_receipts_per_user': round(receipt_count / max(user_count, 1), 1),
             'avg_tax_savings': round(tax_savings_stats['total_savings'] / max(user_count, 1), 2),
             'scan_success_rate': gemini_stats.get('success_rate', 100),
-            'returning_users': round(user_stats['active_users'] / max(user_count, 1) * 100, 1) if user_count else 0
+            'returning_users': round(user_stats['active_users'] / max(user_count, 1) * 100, 1) if user_count else 0,
+            'avg_session_duration': activity_stats.get('avg_session_duration', 5.0)
         }
+        
+        savings_dates = receipt_dates
+        savings_amounts = [round(v * tax_savings_stats.get('avg_savings_percentage', 15) / 100, 2) 
+                          for v in receipt_counts]
         
         return render_template(
             'admin/statistics.html',
@@ -495,6 +500,8 @@ def admin_statistics():
             registration_counts=registration_counts,
             receipt_dates=receipt_dates,
             receipt_counts=receipt_counts,
+            savings_dates=savings_dates,
+            savings_amounts=savings_amounts,
             category_labels=category_labels,
             category_values=category_values,
             engagement_metrics=engagement_metrics,
@@ -518,8 +525,14 @@ def admin_settings():
     try:
         system_stats = admin_analytics.get_system_statistics()
         
-        db_stats = system_stats['table_counts']
-        db_stats['estimated_size_kb'] = system_stats['estimated_db_size_kb']
+        table_counts = system_stats['table_counts']
+        db_stats = {
+            'user_count': table_counts.get('users', 0),
+            'receipt_count': table_counts.get('receipts', 0),
+            'receipt_item_count': table_counts.get('receipt_items', 0),
+            'income_record_count': table_counts.get('income_records', 0),
+            'estimated_size_kb': system_stats['estimated_db_size_kb']
+        }
         
         cache_stats = {
             'entries': system_stats['cache_entries'],
@@ -668,6 +681,9 @@ def admin_logs():
                     AuditLog.action.ilike('%error%'),
                     AuditLog.action.ilike('%failed%')
                 )
+            ).count(),
+            'warning_count': AuditLog.query.filter(
+                AuditLog.action.ilike('%warning%')
             ).count(),
             'types': {}
         }

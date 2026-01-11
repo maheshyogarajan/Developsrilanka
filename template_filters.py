@@ -175,6 +175,10 @@ def add_template_globals(app):
     
     # Register the global functions
     app.jinja_env.globals['now'] = now
+    app.jinja_env.globals['zip'] = zip
+    app.jinja_env.globals['abs'] = abs
+    app.jinja_env.globals['min'] = min
+    app.jinja_env.globals['max'] = max
     
     return now
 
