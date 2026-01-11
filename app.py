@@ -323,9 +323,9 @@ def index():
     
     # Check if user has any organizations
     if not current_user.organizations:
-        # Redirect to getting started if no organizations exist
-        flash("Please set up an organization before scanning receipts.", "warning")
-        return redirect(url_for('getting_started.wizard'))
+        # Redirect to onboarding wizard if no organizations exist
+        flash("Please complete your account setup before scanning receipts.", "warning")
+        return redirect(url_for('onboarding_wizard'))
     
     return render_template('index.html')
 
@@ -2650,6 +2650,7 @@ def email_login():
                 try:
                     from email_verification import send_verification_email
                     send_verification_email(new_user)
+                    db.session.commit()  # Save the verification token to database
                     logging.info(f"Verification email sent to {email}")
                 except Exception as email_error:
                     logging.error(f"Failed to send verification email to {email}: {str(email_error)}")

@@ -40,8 +40,8 @@ def dashboard():
         default_org = get_default_organization()
         
         if not organizations:
-            flash('Please set up an organization before accessing accounting features.', 'warning')
-            return redirect(url_for('getting_started.wizard'))
+            flash('Please complete your account setup before accessing accounting features.', 'warning')
+            return redirect(url_for('onboarding_wizard'))
         
         # Get quick stats for default organization
         stats = {}
