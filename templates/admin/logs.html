@@ -98,7 +98,7 @@
         <div class="admin-card-body">
             <div class="row align-items-center">
                 <div class="col-md-6">
-                    <form action="{{ url_for('admin_panel_clear_logs') }}" method="post" onsubmit="return confirm('Are you sure you want to clear these logs? This action cannot be undone.');">
+                    <form action="{{ url_for('admin_clear_logs') }}" method="post" onsubmit="return confirm('Are you sure you want to clear these logs? This action cannot be undone.');">
                         <div class="input-group">
                             <select class="form-select" name="log_type">
                                 <option value="all">All Logs</option>

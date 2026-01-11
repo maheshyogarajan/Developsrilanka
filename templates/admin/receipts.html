@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Receipt Management</h1>
         <div>
-            <form class="d-inline-block" method="GET" action="{{ url_for('admin_panel_receipts') }}">
+            <form class="d-inline-block" method="GET" action="{{ url_for('admin_receipts') }}">
                 <div class="input-group input-group-sm">
                     <input type="text" class="form-control" placeholder="Search receipts..." name="search" value="{{ search_term }}">
                     <button class="btn btn-outline-secondary" type="submit">
@@ -233,7 +233,7 @@
                 <nav aria-label="Receipt pagination">
                     <ul class="pagination">
                         <li class="page-item {{ 'disabled' if receipts.page == 1 else '' }}">
-                            <a class="page-link" href="{{ url_for('admin_panel_receipts', page=receipts.prev_num, search=search_term) if receipts.has_prev else '#' }}" aria-label="Previous">
+                            <a class="page-link" href="{{ url_for('admin_receipts', page=receipts.prev_num, search=search_term) if receipts.has_prev else '#' }}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -242,14 +242,14 @@
                             {% if page_num == receipts.page %}
                             <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>
                             {% elif page_num <= 2 or page_num >= receipts.pages - 1 or abs(page_num - receipts.page) <= 1 %}
-                            <li class="page-item"><a class="page-link" href="{{ url_for('admin_panel_receipts', page=page_num, search=search_term) }}">{{ page_num }}</a></li>
+                            <li class="page-item"><a class="page-link" href="{{ url_for('admin_receipts', page=page_num, search=search_term) }}">{{ page_num }}</a></li>
                             {% elif abs(page_num - receipts.page) == 2 %}
                             <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
                             {% endif %}
                         {% endfor %}
                         
                         <li class="page-item {{ 'disabled' if receipts.page == receipts.pages else '' }}">
-                            <a class="page-link" href="{{ url_for('admin_panel_receipts', page=receipts.next_num, search=search_term) if receipts.has_next else '#' }}" aria-label="Next">
+                            <a class="page-link" href="{{ url_for('admin_receipts', page=receipts.next_num, search=search_term) if receipts.has_next else '#' }}" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>

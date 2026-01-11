@@ -756,6 +756,40 @@ def admin_export_logs():
         return redirect(url_for('admin_logs'))
 
 
+@app.route('/admin/logs/clear', methods=['POST'])
+@admin_required
+def admin_clear_logs():
+    """Clear logs of specified type."""
+    try:
+        log_type = request.form.get('log_type', 'all')
+        older_than_days = int(request.form.get('older_than_days', 30))
+        
+        from datetime import timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=older_than_days)
+        
+        query = AuditLog.query.filter(AuditLog.timestamp < cutoff_date)
+        
+        if log_type != 'all':
+            query = query.filter(AuditLog.entity_type == log_type)
+        
+        deleted_count = query.delete()
+        db.session.commit()
+        
+        ActivityLogger.log_admin_action(
+            'logs_cleared',
+            details={'log_type': log_type, 'older_than_days': older_than_days, 'deleted_count': deleted_count}
+        )
+        
+        flash(f'Successfully cleared {deleted_count} log entries', 'success')
+        return redirect(url_for('admin_logs'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error clearing logs: {str(e)}', 'danger')
+        app.logger.error(f'Admin clear logs error: {str(e)}')
+        return redirect(url_for('admin_logs'))
+
+
 @app.route('/admin/maintenance/cleanup', methods=['POST'])
 @admin_required
 def admin_clear_temp_files():
