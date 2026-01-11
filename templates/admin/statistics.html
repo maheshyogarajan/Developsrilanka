@@ -9,9 +9,9 @@
         <h1 class="h3 mb-0 text-gray-800">System Statistics</h1>
         <div>
             <div class="btn-group">
-                <a href="{{ url_for('admin_panel_statistics', range='week') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if time_range == 'week' else '' }}">Week</a>
-                <a href="{{ url_for('admin_panel_statistics', range='month') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if time_range == 'month' else '' }}">Month</a>
-                <a href="{{ url_for('admin_panel_statistics', range='year') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if time_range == 'year' else '' }}">Year</a>
+                <a href="{{ url_for('admin_statistics', range='week') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if time_range == 'week' else '' }}">Week</a>
+                <a href="{{ url_for('admin_statistics', range='month') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if time_range == 'month' else '' }}">Month</a>
+                <a href="{{ url_for('admin_statistics', range='year') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if time_range == 'year' else '' }}">Year</a>
             </div>
             <button class="btn btn-sm btn-outline-primary ms-2">
                 <i class="fas fa-download me-1"></i> Export

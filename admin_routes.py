@@ -361,7 +361,7 @@ def admin_receipts():
         
         total_receipts = receipt_stats['total_receipts']
         total_amount = receipt_stats['total_amount']
-        avg_amount = receipt_stats['average_amount']
+        avg_amount = receipt_stats['avg_amount']
         median_amount = receipt_stats.get('median_amount', 0)
         top_categories = receipt_stats['top_categories']
         

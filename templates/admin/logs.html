@@ -9,13 +9,13 @@
         <h1 class="h3 mb-0 text-gray-800">System Logs</h1>
         <div>
             <div class="btn-group me-2">
-                <a href="{{ url_for('admin_panel_logs', type='all') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'all' else '' }}">All</a>
-                <a href="{{ url_for('admin_panel_logs', type='system') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'system' else '' }}">System</a>
-                <a href="{{ url_for('admin_panel_logs', type='user') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'user' else '' }}">User</a>
-                <a href="{{ url_for('admin_panel_logs', type='receipt') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'receipt' else '' }}">Receipt</a>
-                <a href="{{ url_for('admin_panel_logs', type='error') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'error' else '' }}">Error</a>
+                <a href="{{ url_for('admin_logs', type='all') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'all' else '' }}">All</a>
+                <a href="{{ url_for('admin_logs', type='system') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'system' else '' }}">System</a>
+                <a href="{{ url_for('admin_logs', type='user') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'user' else '' }}">User</a>
+                <a href="{{ url_for('admin_logs', type='receipt') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'receipt' else '' }}">Receipt</a>
+                <a href="{{ url_for('admin_logs', type='error') }}" class="btn btn-sm btn-outline-secondary {{ 'active' if log_type == 'error' else '' }}">Error</a>
             </div>
-            <a href="{{ url_for('admin_panel_export_logs', type=log_type) }}" class="btn btn-sm btn-outline-primary">
+            <a href="{{ url_for('admin_export_logs', type=log_type) }}" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-download me-1"></i> Export
             </a>
         </div>
@@ -175,7 +175,7 @@
                 <i class="fas fa-list me-2 text-primary"></i> Log Entries
             </h5>
             <div>
-                <form class="d-inline-block" method="GET" action="{{ url_for('admin_panel_logs') }}">
+                <form class="d-inline-block" method="GET" action="{{ url_for('admin_logs') }}">
                     <input type="hidden" name="type" value="{{ log_type }}">
                     <div class="input-group input-group-sm">
                         <input type="text" class="form-control" placeholder="Search logs..." name="search" value="{{ request.args.get('search', '') }}">
@@ -269,7 +269,7 @@
                 <nav aria-label="Log pagination">
                     <ul class="pagination">
                         <li class="page-item {{ 'disabled' if page == 1 else '' }}">
-                            <a class="page-link" href="{{ url_for('admin_panel_logs', type=log_type, page=page-1) if page > 1 else '#' }}" aria-label="Previous">
+                            <a class="page-link" href="{{ url_for('admin_logs', type=log_type, page=page-1) if page > 1 else '#' }}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -278,14 +278,14 @@
                             {% if page_num == page %}
                             <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>
                             {% elif page_num <= 2 or page_num >= total_pages - 1 or abs(page_num - page) <= 1 %}
-                            <li class="page-item"><a class="page-link" href="{{ url_for('admin_panel_logs', type=log_type, page=page_num) }}">{{ page_num }}</a></li>
+                            <li class="page-item"><a class="page-link" href="{{ url_for('admin_logs', type=log_type, page=page_num) }}">{{ page_num }}</a></li>
                             {% elif abs(page_num - page) == 2 %}
                             <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
                             {% endif %}
                         {% endfor %}
                         
                         <li class="page-item {{ 'disabled' if page == total_pages else '' }}">
-                            <a class="page-link" href="{{ url_for('admin_panel_logs', type=log_type, page=page+1) if page < total_pages else '#' }}" aria-label="Next">
+                            <a class="page-link" href="{{ url_for('admin_logs', type=log_type, page=page+1) if page < total_pages else '#' }}" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>
