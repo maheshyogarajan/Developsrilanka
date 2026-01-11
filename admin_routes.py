@@ -198,7 +198,7 @@ def calculate_amount_growth_rate(days):
 @app.route('/admin/users')
 @admin_required
 def admin_users():
-    """User management page with real engagement metrics."""
+    """User management page with real engagement metrics and verification filtering."""
     try:
         user_stats = admin_analytics.get_user_statistics()
         role_distribution = admin_analytics.get_user_role_distribution()
@@ -206,13 +206,16 @@ def admin_users():
         total_users = user_stats['total_users']
         active_users = user_stats['active_users']
         inactive_users = user_stats['inactive_users']
-        admin_users = role_distribution.get('admin', 0)
+        admin_users_count = role_distribution.get('admin', 0)
         
         page = request.args.get('page', 1, type=int)
         per_page = 10
         search_term = request.args.get('search', '')
+        verification_filter = request.args.get('verification', '')  # 'verified', 'unverified', or ''
+        activity_filter = request.args.get('activity', '')  # 'active', 'inactive', or ''
         
         query = User.query
+        
         if search_term:
             query = query.filter(
                 or_(
@@ -221,20 +224,46 @@ def admin_users():
                 )
             )
         
+        if verification_filter == 'verified':
+            query = query.filter(User.is_email_verified == True)
+        elif verification_filter == 'unverified':
+            query = query.filter(or_(User.is_email_verified == False, User.is_email_verified == None))
+        
+        if activity_filter == 'active':
+            query = query.filter(User.id.in_(
+                db.session.query(Receipt.user_id).distinct()
+            ))
+        elif activity_filter == 'inactive':
+            query = query.filter(~User.id.in_(
+                db.session.query(Receipt.user_id).distinct()
+            ))
+        
         users = query.order_by(User.created_at.desc()).paginate(
             page=page, per_page=per_page, error_out=False)
         
         receipt_stats = admin_analytics.get_receipt_statistics()
         avg_receipts_per_user = round(receipt_stats['total_receipts'] / max(total_users, 1), 1)
         
+        verified_count = User.query.filter(User.is_email_verified == True).count()
+        unverified_count = User.query.filter(or_(User.is_email_verified == False, User.is_email_verified == None)).count()
+        
+        unverified_inactive_count = User.query.filter(
+            or_(User.is_email_verified == False, User.is_email_verified == None)
+        ).filter(
+            ~User.id.in_(db.session.query(Receipt.user_id).distinct())
+        ).count()
+        
         metrics = {
             'total_users': total_users,
             'active_users': active_users,
             'inactive_users': inactive_users,
-            'admin_users': admin_users,
-            'standard_users': total_users - admin_users,
+            'admin_users': admin_users_count,
+            'standard_users': total_users - admin_users_count,
             'growth_rate': user_stats['growth_rate'],
-            'average_receipts': avg_receipts_per_user
+            'average_receipts': avg_receipts_per_user,
+            'verified_count': verified_count,
+            'unverified_count': unverified_count,
+            'unverified_inactive_count': unverified_inactive_count
         }
         
         subscription_stats = get_subscription_stats()
@@ -245,6 +274,8 @@ def admin_users():
             metrics=metrics,
             subscription_stats=subscription_stats,
             search_term=search_term,
+            verification_filter=verification_filter,
+            activity_filter=activity_filter,
             page=page,
             total_pages=users.pages,
             total_users=total_users
@@ -347,6 +378,103 @@ def admin_reset_user_password():
     except Exception as e:
         flash(f'Error resetting password: {str(e)}', 'danger')
         app.logger.error(f'Admin reset password error: {str(e)}')
+        return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/delete-unverified-inactive', methods=['POST'])
+@admin_required
+def admin_delete_unverified_inactive():
+    """Bulk delete unverified accounts with no activity (likely fake/bot accounts)."""
+    try:
+        from models import Organization, OrganizationUser
+        
+        days_threshold = request.form.get('days_threshold', 7, type=int)
+        
+        cutoff_date = datetime.utcnow() - timedelta(days=days_threshold)
+        
+        unverified_inactive_users = User.query.filter(
+            or_(User.is_email_verified == False, User.is_email_verified == None)
+        ).filter(
+            ~User.id.in_(db.session.query(Receipt.user_id).distinct())
+        ).filter(
+            User.created_at < cutoff_date
+        ).filter(
+            User.role != 'admin'
+        ).all()
+        
+        deleted_count = 0
+        deleted_emails = []
+        
+        for user in unverified_inactive_users:
+            try:
+                OrganizationUser.query.filter_by(user_id=user.id).delete()
+                
+                owned_orgs = Organization.query.filter_by(owner_id=user.id).all()
+                for org in owned_orgs:
+                    OrganizationUser.query.filter_by(organization_id=org.id).delete()
+                    db.session.delete(org)
+                
+                deleted_emails.append(user.email)
+                db.session.delete(user)
+                deleted_count += 1
+            except Exception as user_error:
+                app.logger.error(f"Error deleting user {user.id}: {str(user_error)}")
+                continue
+        
+        db.session.commit()
+        
+        ActivityLogger.log_admin_action(
+            'bulk_delete_unverified',
+            details={
+                'deleted_count': deleted_count,
+                'days_threshold': days_threshold,
+                'sample_emails': deleted_emails[:10]
+            }
+        )
+        
+        flash(f'Successfully deleted {deleted_count} unverified inactive accounts older than {days_threshold} days', 'success')
+        return redirect(url_for('admin_users'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error during bulk deletion: {str(e)}', 'danger')
+        app.logger.error(f'Admin bulk delete error: {str(e)}')
+        return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/verify-email', methods=['POST'])
+@admin_required
+def admin_verify_user_email():
+    """Manually verify a user's email (admin only)."""
+    try:
+        user_id = request.form.get('user_id')
+        
+        if not user_id:
+            flash('Missing user ID', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        user = User.query.get(user_id)
+        if not user:
+            flash('User not found', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        user.is_email_verified = True
+        user.email_verification_token = None
+        user.email_verification_salt = None
+        db.session.commit()
+        
+        ActivityLogger.log_admin_action(
+            'manual_email_verification',
+            target_id=user.id,
+            details={'email': user.email, 'verified_by': current_user.email}
+        )
+        
+        flash(f'Email verified for {user.email}', 'success')
+        return redirect(url_for('admin_users'))
+        
+    except Exception as e:
+        flash(f'Error verifying email: {str(e)}', 'danger')
+        app.logger.error(f'Admin verify email error: {str(e)}')
         return redirect(url_for('admin_users'))
 
 

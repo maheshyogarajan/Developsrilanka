@@ -2410,6 +2410,11 @@ def email_login():
             except Exception as log_err:
                 logging.debug(f"Activity logging failed: {log_err}")
             
+            # Check if email is verified - if not, redirect to verification reminder
+            if hasattr(user, 'is_email_verified') and not user.is_email_verified:
+                flash('Please verify your email address to access all features. Check your inbox for the verification link.', 'warning')
+                return redirect(url_for('verify_email_reminder'))
+            
             # Check if there's a pending invitation token in the session
             invitation_token = session.get('invitation_token')
             if invitation_token:
@@ -2491,6 +2496,26 @@ def email_login():
                 log_registration_error,
                 log_organization_creation
             )
+            
+            # Rate limiting check for registration - record attempt FIRST before any business logic
+            from models import RegistrationRateLimit
+            client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+            if client_ip and ',' in client_ip:
+                client_ip = client_ip.split(',')[0].strip()
+            
+            allowed, remaining, retry_after = RegistrationRateLimit.check_rate_limit(client_ip, max_attempts=3)
+            
+            if not allowed:
+                retry_minutes = retry_after // 60 + 1
+                flash(f'Too many registration attempts. Please try again in {retry_minutes} minutes.', 'danger')
+                logging.warning(f"Rate limit exceeded for registration from IP: {client_ip}")
+                return redirect(url_for('register'))
+            
+            # Record attempt BEFORE processing - prevents bots from hammering with different emails
+            try:
+                RegistrationRateLimit.record_attempt(client_ip)
+            except Exception as rate_err:
+                logging.debug(f"Rate limit recording failed: {rate_err}")
             
             # Log start of registration process
             log_registration_start(email, 'standard')
@@ -2577,8 +2602,8 @@ def email_login():
                 # Log in the new user
                 login_user(new_user)
                 
-                # Display welcome message on first login - different from login success message
-                flash('Account verification complete! Your account has been created and you are now logged in.', 'success')
+                # Display welcome message indicating email verification is needed
+                flash('Account created! Please check your email to verify your address and unlock all features.', 'info')
                 
                 # Process any pending invitation
                 invitation_token = session.get('invitation_token')
@@ -2599,8 +2624,8 @@ def email_login():
                     except Exception as inv_error:
                         logging.error(f"Error processing invitation for new user: {str(inv_error)}")
                 
-                # Redirect to scan page
-                return redirect(url_for('index'))
+                # Redirect to email verification reminder page for new users
+                return redirect(url_for('verify_email_reminder'))
                 
             except Exception as e:
                 # Log full registration error details

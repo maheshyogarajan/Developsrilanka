@@ -1219,3 +1219,96 @@ class UserIncome(db.Model):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
+
+
+class RegistrationRateLimit(db.Model):
+    """Model for tracking registration attempts by IP address to prevent bot signups."""
+    __tablename__ = 'registration_rate_limit'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(50), nullable=False)
+    window_start = db.Column(db.DateTime, nullable=False)
+    attempt_count = db.Column(db.Integer, default=1)
+    first_attempt_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_attempt_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        db.UniqueConstraint('ip_address', 'window_start', name='unique_ip_window'),
+    )
+    
+    @staticmethod
+    def get_current_window():
+        """Get the current hour window start timestamp."""
+        now = datetime.utcnow()
+        return now.replace(minute=0, second=0, microsecond=0)
+    
+    @staticmethod
+    def check_rate_limit(ip_address, max_attempts=3):
+        """
+        Check if the IP is rate limited for registration.
+        Returns (allowed, attempts_remaining, retry_after_seconds)
+        """
+        window_start = RegistrationRateLimit.get_current_window()
+        
+        record = RegistrationRateLimit.query.filter_by(
+            ip_address=ip_address,
+            window_start=window_start
+        ).first()
+        
+        if not record:
+            return True, max_attempts, 0
+        
+        if record.attempt_count >= max_attempts:
+            next_window = window_start + timedelta(hours=1)
+            retry_after = (next_window - datetime.utcnow()).total_seconds()
+            return False, 0, int(max(0, retry_after))
+        
+        return True, max_attempts - record.attempt_count, 0
+    
+    @staticmethod
+    def record_attempt(ip_address):
+        """
+        Record a registration attempt from an IP address using atomic upsert.
+        Uses INSERT ... ON CONFLICT ... DO UPDATE for thread-safe operation.
+        """
+        from sqlalchemy import text
+        window_start = RegistrationRateLimit.get_current_window()
+        now = datetime.utcnow()
+        
+        try:
+            stmt = text("""
+                INSERT INTO registration_rate_limit 
+                    (ip_address, window_start, attempt_count, first_attempt_at, last_attempt_at)
+                VALUES 
+                    (:ip, :window, 1, :now, :now)
+                ON CONFLICT (ip_address, window_start) 
+                DO UPDATE SET 
+                    attempt_count = registration_rate_limit.attempt_count + 1,
+                    last_attempt_at = :now
+                RETURNING attempt_count
+            """)
+            
+            result = db.session.execute(stmt, {
+                'ip': ip_address,
+                'window': window_start,
+                'now': now
+            })
+            db.session.commit()
+            
+            attempt_count = result.fetchone()[0]
+            return attempt_count
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error recording rate limit attempt: {str(e)}")
+            return 1
+    
+    @staticmethod
+    def cleanup_old_records(hours=48):
+        """Remove rate limit records older than specified hours."""
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        deleted = RegistrationRateLimit.query.filter(
+            RegistrationRateLimit.window_start < cutoff
+        ).delete()
+        db.session.commit()
+        return deleted
