@@ -2363,8 +2363,6 @@ def onboarding_wizard():
             # Create the business organization
             business_org = Organization(
                 name=business_name,
-                owner_id=current_user.id,
-                currency='LKR',
                 email_footer_text=f"Thank you for your business! This is an automated message from {business_name}."
             )
             db.session.add(business_org)
