@@ -2098,7 +2098,30 @@ def process_receipt_with_gemini(image):
             
             logging.info(f"Received response from Gemini API ({model_name})")
             
+            # Log successful Gemini API call (receipt_id will be 0 since receipt isn't saved yet)
+            try:
+                from activity_logger import ActivityLogger
+                ActivityLogger.log_receipt_scan(
+                    receipt_id=None,
+                    success=True,
+                    model_used=model_name
+                )
+            except Exception as log_err:
+                logging.debug(f"Activity logging failed: {log_err}")
+            
         except Exception as api_error:
+            # Log failed Gemini API call
+            try:
+                from activity_logger import ActivityLogger
+                ActivityLogger.log_receipt_scan(
+                    receipt_id=None,
+                    success=False,
+                    model_used=model_name,
+                    error_category=str(type(api_error).__name__)
+                )
+            except Exception as log_err:
+                logging.debug(f"Activity logging failed: {log_err}")
+            
             # Use structured error logging
             error_log = GeminiErrorLogger.log_error(
                 error=api_error,
@@ -2380,6 +2403,13 @@ def email_login():
             login_user(user)
             # We'll handle success feedback through the animation instead of flash messages
             
+            # Log the login activity
+            try:
+                from activity_logger import ActivityLogger
+                ActivityLogger.log_login(user.id, success=True)
+            except Exception as log_err:
+                logging.debug(f"Activity logging failed: {log_err}")
+            
             # Check if there's a pending invitation token in the session
             invitation_token = session.get('invitation_token')
             if invitation_token:
@@ -2495,6 +2525,13 @@ def email_login():
                 
                 # Log successful user creation
                 log_registration_success(new_user.id, email, 'standard')
+                
+                # Also log to activity logger for admin dashboard
+                try:
+                    from activity_logger import ActivityLogger
+                    ActivityLogger.log_registration(new_user.id, email)
+                except Exception as log_err:
+                    logging.debug(f"Activity logging failed: {log_err}")
                 
                 # Create Personal Finances organization for the new user
                 # We're using a single database transaction for both the user and organization

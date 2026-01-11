@@ -1,0 +1,167 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}User Engagement - Admin Panel{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">User Engagement Funnel</h1>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="admin-card">
+                <div class="admin-stat-card primary">
+                    <div class="stat-icon"><i class="fas fa-user-plus"></i></div>
+                    <div class="stat-label">Registered Users</div>
+                    <div class="stat-value">{{ funnel.registered }}</div>
+                    <div class="mt-2 small text-muted">Total signups</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-card">
+                <div class="admin-stat-card success">
+                    <div class="stat-icon"><i class="fas fa-camera"></i></div>
+                    <div class="stat-label">First Scan</div>
+                    <div class="stat-value">{{ funnel.first_scan }}</div>
+                    <div class="mt-2 small">
+                        <span class="badge bg-light text-dark">{{ funnel_rates.registration_to_scan }}% conversion</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-card">
+                <div class="admin-stat-card warning">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-label">Active (30d)</div>
+                    <div class="stat-value">{{ funnel.active_30d }}</div>
+                    <div class="mt-2 small">
+                        <span class="badge bg-light text-dark">{{ funnel_rates.scan_to_active }}% retention</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-card">
+                <div class="admin-stat-card info">
+                    <div class="stat-icon"><i class="fas fa-crown"></i></div>
+                    <div class="stat-label">Converted</div>
+                    <div class="stat-value">{{ funnel.converted }}</div>
+                    <div class="mt-2 small">
+                        <span class="badge bg-light text-dark">{{ funnel_rates.active_to_converted }}% upgrade</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">Engagement Funnel Visualization</h5>
+                </div>
+                <div class="admin-card-body">
+                    <div class="funnel-chart">
+                        {% set max_width = 100 %}
+                        {% set reg_width = max_width %}
+                        {% set scan_width = (funnel.first_scan / funnel.registered * 100)|round if funnel.registered > 0 else 0 %}
+                        {% set active_width = (funnel.active_30d / funnel.registered * 100)|round if funnel.registered > 0 else 0 %}
+                        {% set conv_width = (funnel.converted / funnel.registered * 100)|round if funnel.registered > 0 else 0 %}
+                        
+                        <div class="funnel-step mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="funnel-label" style="width: 150px;">Registered</div>
+                                <div class="funnel-bar bg-primary" style="width: {{ reg_width }}%; height: 40px; border-radius: 4px;">
+                                    <span class="text-white ps-3 d-flex align-items-center h-100">{{ funnel.registered }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="funnel-step mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="funnel-label" style="width: 150px;">First Scan</div>
+                                <div class="funnel-bar bg-success" style="width: {{ scan_width }}%; min-width: 50px; height: 40px; border-radius: 4px;">
+                                    <span class="text-white ps-3 d-flex align-items-center h-100">{{ funnel.first_scan }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="funnel-step mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="funnel-label" style="width: 150px;">Active (30d)</div>
+                                <div class="funnel-bar bg-warning" style="width: {{ active_width }}%; min-width: 50px; height: 40px; border-radius: 4px;">
+                                    <span class="text-dark ps-3 d-flex align-items-center h-100">{{ funnel.active_30d }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="funnel-step mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="funnel-label" style="width: 150px;">Converted</div>
+                                <div class="funnel-bar bg-info" style="width: {{ conv_width }}%; min-width: 50px; height: 40px; border-radius: 4px;">
+                                    <span class="text-white ps-3 d-flex align-items-center h-100">{{ funnel.converted }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">Daily Registrations (Last 30 Days)</h5>
+                </div>
+                <div class="admin-card-body">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="registrationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const registrationData = {{ registration_trend|tojson|safe }};
+    const dates = Object.keys(registrationData).sort();
+    const counts = dates.map(d => registrationData[d]);
+    
+    const ctx = document.getElementById('registrationChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'New Registrations',
+                data: counts,
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,4 +1,4 @@
-{% extends "admin/layout.html" %}
+{% extends "admin_v2/layout.html" %}
 
 {% block title %}System Logs - Admin Panel - Develop Sri Lanka{% endblock %}
 

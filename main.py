@@ -49,12 +49,7 @@ try:
 except Exception as e:
     logger.error(f"Error loading admin routes: {str(e)}")
 
-# Import enhanced admin routes (v2)
-try:
-    import admin_routes_v2
-    logger.info("Enhanced admin routes (v2) loaded successfully")
-except Exception as e:
-    logger.error(f"Error loading enhanced admin routes (v2): {str(e)}")
+# Note: Admin routes v2 has been consolidated into admin_routes.py
 
 # Import invoice management routes
 try:

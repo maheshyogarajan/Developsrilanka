@@ -1,10 +1,11 @@
 """
-Admin routes for the application.
-These routes are protected by the admin_required decorator.
+Consolidated Admin Routes - Unified admin dashboard for platform management.
+Provides real-time analytics, user management, and system monitoring.
 """
 
 import os
 import json
+import time
 from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import current_user
@@ -13,12 +14,15 @@ import pandas as pd
 from io import BytesIO
 
 from app import app, db
-from models import User, Receipt, ReceiptItem, UserIncome
+from models import User, Receipt, ReceiptItem, UserIncome, AuditLog
 from decorators import admin_required
 from image_processor import cleanup_temp_files
+from activity_logger import (
+    ActivityLogger, get_recent_activities, get_activity_stats, get_gemini_api_stats
+)
 
-# Mock data structure for application settings
-# In a real application, these would be stored in the database
+import admin_analytics
+
 tax_settings = {
     'lkr_business_tax_rate': 36.0,
     'usd_consulting_tax_rate': 15.0,
@@ -34,386 +38,839 @@ general_settings = {
     'enable_ai_features': True
 }
 
-# Admin Dashboard
+
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
-    """Admin dashboard with overview of the application."""
+    """Main admin dashboard with real-time platform insights."""
     try:
-        # Get counts for the dashboard
-        user_count = User.query.count()
-        receipt_count = Receipt.query.count()
-        error_count = 0  # Mock for now
+        start_time = time.time()
+        
+        dashboard_data = admin_analytics.get_dashboard_data()
+        
+        user_stats = dashboard_data['users']
+        receipt_stats = dashboard_data['receipts']
+        tax_savings_stats = dashboard_data['tax_savings']
+        
+        user_count = user_stats['total_users']
+        active_users = user_stats['active_users']
+        receipt_count = receipt_stats['total_receipts']
+        total_amount = receipt_stats['total_amount']
+        
+        activity_stats = get_activity_stats(days=1)
+        gemini_stats = get_gemini_api_stats(days=7)
+        
+        error_count = activity_stats.get('error_count', 0)
+        scan_success_rate = gemini_stats.get('success_rate', 100)
+        
+        if error_count > 10 or scan_success_rate < 80:
+            system_status = "Warning"
+        elif error_count > 20 or scan_success_rate < 50:
+            system_status = "Critical"
+        else:
+            system_status = "Healthy"
+        
+        recent_logs = get_recent_activities(limit=10)
+        
+        registrations_data = user_stats['registrations_by_date']
+        receipts_data = receipt_stats['receipts_by_date']
+        
+        days = 7
+        date_range = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(days)]
+        date_range.reverse()
+        
+        user_activity_dates = date_range
+        user_activity_new = [registrations_data.get(date, 0) for date in date_range]
+        user_activity_receipts = [receipts_data.get(date, 0) for date in date_range]
+        
+        user_activity_active = []
+        for date in date_range:
+            receipt_cnt = receipts_data.get(date, 0)
+            active_estimate = max(1, int(receipt_cnt * 0.5)) if receipt_cnt > 0 else 0
+            user_activity_active.append(active_estimate)
+        
+        top_categories = receipt_stats['top_categories']
+        category_labels = [cat['category'] for cat in top_categories]
+        category_values = [cat['percentage'] for cat in top_categories]
+        
+        if not category_labels:
+            category_labels = ["Uncategorized"]
+            category_values = [100.0]
+        
+        user_growth_percent = user_stats['growth_rate']
+        
+        receipt_growth_percent = calculate_growth_rate(Receipt, 'created_at', 30)
+        amount_growth_percent = calculate_amount_growth_rate(30)
+        
         settings_updated = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         
-        return render_template('admin/dashboard.html',
-                              user_count=user_count,
-                              receipt_count=receipt_count,
-                              error_count=error_count,
-                              settings_updated=settings_updated)
+        execution_time = time.time() - start_time
+        performance_metrics = {
+            'query_execution_time': execution_time,
+            'cache_status': dashboard_data['_meta']['cache_status'],
+            'data_timestamp': dashboard_data['timestamp']
+        }
+        
+        return render_template(
+            'admin/dashboard.html',
+            user_count=user_count,
+            receipt_count=receipt_count,
+            total_amount=total_amount,
+            error_count=error_count,
+            system_status=system_status,
+            recent_logs=recent_logs,
+            user_activity_dates=user_activity_dates,
+            user_activity_new=user_activity_new,
+            user_activity_active=user_activity_active,
+            user_activity_receipts=user_activity_receipts,
+            category_labels=category_labels,
+            category_values=category_values,
+            user_growth_percent=user_growth_percent,
+            receipt_growth_percent=receipt_growth_percent,
+            amount_growth_percent=amount_growth_percent,
+            settings_updated=settings_updated,
+            tax_settings=tax_settings,
+            general_settings=general_settings,
+            now=datetime.utcnow(),
+            performance=performance_metrics,
+            tax_savings_stats=tax_savings_stats,
+            gemini_stats=gemini_stats,
+            activity_stats=activity_stats
+        )
     except Exception as e:
-        app.logger.error(f"Error loading admin dashboard: {str(e)}")
-        flash(f"Error loading dashboard: {str(e)}", "danger")
+        flash(f'Error loading admin dashboard: {str(e)}', 'danger')
+        app.logger.error(f'Admin dashboard error: {str(e)}')
         return redirect(url_for('home'))
 
-# User Management
+
+@app.route('/admin/v2')
+@admin_required
+def admin_v2_redirect():
+    """Redirect old /admin/v2 URLs to unified /admin."""
+    return redirect(url_for('admin_dashboard'))
+
+
+def calculate_growth_rate(model, date_field, days):
+    """Calculate growth rate comparing current period to previous period."""
+    try:
+        now = datetime.utcnow()
+        current_start = now - timedelta(days=days)
+        previous_start = current_start - timedelta(days=days)
+        
+        date_col = getattr(model, date_field)
+        
+        current_count = model.query.filter(date_col >= current_start).count()
+        previous_count = model.query.filter(
+            and_(date_col >= previous_start, date_col < current_start)
+        ).count()
+        
+        if previous_count == 0:
+            return 100.0 if current_count > 0 else 0.0
+        
+        return round((current_count - previous_count) / previous_count * 100, 1)
+    except:
+        return 0.0
+
+
+def calculate_amount_growth_rate(days):
+    """Calculate total amount growth rate."""
+    try:
+        now = datetime.utcnow()
+        current_start = now - timedelta(days=days)
+        previous_start = current_start - timedelta(days=days)
+        
+        current_amount = db.session.query(func.sum(Receipt.total_amount)).filter(
+            Receipt.created_at >= current_start
+        ).scalar() or 0
+        
+        previous_amount = db.session.query(func.sum(Receipt.total_amount)).filter(
+            and_(Receipt.created_at >= previous_start, Receipt.created_at < current_start)
+        ).scalar() or 0
+        
+        if previous_amount == 0:
+            return 100.0 if current_amount > 0 else 0.0
+        
+        return round((current_amount - previous_amount) / previous_amount * 100, 1)
+    except:
+        return 0.0
+
+
 @app.route('/admin/users')
 @admin_required
 def admin_users():
-    """User management page for admins."""
+    """User management page with real engagement metrics."""
     try:
-        page = request.args.get('page', 1, type=int)
-        search = request.args.get('search', '')
-        per_page = 10
+        user_stats = admin_analytics.get_user_statistics()
+        role_distribution = admin_analytics.get_user_role_distribution()
         
-        # Build query with search filter if provided
+        total_users = user_stats['total_users']
+        active_users = user_stats['active_users']
+        inactive_users = user_stats['inactive_users']
+        admin_users = role_distribution.get('admin', 0)
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+        search_term = request.args.get('search', '')
+        
         query = User.query
-        if search:
-            search_term = f"%{search}%"
+        if search_term:
             query = query.filter(
                 or_(
-                    User.name.ilike(search_term),
-                    User.email.ilike(search_term)
+                    User.name.ilike(f'%{search_term}%'),
+                    User.email.ilike(f'%{search_term}%')
                 )
             )
         
-        # Get paginated users
-        pagination = query.order_by(User.id).paginate(page=page, per_page=per_page, error_out=False)
-        users = pagination.items
-        total_users = pagination.total
-        total_pages = pagination.pages
+        users = query.order_by(User.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False)
         
-        return render_template('admin/users.html',
-                              users=users,
-                              page=page,
-                              total_pages=total_pages,
-                              total_users=total_users,
-                              search=search)
+        receipt_stats = admin_analytics.get_receipt_statistics()
+        avg_receipts_per_user = round(receipt_stats['total_receipts'] / max(total_users, 1), 1)
+        
+        metrics = {
+            'total_users': total_users,
+            'active_users': active_users,
+            'inactive_users': inactive_users,
+            'admin_users': admin_users,
+            'standard_users': total_users - admin_users,
+            'growth_rate': user_stats['growth_rate'],
+            'average_receipts': avg_receipts_per_user
+        }
+        
+        subscription_stats = get_subscription_stats()
+        
+        return render_template(
+            'admin/users.html',
+            users=users,
+            metrics=metrics,
+            subscription_stats=subscription_stats,
+            search_term=search_term,
+            page=page,
+            total_pages=users.pages,
+            total_users=total_users
+        )
     except Exception as e:
-        app.logger.error(f"Error loading admin users page: {str(e)}")
-        flash(f"Error loading users: {str(e)}", "danger")
+        flash(f'Error loading user management: {str(e)}', 'danger')
+        app.logger.error(f'Admin user management error: {str(e)}')
         return redirect(url_for('admin_dashboard'))
 
-# Update User Role
+
+def get_subscription_stats():
+    """Get subscription status breakdown."""
+    try:
+        stats = db.session.query(
+            User.subscription_status,
+            func.count(User.id).label('count')
+        ).group_by(User.subscription_status).all()
+        
+        return {status: count for status, count in stats}
+    except:
+        return {}
+
+
 @app.route('/admin/users/update-role', methods=['POST'])
 @admin_required
 def admin_update_user_role():
     """Update a user's role."""
     try:
-        user_id = request.form.get('user_id', type=int)
-        role = request.form.get('role')
+        user_id = request.form.get('user_id')
+        new_role = request.form.get('role')
         
-        if not user_id or not role:
-            flash("User ID and role are required.", "danger")
+        if not user_id or not new_role:
+            flash('Missing required parameters', 'danger')
             return redirect(url_for('admin_users'))
         
-        # Validate role
-        if role not in ['user', 'admin']:
-            flash("Invalid role specified.", "danger")
+        if new_role not in ['user', 'admin']:
+            flash('Invalid role specified', 'danger')
             return redirect(url_for('admin_users'))
         
-        # Get user and update role
         user = User.query.get(user_id)
         if not user:
-            flash("User not found.", "danger")
+            flash('User not found', 'danger')
             return redirect(url_for('admin_users'))
         
-        # Don't allow changing own role (to prevent locking out)
-        if user.id == current_user.id:
-            flash("You cannot change your own role.", "warning")
+        if user.id == current_user.id and new_role != 'admin':
+            flash('You cannot demote yourself from admin', 'danger')
             return redirect(url_for('admin_users'))
         
-        user.role = role
+        old_role = user.role
+        user.role = new_role
         db.session.commit()
         
-        flash(f"Role for {user.name or user.email} updated to {role}.", "success")
+        ActivityLogger.log_admin_action(
+            'user_role_change',
+            target_id=user.id,
+            details={'old_role': old_role, 'new_role': new_role, 'email': user.email}
+        )
+        
+        flash(f'User {user.email} role updated to {new_role}', 'success')
         return redirect(url_for('admin_users'))
     except Exception as e:
-        app.logger.error(f"Error updating user role: {str(e)}")
-        flash(f"Error updating role: {str(e)}", "danger")
+        flash(f'Error updating user role: {str(e)}', 'danger')
+        app.logger.error(f'Admin update user role error: {str(e)}')
         return redirect(url_for('admin_users'))
 
-# System Statistics
+
+@app.route('/admin/users/reset-password', methods=['POST'])
+@admin_required
+def admin_reset_user_password():
+    """Reset a user's password (admin only)."""
+    try:
+        user_id = request.form.get('user_id')
+        new_password = request.form.get('new_password')
+        
+        if not user_id or not new_password:
+            flash('Missing required parameters', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        user = User.query.get(user_id)
+        if not user:
+            flash('User not found', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        from werkzeug.security import generate_password_hash
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        ActivityLogger.log_admin_action(
+            'password_reset',
+            target_id=user.id,
+            details={'email': user.email, 'reset_by': current_user.email}
+        )
+        
+        flash(f'Password for {user.email} has been reset successfully', 'success')
+        return redirect(url_for('admin_users'))
+    except Exception as e:
+        flash(f'Error resetting password: {str(e)}', 'danger')
+        app.logger.error(f'Admin reset password error: {str(e)}')
+        return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/receipts')
+@admin_required
+def admin_receipts():
+    """Receipt management page with scanning analytics."""
+    try:
+        start_time = time.time()
+        
+        receipt_stats = admin_analytics.get_receipt_statistics()
+        
+        total_receipts = receipt_stats['total_receipts']
+        total_amount = receipt_stats['total_amount']
+        avg_amount = receipt_stats['average_amount']
+        median_amount = receipt_stats.get('median_amount', 0)
+        top_categories = receipt_stats['top_categories']
+        
+        gemini_stats = get_gemini_api_stats(days=30)
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = 15
+        search_term = request.args.get('search', '')
+        
+        query = Receipt.query
+        if search_term:
+            query = query.filter(
+                or_(
+                    Receipt.vendor_name.ilike(f'%{search_term}%'),
+                    Receipt.expense_major_category.ilike(f'%{search_term}%'),
+                    Receipt.expense_minor_category.ilike(f'%{search_term}%')
+                )
+            )
+        
+        receipts = query.join(User, Receipt.user_id == User.id, isouter=True)\
+            .add_columns(User.name, User.email)\
+            .order_by(Receipt.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+        
+        tax_deductible_percentage = receipt_stats['tax_deductible_percentage']
+        avg_items_per_receipt = round(receipt_stats.get('total_items', 0) / max(total_receipts, 1), 1)
+        
+        execution_time = time.time() - start_time
+        
+        return render_template(
+            'admin/receipts.html',
+            receipts=receipts,
+            total_receipts=total_receipts,
+            total_amount=total_amount,
+            avg_amount=avg_amount,
+            median_amount=median_amount,
+            top_categories=top_categories,
+            tax_deductible_percentage=tax_deductible_percentage,
+            avg_items_per_receipt=avg_items_per_receipt,
+            search_term=search_term,
+            gemini_stats=gemini_stats,
+            performance={'query_time': execution_time}
+        )
+    except Exception as e:
+        flash(f'Error loading receipt data: {str(e)}', 'danger')
+        app.logger.error(f'Admin receipt management error: {str(e)}')
+        return redirect(url_for('admin_dashboard'))
+
+
 @app.route('/admin/statistics')
 @admin_required
 def admin_statistics():
-    """System statistics page for admins."""
+    """Enhanced statistics page with real platform analytics."""
     try:
-        # Get basic statistics
-        total_receipts = Receipt.query.count()
-        total_users = User.query.count()
+        time_range = request.args.get('range', 'month')
         
-        # Calculate active vs inactive users (mock data for now)
-        active_user_count = total_users  # Simplification
-        inactive_user_count = 0
+        days_lookup = {
+            'week': 7,
+            'month': 30,
+            'year': 365
+        }
+        days = days_lookup.get(time_range, 30)
         
-        # Calculate receipt statistics
-        receipts = Receipt.query.all()
-        total_amount = sum(r.total_amount for r in receipts) if receipts else 0
-        avg_receipt_amount = total_amount / total_receipts if total_receipts > 0 else 0
+        if time_range == 'week':
+            date_format = '%a'
+        elif time_range == 'month':
+            date_format = '%d'
+        elif time_range == 'year':
+            date_format = '%b'
+        else:
+            date_format = '%d'
         
-        # Count tax deductible receipts
-        tax_deductible_count = sum(1 for r in receipts if any(item.tax_deductible for item in r.items))
-        tax_deductible_percent = (tax_deductible_count / total_receipts * 100) if total_receipts > 0 else 0
+        user_stats = admin_analytics.get_user_statistics(days=days)
+        receipt_stats = admin_analytics.get_receipt_statistics(days=days)
+        tax_savings_stats = admin_analytics.get_tax_savings_statistics()
+        categories_breakdown = admin_analytics.get_receipt_categories_breakdown()
+        income_stats = admin_analytics.get_income_statistics()
         
-        # Calculate total VAT and SSCL
-        total_vat = sum(r.vat_tax for r in receipts if r.vat_tax is not None)
-        total_sscl = sum(r.sscl_tax for r in receipts if r.sscl_tax is not None)
+        gemini_stats = get_gemini_api_stats(days=days)
+        activity_stats = get_activity_stats(days=days)
         
-        # Find most common vendor
-        vendor_counts = {}
-        for r in receipts:
-            vendor_counts[r.vendor_name] = vendor_counts.get(r.vendor_name, 0) + 1
-        most_common_vendor = max(vendor_counts.items(), key=lambda x: x[1])[0] if vendor_counts else "None"
+        start_date = datetime.utcnow() - timedelta(days=days)
         
-        # Generate user growth data (mock data for demo)
-        # In real app, you'd query by creation date
-        today = datetime.utcnow().date()
-        user_growth_labels = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, -1, -1)]
-        user_growth_data = [i % 5 for i in range(32)]  # Mock data
+        registrations_data = user_stats['registrations_by_date']
+        receipts_data = receipt_stats['receipts_by_date']
         
-        # Generate category distribution data
-        categories = db.session.query(
-            Receipt.expense_major_category,
-            func.count(Receipt.id)
-        ).filter(
-            Receipt.expense_major_category != None,
-            Receipt.expense_major_category != ''
-        ).group_by(Receipt.expense_major_category).all()
+        current_date = start_date
+        end_date = datetime.utcnow()
         
-        category_labels = [c[0] for c in categories]
-        category_data = [c[1] for c in categories]
+        registration_dates = []
+        registration_counts = []
+        receipt_dates = []
+        receipt_counts = []
         
-        # Generate daily activity data (mock)
-        daily_activity_labels = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(14, -1, -1)]
-        daily_activity_data = [i % 8 + 1 for i in range(15)]  # Mock data
+        while current_date <= end_date:
+            date_str = current_date.strftime('%Y-%m-%d')
+            chart_date = current_date.strftime(date_format)
+            
+            registration_dates.append(chart_date)
+            registration_counts.append(registrations_data.get(date_str, 0))
+            
+            receipt_dates.append(chart_date)
+            receipt_counts.append(receipts_data.get(date_str, 0))
+            
+            current_date += timedelta(days=1)
         
-        return render_template('admin/statistics.html',
-                              total_receipts=total_receipts,
-                              avg_receipt_amount=avg_receipt_amount,
-                              tax_deductible_count=tax_deductible_count,
-                              tax_deductible_percent=round(tax_deductible_percent, 1),
-                              total_vat=total_vat,
-                              total_sscl=total_sscl,
-                              most_common_vendor=most_common_vendor,
-                              active_user_count=active_user_count,
-                              inactive_user_count=inactive_user_count,
-                              user_growth_labels=json.dumps(user_growth_labels),
-                              user_growth_data=user_growth_data,
-                              category_labels=json.dumps(category_labels),
-                              category_data=category_data,
-                              daily_activity_labels=json.dumps(daily_activity_labels),
-                              daily_activity_data=daily_activity_data)
+        if categories_breakdown:
+            categories_breakdown.sort(key=lambda x: x['count'], reverse=True)
+            category_data = categories_breakdown[:6]
+            
+            category_labels = [cat['category'] for cat in category_data]
+            category_values = [cat['count_percentage'] for cat in category_data]
+        else:
+            category_labels = ["No Categories"]
+            category_values = [100.0]
+        
+        user_count = user_stats['total_users']
+        receipt_count = receipt_stats['total_receipts']
+        
+        engagement_metrics = {
+            'avg_receipts_per_user': round(receipt_count / max(user_count, 1), 1),
+            'avg_tax_savings': round(tax_savings_stats['total_savings'] / max(user_count, 1), 2),
+            'scan_success_rate': gemini_stats.get('success_rate', 100),
+            'returning_users': round(user_stats['active_users'] / max(user_count, 1) * 100, 1) if user_count else 0
+        }
+        
+        return render_template(
+            'admin/statistics.html',
+            time_range=time_range,
+            registration_dates=registration_dates,
+            registration_counts=registration_counts,
+            receipt_dates=receipt_dates,
+            receipt_counts=receipt_counts,
+            category_labels=category_labels,
+            category_values=category_values,
+            engagement_metrics=engagement_metrics,
+            user_stats=user_stats,
+            receipt_stats=receipt_stats,
+            tax_savings_stats=tax_savings_stats,
+            income_stats=income_stats,
+            gemini_stats=gemini_stats,
+            activity_stats=activity_stats
+        )
     except Exception as e:
-        app.logger.error(f"Error loading admin statistics: {str(e)}")
-        flash(f"Error loading statistics: {str(e)}", "danger")
+        flash(f'Error loading system statistics: {str(e)}', 'danger')
+        app.logger.error(f'Admin statistics error: {str(e)}')
         return redirect(url_for('admin_dashboard'))
 
-# Application Settings
+
 @app.route('/admin/settings')
 @admin_required
 def admin_settings():
-    """Application settings page for admins."""
-    message = request.args.get('message')
-    message_type = request.args.get('message_type', 'info')
-    
-    return render_template('admin/settings.html',
-                          tax_settings=tax_settings,
-                          general_settings=general_settings,
-                          message=message,
-                          message_type=message_type)
+    """Application settings page."""
+    try:
+        system_stats = admin_analytics.get_system_statistics()
+        
+        db_stats = system_stats['table_counts']
+        db_stats['estimated_size_kb'] = system_stats['estimated_db_size_kb']
+        
+        cache_stats = {
+            'entries': system_stats['cache_entries'],
+            'timestamp': system_stats['server_time'].isoformat()
+        }
+        
+        return render_template(
+            'admin/settings.html',
+            tax_settings=tax_settings,
+            general_settings=general_settings,
+            db_stats=db_stats,
+            cache_stats=cache_stats
+        )
+    except Exception as e:
+        flash(f'Error loading settings page: {str(e)}', 'danger')
+        app.logger.error(f'Admin settings error: {str(e)}')
+        return redirect(url_for('admin_dashboard'))
 
-# Update Tax Settings
-@app.route('/admin/settings/update-tax', methods=['POST'])
+
+@app.route('/admin/settings/tax', methods=['POST'])
 @admin_required
 def admin_update_tax_settings():
     """Update tax rate settings."""
     try:
-        # Update global tax settings
-        tax_settings['lkr_business_tax_rate'] = float(request.form.get('lkr_business_tax_rate', 36.0))
-        tax_settings['usd_consulting_tax_rate'] = float(request.form.get('usd_consulting_tax_rate', 15.0))
-        tax_settings['vat_rate'] = float(request.form.get('vat_rate', 8.0))
-        tax_settings['sscl_rate'] = float(request.form.get('sscl_rate', 2.0))
+        lkr_rate = float(request.form.get('lkr_business_tax_rate', 36.0))
+        usd_rate = float(request.form.get('usd_consulting_tax_rate', 15.0))
+        vat_rate = float(request.form.get('vat_rate', 8.0))
+        sscl_rate = float(request.form.get('sscl_rate', 2.0))
         
-        flash("Tax settings updated successfully.", "success")
-        return redirect(url_for('admin_settings', message="Tax settings updated successfully.", message_type="success"))
+        if not all(0 <= r <= 100 for r in [lkr_rate, usd_rate, vat_rate, sscl_rate]):
+            flash('Tax rates must be between 0 and 100', 'danger')
+            return redirect(url_for('admin_settings'))
+        
+        old_settings = tax_settings.copy()
+        
+        tax_settings['lkr_business_tax_rate'] = lkr_rate
+        tax_settings['usd_consulting_tax_rate'] = usd_rate
+        tax_settings['vat_rate'] = vat_rate
+        tax_settings['sscl_rate'] = sscl_rate
+        
+        ActivityLogger.log_admin_action(
+            'tax_settings_update',
+            details={'old': old_settings, 'new': tax_settings.copy()}
+        )
+        
+        flash('Tax settings updated successfully', 'success')
+        return redirect(url_for('admin_settings'))
+        
     except Exception as e:
-        app.logger.error(f"Error updating tax settings: {str(e)}")
-        return redirect(url_for('admin_settings', message=f"Error updating tax settings: {str(e)}", message_type="danger"))
+        flash(f'Error updating tax settings: {str(e)}', 'danger')
+        app.logger.error(f'Admin tax settings error: {str(e)}')
+        return redirect(url_for('admin_settings'))
 
-# Update General Settings
-@app.route('/admin/settings/update-general', methods=['POST'])
+
+@app.route('/admin/settings/general', methods=['POST'])
 @admin_required
 def admin_update_general_settings():
     """Update general application settings."""
     try:
-        # Update global general settings
+        old_settings = general_settings.copy()
+        
         general_settings['app_name'] = request.form.get('app_name', 'Sri Lanka Tax Optimizer')
         general_settings['items_per_page'] = int(request.form.get('items_per_page', 10))
         general_settings['default_currency'] = request.form.get('default_currency', 'LKR')
         general_settings['enable_registration'] = 'enable_registration' in request.form
         general_settings['enable_ai_features'] = 'enable_ai_features' in request.form
         
-        flash("General settings updated successfully.", "success")
-        return redirect(url_for('admin_settings', message="General settings updated successfully.", message_type="success"))
+        ActivityLogger.log_admin_action(
+            'general_settings_update',
+            details={'old': old_settings, 'new': general_settings.copy()}
+        )
+        
+        flash('General settings updated successfully', 'success')
+        return redirect(url_for('admin_settings'))
+        
     except Exception as e:
-        app.logger.error(f"Error updating general settings: {str(e)}")
-        return redirect(url_for('admin_settings', message=f"Error updating general settings: {str(e)}", message_type="danger"))
+        flash(f'Error updating general settings: {str(e)}', 'danger')
+        app.logger.error(f'Admin general settings error: {str(e)}')
+        return redirect(url_for('admin_settings'))
 
-# Clear Temporary Files
-@app.route('/admin/clear-temp-files', methods=['POST'])
+
+@app.route('/admin/logs')
+@admin_required
+def admin_logs():
+    """System activity logs with real data from audit log."""
+    try:
+        log_type = request.args.get('type', 'all')
+        page = request.args.get('page', 1, type=int)
+        per_page = 20
+        
+        query = AuditLog.query
+        
+        if log_type != 'all':
+            type_mapping = {
+                'user': ['user'],
+                'receipt': ['receipt'],
+                'admin': ['admin'],
+                'error': ['gemini_error'],
+                'system': ['admin', 'settings']
+            }
+            entity_types = type_mapping.get(log_type, [log_type])
+            
+            if log_type == 'error':
+                query = query.filter(
+                    or_(
+                        AuditLog.action.ilike('%error%'),
+                        AuditLog.action.ilike('%failed%')
+                    )
+                )
+            else:
+                query = query.filter(AuditLog.entity_type.in_(entity_types))
+        
+        pagination = query.order_by(AuditLog.timestamp.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        logs = []
+        for log in pagination.items:
+            user_email = None
+            if log.user_id:
+                user = User.query.get(log.user_id)
+                if user:
+                    user_email = user.email
+            
+            level = 'info'
+            if 'error' in log.action.lower() or 'failed' in log.action.lower():
+                level = 'error'
+            elif 'warning' in str(log.changed_fields).lower():
+                level = 'warning'
+            
+            logs.append({
+                'id': log.id,
+                'timestamp': log.timestamp,
+                'type': log.entity_type,
+                'level': level,
+                'message': log.action.replace('_', ' ').title(),
+                'user': user_email,
+                'details': log.changed_fields,
+                'ip_address': log.ip_address
+            })
+        
+        log_stats = {
+            'total_logs': pagination.total,
+            'error_count': AuditLog.query.filter(
+                or_(
+                    AuditLog.action.ilike('%error%'),
+                    AuditLog.action.ilike('%failed%')
+                )
+            ).count(),
+            'types': {}
+        }
+        
+        type_counts = db.session.query(
+            AuditLog.entity_type,
+            func.count(AuditLog.id)
+        ).group_by(AuditLog.entity_type).all()
+        
+        log_stats['types'] = {t: c for t, c in type_counts}
+        
+        return render_template(
+            'admin/logs.html',
+            logs=logs,
+            log_type=log_type,
+            page=page,
+            per_page=per_page,
+            total=pagination.total,
+            total_pages=pagination.pages,
+            log_stats=log_stats
+        )
+    except Exception as e:
+        flash(f'Error loading system logs: {str(e)}', 'danger')
+        app.logger.error(f'Admin logs error: {str(e)}')
+        return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/logs/export')
+@admin_required
+def admin_export_logs():
+    """Export system logs as CSV file."""
+    try:
+        log_type = request.args.get('type', 'all')
+        
+        query = AuditLog.query
+        
+        if log_type != 'all':
+            if log_type == 'error':
+                query = query.filter(
+                    or_(
+                        AuditLog.action.ilike('%error%'),
+                        AuditLog.action.ilike('%failed%')
+                    )
+                )
+            else:
+                query = query.filter(AuditLog.entity_type == log_type)
+        
+        logs = query.order_by(AuditLog.timestamp.asc()).limit(1000).all()
+        
+        data = []
+        for log in logs:
+            user_email = None
+            if log.user_id:
+                user = User.query.get(log.user_id)
+                if user:
+                    user_email = user.email
+            
+            data.append({
+                'timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'type': log.entity_type,
+                'action': log.action,
+                'user': user_email or '',
+                'entity_id': log.entity_id,
+                'ip_address': log.ip_address or '',
+                'details': json.dumps(log.changed_fields) if log.changed_fields else ''
+            })
+        
+        df = pd.DataFrame(data)
+        
+        output = BytesIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        
+        filename = f"activity_logs_{log_type}_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='text/csv'
+        )
+        
+    except Exception as e:
+        flash(f'Error exporting logs: {str(e)}', 'danger')
+        app.logger.error(f'Admin export logs error: {str(e)}')
+        return redirect(url_for('admin_logs'))
+
+
+@app.route('/admin/maintenance/cleanup', methods=['POST'])
 @admin_required
 def admin_clear_temp_files():
-    """Clear temporary files older than 24 hours."""
+    """Clear temporary files older than specified hours."""
     try:
-        # Get all image paths from the database
-        image_paths = [r.image_path for r in Receipt.query.all() if r.image_path]
+        hours = int(request.form.get('hours', 24))
         
-        # Clean up temporary files
-        files_removed = cleanup_temp_files(image_paths)
+        if hours < 1:
+            flash('Hours must be at least 1', 'danger')
+            return redirect(url_for('admin_settings'))
         
-        flash(f"Successfully removed {files_removed} temporary files.", "success")
-        return redirect(url_for('admin_settings', message=f"Successfully removed {files_removed} temporary files.", message_type="success"))
+        receipt_images = db.session.query(Receipt.image_path).all()
+        image_paths = [path[0] for path in receipt_images if path[0]]
+        
+        files_removed = cleanup_temp_files(image_paths, min_age_hours=hours)
+        
+        ActivityLogger.log_admin_action(
+            'temp_files_cleanup',
+            details={'hours': hours, 'files_removed': files_removed}
+        )
+        
+        flash(f'Successfully removed {files_removed} temporary files', 'success')
+        return redirect(url_for('admin_settings'))
+        
     except Exception as e:
-        app.logger.error(f"Error clearing temporary files: {str(e)}")
-        return redirect(url_for('admin_settings', message=f"Error clearing temporary files: {str(e)}", message_type="danger"))
+        flash(f'Error clearing temporary files: {str(e)}', 'danger')
+        app.logger.error(f'Admin cleanup error: {str(e)}')
+        return redirect(url_for('admin_settings'))
 
-# Update Categories
+
 @app.route('/admin/update-categories', methods=['POST'])
 @admin_required
 def admin_update_categories():
     """Trigger the update of expense categories for all receipts."""
     try:
-        # This would normally call the update_categories.py script
+        ActivityLogger.log_admin_action('category_update_triggered')
+        
         flash("Category update process started. This may take some time.", "info")
-        return redirect(url_for('admin_settings', message="Category update process started. This may take some time.", message_type="info"))
+        return redirect(url_for('admin_settings'))
     except Exception as e:
         app.logger.error(f"Error updating categories: {str(e)}")
-        return redirect(url_for('admin_settings', message=f"Error updating categories: {str(e)}", message_type="danger"))
+        flash(f"Error updating categories: {str(e)}", "danger")
+        return redirect(url_for('admin_settings'))
 
-# System Logs
-@app.route('/admin/logs')
+
+@app.route('/admin/api/gemini-stats')
 @admin_required
-def admin_logs():
-    """System logs page for admins."""
+def admin_api_gemini_stats():
+    """API endpoint for Gemini API statistics."""
     try:
-        page = request.args.get('page', 1, type=int)
-        log_type = request.args.get('log_type', 'error')
-        start_date = request.args.get('start_date', (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%d'))
-        end_date = request.args.get('end_date', datetime.utcnow().strftime('%Y-%m-%d'))
-        per_page = 20
-        
-        # Mock log data for demonstration
-        # In a real application, you would query a logs table
-        logs = []
-        total_logs = 0
-        
-        # Generate some sample log entries
-        log_levels = ['INFO', 'WARNING', 'ERROR']
-        sources = ['web', 'database', 'auth', 'api']
-        messages = [
-            'User login successful',
-            'User login failed: invalid credentials',
-            'Database connection lost',
-            'Receipt processing failed',
-            'API rate limit exceeded'
-        ]
-        
-        # Create mock logs
-        for i in range(40):
-            level = log_levels[i % len(log_levels)]
-            if log_type != 'all' and log_type.upper() != level:
-                continue
-                
-            log_date = datetime.utcnow() - timedelta(days=i % 14, hours=i % 24)
-            log_date_str = log_date.strftime('%Y-%m-%d')
-            
-            if log_date_str < start_date or log_date_str > end_date:
-                continue
-                
-            logs.append({
-                'timestamp': log_date,
-                'level': level,
-                'source': sources[i % len(sources)],
-                'message': f"{messages[i % len(messages)]} (ID: {i})",
-                'user_id': i % 5 + 1 if i % 3 != 0 else None,
-                'ip_address': f"192.168.1.{i % 255}"
-            })
-            total_logs += 1
-        
-        # Sort logs by timestamp (newest first)
-        logs.sort(key=lambda x: x['timestamp'], reverse=True)
-        
-        # Paginate logs
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        logs_page = logs[start_idx:end_idx]
-        total_pages = (total_logs + per_page - 1) // per_page if total_logs > 0 else 1
-        
-        return render_template('admin/logs.html',
-                              logs=logs_page,
-                              page=page,
-                              total_pages=total_pages,
-                              total_logs=total_logs,
-                              log_type=log_type,
-                              start_date=start_date,
-                              end_date=end_date,
-                              error_count=sum(1 for l in logs if l['level'] == 'ERROR'))
+        days = request.args.get('days', 7, type=int)
+        stats = get_gemini_api_stats(days=days)
+        return jsonify(stats)
     except Exception as e:
-        app.logger.error(f"Error loading admin logs: {str(e)}")
-        flash(f"Error loading logs: {str(e)}", "danger")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/api/activity-stats')
+@admin_required
+def admin_api_activity_stats():
+    """API endpoint for activity statistics."""
+    try:
+        days = request.args.get('days', 7, type=int)
+        stats = get_activity_stats(days=days)
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/engagement')
+@admin_required
+def admin_engagement():
+    """User engagement funnel analytics."""
+    try:
+        total_users = User.query.count()
+        
+        users_with_receipts = db.session.query(func.count(func.distinct(Receipt.user_id))).scalar() or 0
+        
+        active_users_30d = db.session.query(func.count(func.distinct(Receipt.user_id))).filter(
+            Receipt.created_at >= datetime.utcnow() - timedelta(days=30)
+        ).scalar() or 0
+        
+        converted_users = User.query.filter(
+            User.subscription_status.in_(['basic', 'pro', 'premium'])
+        ).count()
+        
+        funnel = {
+            'registered': total_users,
+            'first_scan': users_with_receipts,
+            'active_30d': active_users_30d,
+            'converted': converted_users
+        }
+        
+        funnel_rates = {
+            'registration_to_scan': round(users_with_receipts / max(total_users, 1) * 100, 1),
+            'scan_to_active': round(active_users_30d / max(users_with_receipts, 1) * 100, 1),
+            'active_to_converted': round(converted_users / max(active_users_30d, 1) * 100, 1)
+        }
+        
+        daily_registrations = db.session.query(
+            func.date(User.created_at).label('date'),
+            func.count(User.id).label('count')
+        ).filter(
+            User.created_at >= datetime.utcnow() - timedelta(days=30)
+        ).group_by(func.date(User.created_at)).all()
+        
+        registration_trend = {str(d): c for d, c in daily_registrations}
+        
+        return render_template(
+            'admin/engagement.html',
+            funnel=funnel,
+            funnel_rates=funnel_rates,
+            registration_trend=registration_trend
+        )
+    except Exception as e:
+        flash(f'Error loading engagement data: {str(e)}', 'danger')
+        app.logger.error(f'Admin engagement error: {str(e)}')
         return redirect(url_for('admin_dashboard'))
-
-# Clear Logs
-@app.route('/admin/logs/clear', methods=['POST'])
-@admin_required
-def admin_clear_logs():
-    """Clear system logs of a specific type."""
-    log_type = request.form.get('log_type', 'all')
-    
-    # In a real app, this would delete logs from the database
-    flash(f"Logs of type '{log_type}' cleared successfully.", "success")
-    return redirect(url_for('admin_logs', log_type=log_type))
-
-# Export Logs
-@app.route('/admin/logs/export')
-@admin_required
-def admin_export_logs():
-    """Export system logs as CSV file."""
-    log_type = request.args.get('log_type', 'all')
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
-    
-    # In a real app, this would query logs from the database
-    # For now, we'll create a simple CSV with mock data
-    data = {
-        'timestamp': [datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') for _ in range(5)],
-        'level': ['INFO', 'ERROR', 'WARNING', 'INFO', 'ERROR'],
-        'source': ['web', 'database', 'auth', 'api', 'web'],
-        'message': [
-            'User login successful',
-            'Database connection lost',
-            'User login failed: invalid credentials',
-            'Receipt processing successful',
-            'API rate limit exceeded'
-        ],
-        'user_id': [1, None, 2, 3, None],
-        'ip_address': ['192.168.1.1', '192.168.1.2', '192.168.1.3', '192.168.1.4', '192.168.1.5']
-    }
-    
-    df = pd.DataFrame(data)
-    
-    # Create a file-like object in memory
-    buffer = BytesIO()
-    df.to_csv(buffer, index=False)
-    buffer.seek(0)
-    
-    # Generate filename with current date
-    filename = f"logs_{log_type}_{datetime.utcnow().strftime('%Y%m%d')}.csv"
-    
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=filename,
-        mimetype='text/csv'
-    )
