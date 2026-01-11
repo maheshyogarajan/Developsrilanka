@@ -26,6 +26,7 @@
                 </div>
                 <div class="admin-card-body">
                     <form action="{{ url_for('admin_update_tax_settings') }}" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -101,6 +102,7 @@
                 </div>
                 <div class="admin-card-body">
                     <form action="{{ url_for('admin_update_general_settings') }}" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="appName" class="form-label">Application Name</label>
                             <input type="text" class="form-control" id="appName" name="app_name" 
@@ -172,6 +174,7 @@
                                     </h5>
                                     <p class="card-text">Remove temporary files older than the specified period to free up disk space.</p>
                                     <form action="{{ url_for('admin_clear_temp_files') }}" method="post">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <div class="input-group mb-3">
                                             <input type="number" class="form-control" name="hours" value="24" min="1" max="720" required>
                                             <span class="input-group-text">hours</span>
@@ -193,6 +196,7 @@
                                     </h5>
                                     <p class="card-text">Reprocess receipts without categories using the AI to assign appropriate expense categories.</p>
                                     <form action="{{ url_for('admin_update_categories') }}" method="post">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button class="btn btn-success" type="submit">
                                             <i class="fas fa-play me-1"></i> Start Category Update
                                         </button>

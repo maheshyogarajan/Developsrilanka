@@ -276,6 +276,7 @@
             </div>
             <div class="modal-body">
                 <form action="{{ url_for('admin_update_tax_settings') }}" method="post" id="taxRatesForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="lkrBusinessTaxRate" class="form-label">LKR Business Tax Rate (%)</label>
                         <input type="number" class="form-control" id="lkrBusinessTaxRate" name="lkr_business_tax_rate" 

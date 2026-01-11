@@ -99,6 +99,7 @@
             <div class="row align-items-center">
                 <div class="col-md-6">
                     <form action="{{ url_for('admin_clear_logs') }}" method="post" onsubmit="return confirm('Are you sure you want to clear these logs? This action cannot be undone.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="input-group">
                             <select class="form-select" name="log_type">
                                 <option value="all">All Logs</option>
