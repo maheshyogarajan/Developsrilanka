@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+
+{% block title %}Complete Your Setup - DevelopSriLanka{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white py-3">
+                    <h2 class="mb-0 text-center">
+                        <i class="fas fa-rocket me-2"></i>Complete Your Setup
+                    </h2>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <div class="mb-3">
+                            <span class="badge bg-success rounded-pill px-3 py-2">
+                                <i class="fas fa-check me-1"></i> Email Verified
+                            </span>
+                        </div>
+                        <p class="text-muted">
+                            Welcome, {{ current_user.name or current_user.email.split('@')[0] }}! 
+                            Let's set up your business organization to get started.
+                        </p>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>What's been set up already:</h6>
+                        <p class="mb-0"><i class="fas fa-check text-success me-2"></i> <strong>Personal Finances</strong> - For tracking your personal expenses</p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('onboarding_wizard') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-4">
+                            <label for="business_name" class="form-label fw-bold">
+                                <i class="fas fa-building me-1"></i> Your Business / Consulting Organization Name
+                            </label>
+                            <input type="text" class="form-control form-control-lg" id="business_name" 
+                                   name="business_name" placeholder="e.g., ABC Consulting, Your Name Pvt Ltd" 
+                                   required minlength="2" maxlength="100">
+                            <div class="form-text">
+                                <strong>Examples:</strong>
+                                <ul class="mb-0 ps-3 mt-1">
+                                    <li>Your Name Consulting</li>
+                                    <li>ABC Solutions (Private) Limited</li>
+                                    <li>Freelance Design Services</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-secondary">
+                            <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Why two organizations?</h6>
+                            <ul class="mb-0">
+                                <li><strong>Personal Finances</strong> - Track personal receipts and expenses</li>
+                                <li><strong>Your Business</strong> - Track business receipts, clients, and invoices separately</li>
+                            </ul>
+                            <p class="mb-0 mt-2 small">This separation helps you keep personal and business finances organized for tax purposes.</p>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check-circle me-2"></i>Complete Setup & Get Started
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="text-center mt-3">
+                <small class="text-muted">
+                    You can always create more organizations or edit these later in Settings.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

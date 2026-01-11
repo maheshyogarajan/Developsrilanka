@@ -331,6 +331,9 @@ class User(UserMixin, db.Model):
     email_verification_salt = db.Column(db.String(100), nullable=True)
     email_verification_sent_at = db.Column(db.DateTime, nullable=True)
     
+    # Onboarding status - must complete before using main features
+    onboarding_completed = db.Column(db.Boolean, default=False)
+    
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
     access_expiration_date = db.Column(db.DateTime, nullable=True)

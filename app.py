@@ -311,16 +311,21 @@ def preview():
 @login_required
 def index():
     """Render the receipt scanning page of the application."""
+    # Check if email is verified first
+    if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
+        flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
+        return redirect(url_for('verify_email_reminder'))
+    
+    # Check if onboarding is completed (admins bypass this check)
+    if hasattr(current_user, 'onboarding_completed') and not current_user.onboarding_completed and current_user.role != 'admin':
+        flash('Please complete your account setup before using the app.', 'info')
+        return redirect(url_for('onboarding_wizard'))
+    
     # Check if user has any organizations
     if not current_user.organizations:
         # Redirect to getting started if no organizations exist
         flash("Please set up an organization before scanning receipts.", "warning")
         return redirect(url_for('getting_started.wizard'))
-    
-    # Check if email is verified
-    if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
-        flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
-        return redirect(url_for('verify_email_reminder'))
     
     return render_template('index.html')
 
@@ -2291,15 +2296,23 @@ def verify_email(token):
             user.is_email_verified = True
             user.email_verification_token = None
             user.email_verification_salt = None
+            
+            # Create Personal Finances organization for the newly verified user
+            try:
+                from user_organization_helper import create_personal_finances_organization
+                org = create_personal_finances_organization(user, commit=False)
+                if org:
+                    logging.info(f"Created Personal Finances organization for verified user {user.id}")
+            except Exception as org_error:
+                logging.error(f"Error creating Personal Finances organization during verification: {str(org_error)}")
+                # Continue with verification even if org creation fails
+            
             db.session.commit()
             
-            # If user is logged in, redirect to dashboard
-            if current_user.is_authenticated:
-                flash('Your email has been verified! You now have access to all features.', 'success')
-                return redirect(url_for('index'))
-            else:
-                flash('Your email has been verified! Please log in to continue.', 'success')
-                return redirect(url_for('login'))
+            # Log the user in and redirect to onboarding wizard
+            login_user(user)
+            flash('Your email has been verified! Please complete your account setup.', 'success')
+            return redirect(url_for('onboarding_wizard'))
                 
         except SignatureExpired:
             flash('The verification link has expired. Please request a new one.', 'warning')
@@ -2319,6 +2332,76 @@ def verify_email(token):
 def verify_email_reminder():
     """Show a reminder page for email verification."""
     return render_template('verify_email_reminder.html')
+
+@app.route('/onboarding', methods=['GET', 'POST'])
+@login_required
+def onboarding_wizard():
+    """Onboarding wizard for new users to set up their business organization."""
+    from models import Organization, OrganizationUser
+    
+    # If already completed onboarding, redirect to dashboard
+    if current_user.onboarding_completed:
+        return redirect(url_for('index'))
+    
+    # If email not verified, redirect to verification
+    if not current_user.is_email_verified:
+        flash('Please verify your email before completing setup.', 'warning')
+        return redirect(url_for('verify_email_reminder'))
+    
+    if request.method == 'POST':
+        business_name = request.form.get('business_name', '').strip()
+        
+        if not business_name:
+            flash('Please enter your business or consulting organization name.', 'danger')
+            return render_template('onboarding_wizard.html')
+        
+        if len(business_name) < 2:
+            flash('Business name must be at least 2 characters.', 'danger')
+            return render_template('onboarding_wizard.html')
+        
+        try:
+            # Create the business organization
+            business_org = Organization(
+                name=business_name,
+                owner_id=current_user.id,
+                currency='LKR',
+                email_footer_text=f"Thank you for your business! This is an automated message from {business_name}."
+            )
+            db.session.add(business_org)
+            db.session.flush()
+            
+            # Add user as owner of the business organization
+            org_user = OrganizationUser(
+                user_id=current_user.id,
+                organization_id=business_org.id,
+                role='owner',
+                is_default=True  # Make business org the default
+            )
+            db.session.add(org_user)
+            
+            # Update Personal Finances org to not be default
+            personal_org_user = OrganizationUser.query.join(Organization).filter(
+                OrganizationUser.user_id == current_user.id,
+                Organization.name == 'Personal Finances'
+            ).first()
+            if personal_org_user:
+                personal_org_user.is_default = False
+            
+            # Mark onboarding as complete
+            current_user.onboarding_completed = True
+            db.session.commit()
+            
+            logging.info(f"User {current_user.id} completed onboarding with business: {business_name}")
+            flash(f'Welcome! Your business "{business_name}" has been set up. You\'re ready to start tracking expenses!', 'success')
+            return redirect(url_for('index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating business organization during onboarding: {str(e)}")
+            flash('An error occurred while setting up your business. Please try again.', 'danger')
+            return render_template('onboarding_wizard.html')
+    
+    return render_template('onboarding_wizard.html')
 
 @app.route('/resend-verification-email')
 @login_required
@@ -2415,7 +2498,7 @@ def email_login():
                 flash('Please verify your email address to access all features. Check your inbox for the verification link.', 'warning')
                 return redirect(url_for('verify_email_reminder'))
             
-            # Check if there's a pending invitation token in the session
+            # Check if there's a pending invitation token in the session - process BEFORE onboarding check
             invitation_token = session.get('invitation_token')
             if invitation_token:
                 # Import required models
@@ -2484,6 +2567,11 @@ def email_login():
                 except Exception as e:
                     logging.error(f"Error processing invitation after login: {str(e)}")
                     logging.error(traceback.format_exc())
+            
+            # Check if onboarding is completed - if not, redirect to onboarding wizard (admins bypass)
+            if hasattr(user, 'onboarding_completed') and not user.onboarding_completed and user.role != 'admin':
+                flash('Please complete your account setup to get started.', 'info')
+                return redirect(url_for('onboarding_wizard'))
             
             # Redirect directly to scan page for better user experience
             return redirect(url_for('index'))
@@ -2558,46 +2646,14 @@ def email_login():
                 except Exception as log_err:
                     logging.debug(f"Activity logging failed: {log_err}")
                 
-                # Create Personal Finances organization for the new user
-                # We're using a single database transaction for both the user and organization
+                # Send email verification (organizations will be created after email verification)
                 try:
-                    log_organization_creation(new_user.id, email, status="started")
-                    from user_organization_helper import create_personal_finances_organization
-                    
-                    # Pass commit=False to use our current transaction
-                    org = create_personal_finances_organization(new_user, commit=False)
-                    
-                    # Send email verification
-                    try:
-                        from email_verification import send_verification_email
-                        send_verification_email(new_user)
-                        logging.info(f"Verification email sent to {email}")
-                    except Exception as email_error:
-                        logging.error(f"Failed to send verification email to {email}: {str(email_error)}")
-                        # Continue with registration even if email fails
-                    
-                    # Now commit the entire transaction (both user and organization)
-                    db.session.commit()
-                    
-                    if org:
-                        log_organization_creation(new_user.id, email, org.id, "success")
-                    else:
-                        # This shouldn't happen since we're raising exceptions now
-                        log_organization_creation(new_user.id, email, status="failed")
-                        
-                except Exception as org_error:
-                    # Log the error with details
-                    log_registration_error(email, org_error, 'standard')
-                    log_organization_creation(new_user.id, email, status="failed")
-                    
-                    # Rollback the transaction
-                    db.session.rollback()
-                    
-                    # Since organization creation failed, we should also rollback the user
-                    # and report a complete error to the user
-                    flash('We encountered a problem creating your account. Please try again or contact support if the issue persists.', 'danger')
-                    logging.error(f"Error creating Personal Finances organization: {str(org_error)}")
-                    return redirect(url_for('register'))
+                    from email_verification import send_verification_email
+                    send_verification_email(new_user)
+                    logging.info(f"Verification email sent to {email}")
+                except Exception as email_error:
+                    logging.error(f"Failed to send verification email to {email}: {str(email_error)}")
+                    # Continue with registration even if email fails
                 
                 # Log in the new user
                 login_user(new_user)
