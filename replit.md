@@ -32,7 +32,7 @@ Receipt processing is asynchronous via Celery to prevent UI blocking. The pipeli
 
 ### Gemini API Reliability Architecture
 
-The Gemini integration is designed for reliability with structured outputs (Pydantic schemas), comprehensive timeout and budget management, intelligent retry strategies with exponential backoff, and a model fallback chain (e.g., `gemini-2.5-flash` to `gemini-2.0-flash`). A circuit breaker prevents cascading failures, and detailed error categorization with user-friendly messages enhances the user experience.
+The Gemini integration is designed for reliability with structured outputs (Pydantic schemas), comprehensive timeout and budget management, intelligent retry strategies with exponential backoff, and a model fallback chain (`gemini-2.5-flash` → `gemini-2.5-flash-lite`). NOTE: `gemini-2.0-flash` and `gemini-2.0-flash-lite` are deprecated and shut down June 1, 2026 — removed from the chain. A circuit breaker prevents cascading failures, and detailed error categorization with user-friendly messages enhances the user experience.
 
 ### Bank Statement Processing
 

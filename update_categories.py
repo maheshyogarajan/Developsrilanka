@@ -68,8 +68,8 @@ def classify_expense(receipt_data):
             logging.debug("Using gemini-2.5-flash model with structured outputs")
         except Exception as model_error:
             logging.warning(f"Could not use gemini-2.5-flash, falling back: {str(model_error)}")
-            model = genai.GenerativeModel('gemini-2.0-flash', generation_config=generation_config)
-            logging.debug("Using gemini-2.0-flash model with structured outputs")
+            model = genai.GenerativeModel('gemini-2.5-flash-lite', generation_config=generation_config)
+            logging.debug("Using gemini-2.5-flash-lite model with structured outputs")
         
         prompt = f"""
         Analyze this receipt data and classify it according to IFRS expense categories:

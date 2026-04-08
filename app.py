@@ -1958,9 +1958,9 @@ def process_receipt_with_gemini(image):
         )
         
         # Configure Gemini model with structured outputs
-        # Primary: gemini-2.5-flash (most capable)
-        # Fallback 1: gemini-2.0-flash (faster, good performance)
-        # Fallback 2: gemini-2.0-flash-lite (most cost-efficient)
+        # Primary: gemini-2.5-flash (stable GA — best vision quality)
+        # Fallback: gemini-2.5-flash-lite (stable GA — cost-efficient)
+        # NOTE: gemini-2.0-flash and gemini-2.0-flash-lite are deprecated and shut down June 1, 2026
         model = None
         model_name = None
         
@@ -1970,7 +1970,7 @@ def process_receipt_with_gemini(image):
             "response_schema": Receipt
         }
         
-        for attempt_model in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']:
+        for attempt_model in ['gemini-2.5-flash', 'gemini-2.5-flash-lite']:
             try:
                 model = genai.GenerativeModel(
                     attempt_model,
@@ -2064,12 +2064,11 @@ def process_receipt_with_gemini(image):
             response = gemini_circuit_breaker.call(make_gemini_call)
             
             # Check if we got a signal to try fallback model (None response from 503)
-            if response is None and model_name != 'gemini-2.0-flash-lite':
+            if response is None and model_name != 'gemini-2.5-flash-lite':
                 logging.warning(f"{model_name} overloaded, trying fallback model")
                 # Try next model in fallback chain
                 fallback_models = {
-                    'gemini-2.5-flash': 'gemini-2.0-flash',
-                    'gemini-2.0-flash': 'gemini-2.0-flash-lite'
+                    'gemini-2.5-flash': 'gemini-2.5-flash-lite',
                 }
                 if model_name in fallback_models:
                     try:
