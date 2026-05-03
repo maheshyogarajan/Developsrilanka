@@ -1936,13 +1936,22 @@ def export_excel():
 
 def process_receipt_with_gemini(image):
     """
-    Process the receipt image using Gemini Vision API with timeout and retry logic.
-    
-    Args:
-        image: PIL Image object of the receipt
-    
-    Returns:
-        Dictionary containing extracted receipt data, or None on failure
+    Public entry point for receipt OCR. Dispatches to the active provider
+    (Gemini single-call or GLM-OCR + Gemini-reasoner two-stage) based on
+    the OCR_PROVIDER environment variable.
+
+    Function name is preserved for backward compatibility — image_processor
+    resolves it dynamically via getattr.
+    """
+    from ocr_providers import process_receipt as _dispatch
+    return _dispatch(image)
+
+
+def _process_receipt_with_gemini_legacy(image):
+    """
+    Legacy single-call Gemini Vision pipeline. Does both OCR and Sri Lankan
+    tax-deductibility reasoning in one shot. Used when OCR_PROVIDER=gemini
+    (the current default).
     """
     try:
         logging.debug("Starting receipt image processing with Gemini Vision")

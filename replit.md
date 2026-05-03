@@ -34,6 +34,10 @@ Receipt processing is asynchronous via Celery to prevent UI blocking. The pipeli
 
 The Gemini integration is designed for reliability with structured outputs (Pydantic schemas), comprehensive timeout and budget management, intelligent retry strategies with exponential backoff, and a model fallback chain (`gemini-2.5-flash` → `gemini-2.5-flash-lite`). NOTE: `gemini-2.0-flash` and `gemini-2.0-flash-lite` are deprecated and shut down June 1, 2026 — removed from the chain. A circuit breaker prevents cascading failures, and detailed error categorization with user-friendly messages enhances the user experience.
 
+### Pluggable OCR Provider (Gemini ↔ GLM-OCR)
+
+Receipt OCR is now behind a provider abstraction (`ocr_providers.py`) selected by the `OCR_PROVIDER` env var (`gemini` default, or `glm`). The `glm` provider uses a two-stage pipeline: **Stage A** = GLM-OCR (Z.ai, ~$0.03 / 1M tokens, beats Gemini-3-Pro on receipt benchmarks) handles the expensive vision extraction via `glm_ocr_client.py`; **Stage B** = a Gemini reasoner (`gemini_reasoner.py`, default `gemini-3-flash-preview`, configurable via `REASONER_MODEL`) does Sri Lankan IRA-2017 tax-deductibility classification and IFRS expense-category assignment on the already-extracted text. Output of both providers conforms to the existing `Receipt` Pydantic schema, so storage, audit logging, and admin analytics are unaffected. If Stage B fails, the local rules engine in `sri_lanka_tax_rules.py` is used as a fallback so receipt saves never block. `compare_ocr_providers.py` runs both providers side-by-side on stored receipts to validate accuracy before flipping the default.
+
 ### Bank Statement Processing
 
 A multi-stage parsing system extracts structured transaction data from PDF bank statements, including text extraction, account detection, transaction pattern matching, type classification, and confidence scoring, supported by organization-specific validation rules.
@@ -66,7 +70,8 @@ A two-stage onboarding process ensures users set up both a "Personal Finances" o
 
 ## Third-Party APIs
 
-- **Google Gemini API**: AI-powered OCR for receipt and document text extraction.
+- **Google Gemini API**: AI-powered OCR for receipt and document text extraction; also the Stage B reasoner for tax classification when `OCR_PROVIDER=glm`. Requires `GEMINI_API_KEY`.
+- **Z.ai (Zhipu) GLM-OCR**: Cheap, accurate vision OCR used as Stage A when `OCR_PROVIDER=glm`. Requires `ZHIPU_API_KEY`. Configurable via `GLM_OCR_MODEL`, `ZAI_BASE_URL`.
 - **Google OAuth**: Social login integration.
 - **Facebook OAuth**: Social login integration.
 
