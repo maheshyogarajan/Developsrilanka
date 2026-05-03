@@ -34,12 +34,10 @@ ZAI_CHAT_ENDPOINT = f"{ZAI_BASE_URL}/chat/completions"
 
 GLM_OCR_MODELS = [
     os.environ.get("GLM_OCR_MODEL", "glm-4.5v"),
-    "glm-4v-plus",
-    "glm-4v",
 ]
 
-REQUEST_TIMEOUT_S = float(os.environ.get("GLM_OCR_TIMEOUT", "60"))
-MAX_RETRIES = int(os.environ.get("GLM_OCR_MAX_RETRIES", "3"))
+REQUEST_TIMEOUT_S = float(os.environ.get("GLM_OCR_TIMEOUT", "30"))
+MAX_RETRIES = int(os.environ.get("GLM_OCR_MAX_RETRIES", "2"))
 
 glm_circuit_breaker = GeminiCircuitBreaker(
     failure_threshold=5, timeout=300, window=300

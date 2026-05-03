@@ -27,7 +27,7 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PROVIDER = "gemini"
+DEFAULT_PROVIDER = "glm"
 _ALLOWED = ("gemini", "glm")
 
 
@@ -77,16 +77,22 @@ def _run_glm_pipeline(
     try:
         extracted = extract_receipt_fields(image)
     except Exception as e:
-        # Catch every Stage A failure mode (GLMOCRError, circuit-breaker OPEN,
-        # network errors, unexpected SDK exceptions) and degrade cleanly the
-        # same way the legacy Gemini OCR path does, so callers always get a
-        # `None` and a logged failed scan instead of an uncaught exception.
+        # Stage A (GLM-OCR) failed — could be GLMOCRError, circuit-breaker
+        # OPEN, network/timeout, or any SDK exception. Log the failure for
+        # audit / cost telemetry, then fall through to the legacy Gemini
+        # vision pipeline so problem images still get processed instead of
+        # returning a hard None to the caller.
         is_breaker_open = "Circuit breaker OPEN" in str(e)
         if is_breaker_open:
-            logger.error(f"GLM-OCR Stage A blocked by circuit breaker: {e}")
+            logger.warning(
+                f"GLM-OCR Stage A blocked by circuit breaker, "
+                f"falling back to Gemini: {e}"
+            )
             err_category = "CIRCUIT_OPEN"
         else:
-            logger.error(f"GLM-OCR Stage A failed: {e}")
+            logger.warning(
+                f"GLM-OCR Stage A failed, falling back to Gemini: {e}"
+            )
             err_category = type(e).__name__
         try:
             ActivityLogger.log_receipt_scan(
@@ -94,10 +100,11 @@ def _run_glm_pipeline(
                 success=False,
                 model_used="glm-ocr",
                 error_category=err_category,
+                extra={"provider": "glm", "stage": "A", "fallback": "gemini"},
             )
         except Exception:
             pass
-        return None
+        return _run_gemini_pipeline(image, organization_id)
 
     from activity_logger import estimate_cost_from_tokens
 

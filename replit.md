@@ -40,10 +40,12 @@ Receipt OCR is behind a provider abstraction (`ocr_providers.py`). Two providers
 
 Both providers return data conforming to the existing `Receipt` Pydantic schema. Stage A output is validated through the `StageARawReceipt` Pydantic schema (with one strict-prompt retry on validation failure) before being passed to Stage B. Stage B output is validated against the full `Receipt` schema, and any model whose output fails validation is skipped in favour of the next fallback model; if every reasoner model fails, the local `sri_lanka_tax_rules.py` engine plus a vendor/item keyword-based category inference produces a complete, schema-valid receipt so saves never block.
 
-Reliability: Stage A is wrapped in a dedicated `glm_circuit_breaker` (5 failures / 5 minutes), with model fallback `glm-4.5v → glm-4v-plus → glm-4v`. Stage B reuses the shared `gemini_circuit_breaker` plus a text-only equivalent of `generate_with_retry` (timeout, exponential backoff on 429, fallback-on-overload). Per-`Receipt` audit logging uses the stable identifier `extraction_model="glm-ocr"`; the concrete underlying model name (e.g. `glm-4.5v`) is recorded on the activity-log entry for cost attribution.
+Reliability: Stage A runs `glm-4.5v` only (per-call timeout `GLM_OCR_TIMEOUT=30s`, `MAX_RETRIES=2`) wrapped in a dedicated `glm_circuit_breaker` (5 failures / 5 minutes). When Stage A fails for any reason — circuit breaker open, timeout, network error, schema validation failure — the dispatcher transparently falls back to the legacy Gemini vision pipeline (`gemini-2.5-flash → gemini-2.5-flash-lite`) so problem images still get processed. Stage B reuses the shared `gemini_circuit_breaker` plus a text-only equivalent of `generate_with_retry` (timeout, exponential backoff on 429, fallback-on-overload). Per-`Receipt` audit logging uses the stable identifier `extraction_model="glm-ocr"`; the concrete underlying model name (e.g. `glm-4.5v`) is recorded on the activity-log entry for cost attribution. Stage A failure-and-fallback events are logged with `extra={"provider":"glm","stage":"A","fallback":"gemini"}` so the admin dashboard can track fallback rate.
+
+**Default provider:** `glm` (set in `ocr_providers.DEFAULT_PROVIDER`). The legacy single-call Gemini pipeline remains available as `OCR_PROVIDER=gemini` and as the automatic fallback target.
 
 **Provider rollout (no redeploy required):**
-- Globally: set `OCR_PROVIDER=glm` (or `gemini`) in environment secrets.
+- Globally: set `OCR_PROVIDER=glm` (or `gemini`) in environment secrets to override the default.
 - Per organization: set the `Organization.ocr_provider` column for that org. The dispatcher checks the per-org column first and falls back to the global env var. SQL one-liner to flip a single org:
   ```sql
   UPDATE organization SET ocr_provider = 'glm' WHERE id = <org_id>;
