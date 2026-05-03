@@ -123,22 +123,32 @@ class ActivityLogger:
     @classmethod
     def log_receipt_scan(cls, receipt_id=None, success: bool = True, model_used: str = None, 
                          error_category: str = None, processing_time: float = None,
+                         input_tokens: int = None, output_tokens: int = None,
+                         estimated_cost_usd: float = None,
                          extra: dict = None):
         """Log a receipt scanning attempt (Gemini API or GLM-OCR call).
         
         ``extra`` carries provider-specific metadata that we want preserved
         on the audit row (e.g. the underlying GLM model name when
         ``model_used='glm-ocr'``, or Stage B reasoner model on fallback).
+        
+        ``input_tokens`` / ``output_tokens`` / ``estimated_cost_usd`` capture
+        actual token usage and the resulting per-call dollar cost reported by
+        the provider, so the admin dashboard can display real spend instead
+        of a fixed per-call estimate.
         """
         fields = {
             'success': success,
             'model': model_used,
             'error_category': error_category,
-            'processing_time_ms': int(processing_time * 1000) if processing_time else None
+            'processing_time_ms': int(processing_time * 1000) if processing_time else None,
+            'input_tokens': int(input_tokens) if input_tokens is not None else None,
+            'output_tokens': int(output_tokens) if output_tokens is not None else None,
+            'estimated_cost_usd': float(estimated_cost_usd) if estimated_cost_usd is not None else None,
         }
         if extra:
             for k, v in extra.items():
-                if k not in fields:
+                if k not in fields or fields[k] is None:
                     fields[k] = v
         return cls.log_activity(
             entity_type='gemini_api',
@@ -306,6 +316,42 @@ _COST_PER_CALL_USD = {
     'glm-4v': 0.00009,
 }
 
+# Per-1M-token pricing in USD (input, output). Used to convert raw token
+# counts reported by the provider APIs into a per-call dollar cost.
+_TOKEN_PRICE_USD_PER_1M = {
+    'gemini-2.5-flash':       (0.30, 2.50),
+    'gemini-2.5-flash-lite':  (0.10, 0.40),
+    'gemini-3-flash-preview': (0.30, 2.50),
+    'gemini-3.1-pro-preview': (1.25, 10.00),
+    'gemini-reasoner':        (0.30, 2.50),
+    'glm-ocr':   (0.60, 1.80),
+    'glm-4.5v':  (0.60, 1.80),
+    'glm-4v-plus': (0.40, 1.20),
+    'glm-4v':    (0.30, 0.90),
+}
+
+
+def estimate_cost_from_tokens(model: str, input_tokens, output_tokens) -> float:
+    """Convert token counts to a USD cost estimate for the given model.
+    Returns 0.0 if the model is unknown or token counts are unavailable.
+    """
+    if not model or input_tokens is None or output_tokens is None:
+        return 0.0
+    rates = _TOKEN_PRICE_USD_PER_1M.get(model)
+    if not rates:
+        # Best-effort: match a known prefix.
+        for k, v in _TOKEN_PRICE_USD_PER_1M.items():
+            if model.startswith(k):
+                rates = v
+                break
+    if not rates:
+        return 0.0
+    in_rate, out_rate = rates
+    try:
+        return ((float(input_tokens) * in_rate) + (float(output_tokens) * out_rate)) / 1_000_000.0
+    except (TypeError, ValueError):
+        return 0.0
+
 
 def _provider_of(model: str) -> str:
     if not model:
@@ -346,6 +392,10 @@ def get_gemini_api_stats(days: int = 7):
     model_usage = {}
     provider_calls = {}
     provider_cost_usd = {}
+    provider_input_tokens = {}
+    provider_output_tokens = {}
+    total_input_tokens = 0
+    total_output_tokens = 0
     total_processing_time = 0
     processing_count = 0
     total_cost_usd = 0.0
@@ -370,13 +420,38 @@ def get_gemini_api_stats(days: int = 7):
             model_usage[model] = model_usage.get(model, 0) + 1
             provider = _provider_of(model)
             provider_calls[provider] = provider_calls.get(provider, 0) + 1
-            # Resolve cost: prefer the concrete underlying model when the
-            # row carries the stable `glm-ocr` umbrella label.
+            # Resolve cost: prefer the actual `estimated_cost_usd` reported
+            # by the provider (computed from real token counts). Fall back
+            # to a per-call estimate if the row predates token tracking.
             underlying = log.changed_fields.get('underlying_model')
-            cost_key = underlying if (underlying and underlying in _COST_PER_CALL_USD) else model
-            cost = _COST_PER_CALL_USD.get(cost_key, 0.0)
+            stored_cost = log.changed_fields.get('estimated_cost_usd')
+            if stored_cost is not None:
+                try:
+                    cost = float(stored_cost)
+                except (TypeError, ValueError):
+                    cost = 0.0
+            else:
+                cost_key = underlying if (underlying and underlying in _COST_PER_CALL_USD) else model
+                cost = _COST_PER_CALL_USD.get(cost_key, 0.0)
             provider_cost_usd[provider] = round(provider_cost_usd.get(provider, 0.0) + cost, 6)
             total_cost_usd += cost
+
+            in_tok = log.changed_fields.get('input_tokens')
+            out_tok = log.changed_fields.get('output_tokens')
+            if in_tok:
+                try:
+                    in_tok = int(in_tok)
+                    provider_input_tokens[provider] = provider_input_tokens.get(provider, 0) + in_tok
+                    total_input_tokens += in_tok
+                except (TypeError, ValueError):
+                    pass
+            if out_tok:
+                try:
+                    out_tok = int(out_tok)
+                    provider_output_tokens[provider] = provider_output_tokens.get(provider, 0) + out_tok
+                    total_output_tokens += out_tok
+                except (TypeError, ValueError):
+                    pass
 
         if log.action == 'gemini_success':
             stage = log.changed_fields.get('stage')
@@ -403,6 +478,10 @@ def get_gemini_api_stats(days: int = 7):
         'model_usage': model_usage,
         'provider_calls': provider_calls,
         'provider_cost_usd': provider_cost_usd,
+        'provider_input_tokens': provider_input_tokens,
+        'provider_output_tokens': provider_output_tokens,
+        'total_input_tokens': total_input_tokens,
+        'total_output_tokens': total_output_tokens,
         'scan_count': scan_count,
         'total_cost_usd': round(total_cost_usd, 4),
         'avg_cost_per_scan_usd': avg_cost_per_scan,

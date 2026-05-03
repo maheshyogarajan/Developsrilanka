@@ -184,6 +184,13 @@ def _call_once(model: str, image_data_url: str, prompt: str, headers: Dict[str, 
                 raise GLMOCRError("GLM-OCR returned non-JSON content")
             parsed["_model_used"] = model
             parsed["_elapsed_ms"] = elapsed_ms
+            usage = body.get("usage") or {}
+            parsed["_input_tokens"] = (
+                usage.get("prompt_tokens") or usage.get("input_tokens") or 0
+            )
+            parsed["_output_tokens"] = (
+                usage.get("completion_tokens") or usage.get("output_tokens") or 0
+            )
             return parsed
 
         except requests.Timeout as e:
@@ -227,6 +234,8 @@ def _extract_inner(image: Image.Image) -> Dict[str, Any]:
         meta = {
             "_model_used": parsed.get("_model_used", model),
             "_elapsed_ms": parsed.get("_elapsed_ms", 0),
+            "_input_tokens": parsed.get("_input_tokens", 0),
+            "_output_tokens": parsed.get("_output_tokens", 0),
         }
         validated, shape_error = _validate_with_pydantic(parsed)
         if validated is not None:
@@ -252,6 +261,8 @@ def _extract_inner(image: Image.Image) -> Dict[str, Any]:
         meta = {
             "_model_used": parsed.get("_model_used", model),
             "_elapsed_ms": parsed.get("_elapsed_ms", 0),
+            "_input_tokens": parsed.get("_input_tokens", 0),
+            "_output_tokens": parsed.get("_output_tokens", 0),
         }
         validated, shape_error = _validate_with_pydantic(parsed)
         if validated is not None:

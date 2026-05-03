@@ -354,6 +354,17 @@ def reason_receipt(extracted: Dict[str, Any]) -> Dict[str, Any]:
                 continue
 
             validated["_reasoner_model"] = model_name
+            try:
+                usage_md = getattr(response, "usage_metadata", None)
+                if usage_md is not None:
+                    validated["_input_tokens"] = int(
+                        getattr(usage_md, "prompt_token_count", 0) or 0
+                    )
+                    validated["_output_tokens"] = int(
+                        getattr(usage_md, "candidates_token_count", 0) or 0
+                    )
+            except Exception:
+                pass
             logger.info(
                 f"Stage B ok: model={model_name} items={len(validated.get('items', []))}"
             )

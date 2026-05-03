@@ -59,6 +59,7 @@ def admin_dashboard():
         
         activity_stats = get_activity_stats(days=1)
         gemini_stats = get_gemini_api_stats(days=7)
+        gemini_stats_30 = get_gemini_api_stats(days=30)
         
         error_count = activity_stats.get('error_count', 0)
         scan_success_rate = gemini_stats.get('success_rate', 100)
@@ -135,6 +136,7 @@ def admin_dashboard():
             performance=performance_metrics,
             tax_savings_stats=tax_savings_stats,
             gemini_stats=gemini_stats,
+            gemini_stats_30=gemini_stats_30,
             activity_stats=activity_stats
         )
     except Exception as e:

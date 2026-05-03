@@ -2158,11 +2158,26 @@ def _process_receipt_with_gemini_legacy(image):
             
             # Log successful Gemini API call (receipt_id will be 0 since receipt isn't saved yet)
             try:
-                from activity_logger import ActivityLogger
+                from activity_logger import ActivityLogger, estimate_cost_from_tokens
+                in_tok = out_tok = None
+                est_cost = None
+                try:
+                    usage_md = getattr(response, "usage_metadata", None)
+                    if usage_md is not None:
+                        in_tok = int(getattr(usage_md, "prompt_token_count", 0) or 0)
+                        out_tok = int(getattr(usage_md, "candidates_token_count", 0) or 0)
+                        est_cost = estimate_cost_from_tokens(model_name, in_tok, out_tok)
+                except Exception:
+                    in_tok = out_tok = None
+                    est_cost = None
                 ActivityLogger.log_receipt_scan(
                     receipt_id=None,
                     success=True,
-                    model_used=model_name
+                    model_used=model_name,
+                    input_tokens=in_tok,
+                    output_tokens=out_tok,
+                    estimated_cost_usd=est_cost,
+                    extra={"provider": "gemini"},
                 )
             except Exception as log_err:
                 logging.debug(f"Activity logging failed: {log_err}")

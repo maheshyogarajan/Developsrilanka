@@ -99,12 +99,20 @@ def _run_glm_pipeline(
             pass
         return None
 
+    from activity_logger import estimate_cost_from_tokens
+
     stage_a_model_raw = extracted.get("_model_used", "glm-ocr")
+    stage_a_in = extracted.get("_input_tokens") or 0
+    stage_a_out = extracted.get("_output_tokens") or 0
+    stage_a_cost = estimate_cost_from_tokens(stage_a_model_raw, stage_a_in, stage_a_out)
     try:
         ActivityLogger.log_receipt_scan(
             receipt_id=None,
             success=True,
             model_used="glm-ocr",
+            input_tokens=stage_a_in or None,
+            output_tokens=stage_a_out or None,
+            estimated_cost_usd=stage_a_cost if (stage_a_in or stage_a_out) else None,
             extra={
                 "provider": "glm",
                 "stage": "A",
@@ -116,12 +124,18 @@ def _run_glm_pipeline(
 
     final = reason_receipt(extracted)
     stage_b_model = final.pop("_reasoner_model", "gemini-reasoner")
+    stage_b_in = final.pop("_input_tokens", 0) or 0
+    stage_b_out = final.pop("_output_tokens", 0) or 0
+    stage_b_cost = estimate_cost_from_tokens(stage_b_model, stage_b_in, stage_b_out)
 
     try:
         ActivityLogger.log_receipt_scan(
             receipt_id=None,
             success=True,
             model_used=stage_b_model,
+            input_tokens=stage_b_in or None,
+            output_tokens=stage_b_out or None,
+            estimated_cost_usd=stage_b_cost if (stage_b_in or stage_b_out) else None,
             extra={"provider": "glm", "stage": "B", "scan_complete": True},
         )
     except Exception:
