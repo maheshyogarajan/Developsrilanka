@@ -1284,6 +1284,7 @@ def save_receipt():
             vat_tax=float(receipt_data.get('vat_tax', 0) or 0),
             expense_major_category=receipt_data.get('expense_major_category'),
             expense_minor_category=receipt_data.get('expense_minor_category'),
+            extraction_model=(receipt_data.get('extraction_model') or '')[:100] or None,
             s3_key=s3_key,
             thumbnail_s3_key=thumbnail_s3_key,
             image_path=image_path
@@ -1934,17 +1935,22 @@ def export_excel():
         logging.error(f"Error exporting receipts to Excel: {str(e)}")
         return jsonify({'error': f'Error exporting receipts to Excel: {str(e)}'}), 500
 
-def process_receipt_with_gemini(image):
+def process_receipt_with_gemini(image, organization_id=None):
     """
     Public entry point for receipt OCR. Dispatches to the active provider
     (Gemini single-call or GLM-OCR + Gemini-reasoner two-stage) based on
-    the OCR_PROVIDER environment variable.
+    OCR_PROVIDER, with optional per-organization override.
 
     Function name is preserved for backward compatibility — image_processor
     resolves it dynamically via getattr.
     """
     from ocr_providers import process_receipt as _dispatch
-    return _dispatch(image)
+    if organization_id is None:
+        try:
+            organization_id = session.get('receipt_organization_id')
+        except Exception:
+            organization_id = None
+    return _dispatch(image, organization_id=organization_id)
 
 
 def _process_receipt_with_gemini_legacy(image):

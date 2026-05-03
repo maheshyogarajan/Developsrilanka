@@ -282,7 +282,10 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         # we'll use a string identifier and reference the app module
         import app as app_module
         process_function = getattr(app_module, gemini_processor_fn)
-        extracted_data = process_function(image)
+        try:
+            extracted_data = process_function(image, organization_id=organization_id)
+        except TypeError:
+            extracted_data = process_function(image)
         
         # Add the image path, S3 key, and thumbnail S3 key to the extracted data
         if storage_result:

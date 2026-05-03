@@ -3,10 +3,10 @@ Side-by-side OCR provider accuracy & cost comparison.
 
 Re-runs both Gemini and GLM-OCR against a sample of stored receipt images and
 prints a field-level diff plus rough cost estimate. Use this before flipping
-the OCR_PROVIDER default.
+the OCR_PROVIDER default for an organization.
 
 Usage:
-    # Compare against the most recent N receipts that still have an image on disk
+    # Compare against the most recent N receipts that still have an image
     python compare_ocr_providers.py --limit 10
 
     # Compare a specific receipt id
@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 from io import BytesIO
+from typing import Optional
 
 from PIL import Image
 
@@ -37,30 +38,43 @@ COMPARE_FIELDS = [
 ]
 
 
-def _load_image_for_receipt(receipt) -> Image.Image | None:
-    """Load the raw receipt image from local disk or S3."""
-    try:
-        from image_processor import storage
-    except Exception as e:
-        log.error(f"Cannot import storage: {e}")
-        return None
+def _load_image_for_receipt(receipt) -> Optional[Image.Image]:
+    """Load a receipt image from S3 (preferred) or the legacy local upload dir."""
+    if getattr(receipt, "s3_key", None):
+        try:
+            from s3_storage import s3_download_file_to_memory
+            data = s3_download_file_to_memory(receipt.s3_key)
+            if data:
+                return Image.open(BytesIO(data))
+        except Exception as e:
+            log.warning(f"Receipt {receipt.id}: S3 fetch failed: {e}")
 
-    path = receipt.image_path or receipt.image_filename
-    if not path:
-        log.warning(f"Receipt {receipt.id} has no image path")
-        return None
-    try:
-        data = storage.read_bytes(path) if hasattr(storage, "read_bytes") else None
-        if not data and os.path.exists(path):
-            with open(path, "rb") as f:
-                data = f.read()
-        if not data:
-            log.warning(f"Receipt {receipt.id}: image not found at {path}")
-            return None
-        return Image.open(BytesIO(data))
-    except Exception as e:
-        log.warning(f"Receipt {receipt.id}: failed to load image: {e}")
-        return None
+    candidates = []
+    if receipt.image_path:
+        candidates.append(receipt.image_path)
+        candidates.append(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "static",
+                receipt.image_path.lstrip("/"),
+            )
+        )
+        candidates.append(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "static",
+                "uploads",
+                os.path.basename(receipt.image_path),
+            )
+        )
+    for p in candidates:
+        if p and os.path.exists(p):
+            try:
+                return Image.open(p)
+            except Exception as e:
+                log.warning(f"Receipt {receipt.id}: open {p} failed: {e}")
+    log.warning(f"Receipt {receipt.id}: no usable image source")
+    return None
 
 
 def _diff(a: dict, b: dict) -> list[tuple[str, object, object]]:
@@ -85,6 +99,7 @@ def run(receipt_ids: list[int]) -> None:
         agree = 0
         total_fields = 0
         differing_fields = 0
+        per_provider_models: dict[str, set[str]] = {"gemini": set(), "glm": set()}
 
         for r in receipts:
             print(f"\n=== Receipt {r.id} (vendor on file: {r.vendor_name!r}) ===")
@@ -92,14 +107,17 @@ def run(receipt_ids: list[int]) -> None:
             if img is None:
                 continue
 
-            os.environ["OCR_PROVIDER"] = "gemini"
-            gemini_result = process_receipt(img)
-            os.environ["OCR_PROVIDER"] = "glm"
-            glm_result = process_receipt(img)
+            gemini_result = process_receipt(img, provider="gemini")
+            glm_result = process_receipt(img, provider="glm")
 
             if not gemini_result or not glm_result:
-                print(f"  ✗ provider failed: gemini={bool(gemini_result)} glm={bool(glm_result)}")
+                print(
+                    f"  ✗ provider failed: gemini={bool(gemini_result)} glm={bool(glm_result)}"
+                )
                 continue
+
+            per_provider_models["gemini"].add(str(gemini_result.get("extraction_model")))
+            per_provider_models["glm"].add(str(glm_result.get("extraction_model")))
 
             diffs = _diff(gemini_result, glm_result)
             total_fields += len(COMPARE_FIELDS)
@@ -110,7 +128,10 @@ def run(receipt_ids: list[int]) -> None:
             else:
                 for f, gv, lv in diffs:
                     print(f"  ~ {f}: gemini={gv!r}  glm={lv!r}")
-            print(f"  items: gemini={len(gemini_result.get('items', []))} glm={len(glm_result.get('items', []))}")
+            print(
+                f"  items: gemini={len(gemini_result.get('items', []))} "
+                f"glm={len(glm_result.get('items', []))}"
+            )
 
         print("\n--- Summary ---")
         print(f"Receipts compared: {len(receipts)}")
@@ -120,6 +141,8 @@ def run(receipt_ids: list[int]) -> None:
                 f"Field agreement: {total_fields - differing_fields}/{total_fields} "
                 f"({100 * (total_fields - differing_fields) / total_fields:.1f}%)"
             )
+        print(f"Models seen — gemini: {sorted(per_provider_models['gemini'])}")
+        print(f"Models seen — glm:    {sorted(per_provider_models['glm'])}")
         print(
             "\nCost (rough): Gemini 2.5 Flash ~ $0.30/1M in + $2.50/1M out; "
             "GLM-OCR ~ $0.03/1M both. Stage B reasoner adds a small text-only call."

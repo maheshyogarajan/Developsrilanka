@@ -1,18 +1,12 @@
 """
-Stage B reasoner: takes already-extracted receipt fields (from GLM-OCR or any
-other Stage A provider) and runs Sri Lankan Inland Revenue Act 2017
-deductibility classification + IFRS expense-category assignment using a
-strong text-only reasoning Gemini model.
+Stage B reasoner: takes already-extracted receipt fields (from any Stage A
+OCR provider) and assigns Sri Lankan Inland Revenue Act 2017 tax
+deductibility plus an IFRS expense category.
 
-Why a separate stage:
-- Vision OCR is the expensive part. Once we have the text, the reasoning call
-  is small (a few KB of prompt + JSON output), so we can afford a stronger
-  model (Gemini 3 Flash / 3.1 Pro Preview) without blowing the budget.
-- Output shape MUST match the existing `Receipt` Pydantic schema so all
-  downstream code (storage, reporting, audit log) keeps working.
-
-Falls back to the rule-based `sri_lanka_tax_rules.py` classifier if the
-Gemini call fails, so a Stage B outage never blocks receipt saves.
+Output shape matches the `Receipt` Pydantic schema so downstream storage,
+reporting, and audit logging are unchanged. Falls back to the local rules
+engine in `sri_lanka_tax_rules.py` if the Gemini call fails so a Stage B
+outage never blocks a receipt save.
 """
 
 import os

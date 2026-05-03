@@ -199,6 +199,18 @@ except Exception as e:
 # Create database tables when the application starts
 with app.app_context():
     db.create_all()
+    # Idempotent schema additions for columns introduced after initial migration.
+    # PostgreSQL natively supports ADD COLUMN IF NOT EXISTS, so this is safe to
+    # run on every boot.
+    try:
+        from sqlalchemy import text as _sql_text
+        db.session.execute(_sql_text(
+            'ALTER TABLE organization ADD COLUMN IF NOT EXISTS ocr_provider VARCHAR(20)'
+        ))
+        db.session.commit()
+    except Exception as _alter_err:
+        logger.warning(f"Could not ensure organization.ocr_provider column: {_alter_err}")
+        db.session.rollback()
 
 # Function to start Celery worker in a background thread
 def start_background_worker():

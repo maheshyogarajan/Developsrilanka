@@ -1,18 +1,22 @@
 """
 OCR provider abstraction.
 
-Selects the active receipt-extraction provider based on the `OCR_PROVIDER`
-environment variable (or per-call override) and dispatches to it. Every
-provider returns a dict matching the `Receipt` Pydantic schema, so callers
-never have to care which backend ran.
+Selects the active receipt-extraction provider and dispatches to it. Every
+provider returns a dict matching the `Receipt` Pydantic schema (plus an
+`extraction_model` annotation), so callers do not need to know which
+backend ran.
+
+Provider resolution order:
+  1. explicit `provider=` argument
+  2. `Organization.ocr_provider` column (if `organization_id` is given)
+  3. `OCR_PROVIDER` environment variable
+  4. DEFAULT_PROVIDER constant ("gemini")
 
 Providers:
-- "gemini": legacy single-call Gemini Vision pipeline (does both OCR and
-  tax reasoning in one shot). Implementation lives in app.py for now and is
-  resolved lazily to avoid circular imports.
-- "glm":   two-stage pipeline. Stage A = GLM-OCR (Z.ai) for cheap, accurate
-  vision OCR. Stage B = Gemini reasoner for tax-deductibility / IFRS
-  category. Falls back to the rules engine if Stage B is unavailable.
+  - "gemini": legacy single-call Gemini Vision pipeline (lives in app.py).
+  - "glm":    two-stage pipeline. Stage A = GLM-OCR (Z.ai) for vision OCR.
+              Stage B = Gemini reasoner for tax classification. Falls back
+              to the local rules engine if Stage B is unavailable.
 """
 
 import os
@@ -24,18 +28,47 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROVIDER = "gemini"
+_ALLOWED = ("gemini", "glm")
 
 
-def get_active_provider(override: Optional[str] = None) -> str:
-    """Return the canonical name of the OCR provider that should run."""
-    name = (override or os.environ.get("OCR_PROVIDER") or DEFAULT_PROVIDER).strip().lower()
-    if name not in ("gemini", "glm"):
-        logger.warning(f"Unknown OCR_PROVIDER={name!r}, falling back to {DEFAULT_PROVIDER}")
-        name = DEFAULT_PROVIDER
-    return name
+def _resolve_per_org_provider(organization_id: Optional[int]) -> Optional[str]:
+    if not organization_id:
+        return None
+    try:
+        from models import Organization
+        org = Organization.query.get(organization_id)
+        if org and getattr(org, "ocr_provider", None):
+            value = (org.ocr_provider or "").strip().lower()
+            if value in _ALLOWED:
+                return value
+    except Exception as e:
+        logger.debug(f"Per-org provider lookup failed: {e}")
+    return None
 
 
-def _run_glm_pipeline(image: Image.Image) -> Optional[Dict[str, Any]]:
+def get_active_provider(
+    override: Optional[str] = None,
+    organization_id: Optional[int] = None,
+) -> str:
+    """Resolve which OCR provider should run for this call."""
+    candidates = [
+        override,
+        _resolve_per_org_provider(organization_id),
+        os.environ.get("OCR_PROVIDER"),
+    ]
+    for raw in candidates:
+        if not raw:
+            continue
+        name = raw.strip().lower()
+        if name in _ALLOWED:
+            return name
+        logger.warning(f"Unknown OCR provider {raw!r}, ignoring")
+    return DEFAULT_PROVIDER
+
+
+def _run_glm_pipeline(
+    image: Image.Image, organization_id: Optional[int]
+) -> Optional[Dict[str, Any]]:
     """Stage A (GLM-OCR) + Stage B (Gemini reasoner)."""
     from glm_ocr_client import extract_receipt_fields, GLMOCRError
     from gemini_reasoner import reason_receipt
@@ -56,44 +89,55 @@ def _run_glm_pipeline(image: Image.Image) -> Optional[Dict[str, Any]]:
             pass
         return None
 
+    stage_a_model = extracted.get("_model_used", "glm-ocr")
     try:
         ActivityLogger.log_receipt_scan(
-            receipt_id=None,
-            success=True,
-            model_used=extracted.get("_model_used", "glm-ocr"),
+            receipt_id=None, success=True, model_used=stage_a_model
         )
     except Exception:
         pass
 
     final = reason_receipt(extracted)
+    stage_b_model = final.pop("_reasoner_model", "gemini-reasoner")
 
     try:
         ActivityLogger.log_receipt_scan(
-            receipt_id=None,
-            success=True,
-            model_used=final.get("_reasoner_model", "gemini-reasoner"),
+            receipt_id=None, success=True, model_used=stage_b_model
         )
     except Exception:
         pass
 
-    final.pop("_reasoner_model", None)
+    final["extraction_model"] = f"{stage_a_model}+{stage_b_model}"
+    if organization_id:
+        final["organization_id"] = organization_id
     return final
 
 
-def _run_gemini_pipeline(image: Image.Image) -> Optional[Dict[str, Any]]:
+def _run_gemini_pipeline(
+    image: Image.Image, organization_id: Optional[int]
+) -> Optional[Dict[str, Any]]:
     """Legacy single-call Gemini Vision pipeline (lives in app.py)."""
     import app as app_module
-    return app_module._process_receipt_with_gemini_legacy(image)
+    result = app_module._process_receipt_with_gemini_legacy(image)
+    if isinstance(result, dict):
+        result.setdefault("extraction_model", "gemini-2.5-flash")
+        if organization_id:
+            result["organization_id"] = organization_id
+    return result
 
 
-def process_receipt(image: Image.Image, provider: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def process_receipt(
+    image: Image.Image,
+    provider: Optional[str] = None,
+    organization_id: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
     """
-    Extract a receipt's contents (and tax classification) using the active
-    OCR provider. Returns a dict matching the `Receipt` schema, or None on
+    Run receipt OCR using the active provider. Returns a dict matching the
+    `Receipt` schema with `extraction_model` annotated, or None on
     irrecoverable failure.
     """
-    name = get_active_provider(provider)
-    logger.info(f"OCR provider dispatch: {name}")
+    name = get_active_provider(provider, organization_id)
+    logger.info(f"OCR provider dispatch: {name} (org={organization_id})")
     if name == "glm":
-        return _run_glm_pipeline(image)
-    return _run_gemini_pipeline(image)
+        return _run_glm_pipeline(image, organization_id)
+    return _run_gemini_pipeline(image, organization_id)

@@ -85,7 +85,11 @@ class Organization(db.Model):
     
     # Bank statement validation rules (JSON stored as text)
     validation_rules = db.Column(db.Text, nullable=True)
-    
+
+    # Per-organization OCR provider override. NULL = use the global OCR_PROVIDER
+    # env var. Allowed values: "gemini", "glm".
+    ocr_provider = db.Column(db.String(20), nullable=True)
+
     # Relationships
     users = db.relationship('OrganizationUser', back_populates='organization', lazy=True, cascade='all, delete-orphan')
     receipts = db.relationship('Receipt', backref='organization', lazy=True)
