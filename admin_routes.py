@@ -756,16 +756,10 @@ def admin_logs():
         query = AuditLog.query
         
         if log_type != 'all':
-            type_mapping = {
-                'user': ['user'],
-                'receipt': ['receipt'],
-                'admin': ['admin'],
-                'error': ['gemini_error'],
-                'system': ['admin', 'settings']
-            }
-            entity_types = type_mapping.get(log_type, [log_type])
-            
             if log_type == 'error':
+                # Filter by action substring rather than entity_type so any
+                # log row whose action mentions "error" or "failed" is shown
+                # (e.g. gemini_error, *_failed, etc.).
                 query = query.filter(
                     or_(
                         AuditLog.action.ilike('%error%'),
@@ -773,6 +767,13 @@ def admin_logs():
                     )
                 )
             else:
+                type_mapping = {
+                    'user': ['user'],
+                    'receipt': ['receipt'],
+                    'admin': ['admin'],
+                    'system': ['admin', 'settings'],
+                }
+                entity_types = type_mapping.get(log_type, [log_type])
                 query = query.filter(AuditLog.entity_type.in_(entity_types))
         
         pagination = query.order_by(AuditLog.timestamp.desc()).paginate(

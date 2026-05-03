@@ -48,7 +48,7 @@
                     <div class="stat-label">Active Users</div>
                     <div class="stat-value">{{ metrics.active_users }}</div>
                     <div class="mt-3 small">
-                        <span>{{ (metrics.active_users / metrics.total_users * 100)|percent if metrics.total_users else 0|percent }} of total</span>
+                        <span>{{ ((metrics.active_users / metrics.total_users * 100) if metrics.total_users else 0)|percent }} of total</span>
                     </div>
                 </div>
             </div>
@@ -64,7 +64,7 @@
                     <div class="stat-label">Admin Users</div>
                     <div class="stat-value">{{ metrics.admin_users }}</div>
                     <div class="mt-3 small">
-                        <span>{{ (metrics.admin_users / metrics.total_users * 100)|percent if metrics.total_users else 0|percent }} of total</span>
+                        <span>{{ ((metrics.admin_users / metrics.total_users * 100) if metrics.total_users else 0)|percent }} of total</span>
                     </div>
                 </div>
             </div>
