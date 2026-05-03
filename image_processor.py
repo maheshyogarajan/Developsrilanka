@@ -290,7 +290,29 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
                 extracted_data = process_function(image, organization_id=organization_id)
             except TypeError:
                 extracted_data = process_function(image)
-        
+
+        # OCR providers (both legacy Gemini and the new GLM pipeline) return
+        # None on irrecoverable failure (circuit breaker open, all models
+        # exhausted, etc.). Guard before mutating so we surface a controlled
+        # failure result instead of crashing the worker with a TypeError on
+        # ``None['image_path'] = ...``. Returning a structured failure dict
+        # lets the downstream save step record the failure cleanly and
+        # preserves Celery's retry semantics for transient infra errors.
+        if not isinstance(extracted_data, dict):
+            logger.error(
+                f"OCR provider returned no data for {original_filename}; "
+                f"skipping mutation and returning failure marker."
+            )
+            return {
+                'success': False,
+                'error': 'ocr_failed',
+                'image_path': storage_result.get('image_path', '') if storage_result else '',
+                's3_key': (storage_result.get('s3_key') if storage_result else '') or s3_key or '',
+                'thumbnail_s3_key': thumbnail_s3_key or '',
+                'organization_id': organization_id,
+                'original_filename': original_filename,
+            }
+
         # Add the image path, S3 key, and thumbnail S3 key to the extracted data
         if storage_result:
             # Get the values with proper defaults

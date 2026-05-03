@@ -122,18 +122,29 @@ class ActivityLogger:
     
     @classmethod
     def log_receipt_scan(cls, receipt_id=None, success: bool = True, model_used: str = None, 
-                         error_category: str = None, processing_time: float = None):
-        """Log a receipt scanning attempt (Gemini API call)."""
+                         error_category: str = None, processing_time: float = None,
+                         extra: dict = None):
+        """Log a receipt scanning attempt (Gemini API or GLM-OCR call).
+        
+        ``extra`` carries provider-specific metadata that we want preserved
+        on the audit row (e.g. the underlying GLM model name when
+        ``model_used='glm-ocr'``, or Stage B reasoner model on fallback).
+        """
+        fields = {
+            'success': success,
+            'model': model_used,
+            'error_category': error_category,
+            'processing_time_ms': int(processing_time * 1000) if processing_time else None
+        }
+        if extra:
+            for k, v in extra.items():
+                if k not in fields:
+                    fields[k] = v
         return cls.log_activity(
             entity_type='gemini_api',
             entity_id=receipt_id or 0,
             action=cls.GEMINI_SUCCESS if success else cls.GEMINI_ERROR,
-            changed_fields={
-                'success': success,
-                'model': model_used,
-                'error_category': error_category,
-                'processing_time_ms': int(processing_time * 1000) if processing_time else None
-            }
+            changed_fields=fields
         )
     
     @classmethod
