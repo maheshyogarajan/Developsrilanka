@@ -76,14 +76,24 @@ def _run_glm_pipeline(
 
     try:
         extracted = extract_receipt_fields(image)
-    except GLMOCRError as e:
-        logger.error(f"GLM-OCR Stage A failed: {e}")
+    except Exception as e:
+        # Catch every Stage A failure mode (GLMOCRError, circuit-breaker OPEN,
+        # network errors, unexpected SDK exceptions) and degrade cleanly the
+        # same way the legacy Gemini OCR path does, so callers always get a
+        # `None` and a logged failed scan instead of an uncaught exception.
+        is_breaker_open = "Circuit breaker OPEN" in str(e)
+        if is_breaker_open:
+            logger.error(f"GLM-OCR Stage A blocked by circuit breaker: {e}")
+            err_category = "CIRCUIT_OPEN"
+        else:
+            logger.error(f"GLM-OCR Stage A failed: {e}")
+            err_category = type(e).__name__
         try:
             ActivityLogger.log_receipt_scan(
                 receipt_id=None,
                 success=False,
                 model_used="glm-ocr",
-                error_category=type(e).__name__,
+                error_category=err_category,
             )
         except Exception:
             pass

@@ -36,7 +36,21 @@ The Gemini integration is designed for reliability with structured outputs (Pyda
 
 ### Pluggable OCR Provider (Gemini ↔ GLM-OCR)
 
-Receipt OCR is now behind a provider abstraction (`ocr_providers.py`) selected by the `OCR_PROVIDER` env var (`gemini` default, or `glm`). The `glm` provider uses a two-stage pipeline: **Stage A** = GLM-OCR (Z.ai, ~$0.03 / 1M tokens, beats Gemini-3-Pro on receipt benchmarks) handles the expensive vision extraction via `glm_ocr_client.py`; **Stage B** = a Gemini reasoner (`gemini_reasoner.py`, default `gemini-3-flash-preview`, configurable via `REASONER_MODEL`) does Sri Lankan IRA-2017 tax-deductibility classification and IFRS expense-category assignment on the already-extracted text. Output of both providers conforms to the existing `Receipt` Pydantic schema, so storage, audit logging, and admin analytics are unaffected. If Stage B fails, the local rules engine in `sri_lanka_tax_rules.py` is used as a fallback so receipt saves never block. `compare_ocr_providers.py` runs both providers side-by-side on stored receipts to validate accuracy before flipping the default.
+Receipt OCR is behind a provider abstraction (`ocr_providers.py`). Two providers are supported: `gemini` (legacy single-call Gemini Vision, default) and `glm` (two-stage pipeline). The `glm` provider runs **Stage A** = GLM-OCR (Z.ai) for the expensive vision extraction via `glm_ocr_client.py`, then **Stage B** = a Gemini reasoner (`gemini_reasoner.py`, default `gemini-3-flash-preview`, configurable via `REASONER_MODEL`) for Sri Lankan IRA-2017 tax-deductibility classification and IFRS expense-category assignment on the already-extracted text.
+
+Both providers return data conforming to the existing `Receipt` Pydantic schema. Stage A output is validated through the `StageARawReceipt` Pydantic schema (with one strict-prompt retry on validation failure) before being passed to Stage B. Stage B output is validated against the full `Receipt` schema, and any model whose output fails validation is skipped in favour of the next fallback model; if every reasoner model fails, the local `sri_lanka_tax_rules.py` engine plus a vendor/item keyword-based category inference produces a complete, schema-valid receipt so saves never block.
+
+Reliability: Stage A is wrapped in a dedicated `glm_circuit_breaker` (5 failures / 5 minutes), with model fallback `glm-4.5v → glm-4v-plus → glm-4v`. Stage B reuses the shared `gemini_circuit_breaker` plus a text-only equivalent of `generate_with_retry` (timeout, exponential backoff on 429, fallback-on-overload). Per-`Receipt` audit logging uses the stable identifier `extraction_model="glm-ocr"`; the concrete underlying model name (e.g. `glm-4.5v`) is recorded on the activity-log entry for cost attribution.
+
+**Provider rollout (no redeploy required):**
+- Globally: set `OCR_PROVIDER=glm` (or `gemini`) in environment secrets.
+- Per organization: set the `Organization.ocr_provider` column for that org. The dispatcher checks the per-org column first and falls back to the global env var. SQL one-liner to flip a single org:
+  ```sql
+  UPDATE organization SET ocr_provider = 'glm' WHERE id = <org_id>;
+  ```
+  Set the column back to `NULL` to fall back to the global default.
+
+`compare_ocr_providers.py` scores each provider's factual extraction against the saved Receipt row (treated as user-corrected ground truth) and reports per-provider field accuracy plus an end-to-end per-call cost estimate (Gemini = single OCR call; GLM = Stage A vision OCR + Stage B reasoner) so the savings claim can be verified against real data before flipping the default.
 
 ### Bank Statement Processing
 

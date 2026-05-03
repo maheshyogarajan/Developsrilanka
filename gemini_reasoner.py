@@ -167,12 +167,64 @@ def _build_context_block(extracted: Dict[str, Any]) -> str:
     )
 
 
+_CATEGORY_KEYWORDS: List[tuple[str, str, str]] = [
+    # (keyword, expense_major_category, expense_minor_category)
+    ("uber", "Operating Expenses", "Travel and Transportation"),
+    ("taxi", "Operating Expenses", "Travel and Transportation"),
+    ("flight", "Operating Expenses", "Travel and Transportation"),
+    ("airline", "Operating Expenses", "Travel and Transportation"),
+    ("hotel", "Operating Expenses", "Travel and Transportation"),
+    ("fuel", "Operating Expenses", "Travel and Transportation"),
+    ("petrol", "Operating Expenses", "Travel and Transportation"),
+    ("restaurant", "Operating Expenses", "Meals and Entertainment"),
+    ("cafe", "Operating Expenses", "Meals and Entertainment"),
+    ("coffee", "Operating Expenses", "Meals and Entertainment"),
+    ("dialog", "Operating Expenses", "Telecommunications"),
+    ("mobitel", "Operating Expenses", "Telecommunications"),
+    ("slt", "Operating Expenses", "Telecommunications"),
+    ("ceylon electricity", "Operating Expenses", "Utilities"),
+    ("water board", "Operating Expenses", "Utilities"),
+    ("aws", "Operating Expenses", "Software and SaaS"),
+    ("google", "Operating Expenses", "Software and SaaS"),
+    ("microsoft", "Operating Expenses", "Software and SaaS"),
+    ("github", "Operating Expenses", "Software and SaaS"),
+    ("legal", "Administrative Expenses", "Legal and Accounting"),
+    ("audit", "Administrative Expenses", "Legal and Accounting"),
+    ("stationery", "Administrative Expenses", "Office Supplies"),
+    ("printer", "Administrative Expenses", "Office Supplies"),
+    ("rent", "Operating Expenses", "Rent and Facilities"),
+    ("repair", "Operating Expenses", "Repairs and Maintenance"),
+    ("training", "Employee Benefits", "Training, Education and Development"),
+    ("course", "Employee Benefits", "Training, Education and Development"),
+    ("bank", "Finance Costs", "Bank and Merchant Fees"),
+    ("commission", "Finance Costs", "Bank and Merchant Fees"),
+    ("ad ", "Operating Expenses", "Marketing and Advertising"),
+    ("advertis", "Operating Expenses", "Marketing and Advertising"),
+]
+
+
+def _infer_category(extracted: Dict[str, Any]) -> tuple[str, str]:
+    """
+    Best-effort category inference from vendor name + item names. Used by the
+    rule-based Stage B fallback so receipts saved during a Stage B outage do
+    not all collapse into a single generic bucket.
+    """
+    haystack = (extracted.get("vendor_name") or "").lower()
+    for it in extracted.get("items") or []:
+        haystack += " " + (it.get("name") or "").lower()
+    for kw, major, minor in _CATEGORY_KEYWORDS:
+        if kw in haystack:
+            return major, minor
+    return "Operating Expenses", "Administrative and General"
+
+
 def _rule_based_fallback(extracted: Dict[str, Any]) -> Dict[str, Any]:
     """Use the existing local rules engine when the reasoner is unavailable."""
     from sri_lanka_tax_rules import get_classifier
 
     classifier = get_classifier()
     enriched_items: List[Dict[str, Any]] = []
+    inferred_major, inferred_minor = _infer_category(extracted)
 
     receipt_dict = {
         "vendor_name": extracted.get("vendor_name", ""),
@@ -211,8 +263,8 @@ def _rule_based_fallback(extracted: Dict[str, Any]) -> Dict[str, Any]:
         "vat_tax": float(extracted.get("vat_tax", 0) or 0),
         "sscl_tax": float(extracted.get("sscl_tax", 0) or 0),
         "vat_registration_number": extracted.get("vat_registration_number", "") or "",
-        "expense_major_category": "Operating Expenses",
-        "expense_minor_category": "Administrative and General",
+        "expense_major_category": inferred_major,
+        "expense_minor_category": inferred_minor,
         "_reasoner_model": "rule-based-fallback",
     }
 
