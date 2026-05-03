@@ -165,7 +165,7 @@ def _run_gemini_pipeline(
     import app as app_module
     result = app_module._process_receipt_with_gemini_legacy(image)
     if isinstance(result, dict):
-        result.setdefault("extraction_model", "gemini-2.5-flash")
+        result.setdefault("extraction_model", "gemini-3-flash-preview")
         if organization_id:
             result["organization_id"] = organization_id
     return result

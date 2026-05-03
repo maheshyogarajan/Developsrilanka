@@ -2011,10 +2011,11 @@ def _process_receipt_with_gemini_legacy(image):
             timeout=60.0  # 60 seconds per individual request
         )
         
-        # Configure Gemini model with structured outputs
-        # Primary: gemini-2.5-flash (stable GA — best vision quality)
-        # Fallback: gemini-2.5-flash-lite (stable GA — cost-efficient)
-        # NOTE: gemini-2.0-flash and gemini-2.0-flash-lite are deprecated and shut down June 1, 2026
+        # Configure Gemini model with structured outputs.
+        # Minimum supported version is Gemini 3.0 Flash — gemini-2.5 models
+        # are scheduled for deprecation and have been removed from the chain.
+        # Primary: gemini-3-flash-preview (best price/quality for vision)
+        # Fallback: gemini-3.1-pro-preview (higher accuracy, higher cost)
         model = None
         model_name = None
         
@@ -2024,7 +2025,7 @@ def _process_receipt_with_gemini_legacy(image):
             "response_schema": Receipt
         }
         
-        for attempt_model in ['gemini-2.5-flash', 'gemini-2.5-flash-lite']:
+        for attempt_model in ['gemini-3-flash-preview', 'gemini-3.1-pro-preview']:
             try:
                 model = genai.GenerativeModel(
                     attempt_model,
@@ -2118,11 +2119,11 @@ def _process_receipt_with_gemini_legacy(image):
             response = gemini_circuit_breaker.call(make_gemini_call)
             
             # Check if we got a signal to try fallback model (None response from 503)
-            if response is None and model_name != 'gemini-2.5-flash-lite':
+            if response is None and model_name != 'gemini-3.1-pro-preview':
                 logging.warning(f"{model_name} overloaded, trying fallback model")
                 # Try next model in fallback chain
                 fallback_models = {
-                    'gemini-2.5-flash': 'gemini-2.5-flash-lite',
+                    'gemini-3-flash-preview': 'gemini-3.1-pro-preview',
                 }
                 if model_name in fallback_models:
                     try:

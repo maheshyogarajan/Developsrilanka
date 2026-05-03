@@ -35,8 +35,6 @@ STAGE_B_MAX_RETRIES = int(os.environ.get("REASONER_MAX_RETRIES", "4"))
 REASONER_MODELS = [
     os.environ.get("REASONER_MODEL", "gemini-3-flash-preview"),
     "gemini-3.1-pro-preview",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
 ]
 
 
