@@ -198,8 +198,12 @@ def reason_receipt(extracted: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 validated = Receipt.model_validate(data).model_dump()
             except Exception as ve:
-                logger.warning(f"Stage B output failed schema validation: {ve}")
-                validated = data
+                logger.warning(
+                    f"Stage B output from {model_name} failed Receipt schema "
+                    f"validation: {ve}; trying next reasoner model"
+                )
+                last_err = ve
+                continue
 
             validated["_reasoner_model"] = model_name
             logger.info(

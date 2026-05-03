@@ -89,11 +89,21 @@ def _run_glm_pipeline(
             pass
         return None
 
-    stage_a_model = extracted.get("_model_used", "glm-ocr")
+    stage_a_model_raw = extracted.get("_model_used", "glm-ocr")
     try:
         ActivityLogger.log_receipt_scan(
-            receipt_id=None, success=True, model_used=stage_a_model
+            receipt_id=None,
+            success=True,
+            model_used="glm-ocr",
+            extra={"underlying_model": stage_a_model_raw},
         )
+    except TypeError:
+        try:
+            ActivityLogger.log_receipt_scan(
+                receipt_id=None, success=True, model_used="glm-ocr"
+            )
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -107,7 +117,11 @@ def _run_glm_pipeline(
     except Exception:
         pass
 
-    final["extraction_model"] = f"{stage_a_model}+{stage_b_model}"
+    # Stable provider identifier for analytics and audit. The specific
+    # underlying models (e.g. glm-4.5v, gemini-3-flash-preview) are kept on
+    # the activity log entries above for cost attribution; the Receipt row
+    # records the provider contract, not the concrete model chain.
+    final["extraction_model"] = "glm-ocr"
     if organization_id:
         final["organization_id"] = organization_id
     return final

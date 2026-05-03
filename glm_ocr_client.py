@@ -25,6 +25,7 @@ import requests
 from PIL import Image
 
 from gemini_error_handler import GeminiCircuitBreaker
+from receipt_schema import StageARawReceipt
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +40,6 @@ GLM_OCR_MODELS = [
 
 REQUEST_TIMEOUT_S = float(os.environ.get("GLM_OCR_TIMEOUT", "60"))
 MAX_RETRIES = int(os.environ.get("GLM_OCR_MAX_RETRIES", "3"))
-
-REQUIRED_FIELDS = (
-    "vendor_name",
-    "date",
-    "items",
-    "total_amount",
-)
 
 glm_circuit_breaker = GeminiCircuitBreaker(
     failure_threshold=5, timeout=300, window=300
@@ -138,33 +132,18 @@ def _parse_json_loose(text: str) -> Optional[dict]:
         return None
 
 
-def _validate_shape(parsed: dict) -> Optional[str]:
-    """Return an error string if the parsed payload is missing required fields."""
+def _validate_with_pydantic(parsed: dict) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Run the StageARawReceipt Pydantic validator on the parsed JSON. Returns
+    (validated_dict, None) on success, or (None, error_message) on failure.
+    """
     if not isinstance(parsed, dict):
-        return "response is not a JSON object"
-    for f in REQUIRED_FIELDS:
-        if f not in parsed:
-            return f"missing required field {f!r}"
-    items = parsed.get("items")
-    if items is not None and not isinstance(items, list):
-        return "'items' must be a list"
-    return None
-
-
-def _normalize(parsed: dict, model: str, elapsed_ms: int) -> Dict[str, Any]:
-    parsed.setdefault("vendor_name", "")
-    parsed.setdefault("vendor_address", "")
-    parsed.setdefault("vendor_contact", "")
-    parsed.setdefault("date", "")
-    parsed.setdefault("items", [])
-    parsed.setdefault("total_amount", 0)
-    parsed.setdefault("service_charge", 0)
-    parsed.setdefault("vat_tax", 0)
-    parsed.setdefault("sscl_tax", 0)
-    parsed.setdefault("vat_registration_number", "")
-    parsed["_model_used"] = model
-    parsed["_elapsed_ms"] = elapsed_ms
-    return parsed
+        return None, "response is not a JSON object"
+    try:
+        model = StageARawReceipt.model_validate(parsed)
+        return model.model_dump(), None
+    except Exception as e:
+        return None, str(e)
 
 
 def _call_once(model: str, image_data_url: str, prompt: str, headers: Dict[str, str]) -> Dict[str, Any]:
@@ -203,7 +182,9 @@ def _call_once(model: str, image_data_url: str, prompt: str, headers: Dict[str, 
             parsed = _parse_json_loose(content if isinstance(content, str) else json.dumps(content))
             if parsed is None:
                 raise GLMOCRError("GLM-OCR returned non-JSON content")
-            return _normalize(parsed, model, elapsed_ms)
+            parsed["_model_used"] = model
+            parsed["_elapsed_ms"] = elapsed_ms
+            return parsed
 
         except requests.Timeout as e:
             logger.warning(f"GLM-OCR timeout (attempt {attempt}): {e}")
@@ -243,15 +224,23 @@ def _extract_inner(image: Image.Image) -> Dict[str, Any]:
                 continue
             raise
 
-        shape_error = _validate_shape(parsed)
-        if shape_error is None:
+        meta = {
+            "_model_used": parsed.get("_model_used", model),
+            "_elapsed_ms": parsed.get("_elapsed_ms", 0),
+        }
+        validated, shape_error = _validate_with_pydantic(parsed)
+        if validated is not None:
+            validated.update(meta)
             logger.info(
-                f"GLM-OCR ok: model={model} vendor={parsed.get('vendor_name')!r} "
-                f"items={len(parsed.get('items', []))} total={parsed.get('total_amount')}"
+                f"GLM-OCR ok: model={model} vendor={validated.get('vendor_name')!r} "
+                f"items={len(validated.get('items', []))} total={validated.get('total_amount')}"
             )
-            return parsed
+            return validated
 
-        logger.warning(f"GLM-OCR schema invalid ({shape_error}), retrying with strict prompt")
+        logger.warning(
+            f"GLM-OCR Pydantic validation failed ({shape_error}); "
+            f"retrying once with strict prompt"
+        )
         try:
             parsed = _call_once(
                 model, image_data_url, EXTRACTION_PROMPT + STRICT_RETRY_SUFFIX, headers
@@ -260,11 +249,16 @@ def _extract_inner(image: Image.Image) -> Dict[str, Any]:
             last_error = e
             continue
 
-        shape_error = _validate_shape(parsed)
-        if shape_error is None:
+        meta = {
+            "_model_used": parsed.get("_model_used", model),
+            "_elapsed_ms": parsed.get("_elapsed_ms", 0),
+        }
+        validated, shape_error = _validate_with_pydantic(parsed)
+        if validated is not None:
+            validated.update(meta)
             logger.info(f"GLM-OCR ok after strict retry: model={model}")
-            return parsed
-        last_error = GLMOCRError(f"schema still invalid: {shape_error}")
+            return validated
+        last_error = GLMOCRError(f"Pydantic validation still failed: {shape_error}")
         continue
 
     raise GLMOCRError(f"GLM-OCR failed across all models: {last_error}")

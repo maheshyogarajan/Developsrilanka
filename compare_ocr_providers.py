@@ -1,16 +1,23 @@
 """
-Side-by-side OCR provider accuracy & cost comparison.
+Side-by-side OCR provider accuracy + cost comparison.
 
-Re-runs both Gemini and GLM-OCR against a sample of stored receipt images and
-prints a field-level diff plus rough cost estimate. Use this before flipping
-the OCR_PROVIDER default for an organization.
+For each sampled receipt we:
+  1. Re-run Gemini single-call OCR and GLM-OCR (Stage A only) on the stored
+     image.
+  2. Score each provider's factual extraction against the receipt row in the
+     database, treating the saved values as ground truth (these are the
+     fields the user kept after any manual correction).
+  3. Estimate per-sample token-cost using rough public price points for each
+     provider so the savings claim is grounded.
+
+This script measures *OCR extraction quality*. Tax-deductibility / IFRS
+classification (Stage B) is intentionally NOT compared here; that is a
+text-only reasoning step driven by the same Gemini reasoner regardless of
+which Stage A provider ran, so comparing it would not isolate OCR quality.
 
 Usage:
-    # Compare against the most recent N receipts that still have an image
     python compare_ocr_providers.py --limit 10
-
-    # Compare a specific receipt id
-    python compare_ocr_providers.py --receipt-id 123
+    python compare_ocr_providers.py --receipt-id 123 --receipt-id 456
 """
 
 import argparse
@@ -18,7 +25,7 @@ import logging
 import os
 import sys
 from io import BytesIO
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from PIL import Image
 
@@ -26,16 +33,16 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 log = logging.getLogger("compare_ocr")
 
 
-COMPARE_FIELDS = [
-    "vendor_name",
-    "date",
-    "total_amount",
-    "vat_tax",
-    "service_charge",
-    "vat_registration_number",
-    "expense_major_category",
-    "expense_minor_category",
-]
+# Public list-prices (USD per 1M tokens) — update if the providers change.
+COST_PER_1M_TOKENS = {
+    "gemini": {"input": 0.30, "output": 2.50},
+    "glm": {"input": 0.03, "output": 0.03},
+}
+# Conservative token estimates for a single receipt OCR call.
+EST_TOKENS = {
+    "gemini": {"input": 1500, "output": 600},
+    "glm": {"input": 1500, "output": 600},
+}
 
 
 def _load_image_for_receipt(receipt) -> Optional[Image.Image]:
@@ -77,18 +84,78 @@ def _load_image_for_receipt(receipt) -> Optional[Image.Image]:
     return None
 
 
-def _diff(a: dict, b: dict) -> list[tuple[str, object, object]]:
-    diffs = []
-    for f in COMPARE_FIELDS:
-        if (a or {}).get(f) != (b or {}).get(f):
-            diffs.append((f, (a or {}).get(f), (b or {}).get(f)))
-    return diffs
+def _extract_ground_truth(receipt) -> Dict[str, Any]:
+    """The DB row is the corrected ground truth the user accepted."""
+    return {
+        "vendor_name": (receipt.vendor_name or "").strip(),
+        "date": receipt.date.isoformat() if receipt.date else "",
+        "total_amount": float(receipt.total_amount or 0),
+        "vat_tax": float(receipt.vat_tax or 0),
+        "service_charge": float(receipt.service_charge or 0),
+        "vat_registration_number": (receipt.vat_registration_number or "").strip(),
+        "items_count": len(receipt.items or []),
+    }
+
+
+def _score_one(predicted: Dict[str, Any], truth: Dict[str, Any]) -> Dict[str, bool]:
+    """Per-field accuracy. Numerics use a small tolerance; strings are case-folded."""
+
+    def _str_eq(a, b):
+        return (a or "").strip().casefold() == (b or "").strip().casefold()
+
+    def _num_eq(a, b, tol=0.01):
+        try:
+            return abs(float(a or 0) - float(b or 0)) <= tol * max(1.0, abs(float(b or 0)))
+        except (TypeError, ValueError):
+            return False
+
+    return {
+        "vendor_name": _str_eq(predicted.get("vendor_name"), truth["vendor_name"]),
+        "date": _str_eq(predicted.get("date"), truth["date"]),
+        "total_amount": _num_eq(predicted.get("total_amount"), truth["total_amount"]),
+        "vat_tax": _num_eq(predicted.get("vat_tax"), truth["vat_tax"]),
+        "service_charge": _num_eq(predicted.get("service_charge"), truth["service_charge"]),
+        "vat_registration_number": _str_eq(
+            predicted.get("vat_registration_number"), truth["vat_registration_number"]
+        ),
+        "items_count": (
+            len((predicted.get("items") or [])) == truth["items_count"]
+        ),
+    }
+
+
+def _estimate_cost(provider: str) -> float:
+    rates = COST_PER_1M_TOKENS[provider]
+    toks = EST_TOKENS[provider]
+    return (
+        toks["input"] / 1_000_000 * rates["input"]
+        + toks["output"] / 1_000_000 * rates["output"]
+    )
+
+
+def _run_gemini_ocr(image: Image.Image) -> Optional[Dict[str, Any]]:
+    """Gemini single-call OCR (the existing legacy path)."""
+    try:
+        import app as app_module
+        return app_module._process_receipt_with_gemini_legacy(image)
+    except Exception as e:
+        log.warning(f"Gemini OCR call failed: {e}")
+        return None
+
+
+def _run_glm_ocr(image: Image.Image) -> Optional[Dict[str, Any]]:
+    """GLM-OCR Stage A only (no Stage B reasoning, so we isolate OCR quality)."""
+    from glm_ocr_client import extract_receipt_fields, GLMOCRError
+    try:
+        return extract_receipt_fields(image)
+    except GLMOCRError as e:
+        log.warning(f"GLM-OCR call failed: {e}")
+        return None
 
 
 def run(receipt_ids: list[int]) -> None:
     from app import app
     from models import Receipt
-    from ocr_providers import process_receipt
 
     with app.app_context():
         receipts = Receipt.query.filter(Receipt.id.in_(receipt_ids)).all()
@@ -96,56 +163,54 @@ def run(receipt_ids: list[int]) -> None:
             log.error("No receipts matched")
             sys.exit(1)
 
-        agree = 0
-        total_fields = 0
-        differing_fields = 0
-        per_provider_models: dict[str, set[str]] = {"gemini": set(), "glm": set()}
+        totals = {
+            "gemini": {"correct": 0, "fields": 0, "cost": 0.0, "calls": 0, "fails": 0},
+            "glm": {"correct": 0, "fields": 0, "cost": 0.0, "calls": 0, "fails": 0},
+        }
 
         for r in receipts:
-            print(f"\n=== Receipt {r.id} (vendor on file: {r.vendor_name!r}) ===")
+            print(f"\n=== Receipt {r.id} (truth vendor={r.vendor_name!r}) ===")
             img = _load_image_for_receipt(r)
             if img is None:
                 continue
 
-            gemini_result = process_receipt(img, provider="gemini")
-            glm_result = process_receipt(img, provider="glm")
+            truth = _extract_ground_truth(r)
+            results = {
+                "gemini": _run_gemini_ocr(img),
+                "glm": _run_glm_ocr(img),
+            }
 
-            if not gemini_result or not glm_result:
+            for prov, predicted in results.items():
+                totals[prov]["calls"] += 1
+                if predicted is None:
+                    totals[prov]["fails"] += 1
+                    print(f"  [{prov:6s}] FAILED")
+                    continue
+                scores = _score_one(predicted, truth)
+                correct = sum(1 for v in scores.values() if v)
+                totals[prov]["correct"] += correct
+                totals[prov]["fields"] += len(scores)
+                totals[prov]["cost"] += _estimate_cost(prov)
+                missed = [k for k, v in scores.items() if not v]
                 print(
-                    f"  ✗ provider failed: gemini={bool(gemini_result)} glm={bool(glm_result)}"
+                    f"  [{prov:6s}] {correct}/{len(scores)} fields correct"
+                    + (f"  miss={missed}" if missed else "")
                 )
-                continue
-
-            per_provider_models["gemini"].add(str(gemini_result.get("extraction_model")))
-            per_provider_models["glm"].add(str(glm_result.get("extraction_model")))
-
-            diffs = _diff(gemini_result, glm_result)
-            total_fields += len(COMPARE_FIELDS)
-            differing_fields += len(diffs)
-            if not diffs:
-                agree += 1
-                print("  ✓ all compared fields agree")
-            else:
-                for f, gv, lv in diffs:
-                    print(f"  ~ {f}: gemini={gv!r}  glm={lv!r}")
-            print(
-                f"  items: gemini={len(gemini_result.get('items', []))} "
-                f"glm={len(glm_result.get('items', []))}"
-            )
 
         print("\n--- Summary ---")
-        print(f"Receipts compared: {len(receipts)}")
-        print(f"Full-agreement receipts: {agree}/{len(receipts)}")
-        if total_fields:
+        for prov, t in totals.items():
+            acc = (100 * t["correct"] / t["fields"]) if t["fields"] else 0.0
             print(
-                f"Field agreement: {total_fields - differing_fields}/{total_fields} "
-                f"({100 * (total_fields - differing_fields) / total_fields:.1f}%)"
+                f"  {prov:6s}  field-accuracy={acc:5.1f}%  "
+                f"calls={t['calls']}  failures={t['fails']}  "
+                f"est_cost=${t['cost']:.6f}"
             )
-        print(f"Models seen — gemini: {sorted(per_provider_models['gemini'])}")
-        print(f"Models seen — glm:    {sorted(per_provider_models['glm'])}")
+        if totals["gemini"]["cost"] > 0:
+            ratio = totals["glm"]["cost"] / totals["gemini"]["cost"]
+            print(f"\n  GLM cost vs Gemini: {ratio*100:.1f}% (lower is cheaper)")
         print(
-            "\nCost (rough): Gemini 2.5 Flash ~ $0.30/1M in + $2.50/1M out; "
-            "GLM-OCR ~ $0.03/1M both. Stage B reasoner adds a small text-only call."
+            "\nNote: cost is estimated from public list prices and a fixed per-call "
+            "token budget; replace EST_TOKENS with measured token counts for an exact figure."
         )
 
 
