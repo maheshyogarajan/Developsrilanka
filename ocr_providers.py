@@ -104,16 +104,9 @@ def _run_glm_pipeline(
         ActivityLogger.log_receipt_scan(
             receipt_id=None,
             success=True,
-            model_used="glm-ocr",
-            extra={"underlying_model": stage_a_model_raw},
+            model_used=stage_a_model_raw,
+            extra={"provider": "glm", "stage": "A"},
         )
-    except TypeError:
-        try:
-            ActivityLogger.log_receipt_scan(
-                receipt_id=None, success=True, model_used="glm-ocr"
-            )
-        except Exception:
-            pass
     except Exception:
         pass
 

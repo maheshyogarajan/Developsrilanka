@@ -1053,7 +1053,15 @@ def preview_update_data():
         
         if 's3_key' not in updated_data or not updated_data['s3_key']:
             updated_data['s3_key'] = original_s3_key
-        
+
+        # The review form does not round-trip provider metadata, so preserve
+        # extraction_model (and thumbnail key) from the original scan result
+        # to keep audit/cost attribution correct.
+        if not updated_data.get('extraction_model') and current_session_data.get('extraction_model'):
+            updated_data['extraction_model'] = current_session_data['extraction_model']
+        if not updated_data.get('thumbnail_s3_key') and current_session_data.get('thumbnail_s3_key'):
+            updated_data['thumbnail_s3_key'] = current_session_data['thumbnail_s3_key']
+
         # Update the session data with corrected values
         session['receipt_data'] = updated_data
         
@@ -1098,7 +1106,16 @@ def update_data():
         
         if 's3_key' not in updated_data or not updated_data['s3_key']:
             updated_data['s3_key'] = original_s3_key
-            
+
+        # The review form does not round-trip provider metadata, so preserve
+        # extraction_model (and thumbnail key) from the original scan result
+        # so the saved Receipt row keeps the correct provider for audit/cost
+        # attribution (e.g. 'glm-ocr' vs 'gemini-2.5-flash').
+        if not updated_data.get('extraction_model') and current_session_data.get('extraction_model'):
+            updated_data['extraction_model'] = current_session_data['extraction_model']
+        if not updated_data.get('thumbnail_s3_key') and current_session_data.get('thumbnail_s3_key'):
+            updated_data['thumbnail_s3_key'] = current_session_data['thumbnail_s3_key']
+
         # Handle simplified organization context from the improved UI
         is_company_expense = updated_data.get('is_company_expense', False)
         

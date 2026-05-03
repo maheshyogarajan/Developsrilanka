@@ -282,50 +282,96 @@ def get_activity_stats(days: int = 7):
     }
 
 
+_PROVIDER_OF_MODEL = {
+    'gemini-2.5-flash': 'gemini',
+    'gemini-2.5-flash-lite': 'gemini',
+    'gemini-3-flash-preview': 'gemini',
+    'gemini-reasoner': 'gemini',
+    'glm-ocr': 'glm',
+    'glm-4.5v': 'glm',
+    'glm-4v-plus': 'glm',
+    'glm-4v': 'glm',
+}
+
+_COST_PER_CALL_USD = {
+    'gemini-2.5-flash': 0.00150,
+    'gemini-2.5-flash-lite': 0.00060,
+    'gemini-3-flash-preview': 0.00120,
+    'gemini-reasoner': 0.00120,
+    'glm-ocr': 0.00018,
+    'glm-4.5v': 0.00018,
+    'glm-4v-plus': 0.00012,
+    'glm-4v': 0.00009,
+}
+
+
+def _provider_of(model: str) -> str:
+    if not model:
+        return 'unknown'
+    return _PROVIDER_OF_MODEL.get(model, 'gemini' if 'gemini' in model else ('glm' if 'glm' in model else 'unknown'))
+
+
 def get_gemini_api_stats(days: int = 7):
     """
-    Get Gemini API usage statistics.
-    
+    Get receipt-OCR API usage statistics.
+
+    Aggregates audit-log entries from `gemini_success` / `gemini_error`
+    actions (which now cover both the legacy Gemini path and the GLM
+    pipeline) into per-provider call counts, per-model usage, and an
+    estimated USD cost so the admin dashboard can show that flipping to
+    `OCR_PROVIDER=glm` reduces per-scan cost.
+
     Args:
         days: Number of days to look back
-        
+
     Returns:
         Dictionary of API statistics
     """
     from datetime import timedelta
-    from sqlalchemy import func
-    
+
     cutoff_date = datetime.utcnow() - timedelta(days=days)
-    
+
     gemini_logs = AuditLog.query.filter(
         AuditLog.timestamp >= cutoff_date,
         AuditLog.action.in_(['gemini_success', 'gemini_error'])
     ).all()
-    
+
     total_calls = len(gemini_logs)
     success_count = sum(1 for log in gemini_logs if log.action == 'gemini_success')
     error_count = total_calls - success_count
-    
+
     error_categories = {}
     model_usage = {}
+    provider_calls = {}
+    provider_cost_usd = {}
     total_processing_time = 0
     processing_count = 0
-    
+    total_cost_usd = 0.0
+
     for log in gemini_logs:
-        if log.changed_fields:
-            if log.action == 'gemini_error':
-                category = log.changed_fields.get('error_category', 'unknown')
-                error_categories[category] = error_categories.get(category, 0) + 1
-            
-            model = log.changed_fields.get('model')
-            if model:
-                model_usage[model] = model_usage.get(model, 0) + 1
-            
-            proc_time = log.changed_fields.get('processing_time_ms')
-            if proc_time:
-                total_processing_time += proc_time
-                processing_count += 1
-    
+        if not log.changed_fields:
+            continue
+
+        if log.action == 'gemini_error':
+            category = log.changed_fields.get('error_category', 'unknown')
+            error_categories[category] = error_categories.get(category, 0) + 1
+
+        model = log.changed_fields.get('model')
+        if model:
+            model_usage[model] = model_usage.get(model, 0) + 1
+            provider = _provider_of(model)
+            provider_calls[provider] = provider_calls.get(provider, 0) + 1
+            cost = _COST_PER_CALL_USD.get(model, 0.0)
+            provider_cost_usd[provider] = round(provider_cost_usd.get(provider, 0.0) + cost, 6)
+            total_cost_usd += cost
+
+        proc_time = log.changed_fields.get('processing_time_ms')
+        if proc_time:
+            total_processing_time += proc_time
+            processing_count += 1
+
+    avg_cost_per_scan = round(total_cost_usd / max(success_count, 1), 6)
+
     return {
         'total_calls': total_calls,
         'success_count': success_count,
@@ -333,6 +379,10 @@ def get_gemini_api_stats(days: int = 7):
         'success_rate': round(success_count / max(total_calls, 1) * 100, 1),
         'error_categories': error_categories,
         'model_usage': model_usage,
+        'provider_calls': provider_calls,
+        'provider_cost_usd': provider_cost_usd,
+        'total_cost_usd': round(total_cost_usd, 4),
+        'avg_cost_per_scan_usd': avg_cost_per_scan,
         'avg_processing_time_ms': round(total_processing_time / max(processing_count, 1)),
         'days_analyzed': days
     }
