@@ -832,7 +832,7 @@ def scan_receipt():
                 if not i.active_queues():
                     logging.warning("No active Celery workers found. Starting background worker...")
                     # For this case, we'll process synchronously as fallback
-                    extracted_data = process_receipt_with_gemini(img)
+                    extracted_data = process_receipt_with_gemini(img, organization_id=organization_id)
                     
                     if not extracted_data:
                         # Get error category from session (stored by GeminiErrorLogger)
@@ -923,7 +923,7 @@ def scan_receipt():
                 s3_key_value = None
             
             # Process receipt with Gemini AFTER saving the image
-            extracted_data = process_receipt_with_gemini(img)
+            extracted_data = process_receipt_with_gemini(img, organization_id=organization_id)
             
             if not extracted_data:
                 # Get error category from session (stored by GeminiErrorLogger)
