@@ -86,6 +86,60 @@
         </div>
     </div>
 
+    {% if gemini_stats %}
+    <!-- OCR Provider Cost & Usage (last 7 days) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <h5 class="admin-card-title">Receipt OCR — Provider Cost &amp; Usage (last {{ gemini_stats.days_analyzed }} days)</h5>
+                </div>
+                <div class="admin-card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="small text-muted">Total scans</div>
+                            <div class="h4 mb-0">{{ gemini_stats.scan_count or gemini_stats.success_count }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted">Avg cost / scan</div>
+                            <div class="h4 mb-0 text-success">${{ '%.5f' % (gemini_stats.avg_cost_per_scan_usd or 0) }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted">Total cost</div>
+                            <div class="h4 mb-0">${{ '%.4f' % (gemini_stats.total_cost_usd or 0) }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="small text-muted">Success rate</div>
+                            <div class="h4 mb-0">{{ gemini_stats.success_rate }}%</div>
+                        </div>
+                    </div>
+                    {% if gemini_stats.provider_calls %}
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Calls by provider</h6>
+                            <ul class="list-unstyled mb-0">
+                                {% for provider, calls in gemini_stats.provider_calls.items() %}
+                                <li><strong>{{ provider }}</strong>: {{ calls }} calls</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Cost by provider (USD)</h6>
+                            <ul class="list-unstyled mb-0">
+                                {% for provider, cost in gemini_stats.provider_cost_usd.items() %}
+                                <li><strong>{{ provider }}</strong>: ${{ '%.4f' % cost }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- User Activity Chart -->
     <div class="row mb-4">
         <div class="col-xl-8 col-lg-7">

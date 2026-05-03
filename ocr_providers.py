@@ -104,8 +104,12 @@ def _run_glm_pipeline(
         ActivityLogger.log_receipt_scan(
             receipt_id=None,
             success=True,
-            model_used=stage_a_model_raw,
-            extra={"provider": "glm", "stage": "A"},
+            model_used="glm-ocr",
+            extra={
+                "provider": "glm",
+                "stage": "A",
+                "underlying_model": stage_a_model_raw,
+            },
         )
     except Exception:
         pass
@@ -115,7 +119,10 @@ def _run_glm_pipeline(
 
     try:
         ActivityLogger.log_receipt_scan(
-            receipt_id=None, success=True, model_used=stage_b_model
+            receipt_id=None,
+            success=True,
+            model_used=stage_b_model,
+            extra={"provider": "glm", "stage": "B", "scan_complete": True},
         )
     except Exception:
         pass

@@ -347,6 +347,13 @@ def get_gemini_api_stats(days: int = 7):
     total_processing_time = 0
     processing_count = 0
     total_cost_usd = 0.0
+    # Count one logical scan per pipeline execution. The legacy Gemini path
+    # emits a single success row per scan, so each gemini-* success counts
+    # as one scan. The GLM pipeline emits two stage rows (A + B); we mark
+    # the Stage B row with `scan_complete=True` and count only those, so
+    # `avg_cost_per_scan_usd` reflects the true per-receipt cost across
+    # both stages rather than inflating the denominator by stage-call count.
+    scan_count = 0
 
     for log in gemini_logs:
         if not log.changed_fields:
@@ -361,16 +368,29 @@ def get_gemini_api_stats(days: int = 7):
             model_usage[model] = model_usage.get(model, 0) + 1
             provider = _provider_of(model)
             provider_calls[provider] = provider_calls.get(provider, 0) + 1
-            cost = _COST_PER_CALL_USD.get(model, 0.0)
+            # Resolve cost: prefer the concrete underlying model when the
+            # row carries the stable `glm-ocr` umbrella label.
+            underlying = log.changed_fields.get('underlying_model')
+            cost_key = underlying if (underlying and underlying in _COST_PER_CALL_USD) else model
+            cost = _COST_PER_CALL_USD.get(cost_key, 0.0)
             provider_cost_usd[provider] = round(provider_cost_usd.get(provider, 0.0) + cost, 6)
             total_cost_usd += cost
+
+        if log.action == 'gemini_success':
+            stage = log.changed_fields.get('stage')
+            if stage is None:
+                # Legacy single-call Gemini path: one row == one scan.
+                scan_count += 1
+            elif log.changed_fields.get('scan_complete'):
+                # Two-stage GLM pipeline: count only the Stage B completion.
+                scan_count += 1
 
         proc_time = log.changed_fields.get('processing_time_ms')
         if proc_time:
             total_processing_time += proc_time
             processing_count += 1
 
-    avg_cost_per_scan = round(total_cost_usd / max(success_count, 1), 6)
+    avg_cost_per_scan = round(total_cost_usd / max(scan_count, 1), 6)
 
     return {
         'total_calls': total_calls,
@@ -381,6 +401,7 @@ def get_gemini_api_stats(days: int = 7):
         'model_usage': model_usage,
         'provider_calls': provider_calls,
         'provider_cost_usd': provider_cost_usd,
+        'scan_count': scan_count,
         'total_cost_usd': round(total_cost_usd, 4),
         'avg_cost_per_scan_usd': avg_cost_per_scan,
         'avg_processing_time_ms': round(total_processing_time / max(processing_count, 1)),
