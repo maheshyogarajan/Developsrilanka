@@ -35,13 +35,17 @@ log = logging.getLogger("compare_ocr")
 
 # Public list-prices (USD per 1M tokens) — update if the providers change.
 COST_PER_1M_TOKENS = {
-    "gemini": {"input": 0.30, "output": 2.50},
-    "glm": {"input": 0.03, "output": 0.03},
+    "gemini": {"input": 0.30, "output": 2.50},   # Gemini 2.5 Flash
+    "glm": {"input": 0.03, "output": 0.03},      # GLM-OCR (Z.ai)
+    "reasoner": {"input": 0.30, "output": 2.50}, # Stage B Gemini reasoner
 }
-# Conservative token estimates for a single receipt OCR call.
+
+# Conservative per-call token estimates. Gemini single-call OCR = OCR-only.
+# GLM end-to-end = Stage A (vision OCR) + Stage B (text-only reasoning).
 EST_TOKENS = {
-    "gemini": {"input": 1500, "output": 600},
-    "glm": {"input": 1500, "output": 600},
+    "gemini_ocr": {"input": 1500, "output": 600},
+    "glm_stage_a": {"input": 1500, "output": 600},
+    "reasoner_stage_b": {"input": 800, "output": 600},
 }
 
 
@@ -124,13 +128,24 @@ def _score_one(predicted: Dict[str, Any], truth: Dict[str, Any]) -> Dict[str, bo
     }
 
 
-def _estimate_cost(provider: str) -> float:
-    rates = COST_PER_1M_TOKENS[provider]
-    toks = EST_TOKENS[provider]
+def _cost_for(rates_key: str, tokens_key: str) -> float:
+    rates = COST_PER_1M_TOKENS[rates_key]
+    toks = EST_TOKENS[tokens_key]
     return (
         toks["input"] / 1_000_000 * rates["input"]
         + toks["output"] / 1_000_000 * rates["output"]
     )
+
+
+def _estimate_cost(provider: str) -> float:
+    """End-to-end per-call cost for the entire provider chain."""
+    if provider == "gemini":
+        # Single-call OCR + classification.
+        return _cost_for("gemini", "gemini_ocr")
+    if provider == "glm":
+        # Stage A vision OCR + Stage B Gemini reasoner.
+        return _cost_for("glm", "glm_stage_a") + _cost_for("reasoner", "reasoner_stage_b")
+    return 0.0
 
 
 def _run_gemini_ocr(image: Image.Image) -> Optional[Dict[str, Any]]:
@@ -209,8 +224,10 @@ def run(receipt_ids: list[int]) -> None:
             ratio = totals["glm"]["cost"] / totals["gemini"]["cost"]
             print(f"\n  GLM cost vs Gemini: {ratio*100:.1f}% (lower is cheaper)")
         print(
-            "\nNote: cost is estimated from public list prices and a fixed per-call "
-            "token budget; replace EST_TOKENS with measured token counts for an exact figure."
+            "\nNote: cost is end-to-end per provider chain (Gemini = single OCR call; "
+            "GLM = Stage A vision OCR + Stage B Gemini reasoner) using public list "
+            "prices and the EST_TOKENS budget at the top of this file. Replace "
+            "EST_TOKENS with measured token counts for an exact figure."
         )
 
 

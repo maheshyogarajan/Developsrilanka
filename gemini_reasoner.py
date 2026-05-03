@@ -12,13 +12,25 @@ outage never blocks a receipt save.
 import os
 import json
 import logging
+import random
+import time
 from typing import Dict, Any, List
 
 import google.generativeai as genai
 
 from receipt_schema import Receipt
+from gemini_error_handler import (
+    GeminiErrorLogger,
+    gemini_circuit_breaker,
+)
 
 logger = logging.getLogger(__name__)
+
+# Reliability budget for the Stage B reasoner. Stage B is text-only and
+# small (a few KB in / out), so we use a tighter budget than the OCR path.
+STAGE_B_GLOBAL_TIMEOUT_S = float(os.environ.get("REASONER_GLOBAL_TIMEOUT", "60"))
+STAGE_B_REQUEST_TIMEOUT_S = float(os.environ.get("REASONER_REQUEST_TIMEOUT", "30"))
+STAGE_B_MAX_RETRIES = int(os.environ.get("REASONER_MAX_RETRIES", "4"))
 
 REASONER_MODELS = [
     os.environ.get("REASONER_MODEL", "gemini-3-flash-preview"),
@@ -69,6 +81,67 @@ For each item set:
 
 Return JSON matching the provided response schema exactly.
 """
+
+
+def _generate_text_with_retry(
+    model,
+    prompt: str,
+    request_options=None,
+    max_retries: int = 4,
+    initial_delay: float = 1.0,
+    global_timeout: float = 60.0,
+):
+    """
+    Text-only equivalent of `gemini_error_handler.generate_with_retry` for
+    Stage B. Applies the same retry/backoff/timeout-budget semantics and
+    error categorization as the OCR path so the new provider chain has
+    reliability parity with the legacy single-call pipeline.
+
+    Returns the GenerateContentResponse, or None if the model signals
+    overload (503) so the caller can fall back to the next model.
+    """
+    start_time = time.time()
+    for attempt in range(max_retries):
+        elapsed = time.time() - start_time
+        if elapsed >= global_timeout:
+            raise TimeoutError(
+                f"Stage B global timeout exceeded ({global_timeout}s) after "
+                f"{attempt} attempts"
+            )
+        try:
+            if request_options is not None:
+                return model.generate_content(prompt, request_options=request_options)
+            return model.generate_content(prompt)
+        except Exception as e:
+            category = GeminiErrorLogger.categorize_error(e)
+            error_type = type(e).__name__
+            logger.warning(
+                f"Stage B reasoner error attempt {attempt + 1}/{max_retries}: "
+                f"{error_type} - {category}"
+            )
+            if category == "RATE_LIMIT":
+                if attempt < max_retries - 1:
+                    wait = (initial_delay * (2 ** attempt)) + random.uniform(0, 1)
+                    remaining = global_timeout - (time.time() - start_time)
+                    wait = max(0, min(wait, max(0, remaining - 2)))
+                    if wait > 0:
+                        time.sleep(wait)
+                    continue
+                raise
+            if category == "MODEL_OVERLOAD":
+                # Signal caller to try the next model in the fallback chain.
+                return None
+            if category == "TIMEOUT":
+                raise
+            if category == "INVALID_REQUEST":
+                raise
+            # Unknown / transient server error: limited retries.
+            if attempt < min(2, max_retries - 1):
+                wait = (initial_delay * (2 ** attempt)) + random.uniform(0, 1)
+                time.sleep(wait)
+                continue
+            raise
+    raise Exception(f"Stage B failed after {max_retries} attempts")
 
 
 def _build_context_block(extracted: Dict[str, Any]) -> str:
@@ -175,6 +248,12 @@ def reason_receipt(extracted: Dict[str, Any]) -> Dict[str, Any]:
 
     prompt = REASONING_PROMPT + "\n\n" + _build_context_block(extracted)
 
+    try:
+        from google.generativeai.types import RequestOptions
+        request_options = RequestOptions(timeout=STAGE_B_REQUEST_TIMEOUT_S)
+    except Exception:
+        request_options = None
+
     last_err: Exception | None = None
     for model_name in REASONER_MODELS:
         try:
@@ -182,7 +261,24 @@ def reason_receipt(extracted: Dict[str, Any]) -> Dict[str, Any]:
             model = genai.GenerativeModel(
                 model_name, generation_config=generation_config
             )
-            response = model.generate_content(prompt)
+
+            def _call() -> Any:
+                return _generate_text_with_retry(
+                    model=model,
+                    prompt=prompt,
+                    request_options=request_options,
+                    max_retries=STAGE_B_MAX_RETRIES,
+                    global_timeout=STAGE_B_GLOBAL_TIMEOUT_S,
+                )
+
+            response = gemini_circuit_breaker.call(_call)
+
+            if response is None:
+                logger.warning(
+                    f"Stage B model {model_name} signaled overload; trying next model"
+                )
+                last_err = Exception(f"{model_name} overloaded")
+                continue
 
             text = getattr(response, "text", None)
             if not text:
