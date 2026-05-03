@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "NYdBtanK2fnQzXqEhjzjF"
+uri = "file://.local/glm_validation_report.md"
+type = "text"
+title = "GLM-OCR Real-Receipt Validation Report"

@@ -56,7 +56,9 @@ def _load_image_for_receipt(receipt) -> Optional[Image.Image]:
             from s3_storage import s3_download_file_to_memory
             data = s3_download_file_to_memory(receipt.s3_key)
             if data:
-                return Image.open(BytesIO(data))
+                if isinstance(data, (bytes, bytearray)):
+                    return Image.open(BytesIO(data))
+                return Image.open(data)
         except Exception as e:
             log.warning(f"Receipt {receipt.id}: S3 fetch failed: {e}")
 
