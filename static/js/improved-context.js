@@ -23,8 +23,20 @@ function initOrganizationContextUI() {
  */
 function fetchUserOrganizations() {
     fetch('/api/user/organizations')
-        .then(response => response.json())
+        .then(response => {
+            // When the user is not logged in, Flask-Login redirects this
+            // request to the HTML login page. Detect that and bail quietly
+            // instead of trying to JSON-parse HTML.
+            const ct = response.headers.get('content-type') || '';
+            if (!response.ok || !ct.includes('application/json')) {
+                return null;
+            }
+            return response.json();
+        })
         .then(data => {
+            if (!data) {
+                return;
+            }
             if (data.error) {
                 console.error('Error loading organizations:', data.error);
                 return;
