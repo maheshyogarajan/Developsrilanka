@@ -198,6 +198,28 @@ else:
 # Initialize the database with the app
 db.init_app(app)
 
+# Idempotent additive schema fixes for columns introduced after the initial
+# migration. PostgreSQL natively supports `ADD COLUMN IF NOT EXISTS`, so this
+# is safe to run on every entry point (gunicorn, wsgi.py, the Celery worker
+# process) — it costs a single trivial query at boot and removes the schema
+# drift risk of relying on `main.py` only.
+def _ensure_additive_schema():
+    try:
+        from sqlalchemy import text as _sql_text
+        with app.app_context():
+            db.session.execute(_sql_text(
+                'ALTER TABLE organization ADD COLUMN IF NOT EXISTS ocr_provider VARCHAR(20)'
+            ))
+            db.session.commit()
+    except Exception as _alter_err:
+        logging.warning(f"Could not ensure organization.ocr_provider column: {_alter_err}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+_ensure_additive_schema()
+
 # Configure Gemini API
 try:
     genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))

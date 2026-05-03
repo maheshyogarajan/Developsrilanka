@@ -279,13 +279,17 @@ def process_receipt_image(self, image_data_b64, original_filename, gemini_proces
         
         # Process with Gemini Vision API AFTER saving the image
         # Since we can't directly import the function (circular import issue),
-        # we'll use a string identifier and reference the app module
+        # we'll use a string identifier and reference the app module.
+        # The dispatcher resolves the per-organization OCR provider via a
+        # SQLAlchemy lookup, which requires an active Flask app context. The
+        # Celery worker does not establish one by default, so we push one here.
         import app as app_module
         process_function = getattr(app_module, gemini_processor_fn)
-        try:
-            extracted_data = process_function(image, organization_id=organization_id)
-        except TypeError:
-            extracted_data = process_function(image)
+        with app_module.app.app_context():
+            try:
+                extracted_data = process_function(image, organization_id=organization_id)
+            except TypeError:
+                extracted_data = process_function(image)
         
         # Add the image path, S3 key, and thumbnail S3 key to the extracted data
         if storage_result:
