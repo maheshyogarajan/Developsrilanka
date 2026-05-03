@@ -35,9 +35,9 @@ log = logging.getLogger("compare_ocr")
 
 # Public list-prices (USD per 1M tokens) — update if the providers change.
 COST_PER_1M_TOKENS = {
-    "gemini": {"input": 0.30, "output": 2.50},   # Gemini 2.5 Flash
+    "gemini": {"input": 0.30, "output": 2.50},   # Gemini 3 Flash (preview)
     "glm": {"input": 0.03, "output": 0.03},      # GLM-OCR (Z.ai)
-    "reasoner": {"input": 0.30, "output": 2.50}, # Stage B Gemini reasoner
+    "reasoner": {"input": 0.30, "output": 2.50}, # Stage B Gemini 3 Flash reasoner
 }
 
 # Conservative per-call token estimates. Gemini single-call OCR = OCR-only.

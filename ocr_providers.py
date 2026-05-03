@@ -10,13 +10,19 @@ Provider resolution order:
   1. explicit `provider=` argument
   2. `Organization.ocr_provider` column (if `organization_id` is given)
   3. `OCR_PROVIDER` environment variable
-  4. DEFAULT_PROVIDER constant ("gemini")
+  4. DEFAULT_PROVIDER constant ("glm")
 
 Providers:
+  - "glm":    DEFAULT. Two-stage pipeline. Stage A = GLM-OCR (Z.ai) for
+              vision OCR; Stage B = Gemini reasoner for tax classification.
+              On Stage A failure (circuit breaker open, timeout, schema
+              error, etc.) the dispatcher transparently falls back to the
+              legacy Gemini single-call pipeline so the scan still
+              completes. If Stage B is unavailable, the local
+              `sri_lanka_tax_rules` engine plus keyword-based category
+              inference produces a schema-valid receipt.
   - "gemini": legacy single-call Gemini Vision pipeline (lives in app.py).
-  - "glm":    two-stage pipeline. Stage A = GLM-OCR (Z.ai) for vision OCR.
-              Stage B = Gemini reasoner for tax classification. Falls back
-              to the local rules engine if Stage B is unavailable.
+              Also serves as the automatic fallback target for "glm".
 """
 
 import os

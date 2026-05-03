@@ -1995,8 +1995,9 @@ def process_receipt_with_gemini(image, organization_id=None):
 def _process_receipt_with_gemini_legacy(image):
     """
     Legacy single-call Gemini Vision pipeline. Does both OCR and Sri Lankan
-    tax-deductibility reasoning in one shot. Used when OCR_PROVIDER=gemini
-    (the current default).
+    tax-deductibility reasoning in one shot. Used when OCR_PROVIDER=gemini,
+    and also invoked by the GLM dispatcher as the automatic fallback when
+    Stage A (GLM-OCR) fails. Default provider is now "glm".
     """
     try:
         logging.debug("Starting receipt image processing with Gemini Vision")
