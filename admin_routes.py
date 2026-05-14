@@ -1055,3 +1055,37 @@ def admin_engagement():
         flash(f'Error loading engagement data: {str(e)}', 'danger')
         app.logger.error(f'Admin engagement error: {str(e)}')
         return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/celery_health')
+@admin_required
+def admin_celery_health():
+    """Quick health check for the Celery worker pool.
+
+    Returns JSON with the live workers (as recorded in the worker_heartbeat
+    table) and how recently each one checked in. Used to verify receipt-scan
+    async processing is online in production.
+    """
+    from app import broker_url
+    from models import WorkerHeartbeat
+    payload = {
+        'broker': broker_url.split('://', 1)[0] + '://***',
+        'workers': [],
+        'worker_count': 0,
+        'healthy': False,
+    }
+    try:
+        live = WorkerHeartbeat.alive_workers(max_age_seconds=60)
+        now = datetime.utcnow()
+        for hb in live:
+            payload['workers'].append({
+                'name': hb.worker_name,
+                'last_seen': hb.last_seen.isoformat() + 'Z',
+                'seconds_ago': round((now - hb.last_seen).total_seconds(), 1),
+            })
+        payload['worker_count'] = len(live)
+        payload['healthy'] = len(live) > 0
+        return jsonify(payload), (200 if payload['healthy'] else 503)
+    except Exception as exc:
+        payload['error'] = str(exc)
+        return jsonify(payload), 503

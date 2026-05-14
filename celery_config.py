@@ -12,9 +12,27 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# If Redis is not available, use SQLite as a broker instead
-broker_url = os.environ.get('REDIS_URL', 'sqla+sqlite:///celery.db')
-result_backend = os.environ.get('REDIS_URL', 'db+sqlite:///celery-results.db')
+# Broker / result-backend selection (in priority order):
+#   1. REDIS_URL — preferred when available (lowest latency, best for prod)
+#   2. DATABASE_URL — Postgres-backed broker via SQLAlchemy. Works across
+#      separate web + worker processes on Reserved VM deployments because
+#      both processes already share the project's Postgres database.
+#   3. SQLite on local filesystem — dev fallback only. NEVER use this in
+#      production: autoscale and multi-process deployments don't share the
+#      file, so the worker won't see tasks the web process enqueues.
+def _build_broker_urls():
+    redis_url = os.environ.get('REDIS_URL')
+    if redis_url:
+        return redis_url, redis_url
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
+        # Normalize postgres:// (legacy) to postgresql:// for SQLAlchemy
+        if db_url.startswith('postgres://'):
+            db_url = 'postgresql://' + db_url[len('postgres://'):]
+        return f'sqla+{db_url}', f'db+{db_url}'
+    return 'sqla+sqlite:///celery.db', 'db+sqlite:///celery-results.db'
+
+broker_url, result_backend = _build_broker_urls()
 
 app = Celery(
     'develop_sri_lanka',

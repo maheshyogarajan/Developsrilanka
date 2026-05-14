@@ -5,8 +5,8 @@ channel = "stable-24_05"
 packages = ["freetype", "glibcLocales", "lcms2", "libimagequant", "libjpeg", "libjpeg_turbo", "libpng", "libtiff", "libwebp", "libxcrypt", "libyaml", "openjpeg", "tcl", "tk", "which", "zlib"]
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+deploymentTarget = "vm"
+run = ["bash", "-c", "python worker.py & exec gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 2 main:app"]
 
 [workflows]
 runButton = "Project"
@@ -26,13 +26,11 @@ author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
+args = "bash -c 'python worker.py & exec gunicorn --bind 0.0.0.0:5000 --timeout 120 --reuse-port --reload main:app'"
 waitForPort = 5000
 
 [[ports]]

@@ -1319,3 +1319,51 @@ class RegistrationRateLimit(db.Model):
         ).delete()
         db.session.commit()
         return deleted
+
+
+class WorkerHeartbeat(db.Model):
+    """Liveness signal written by each Celery worker.
+
+    The Postgres-backed (SQLAlchemy) Celery broker does not support the
+    fanout / broadcast control commands that `celery.control.inspect()`
+    relies on, so we cannot ask "are any workers alive?" through the
+    broker itself. Instead each worker upserts its name + a `last_seen`
+    timestamp into this table on startup and on every Celery heartbeat
+    tick. The web process reads `last_seen` to decide whether the worker
+    pool is healthy enough to accept new receipt-scan tasks.
+    """
+    __tablename__ = 'worker_heartbeat'
+
+    worker_name = db.Column(db.String(255), primary_key=True)
+    last_seen = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @classmethod
+    def upsert(cls, worker_name: str) -> None:
+        """Record that `worker_name` is alive right now."""
+        from sqlalchemy import text
+        try:
+            db.session.execute(
+                text(
+                    """
+                    INSERT INTO worker_heartbeat (worker_name, last_seen)
+                    VALUES (:name, :now)
+                    ON CONFLICT (worker_name)
+                    DO UPDATE SET last_seen = EXCLUDED.last_seen
+                    """
+                ),
+                {'name': worker_name, 'now': datetime.utcnow()},
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+    @classmethod
+    def alive_workers(cls, max_age_seconds: int = 60):
+        """Return rows for workers seen within the last `max_age_seconds`."""
+        cutoff = datetime.utcnow() - timedelta(seconds=max_age_seconds)
+        return cls.query.filter(cls.last_seen >= cutoff).all()
+
+    @classmethod
+    def has_live_worker(cls, max_age_seconds: int = 60) -> bool:
+        return bool(cls.alive_workers(max_age_seconds=max_age_seconds))

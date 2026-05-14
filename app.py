@@ -227,9 +227,10 @@ except Exception as e:
     logging.error(f"Error configuring Gemini API: {str(e)}")
     
 # Configure Celery with our application
-# If redis is not available, use SQLite as a broker
-broker_url = os.environ.get('REDIS_URL', 'sqla+sqlite:///celery.db')
-result_backend = os.environ.get('REDIS_URL', 'db+sqlite:///celery-results.db')
+# Reuse the same broker/result-backend resolution logic as celery_config.py
+# so the Flask app and the worker process always agree on where the queue
+# lives. See celery_config._build_broker_urls for the full priority chain.
+from celery_config import broker_url, result_backend  # noqa: E402
 
 # Create a Celery instance
 celery = Celery(
@@ -826,28 +827,41 @@ def scan_receipt():
             # Submit the task to the Celery queue
             logging.info(f"Submitting async task with ID: {task_id}")
             
-            # Explicitly check if Celery worker is available
+            # Verify a Celery worker is actually online before enqueuing.
+            # If none is reachable we DO NOT silently run the OCR pipeline
+            # inline — that path causes gunicorn worker timeouts on slow
+            # receipts (Stage A + Stage B easily exceeds 30s). Fail fast
+            # with a 503 so the user gets an actionable retry message
+            # instead of a generic timeout failure.
+            #
+            # Liveness is read from the WorkerHeartbeat table because our
+            # Postgres-backed Celery broker doesn't support the fanout
+            # control commands inspect()/ping() rely on. Each worker
+            # upserts its row on startup and on every heartbeat tick.
             try:
-                i = celery.control.inspect()
-                if not i.active_queues():
-                    logging.warning("No active Celery workers found. Starting background worker...")
-                    # For this case, we'll process synchronously as fallback
-                    extracted_data = process_receipt_with_gemini(img, organization_id=organization_id)
-                    
-                    if not extracted_data:
-                        # Get error category from session (stored by GeminiErrorLogger)
-                        error_category = session.get('last_gemini_error', 'UNKNOWN')
-                        
-                        # Format user-friendly error response
-                        error_response = format_error_response(error_category, include_technical_details=False)
-                        
-                        return jsonify(error_response), 422
-                    
-                    session['receipt_data'] = extracted_data
-                    return jsonify({'success': True, 'data': extracted_data})
+                from models import WorkerHeartbeat
+                if not WorkerHeartbeat.has_live_worker(max_age_seconds=60):
+                    logging.error("Receipt scan rejected: no live Celery worker heartbeats in the last 60s")
+                    return jsonify({
+                        'success': False,
+                        'error': 'scanning_offline',
+                        'message': (
+                            'Receipt scanning is temporarily offline while the '
+                            'background processor restarts. Please try again in a '
+                            'few seconds. Your image has been safely uploaded.'
+                        ),
+                    }), 503
             except Exception as worker_check_error:
-                logging.error(f"Error checking Celery workers: {str(worker_check_error)}")
-                
+                logging.error(f"Error checking worker heartbeats: {str(worker_check_error)}")
+                return jsonify({
+                    'success': False,
+                    'error': 'scanning_offline',
+                    'message': (
+                        'Receipt scanning is temporarily unavailable. Please try '
+                        'again in a few seconds.'
+                    ),
+                }), 503
+
             # Submit to queue if we reach here
             result = process_receipt_image.delay(
                 img_base64, 

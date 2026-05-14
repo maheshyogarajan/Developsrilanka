@@ -30,6 +30,13 @@ A polymorphic `FinancialTransaction` model unifies data from various sources (re
 
 Receipt processing is asynchronous via Celery to prevent UI blocking. The pipeline involves upload, storage, OCR task queuing, background processing, database updates, and user notification, with error handling for failed extractions.
 
+**Production deployment topology (required for async to actually work):**
+- The deployment target is **Reserved VM** (`deploymentTarget = "vm"` in `.replit`). Autoscale cannot be used because a long-running Celery worker must sit alongside gunicorn — short-lived autoscale containers cannot host the worker, and historically that caused every receipt scan to silently fall through to an inline OCR call that gunicorn killed at the 30 s worker timeout (see Eraj Fernando incident, May 2026).
+- The production run command is `bash -c "python worker.py & exec gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 2 main:app"`. The 120 s gunicorn timeout is a safety net; OCR itself runs entirely off the request thread inside the Celery worker.
+- Broker / result-backend resolution lives in `celery_config._build_broker_urls` and is shared with `app.py` via `from celery_config import broker_url, result_backend`. Order: `REDIS_URL` → `DATABASE_URL` (Postgres-backed via SQLAlchemy, the default in production) → SQLite (dev only). The same Postgres broker is reachable by both the gunicorn process and the worker process, which is what allows them to share the queue.
+- The `/scan` endpoint **does not silently fall back to inline OCR** if the worker is unreachable — it returns HTTP 503 with `error: "scanning_offline"` and a user-facing retry message. Any genuine inline path runs only when `ENABLE_ASYNC_PROCESSING=False` (intended for local debugging).
+- Admin-only health endpoint: `GET /admin/celery_health` returns reachable worker count, queue assignments, and ping latency. Use it to confirm the worker is alive in production after deploys.
+
 ### Gemini API Reliability Architecture
 
 The Gemini integration is designed for reliability with structured outputs (Pydantic schemas), comprehensive timeout and budget management, intelligent retry strategies with exponential backoff, and a model fallback chain (`gemini-3-flash-preview` → `gemini-3.1-pro-preview`). **Minimum supported version is Gemini 3.0 Flash** — `gemini-2.0-*` and `gemini-2.5-*` models are scheduled for deprecation and have been removed from every model chain in the codebase (legacy vision OCR in `app.py`, Stage B reasoner in `gemini_reasoner.py`, expense classifier in `update_categories.py`). Historical cost-attribution entries for the removed model names are kept in `activity_logger._TOKEN_PRICE_USD_PER_1M` so old audit rows still render correctly on the admin dashboard. A circuit breaker prevents cascading failures, and detailed error categorization with user-friendly messages enhances the user experience.
@@ -94,7 +101,7 @@ A two-stage onboarding process ensures users set up both a "Personal Finances" o
 ## Cloud Services
 
 - **AWS S3**: Optional cloud storage for images and documents.
-- **Redis**: Optional task queue broker for Celery.
+- **Redis**: Optional Celery broker. When `REDIS_URL` is unset, Celery automatically uses the project's Postgres database (`DATABASE_URL`) as a SQLAlchemy-backed broker — no extra infrastructure required.
 
 ## Email Service
 
