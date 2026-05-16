@@ -5,7 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Develop Sri Lanka - Receipt Scanner{% endblock %}</title>
+    <title>{% block title %}FIESTA - Foreign Income Earner Saving & Tax Advisor{% endblock %}</title>
+    <meta name="description" content="FIESTA - Bookkeeping and audit-defence for foreign income earners and self-employed professionals.">
+    <meta name="application-name" content="FIESTA">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.ico') }}">
     
     <!-- Bootstrap CSS basic -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
@@ -355,7 +358,7 @@
             <i class="fas fa-bars"></i>
         </button>
         <a href="/" class="sidebar-brand mx-auto">
-            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo" style="height: 30px;">
+            {% include '_fiesta_logo.html' %}
         </a>
     </header>
     
@@ -366,8 +369,8 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/" class="sidebar-brand">
-                <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo">
-                <span class="brand-text">Develop Sri Lanka</span>
+                {% include '_fiesta_logo.html' %}
+                <span class="brand-text">FIESTA</span>
             </a>
             <button class="sidebar-toggle" id="sidebarToggle">
                 <i class="fas fa-chevron-left"></i>
@@ -659,7 +662,7 @@
                 {% elif '/admin/' in request.path %}
                     Admin Dashboard
                 {% else %}
-                    Develop Sri Lanka
+                    FIESTA
                 {% endif %}
             </h1>
             
@@ -699,7 +702,7 @@
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-md-6 text-center text-md-start">
-                        <p class="mb-0">&copy; 2025 Develop Sri Lanka. All rights reserved.</p>
+                        <p class="mb-0">&copy; 2025 FIESTA. All rights reserved.</p>
                     </div>
                     <div class="col-md-6 text-center text-md-end">
                         <a href="#" class="text-decoration-none text-muted me-2">
