@@ -4,14 +4,15 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
+    <div class="row mb-5 align-items-end g-3">
         <div class="col">
-            <h2 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Company Expenses</h2>
-            <p class="text-muted">Submit, track, and manage company expenses for reimbursement.</p>
+            <span class="eyebrow">Cash Out</span>
+            <h1 class="h2 mb-2">Company Expenses</h1>
+            <p class="text-secondary mb-0">Submit, track, and reimburse expenses across your organization.</p>
         </div>
         <div class="col-md-auto">
             <a href="{{ url_for('expense.submit_expense') }}" class="btn btn-primary">
-                <i class="fas fa-plus-circle me-2"></i>Submit New Expense
+                <i class="fas fa-plus"></i> Submit New Expense
             </a>
         </div>
     </div>
