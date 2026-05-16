@@ -337,6 +337,10 @@ class User(UserMixin, db.Model):
     
     # Onboarding status - must complete before using main features
     onboarding_completed = db.Column(db.Boolean, default=False)
+
+    # Persona: 'sl_foreign_income' routes to the Remittance Ledger; NULL = legacy/default flows.
+    # Added Wave A 2026-05-16 per FIESTA_USEFULNESS_REVIEW.md council synthesis.
+    persona = db.Column(db.String(50), nullable=True)
     
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')

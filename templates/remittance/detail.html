@@ -1,0 +1,152 @@
+{% extends "layout.html" %}
+
+{% block title %}Remittance #{{ entry.id }} - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 860px;">
+  {% set status_code, status_label = entry.completeness_status() %}
+  <div class="row mb-4 align-items-center">
+    <div class="col">
+      <span class="eyebrow">Foreign Income · Sri Lanka</span>
+      <h1 class="h2 mb-1">
+        {{ entry.foreign_currency }}
+        <span style="font-family: var(--font-mono, monospace);">{{ "{:,.2f}".format(entry.foreign_amount) }}</span>
+      </h1>
+      <p class="text-secondary mb-0">
+        Received {{ entry.remittance_date.strftime('%d %b %Y') }} · Y/A {{ entry.tax_year }}
+      </p>
+    </div>
+    <div class="col-auto">
+      {% if status_code == 'ird_ready' %}
+        <span class="badge bg-success-100 text-success-700 fs-6">{{ status_label }}</span>
+      {% elif status_code == 'partial' %}
+        <span class="badge bg-warning-100 text-warning-700 fs-6">{{ status_label }}</span>
+      {% else %}
+        <span class="badge bg-danger-100 text-danger-700 fs-6">{{ status_label }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="h5 mb-3">The remittance</h4>
+      <dl class="row mb-0">
+        <dt class="col-sm-4 text-secondary">Date</dt>
+        <dd class="col-sm-8" style="font-family: var(--font-mono, monospace);">{{ entry.remittance_date.strftime('%Y-%m-%d') }}</dd>
+
+        <dt class="col-sm-4 text-secondary">Foreign amount</dt>
+        <dd class="col-sm-8" style="font-family: var(--font-mono, monospace);">
+          {{ entry.foreign_currency }} {{ "{:,.2f}".format(entry.foreign_amount) }}
+        </dd>
+
+        <dt class="col-sm-4 text-secondary">LKR (bank's rate)</dt>
+        <dd class="col-sm-8" style="font-family: var(--font-mono, monospace);">
+          {% if entry.lkr_amount_bank_rate is not none %}{{ "{:,.2f}".format(entry.lkr_amount_bank_rate) }}{% else %}—{% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-secondary">Payer</dt>
+        <dd class="col-sm-8">{{ entry.payer_name or '—' }}</dd>
+
+        <dt class="col-sm-4 text-secondary">From country</dt>
+        <dd class="col-sm-8">{{ entry.source_country or '—' }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="h5 mb-3">CBSL middle rate (IRD basis)</h4>
+      <dl class="row mb-0">
+        <dt class="col-sm-4 text-secondary">CBSL rate</dt>
+        <dd class="col-sm-8" style="font-family: var(--font-mono, monospace);">
+          {% if entry.cbsl_rate is not none %}{{ "{:,.4f}".format(entry.cbsl_rate) }} LKR/{{ entry.foreign_currency }}{% else %}<span class="text-danger">Not yet captured</span>{% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-secondary">Source</dt>
+        <dd class="col-sm-8">
+          {{ entry.cbsl_rate_source or '—' }}
+          {% if entry.rate_entered_manually %}<span class="badge bg-warning-100 text-warning-700 ms-2">manual</span>{% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-secondary">LKR at CBSL rate</dt>
+        <dd class="col-sm-8" style="font-family: var(--font-mono, monospace);">
+          {% if entry.lkr_amount_cbsl is not none %}<strong>{{ "{:,.2f}".format(entry.lkr_amount_cbsl) }}</strong>{% else %}—{% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-secondary">Captured at</dt>
+        <dd class="col-sm-8" style="font-family: var(--font-mono, monospace);">
+          {{ entry.cbsl_rate_captured_at.strftime('%Y-%m-%d %H:%M UTC') if entry.cbsl_rate_captured_at else '—' }}
+        </dd>
+      </dl>
+    </div>
+  </div>
+
+  {% if entry.foreign_tax_withheld_amount %}
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="h5 mb-3">Foreign withholding tax</h4>
+      <dl class="row mb-0">
+        <dt class="col-sm-4 text-secondary">Withheld</dt>
+        <dd class="col-sm-8" style="font-family: var(--font-mono, monospace);">
+          {{ entry.foreign_tax_withheld_currency or '' }} {{ "{:,.2f}".format(entry.foreign_tax_withheld_amount) }}
+        </dd>
+      </dl>
+      <p class="text-secondary small mt-2 mb-0">
+        DTA credit eligibility depends on the SL-{{ entry.source_country or '??' }} double-tax agreement.
+        Lanka.tax will reconcile this at filing time.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="h5 mb-3">Evidence pack</h4>
+      <ul class="list-unstyled mb-0">
+        <li class="mb-2">
+          {% if entry.has_source_doc() %}
+            <span class="badge bg-success-100 text-success-700">attached</span>
+          {% else %}
+            <span class="badge bg-danger-100 text-danger-700">missing</span>
+          {% endif %}
+          Foreign source document (contract / invoice from payer)
+        </li>
+        <li class="mb-2">
+          {% if entry.has_bank_proof() %}
+            <span class="badge bg-success-100 text-success-700">attached</span>
+          {% else %}
+            <span class="badge bg-danger-100 text-danger-700">missing</span>
+          {% endif %}
+          SL bank statement extract showing the credit
+        </li>
+        <li class="mb-2">
+          {% if entry.has_dta_certificate() %}
+            <span class="badge bg-success-100 text-success-700">attached</span>
+          {% elif entry.foreign_tax_withheld_amount %}
+            <span class="badge bg-warning-100 text-warning-700">recommended</span>
+          {% else %}
+            <span class="badge bg-secondary-100 text-secondary-700">not required</span>
+          {% endif %}
+          Foreign tax certificate (for DTA credit)
+        </li>
+      </ul>
+      <p class="text-secondary small mt-3 mb-0">
+        File uploads ship in the next release — the slots above are reserved on this record.
+      </p>
+    </div>
+  </div>
+
+  {% if entry.notes %}
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="h5 mb-2">Notes</h4>
+      <p class="mb-0">{{ entry.notes }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="d-flex justify-content-between align-items-center">
+    <a href="{{ url_for('remittance.dashboard') }}" class="btn btn-outline-secondary">Back to ledger</a>
+  </div>
+</div>
+{% endblock %}

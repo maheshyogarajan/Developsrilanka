@@ -118,6 +118,18 @@
           <small id="passwordMatchText" class="form-text"></small>
         </div>
 
+        <div class="mb-3 p-3" style="background: var(--color-brand-50, #F3F0FF); border-radius: var(--radius-md, 8px); border: 1px solid var(--color-brand-100, #E4DCFF);">
+          <label class="form-label fw-semibold mb-2" for="persona_foreign_income">
+            Do you receive foreign income into a Sri Lankan bank account?
+          </label>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="persona_sl_foreign_income" id="persona_foreign_income" value="1">
+            <label class="form-check-label small" for="persona_foreign_income">
+              Yes — route me to the Foreign Income Remittance Ledger (CBSL-rate, IRD-defensible, under 15% flat rate from 2025-04-01).
+            </label>
+          </div>
+        </div>
+
         <input type="hidden" name="action" id="action_input" value="register">
 
         <div class="d-grid gap-2 mt-4">

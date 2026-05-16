@@ -1,0 +1,153 @@
+{% extends "layout.html" %}
+
+{% block title %}Foreign Income Remittances - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row mb-5 align-items-center">
+    <div class="col">
+      <span class="eyebrow">Foreign Income · Sri Lanka</span>
+      <h1 class="h2 mb-2">Remittance Ledger</h1>
+      <p class="text-secondary mb-0">
+        Track every inward remittance to your SL bank, at CBSL middle rate, with the
+        evidence IRD asks for. Year of Assessment {{ tax_year }}.
+      </p>
+    </div>
+    <div class="col-auto">
+      <a href="{{ url_for('remittance.new') }}" class="btn btn-primary">
+        Add inward remittance
+      </a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="row mb-4">
+    <div class="col-auto">
+      <form method="GET" class="d-flex align-items-center gap-2">
+        <label for="tax_year" class="form-label mb-0 small text-secondary">Tax year</label>
+        <select name="tax_year" id="tax_year" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for ty in tax_years %}
+            <option value="{{ ty }}" {% if ty == tax_year %}selected{% endif %}>{{ ty }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-5">
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-uppercase small text-secondary mb-2">Remittances</div>
+          <div class="h3 mb-0" style="font-family: var(--font-mono, monospace);">{{ entries|length }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-uppercase small text-secondary mb-2">LKR at CBSL rate</div>
+          <div class="h3 mb-0" style="font-family: var(--font-mono, monospace);">
+            {{ "{:,.2f}".format(total_lkr_cbsl) }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-uppercase small text-secondary mb-2">LKR at bank rate</div>
+          <div class="h3 mb-0" style="font-family: var(--font-mono, monospace);">
+            {{ "{:,.2f}".format(total_lkr_bank) }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-uppercase small text-secondary mb-2">IRD-ready</div>
+          <div class="h3 mb-0" style="font-family: var(--font-mono, monospace);">
+            {{ ird_ready_count }} / {{ entries|length }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if entries %}
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Currency</th>
+              <th class="text-end">Foreign amount</th>
+              <th class="text-end">CBSL rate</th>
+              <th class="text-end">LKR (CBSL)</th>
+              <th>From</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in entries %}
+              {% set status_code, status_label = e.completeness_status() %}
+              <tr>
+                <td style="font-family: var(--font-mono, monospace);">{{ e.remittance_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ e.foreign_currency }}</td>
+                <td class="text-end" style="font-family: var(--font-mono, monospace);">
+                  {{ "{:,.2f}".format(e.foreign_amount) }}
+                </td>
+                <td class="text-end" style="font-family: var(--font-mono, monospace);">
+                  {{ "{:,.4f}".format(e.cbsl_rate) if e.cbsl_rate else '—' }}
+                </td>
+                <td class="text-end" style="font-family: var(--font-mono, monospace);">
+                  {{ "{:,.2f}".format(e.lkr_amount_cbsl) if e.lkr_amount_cbsl else '—' }}
+                </td>
+                <td>{{ e.payer_name or e.source_country or '—' }}</td>
+                <td>
+                  {% if status_code == 'ird_ready' %}
+                    <span class="badge bg-success-100 text-success-700">{{ status_label }}</span>
+                  {% elif status_code == 'partial' %}
+                    <span class="badge bg-warning-100 text-warning-700">{{ status_label }}</span>
+                  {% else %}
+                    <span class="badge bg-danger-100 text-danger-700">{{ status_label }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a href="{{ url_for('remittance.detail', entry_id=e.id) }}" class="btn btn-sm btn-outline-secondary">Open</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state__icon">🌍</div>
+      <h3 class="empty-state__title">No remittances yet for {{ tax_year }}.</h3>
+      <p class="empty-state__body">
+        Every inward remittance you log here builds your IRD-ready evidence pack:
+        bank credit + foreign source document + CBSL middle rate, computed automatically.
+        Filing under the 15% flat rate becomes a one-click export at year end.
+      </p>
+      <a href="{{ url_for('remittance.new') }}" class="btn btn-primary">
+        Log your first remittance
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

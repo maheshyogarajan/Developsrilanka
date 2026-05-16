@@ -210,9 +210,14 @@ def _ensure_additive_schema():
             db.session.execute(_sql_text(
                 'ALTER TABLE organization ADD COLUMN IF NOT EXISTS ocr_provider VARCHAR(20)'
             ))
+            # Wave A 2026-05-16: SL foreign-income persona flag for User.
+            # NULL = legacy/default flows; 'sl_foreign_income' routes to /remittance/dashboard.
+            db.session.execute(_sql_text(
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS persona VARCHAR(50)'
+            ))
             db.session.commit()
     except Exception as _alter_err:
-        logging.warning(f"Could not ensure organization.ocr_provider column: {_alter_err}")
+        logging.warning(f"Could not ensure additive schema columns: {_alter_err}")
         try:
             db.session.rollback()
         except Exception:
@@ -343,18 +348,23 @@ def index():
     if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
         flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
         return redirect(url_for('verify_email_reminder'))
-    
+
     # Check if onboarding is completed (admins bypass this check)
     if hasattr(current_user, 'onboarding_completed') and not current_user.onboarding_completed and current_user.role != 'admin':
         flash('Please complete your account setup before using the app.', 'info')
         return redirect(url_for('onboarding_wizard'))
-    
+
     # Check if user has any organizations
     if not current_user.organizations:
         # Redirect to onboarding wizard if no organizations exist
         flash("Please complete your account setup before scanning receipts.", "warning")
         return redirect(url_for('onboarding_wizard'))
-    
+
+    # Persona reroute (Wave A 2026-05-16): SL foreign-income earners land on the Remittance
+    # Ledger, not the generic receipt-scan page. Reversible per-user via profile settings.
+    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        return redirect(url_for('remittance.dashboard'))
+
     return render_template('index.html')
 
 @app.route('/history')
@@ -2711,13 +2721,20 @@ def email_login():
                 from datetime import datetime, timedelta
                 initial_expiration = datetime.utcnow() + timedelta(days=30)
                 
+                # Persona: SL foreign-income earner opt-in at signup (Wave A 2026-05-16).
+                # NULL persona = legacy/default flows; 'sl_foreign_income' routes to /remittance/dashboard.
+                persona_value = None
+                if request.form.get('persona_sl_foreign_income') in ('1', 'on', 'true', 'yes'):
+                    persona_value = 'sl_foreign_income'
+
                 new_user = User(
                     email=email,
                     password_hash=generate_password_hash(password),
                     name=email.split('@')[0],  # Use part of email as name
                     role='user',  # Set default role
                     subscription_status='free_trial',
-                    access_expiration_date=initial_expiration  # Set initial 30-day access period
+                    access_expiration_date=initial_expiration,  # Set initial 30-day access period
+                    persona=persona_value
                 )
                 
                 db.session.add(new_user)

@@ -196,6 +196,14 @@ try:
 except Exception as e:
     logger.error(f"Error loading PDF lineage API routes: {str(e)}")
 
+# Import foreign-income remittance routes (Wave A 2026-05-16)
+try:
+    import remittance_routes
+    remittance_routes.register_routes(app)
+    logger.info("Remittance (foreign-income) routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading remittance routes: {str(e)}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
