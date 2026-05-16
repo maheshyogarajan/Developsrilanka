@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ sender.name }} invites you to join DevelopSriLanka.com</title>
+    <title>{{ sender.name }} invites you to join FIESTA</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -72,13 +72,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://developsrilanka.com/logo.png" alt="DevelopSriLanka Logo">
+            <h1 style="font-family: Arial, sans-serif; font-size: 32px; color: #6200EA; letter-spacing: 2px; margin: 0;">FIESTA</h1>
         </div>
         
         <div class="content">
             <h2>You've been invited!</h2>
             <p>Hello,</p>
-            <p><strong>{{ sender.name }}</strong> has invited you to join DevelopSriLanka.com, a tax-optimized financial platform designed specifically for Sri Lankans.</p>
+            <p><strong>{{ sender.name }}</strong> has invited you to join FIESTA, a bookkeeping and audit-defence platform for foreign income earners and self-employed professionals.</p>
             
             {% if personal_message %}
             <div class="personal-message">
@@ -102,7 +102,7 @@
                 </div>
             </div>
             
-            <p>Join thousands of Sri Lankans who are simplifying their financial lives today.</p>
+            <p>Join the foreign income earners and self-employed professionals keeping their books audit-ready year-round.</p>
             
             <center>
                 <a href="{{ app_url }}/accept-invitation/{{ token }}" class="button">Accept Invitation</a>
@@ -113,8 +113,9 @@
         </div>
         
         <div class="footer">
-            <p>DevelopSriLanka.com - Accounting and Tax Made Easy</p>
-            <p>&copy; {{ current_year }} DevelopSriLanka. All rights reserved.</p>
+            <p>FIESTA &mdash; Bookkeeping and Audit-Defence for Foreign Income Earners</p>
+            <p>&copy; {{ current_year }} FIESTA. All rights reserved.</p>
+            <p>&mdash; Team FIESTA</p>
             <p>This invitation was sent to you by {{ sender.name }} ({{ sender.email }}). If you believe this was sent in error, please ignore this email.</p>
         </div>
     </div>

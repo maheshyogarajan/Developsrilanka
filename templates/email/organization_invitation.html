@@ -68,7 +68,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg', _external=True) }}" alt="DevelopSriLanka" class="logo" style="max-width: 150px; margin-bottom: 10px;">
+            <h1 style="font-family: Arial, sans-serif; font-size: 28px; color: #6200EA; letter-spacing: 2px; margin: 0 0 10px;">FIESTA</h1>
             <br>
             {% if organization.logo_path %}
                 <img src="{{ organization.logo_path }}" alt="{{ organization.name }}" class="logo">
@@ -82,7 +82,7 @@
             
             <p>Hello,</p>
             
-            <p>{{ inviter.name or inviter.email }} has invited you to join <strong>{{ organization.name }}</strong> on DevelopSriLanka as a <span class="role-badge">{{ invitation.role|title }}</span></p>
+            <p>{{ inviter.name or inviter.email }} has invited you to join <strong>{{ organization.name }}</strong> on FIESTA as a <span class="role-badge">{{ invitation.role|title }}</span></p>
             
             <div class="invitation-box">
                 <h3>Organization Details</h3>
@@ -119,8 +119,9 @@
                 <p>&copy; {{ current_year }} {{ organization.name }}. All rights reserved.</p>
             {% endif %}
             <p>
-                <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg', _external=True) }}" alt="DevelopSriLanka" style="max-width: 100px; margin-bottom: 5px;"><br>
-                DevelopSriLanka.com | Accounting and Tax Made Easy
+                <span style="font-family: Arial, sans-serif; font-size: 18px; color: #6200EA; letter-spacing: 2px; font-weight: bold;">FIESTA</span><br>
+                Bookkeeping and Audit-Defence for Foreign Income Earners<br>
+                &mdash; Team FIESTA
             </p>
         </div>
     </div>
