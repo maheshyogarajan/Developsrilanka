@@ -183,11 +183,11 @@
             <div class="card login-card">
                 <div class="card-body p-3 p-md-4 text-center">
                     <div class="mb-3 mb-md-4">
-                        <a href="{{ url_for('home') }}">
-                            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Develop Sri Lanka Logo" class="img-fluid mb-2" style="max-width: 100px;">
+                        <a href="{{ url_for('home') }}" aria-label="FIESTA home">
+                            {% include '_fiesta_logo.html' %}
                         </a>
-                        <h2 class="fs-3 mb-2">Welcome to Develop Sri Lanka</h2>
-                        <p class="text-muted small">Login to track your contribution to Sri Lanka's development</p>
+                        <h2 class="fs-3 mb-2 mt-2">Welcome to FIESTA</h2>
+                        <p class="text-muted small">Bookkeeping and audit-defence for foreign income earners and self-employed professionals</p>
                     </div>
 
                     <!-- Flash messages are now displayed in the main layout template -->
@@ -219,7 +219,7 @@
                     <div class="text-center text-muted mt-3">
                         <p class="small mb-0">By logging in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
                         <hr class="my-2">
-                        <p class="small mb-0">Powered by Develop Sri Lanka Initiative</p>
+                        <p class="small mb-0">Powered by FIESTA</p>
                     </div>
                 </div>
             </div>
