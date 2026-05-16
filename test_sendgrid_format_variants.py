@@ -23,7 +23,7 @@ def test_sendgrid_formats():
     
     # Test data
     organization_name = "Test Organization"
-    sender_name = "DevelopSriLanka"
+    sender_name = "FIESTA"
     sender_email = "noreply@developsrilanka.com"
     recipient = "test@example.com"
     

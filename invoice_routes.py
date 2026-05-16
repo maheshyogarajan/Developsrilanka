@@ -884,13 +884,13 @@ def send_invoice(invoice_id):
                 )
                 
                 # Set the friendly display name separately for better compatibility
-                message.from_email.name = f"{sender_name} via DevelopSriLanka"
+                message.from_email.name = f"{sender_name} via FIESTA"
                 
                 # Send the email using SendGrid
                 try:
                     # Log email sending details using both regular logger and SendGrid logger
                     logging.info(f"Preparing to send invoice email with SendGrid:")
-                    logging.info(f"From: {sender_name} via DevelopSriLanka <{sender_email}>")
+                    logging.info(f"From: {sender_name} via FIESTA <{sender_email}>")
                     logging.info(f"To: {recipient_email}")
                     logging.info(f"Subject: {subject}")
                     
@@ -898,7 +898,7 @@ def send_invoice(invoice_id):
                     log_api_request(
                         recipient_email=recipient_email, 
                         sender_email=sender_email,
-                        sender_name=f"{sender_name} via DevelopSriLanka",
+                        sender_name=f"{sender_name} via FIESTA",
                         subject=subject
                     )
                     
@@ -949,7 +949,7 @@ def send_invoice(invoice_id):
                     logging.error(f"Error type: {type(sendgrid_error).__name__}")
                     logging.error(f"Error message: {str(sendgrid_error)}")
                     logging.error(f"From email: {sender_email}")
-                    logging.error(f"From name: {sender_name} via DevelopSriLanka")
+                    logging.error(f"From name: {sender_name} via FIESTA")
                     logging.error(f"Full error traceback: {error_details}")
                     logging.error(f"==== END SENDGRID ERROR DETAILS ====")
                     

@@ -84,8 +84,8 @@ def send_verification_email(user):
     # Log and send
     try:
         sender_email = "info@developsrilanka.com"
-        sender_name = "Team Developsrilanka.com"
-        subject = "Verify Your Email - Developsrilanka.com"
+        sender_name = "Team FIESTA"
+        subject = "Verify Your Email - FIESTA"
         
         # Log email sending details
         logger.info(f"Preparing to send verification email with SendGrid:")

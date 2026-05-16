@@ -21,7 +21,7 @@ def test_sendgrid_logger():
     log_api_request(
         recipient_email="test@example.com",
         sender_email="noreply@developsrilanka.com",
-        sender_name="Test Organization via DevelopSriLanka",
+        sender_name="Test Organization via FIESTA",
         subject="Test Subject"
     )
     

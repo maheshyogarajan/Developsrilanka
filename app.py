@@ -86,7 +86,7 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = ('DevelopSriLanka.com', os.environ.get('GMAIL_USERNAME'))
+app.config['MAIL_DEFAULT_SENDER'] = ('FIESTA', os.environ.get('GMAIL_USERNAME'))
 app.config['MAIL_MAX_EMAILS'] = 5
 app.config['MAIL_DEBUG'] = True
 mail.init_app(app)
@@ -3450,7 +3450,7 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
         app_url = request.host_url.rstrip('/')
         
         # Create the subject for email
-        subject = f"{from_user.name} invites you to join DevelopSriLanka.com"
+        subject = f"{from_user.name} invites you to join FIESTA"
         
         # Log the email attempt
         logging.info(f"Sending friend invitation email to: {to_email}")
@@ -3503,13 +3503,13 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
         )
         
         # Set the friendly display name separately for better compatibility
-        message.from_email.name = f"{from_user.name} via DevelopSriLanka"
+        message.from_email.name = f"{from_user.name} via FIESTA"
         
         # Send the email using SendGrid
         try:
             # Log email sending details using both regular logger and SendGrid logger
             logging.info(f"Preparing to send friend invitation email with SendGrid:")
-            logging.info(f"From: {from_user.name} via DevelopSriLanka <{sender_email}>")
+            logging.info(f"From: {from_user.name} via FIESTA <{sender_email}>")
             logging.info(f"To: {recipient_email}")
             logging.info(f"Subject: {subject}")
             
@@ -3517,7 +3517,7 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
             log_api_request(
                 recipient_email=recipient_email, 
                 sender_email=sender_email,
-                sender_name=f"{from_user.name} via DevelopSriLanka",
+                sender_name=f"{from_user.name} via FIESTA",
                 subject=subject
             )
             
@@ -3566,7 +3566,7 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
             logging.error(f"Error type: {type(sendgrid_error).__name__}")
             logging.error(f"Error message: {str(sendgrid_error)}")
             logging.error(f"From email: {sender_email}")
-            logging.error(f"From name: {from_user.name} via DevelopSriLanka")
+            logging.error(f"From name: {from_user.name} via FIESTA")
             logging.error(f"Full error traceback: {error_details}")
             logging.error(f"==== END SENDGRID ERROR DETAILS ====")
             
