@@ -262,6 +262,11 @@ RECEIPT_FIELDS = [
     "expense_minor_category"
 ]
 
+@app.route('/healthz')
+def healthz():
+    """Fly.io healthcheck alias — returns 200 ok for liveness probes."""
+    return 'ok', 200
+
 @app.route('/health')
 def health_check():
     """Health check endpoint for monitoring the application status."""
