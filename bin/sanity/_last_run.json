@@ -1,0 +1,91 @@
+{
+  "run_at": "2026-05-16T10:02:24.399479Z",
+  "verdict": "ALL GREEN",
+  "pass": 13,
+  "fail": 0,
+  "warn": 0,
+  "total": 13,
+  "results": {
+    "neon_version": {
+      "status": "PASS",
+      "value": "PostgreSQL 16.12 (7bcf9ab) on aarch64-unknown-linux-gnu, compiled by gcc (Debian"
+    },
+    "neon_connect": {
+      "status": "PASS",
+      "database": "neondb",
+      "user": "neondb_owner",
+      "server": "169.254.254.254"
+    },
+    "neon_tables": {
+      "status": "PASS",
+      "public_table_count": 53,
+      "tables_list": "account, account_balance_cache, accounting_period, asset_category, audit_log, audit_timeline, bank_account, bank_statement, bank_statement_page, bank_statement_processing_log, client, client_expense, company_expense, depreciation_entry, extraction_event, financial_transaction, fixed_asset, friend_invitation, funding_source, funding_source_transaction, general_ledger_entry, invoice, invoice_item, journal_entry_line, kombu_message, kombu_queue, ml_training_data, onboarding_progress, organization, organization_invitation, organization_user, payment, performance_metrics, receipt, receipt_item, reconciliation_audit, reconciliation_exception, reconciliation_training_data, registration_rate_limit, security_log, smart_matching_rules, split_transaction_group, split_transaction_member, transaction_match, transaction_meta_bank, transaction_meta_journal, transaction_meta_manual, transaction_meta_receipt, trust_activity, trust_ranking, user, user_income, worker_heartbeat"
+    },
+    "neon_row_counts": {
+      "status": "PASS",
+      "counts": "{\n  \"audit_log\": 3078,\n  \"organization\": 807,\n  \"organization_user\": 805,\n  \"friend_invitation\": 11,\n  \"trust_activity\": 269,\n  \"trust_ranking\": 0,\n  \"organization_invitation\": 16,\n  \"user\": 1,\n  \"receipt\": 407,\n  \"receipt_item\": 1044,\n  \"client\": 44,\n  \"invoice\": 58,\n  \"invoice_item\": 61,\n  \"payment\": 32,\n  \"bank_account\": 22,\n  \"company_expense\": 243,\n  \"client_expense\": 0,\n  \"user_income\": 10,\n  \"registration_rate_limit\": 3412,\n  \"worker_heartbeat\": 8,\n  \"onboarding_progress\": 49,\n  \"account\": 1523,\n  \"general_ledger_entry\": 41,\n  \"journal_entry_line\": 82,\n  \"asset_category\": 15,\n  \"fixed_asset\": 2,\n  \"depreciation_entry\": 0,\n  \"accounting_period\": 0,\n  \"financial_transaction\": 237,\n  \"transaction_meta_receipt\": 0,\n  \"transaction_meta_bank\": 213,\n  \"transaction_meta_manual\": 0,\n  \"transaction_meta_journal\": 0,\n  \"bank_statement\": 5,\n  \"bank_statement_page\": 0,\n  \"bank_statement_processing_log\": 0,\n  \"funding_source\": 0,\n  \"funding_source_transaction\": 0,\n  \"reconciliation_exception\": 0,\n  \"reconciliation_training_data\": 0,\n  \"smart_matching_rules\": 0,\n  \"split_transaction_group\": 0,\n  \"split_transaction_member\": 0,\n  \"reconciliation_audit\": 0,\n  \"account_balance_cache\": 536,\n  \"document_context\": \"TABLE_NOT_FOUND\",\n  \"extraction_event\": 0\n}",
+      "total_rows_sampled": 13031
+    },
+    "s3_list": {
+      "status": "PASS",
+      "bucket": "developsrilanka250330",
+      "total_objects": 668,
+      "total_size_bytes": 53532348,
+      "sample_keys": [
+        "bank-statements/2/statement.pdf",
+        "bank-statements/3/statement.pdf",
+        "bank-statements/4/statement.pdf",
+        "debug_test/20250413_155819_4e3235c4-8088-4529-bb31-d32900387b6e.jpg",
+        "debug_test/20250413_155901_b47158a8-6fa4-4061-9b96-ec456eb11598.jpg"
+      ]
+    },
+    "s3_write_delete": {
+      "status": "PASS",
+      "test_key": "_fiesta_sanity_check/20260516T100210Z.txt",
+      "write": "OK",
+      "delete": "OK"
+    },
+    "sendgrid_account": {
+      "status": "PASS",
+      "http_status": 200,
+      "plan_tier": "paid"
+    },
+    "sendgrid_senders": {
+      "status": "PASS",
+      "http_status": 200,
+      "senders": [
+        "Info@DevSL <info@developsrilanka.com> verified=True"
+      ]
+    },
+    "sendgrid_sandbox_send": {
+      "status": "PASS",
+      "http_status": 200,
+      "note": "sandbox_mode=true \u2014 no email delivered"
+    },
+    "gmail_smtp": {
+      "status": "PASS",
+      "host": "smtp.gmail.com:587",
+      "tls": "OK",
+      "auth": "OK",
+      "banner_snippet": "smtp.gmail.com at your service, [112.134.212.189]\nSIZE 35882577\n8BITMIME\nSTARTTL"
+    },
+    "gemini_api": {
+      "status": "PASS",
+      "http_status": 200,
+      "response_token_count": 10
+    },
+    "zhipu_api": {
+      "status": "PASS",
+      "http_status": 200,
+      "endpoint": "https://api.z.ai/api/paas/v4/chat/completions",
+      "model": "glm-4.5v",
+      "response_snippet": null,
+      "error_body": null
+    },
+    "replit_connectors": {
+      "status": "PASS",
+      "note": "ZERO production .py files reference Replit Connectors",
+      "skipped_local_files": 0
+    }
+  }
+}
