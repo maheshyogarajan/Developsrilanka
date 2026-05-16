@@ -17,22 +17,37 @@ def register_template_filters(app):
     logger.info("Registering template filters")
     
     @app.template_filter('currency')
-    def currency_filter(value, currency_symbol="Rs "):
+    def currency_filter(value, currency_symbol=None):
         """
         Format a number as currency.
-        
+
         Args:
-            value: The value to format
-            currency_symbol: Currency symbol to use (default: Rs for Sri Lankan Rupee)
-        
+            value: The value to format.
+            currency_symbol: Currency symbol or ISO code (e.g. "Rs ", "$", "AUD ", "USD ").
+                If None, falls back to "LKR " (Sri Lankan Rupees) for back-compat
+                with templates that didn't pass a currency. Callers should pass
+                the invoice/expense `.currency` field explicitly.
+
         Returns:
-            Formatted currency string
+            Formatted currency string with thousand-separator and 2 decimals.
         """
+        if currency_symbol is None:
+            currency_symbol = "LKR "
+        else:
+            # Allow callers to pass a bare ISO code (USD, AUD, LKR) and we'll
+            # space-suffix it; or a literal symbol ($, €, Rs) which we use as-is.
+            sym = str(currency_symbol).strip()
+            if len(sym) == 3 and sym.isalpha():
+                currency_symbol = f"{sym.upper()} "
+            elif sym:
+                currency_symbol = sym if sym.endswith(' ') else f"{sym} "
+            else:
+                currency_symbol = "LKR "
+
         if value is None:
             return f"{currency_symbol}0.00"
-        
+
         try:
-            # Format value with thousand separator and 2 decimal places
             formatted_value = f"{float(value):,.2f}"
             return f"{currency_symbol}{formatted_value}"
         except (ValueError, TypeError):

@@ -84,8 +84,8 @@
                             <p class="mb-0">Tax Reg: {{ organization.tax_registration_number }}</p>
                         {% endif %}
                     {% else %}
-                        <h3 class="fw-bold">{{ invoice.sender_company or "FIESTA" }}</h3>
-                        <p>{{ invoice.sender_name or "Bookkeeping and Audit-Defence Platform" }}</p>
+                        <h3 class="fw-bold">{{ invoice.sender_company or (current_user.name if current_user.is_authenticated else '') }}</h3>
+                        {% if invoice.sender_name %}<p>{{ invoice.sender_name }}</p>{% endif %}
                         {% if invoice.sender_address %}
                             <p class="mb-0">{{ invoice.sender_address|replace('\n', '<br>')|safe }}</p>
                         {% endif %}
