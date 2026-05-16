@@ -42,20 +42,13 @@
     {% block additional_styles %}{% endblock %}
     
     <style>
+        /* Layout-only sidebar geometry. Color / type tokens are owned by fiesta-tokens.css. */
         :root {
-            --sidebar-width: 260px;
-            --sidebar-collapsed-width: 70px;
-            --primary-color: #6200EA;
-            --primary-light: #e9f0ff;
-            --secondary-color: #7E57C2;
-            --text-color: #495057;
-            --submenu-bg: #f8f9fa;
-            --transition-speed: 0.3s;
+            --submenu-bg: var(--color-ink-50);
         }
-        
+
         body {
             overflow-x: hidden;
-            color: var(--text-color);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -115,56 +108,43 @@
         }
         
         .sidebar-toggle:hover {
-            background-color: var(--primary-light);
+            background-color: var(--color-brand-50);
+            color: var(--color-brand-700);
         }
         
-        /* Navigation Menu */
+        /* Navigation Menu — geometry only. Color/type owned by fiesta-components.css */
         .sidebar-menu {
             list-style: none;
             padding: 0;
             margin: 0;
         }
-        
+
         .menu-item {
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.125rem;
         }
-        
+
         .menu-link {
             display: flex;
             align-items: center;
-            padding: 0.75rem 1.5rem;
-            color: var(--text-color);
             text-decoration: none;
-            transition: all 0.2s ease;
             border-left: 3px solid transparent;
+            transition: all var(--transition-speed) var(--easing-standard);
         }
-        
-        .menu-link:hover {
-            background-color: var(--primary-light);
-            color: var(--primary-color);
-        }
-        
-        .menu-link.active {
-            color: var(--primary-color);
-            background-color: var(--primary-light);
-            border-left-color: var(--primary-color);
-            font-weight: 500;
-        }
-        
+
         .menu-icon {
-            font-size: 1.25rem;
+            font-size: 1.05rem;
             width: 24px;
             text-align: center;
             margin-right: 0.75rem;
             transition: margin var(--transition-speed);
         }
-        
+
         .menu-text {
             transition: opacity var(--transition-speed);
             white-space: nowrap;
         }
-        
-        /* Submenu Styling */
+
+        /* Submenu Styling — geometry only */
         .submenu {
             max-height: 0;
             overflow: hidden;
@@ -172,28 +152,15 @@
             padding-left: 0;
             transition: max-height 0.3s ease;
         }
-        
+
         .submenu-link {
             display: flex;
             align-items: center;
-            padding: 0.5rem 1rem 0.5rem 3.25rem;
-            color: var(--text-color);
+            padding: 0.4rem 1rem 0.4rem 3.25rem;
             text-decoration: none;
             transition: all 0.2s ease;
-            font-size: 0.95rem;
         }
-        
-        .submenu-link:hover {
-            background-color: var(--submenu-bg);
-            color: var(--primary-color);
-        }
-        
-        .submenu-link.active {
-            color: var(--primary-color);
-            background-color: var(--submenu-bg);
-            font-weight: 500;
-        }
-        
+
         .submenu-icon {
             font-size: 0.9rem;
             width: 18px;
@@ -259,33 +226,21 @@
         }
         
         .main-header {
-            background-color: #fff;
-            border-bottom: 1px solid #e9ecef;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);
-            padding: 0.75rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
-        
-        .page-title {
-            font-size: 1.25rem;
-            font-weight: 500;
-            margin: 0;
-            color: var(--text-color);
-        }
-        
+
         .main-content {
-            padding: 1.5rem;
             flex: 1;
         }
-        
-        /* Mobile Styles */
+
+        /* Mobile Header (geometry only — color owned by fiesta-components.css) */
         .mobile-header {
             display: none;
-            background-color: #fff;
-            padding: 0.75rem 1rem;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            background-color: var(--color-surface-raised);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-3) var(--space-4);
             position: fixed;
             top: 0;
             left: 0;
@@ -296,7 +251,7 @@
         .mobile-toggle {
             background: none;
             border: none;
-            color: var(--text-color);
+            color: var(--color-ink-700);
             font-size: 1.5rem;
             cursor: pointer;
         }
@@ -352,10 +307,8 @@
             }
         }
         
-        /* Footer */
+        /* Footer geometry (color owned by fiesta-components.css) */
         .footer {
-            background-color: #f8f9fa;
-            padding: 1rem;
             margin-top: auto;
         }
     </style>
@@ -380,7 +333,6 @@
         <div class="sidebar-header">
             <a href="/" class="sidebar-brand">
                 {% include '_fiesta_logo.html' %}
-                <span class="brand-text">FIESTA</span>
             </a>
             <button class="sidebar-toggle" id="sidebarToggle">
                 <i class="fas fa-chevron-left"></i>
@@ -710,20 +662,16 @@
         
         <footer class="footer">
             <div class="container-fluid">
-                <div class="row">
+                <div class="row align-items-center">
                     <div class="col-md-6 text-center text-md-start">
-                        <p class="mb-0">&copy; 2025 FIESTA. All rights reserved.</p>
+                        <p class="mb-0">
+                            &copy; 2025 <strong style="color: var(--color-ink-700);">FIESTA</strong> &middot; Foreign Income Earner Saving &amp; Tax Advisor
+                        </p>
                     </div>
-                    <div class="col-md-6 text-center text-md-end">
-                        <a href="#" class="text-decoration-none text-muted me-2">
-                            <i class="fab fa-facebook"></i>
-                        </a>
-                        <a href="#" class="text-decoration-none text-muted me-2">
-                            <i class="fab fa-twitter"></i>
-                        </a>
-                        <a href="#" class="text-decoration-none text-muted">
-                            <i class="fab fa-instagram"></i>
-                        </a>
+                    <div class="col-md-6 text-center text-md-end small">
+                        <a href="#" class="text-muted me-3" style="text-decoration: none;">Privacy</a>
+                        <a href="#" class="text-muted me-3" style="text-decoration: none;">Terms</a>
+                        <a href="#" class="text-muted" style="text-decoration: none;">Support</a>
                     </div>
                 </div>
             </div>

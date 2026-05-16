@@ -1,257 +1,140 @@
 {% extends 'layout.html' %}
 
-{% block title %}Login - FIESTA{% endblock %}
+{% block title %}Sign in - FIESTA{% endblock %}
 
-{% block head %}
-{{ super() }}
+{% block additional_styles %}
 <style>
-    /* Clean, minimal styling for the login page */
-    .login-card {
-        border-radius: 10px;
-        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-    }
-    
-    .login-btn {
-        transition: all 0.3s ease;
-    }
-    
-    .login-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .form-control {
-        transition: all 0.3s ease;
-        border: 1px solid #ced4da;
-    }
-    
-    .form-control:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
-    }
-    
-    /* Animation styles for the auto-redirect notification */
-    .redirect-message {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        z-index: 1000;
-        width: 90%;
-        max-width: 400px;
-        text-align: center;
-        transition: opacity 0.3s ease, transform 0.4s ease;
-    }
-    
-    .overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 999;
-        transition: opacity 0.3s ease;
-    }
-    
-    .redirect-message {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: white;
-        padding: 2rem;
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-        z-index: 1000;
-        width: 90%;
-        max-width: 400px;
-        transition: all 0.3s ease;
-    }
-    
-    .progress-bar {
-        height: 4px;
-        background-color: #007bff;
-        width: 0%;
-        transition: width 2s ease-in-out;
-        margin: 15px 0;
-        border-radius: 2px;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-    
-    @keyframes slideUp {
-        from { transform: translateY(10px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-    
-    .spinner {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #007bff;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 15px auto;
-    }
-    
-    .redirect-icon {
-        font-size: 2.5rem;
-        margin-bottom: 15px;
-        color: #007bff;
-        animation: pulse 1s infinite;
-    }
-    
-    .success-icon {
-        color: #28a745;
-        animation: pulse 1s ease-in-out;
-    }
-    
-    #step1, #step2 {
-        transition: opacity 0.3s ease;
-    }
-    
-    /* Enhanced alert styles */
-    .alert {
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        position: relative;
-        padding-right: 2.5rem;
-        transition: all 0.3s ease;
-        animation: slideIn 0.3s ease-out;
-    }
-    
-    .alert-danger {
-        border-left: 4px solid #dc3545;
-    }
-    
-    .alert-warning {
-        border-left: 4px solid #ffc107;
-    }
-    
-    .alert-info {
-        border-left: 4px solid #17a2b8;
-    }
-    
-    .alert-dismissible .btn-close {
-        position: absolute;
-        top: 0.5rem;
-        right: 0.5rem;
-        padding: 0.5rem;
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
+  /* Page-local: redirect overlay (kept from original, restyled to match FIESTA system) */
+  .overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(15, 23, 41, 0.55);
+    z-index: var(--z-overlay);
+    transition: opacity var(--duration-slow) var(--easing-standard);
+  }
+  .redirect-message {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--color-surface-raised);
+    padding: var(--space-8);
+    border-radius: var(--radius-xl);
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+    z-index: var(--z-modal);
+    width: 90%;
+    max-width: 26rem;
+    transition: opacity var(--duration-slow) var(--easing-standard),
+                transform var(--duration-slow) var(--easing-standard);
+  }
+  .progress-bar {
+    height: 4px;
+    background-color: var(--color-brand-600);
+    width: 0%;
+    transition: width 2s ease-in-out;
+    margin: var(--space-4) 0;
+    border-radius: var(--radius-full);
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .spinner {
+    border: 3px solid var(--color-ink-100);
+    border-top: 3px solid var(--color-brand-600);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--space-4);
+  }
+  .redirect-icon {
+    font-size: 2.25rem;
+    color: var(--color-success-600);
+    margin-bottom: var(--space-3);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container my-3 my-md-5">
-    <div class="row justify-content-center">
-        <div class="col-sm-12 col-md-8 col-lg-5">
-            <div class="card login-card">
-                <div class="card-body p-3 p-md-4 text-center">
-                    <div class="mb-3 mb-md-4">
-                        <a href="{{ url_for('home') }}" aria-label="FIESTA home">
-                            {% include '_fiesta_logo.html' %}
-                        </a>
-                        <h2 class="fs-3 mb-2 mt-2">Welcome to FIESTA</h2>
-                        <p class="text-muted small">Bookkeeping and audit-defence for foreign income earners and self-employed professionals</p>
-                    </div>
+<div class="fiesta-auth">
+  <div class="login-card card">
+    <div class="card-body">
+      <div class="text-center mb-4">
+        <a href="{{ url_for('home') }}" aria-label="FIESTA home" class="d-inline-block mb-3">
+          {% include '_fiesta_logo.html' %}
+        </a>
+        <h1 class="h2 mb-2">Welcome back.</h1>
+        <p class="text-secondary small mb-0">
+          Sign in to keep your books audit-ready.
+        </p>
+      </div>
 
-                    <!-- Flash messages are now displayed in the main layout template -->
+      <form method="POST" action="{{ url_for('email_login') }}" id="loginForm" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                    <form method="POST" action="{{ url_for('email_login') }}" class="mb-3" id="loginForm">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="mb-3">
-                            <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required>
-                        </div>
-                        <div class="mb-3">
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
-                        </div>
-                        <!-- Hidden input for action -->
-                        <input type="hidden" name="action" id="action_input" value="login">
-                        <div class="d-grid gap-2">
-                            <button type="submit" data-action="login" class="btn btn-primary login-btn" id="loginButton">Sign In</button>
-                            <a href="{{ url_for('register') }}" class="btn btn-outline-success login-btn">Register New Account</a>
-                        </div>
-                    </form>
-                    
-                    <!-- Password Help Notice -->
-                    <div class="alert alert-info mb-3 py-2" role="alert">
-                        <small>
-                            <i class="bi bi-info-circle-fill me-1"></i>
-                            <strong>Login Tip:</strong> If you've forgotten your password, please contact an administrator to reset it for you.
-                        </small>
-                    </div>
-                    
-                    <div class="text-center text-muted mt-3">
-                        <p class="small mb-0">By logging in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
-                        <hr class="my-2">
-                        <p class="small mb-0">Powered by FIESTA</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Simple note about the new feature -->
-            <div class="text-center mt-2">
-                <p class="small text-muted">
-                    <i class="bi bi-info-circle"></i> 
-                    After login, you'll be taken directly to the Scan page.
-                </p>
-            </div>
+        <div class="mb-3">
+          <label for="email" class="form-label">Email address</label>
+          <input type="email" class="form-control" id="email" name="email"
+                 placeholder="you@example.com" autocomplete="email" required>
         </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label d-flex justify-content-between align-items-center">
+            <span>Password</span>
+            <a href="#" class="small text-muted" style="font-weight: 400;">Forgot?</a>
+          </label>
+          <input type="password" class="form-control" id="password" name="password"
+                 placeholder="Enter your password" autocomplete="current-password" required>
+        </div>
+
+        <input type="hidden" name="action" id="action_input" value="login">
+
+        <div class="d-grid gap-2 mt-4">
+          <button type="submit" data-action="login" class="btn btn-primary btn-lg" id="loginButton">
+            Sign in to FIESTA
+          </button>
+          <a href="{{ url_for('register') }}" class="btn btn-outline-secondary">
+            Create a new account
+          </a>
+        </div>
+      </form>
+
+      <div class="alert alert-info mt-4 mb-0" role="alert">
+        <small>
+          <i class="bi bi-info-circle-fill me-1"></i>
+          <strong>Tip:</strong> If you've forgotten your password, contact an administrator to reset it for you.
+        </small>
+      </div>
+
+      <hr class="divider">
+
+      <div class="text-center">
+        <p class="text-muted small mb-1">
+          By signing in, you agree to our
+          <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+        </p>
+        <p class="text-muted small mb-0">Powered by FIESTA</p>
+      </div>
     </div>
+  </div>
 </div>
 
-<!-- Overlay for the animation -->
+<!-- Overlay for the post-login animation -->
 <div class="overlay" id="overlay"></div>
-
-<!-- Redirect Message Animation -->
 <div class="redirect-message" id="redirectMessage">
-    <div id="step1">
-        <div class="spinner"></div>
-        <h5>Verifying your credentials...</h5>
-    </div>
-    
-    <div id="step2" style="display: none;">
-        <i class="bi bi-check-circle-fill redirect-icon success-icon"></i>
-        <h5>Login Successful!</h5>
-        <p>Taking you to the Scan Receipt page <i class="bi bi-arrow-right-circle-fill"></i></p>
-        <div class="progress-bar" id="progressBar"></div>
-        <p class="small text-muted mt-2">Ready to track your contribution to Sri Lanka's development</p>
-    </div>
+  <div id="step1">
+    <div class="spinner"></div>
+    <h5 class="mb-0">Verifying your credentials&hellip;</h5>
+  </div>
+  <div id="step2" style="display: none;">
+    <i class="bi bi-check-circle-fill redirect-icon"></i>
+    <h5 class="mb-2">Welcome back.</h5>
+    <p class="text-secondary small mb-0">Taking you to your scan workspace.</p>
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
 </div>
 
 <script>
@@ -262,67 +145,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const step1 = document.getElementById('step1');
     const step2 = document.getElementById('step2');
     const progressBar = document.getElementById('progressBar');
-    
-    // Initially hide the overlay and animation
+
     overlay.style.display = 'none';
     redirectMessage.style.display = 'none';
-    
-    // Add event listener to login form submission
+
     loginForm.addEventListener('submit', function(e) {
-        // Only show the animation if the form is actually filled in properly
         if (loginForm.checkValidity()) {
-            // Prevent the default form submission briefly to show the animation
             e.preventDefault();
-            
-            // Console log for debugging
-            console.log('Form submission for login');
-            
-            // Show overlay with fade effect
             overlay.style.display = 'block';
             overlay.style.opacity = 0;
-            setTimeout(() => {
-                overlay.style.opacity = 1;
-            }, 10);
-            
-            // Show message with animation
+            setTimeout(() => { overlay.style.opacity = 1; }, 10);
+
             redirectMessage.style.display = 'block';
             redirectMessage.style.opacity = 0;
             redirectMessage.style.transform = 'translate(-50%, -60%)';
-            
             setTimeout(() => {
                 redirectMessage.style.opacity = 1;
                 redirectMessage.style.transform = 'translate(-50%, -50%)';
             }, 100);
-            
-            // Show first step - verifying credentials
+
             step1.style.display = 'block';
-            
-            // After a delay, transition to success message
             setTimeout(() => {
-                // Hide first step with animation
-                step1.style.opacity = 1;
                 step1.style.transition = 'opacity 0.3s ease';
                 step1.style.opacity = 0;
-                
                 setTimeout(() => {
                     step1.style.display = 'none';
-                    
-                    // Show success step with animation
                     step2.style.display = 'block';
                     step2.style.opacity = 0;
-                    
                     setTimeout(() => {
                         step2.style.opacity = 1;
-                        
-                        // Animate progress bar
                         setTimeout(() => {
                             progressBar.style.width = '100%';
-                            
-                            // After progress bar completes, submit the form
-                            setTimeout(() => {
-                                console.log('Submitting login form');
-                                loginForm.submit();
-                            }, 1800);
+                            setTimeout(() => { loginForm.submit(); }, 1800);
                         }, 200);
                     }, 50);
                 }, 300);
