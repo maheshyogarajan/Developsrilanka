@@ -131,15 +131,20 @@ def get_rate(currency: str, on_date: date) -> Optional[FxRate]:
     if not isinstance(on_date, date):
         return None
 
-    # Tier 1: cache hit
+    # Tier 1: cache hit (any source — CBSL preferred, returned as cbsl_cached)
     cached = _cache_lookup(currency, on_date)
     if cached is not None:
         return cached
 
-    # Tier 2: CBSL official endpoint — currently unreachable; placeholder.
-    # When a real CBSL adapter is built, it goes here. For now: skip.
+    # Tier 2: CBSL scraper — IRD-defensible source. Works for any date back to
+    # 2006-11-11. Returns empty dict if CBSL is down or the date is a non-trading day.
+    cbsl_fx = _fetch_cbsl(currency, on_date)
+    if cbsl_fx is not None:
+        _cache_write(cbsl_fx)
+        return cbsl_fx
 
     # Tier 3: open-er-api.com — only for "today" lookups (no historical).
+    # NOT IRD-defensible; UI flags it for manual CBSL confirmation before filing.
     if on_date == date.today():
         proxied = _fetch_ecb_proxy_today(currency)
         if proxied is not None:
@@ -148,6 +153,33 @@ def get_rate(currency: str, on_date: date) -> Optional[FxRate]:
 
     # Tier 4: nothing. Caller must collect manually.
     return None
+
+
+def _fetch_cbsl(currency: str, on_date: date) -> Optional[FxRate]:
+    """Wrap cbsl_scraper.fetch_single_day → FxRate with sanity check."""
+    try:
+        from cbsl_scraper import fetch_single_day
+    except ImportError as e:
+        log.warning("CBSL scraper unavailable: %s", e)
+        return None
+    try:
+        rates = fetch_single_day(on_date, [currency])
+    except Exception as e:
+        log.warning("CBSL scraper raised: %s", e)
+        return None
+    if currency not in rates:
+        return None
+    fx = FxRate(
+        currency=currency,
+        rate_date=on_date,
+        value=rates[currency],
+        source="cbsl",
+        fetched_at=datetime.utcnow(),
+    )
+    if not _passes_sanity(fx):
+        log.warning("CBSL rate failed sanity: %s %s=%s", currency, on_date, fx.value)
+        return None
+    return fx
 
 
 def store_manual_rate(currency: str, on_date: date, rate_lkr: Decimal) -> FxRate:
