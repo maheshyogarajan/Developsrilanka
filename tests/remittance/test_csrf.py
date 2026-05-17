@@ -1,17 +1,29 @@
 """
 T4 — Wave H council #1: CSRF protection MUST cover the new POST endpoints.
 
-App-level CSRFProtect is registered in app.py; this test confirms that registration
-covers the /remittance/* blueprint.
+The app-level conftest disables CSRF for the data-logic tests. This file
+re-enables it per test (via a fixture) and asserts that POSTs without a
+token are rejected. Also, the live curl smoke after each deploy independently
+confirms CSRF rejection on /remittance/new and /remittance/import (see
+working files/_cockpit_fiesta/STATE.md deploy history).
 """
 import pytest
 
 from .conftest import login_as
 
 
+@pytest.fixture
+def csrf_on(app):
+    """Temporarily re-enable CSRF for this test."""
+    prior = app.config.get("WTF_CSRF_ENABLED")
+    app.config["WTF_CSRF_ENABLED"] = True
+    yield
+    app.config["WTF_CSRF_ENABLED"] = prior
+
+
+@pytest.mark.usefixtures("csrf_on")
 def test_remittance_new_post_without_csrf_rejected(client, db_session, user_a):
     login_as(client, user_a)
-    # Send a POST with valid form data but NO csrf_token → CSRFProtect should reject.
     resp = client.post(
         "/remittance/new",
         data={
@@ -21,12 +33,12 @@ def test_remittance_new_post_without_csrf_rejected(client, db_session, user_a):
         },
         follow_redirects=False,
     )
-    # CSRFProtect returns 400 by default for missing token.
     assert resp.status_code in (400, 403), (
         f"POST without CSRF token should be rejected. Got {resp.status_code}."
     )
 
 
+@pytest.mark.usefixtures("csrf_on")
 def test_remittance_import_post_without_csrf_rejected(client, db_session, user_a):
     login_as(client, user_a)
     resp = client.post(

@@ -40,6 +40,11 @@ def app():
     from app import app as flask_app, db
     import remittance_models  # noqa: F401  (registers RemittanceImportBatch)
     flask_app.config["TESTING"] = True
+    # Disable CSRF in the pytest app — these tests verify data-handling logic.
+    # CSRF coverage is verified by:
+    #   (a) test_csrf.py with an explicit per-test re-enable
+    #   (b) live curl smoke against the deployed app (HTTP 400 on POST w/o token)
+    flask_app.config["WTF_CSRF_ENABLED"] = False
     with flask_app.app_context():
         db.create_all()
     yield flask_app
