@@ -79,10 +79,13 @@
     <div class="col-md-3 col-6">
       <div class="card h-100">
         <div class="card-body">
-          <div class="text-uppercase small text-secondary mb-2">IRD-ready</div>
+          <div class="text-uppercase small text-secondary mb-2">Evidence complete</div>
           <div class="h3 mb-0" style="font-family: var(--font-mono, monospace);">
-            {{ ird_ready_count }} / {{ entries|length }}
+            {{ (ird_ready_count + evidence_ready_count) }} / {{ entries|length }}
           </div>
+          {% if ird_ready_count %}
+            <div class="small text-success mt-1">{{ ird_ready_count }} Lanka.tax-reviewed</div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -123,6 +126,8 @@
                 <td>
                   {% if status_code == 'ird_ready' %}
                     <span class="badge bg-success-100 text-success-700">{{ status_label }}</span>
+                  {% elif status_code == 'evidence_ready' %}
+                    <span class="badge bg-info-100 text-info-700">{{ status_label }}</span>
                   {% elif status_code == 'partial' %}
                     <span class="badge bg-warning-100 text-warning-700">{{ status_label }}</span>
                   {% else %}

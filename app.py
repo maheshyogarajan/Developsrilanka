@@ -211,9 +211,13 @@ def _ensure_additive_schema():
                 'ALTER TABLE organization ADD COLUMN IF NOT EXISTS ocr_provider VARCHAR(20)'
             ))
             # Wave A 2026-05-16: SL foreign-income persona flag for User.
-            # NULL = legacy/default flows; 'sl_foreign_income' routes to /remittance/dashboard.
             db.session.execute(_sql_text(
                 'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS persona VARCHAR(50)'
+            ))
+            # Wave H 2026-05-17 (council #1): IRD-ready badge requires staff review.
+            db.session.execute(_sql_text(
+                'ALTER TABLE remittance_entries '
+                'ADD COLUMN IF NOT EXISTS ird_ready_staff_reviewed BOOLEAN NOT NULL DEFAULT FALSE'
             ))
             db.session.commit()
     except Exception as _alter_err:

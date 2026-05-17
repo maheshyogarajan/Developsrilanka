@@ -19,6 +19,8 @@
     <div class="col-auto">
       {% if status_code == 'ird_ready' %}
         <span class="badge bg-success-100 text-success-700 fs-6">{{ status_label }}</span>
+      {% elif status_code == 'evidence_ready' %}
+        <span class="badge bg-info-100 text-info-700 fs-6">{{ status_label }}</span>
       {% elif status_code == 'partial' %}
         <span class="badge bg-warning-100 text-warning-700 fs-6">{{ status_label }}</span>
       {% else %}

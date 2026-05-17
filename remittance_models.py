@@ -53,6 +53,11 @@ class RemittanceEntry(db.Model):
     tax_year = db.Column(db.String(7), nullable=False)
     notes = db.Column(db.Text, nullable=True)
 
+    # Wave H 2026-05-17 (council #1): the "IRD-ready" badge is suppressed until a Lanka.tax
+    # staff member has reviewed the entry against current IRD format expectations.
+    # Premortem T6 mitigation. Defaults False; flipped by a staff-only endpoint (TBD Wave I).
+    ird_ready_staff_reviewed = db.Column(db.Boolean, nullable=False, default=False)
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -66,7 +71,9 @@ class RemittanceEntry(db.Model):
         return bool(self.dta_certificate_s3_key)
 
     def completeness_status(self):
-        """GPT's completeness-badge pattern. Returns ('ird_ready'|'partial'|'missing', label)."""
+        """Council #1 fix (Wave H, punch #19): IRD-ready never fires from user input alone —
+        requires Lanka.tax staff review (ird_ready_staff_reviewed=True). Returns
+        ('ird_ready'|'partial'|'missing'|'evidence_ready', label)."""
         missing = []
         if not self.has_source_doc():
             missing.append("source document")
@@ -74,8 +81,34 @@ class RemittanceEntry(db.Model):
             missing.append("SL bank proof")
         if self.cbsl_rate is None:
             missing.append("CBSL rate")
-        if not missing:
-            return ("ird_ready", "IRD-ready")
-        if len(missing) == 1:
-            return ("partial", f"Missing {missing[0]}")
-        return ("missing", f"Missing {', '.join(missing)}")
+        if missing:
+            if len(missing) == 1:
+                return ("partial", f"Missing {missing[0]}")
+            return ("missing", f"Missing {', '.join(missing)}")
+        # All evidence collected — but IRD-ready requires Lanka.tax staff review.
+        if self.ird_ready_staff_reviewed:
+            return ("ird_ready", "IRD-ready (staff reviewed)")
+        return ("evidence_ready", "Evidence complete · awaiting Lanka.tax review")
+
+
+class RemittanceImportBatch(db.Model):
+    """Server-side store for import candidates between upload→review→confirm.
+
+    Council #1 Wave H (H2) — session-cookie storage caps at ~4KB which is broken for
+    realistic >50-row SL bank statements. This table holds candidates server-side,
+    keyed by a UUID handed to the user via URL.
+
+    Auto-expires after 24h via the `expires_at` column (housekeeping cron, deferred).
+    """
+    __tablename__ = "remittance_import_batches"
+
+    id = db.Column(db.Integer, primary_key=True)
+    import_id = db.Column(db.String(12), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    filename = db.Column(db.String(512), nullable=False)
+    kind = db.Column(db.String(16), nullable=False)          # 'pdf' | 'csv' | 'unknown'
+    candidates = db.Column(db.JSON, nullable=False)          # normalised list of dicts
+    file_sha256 = db.Column(db.String(64), nullable=True)    # H8 duplicate detection
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    consumed_at = db.Column(db.DateTime, nullable=True)      # set when /confirm runs
