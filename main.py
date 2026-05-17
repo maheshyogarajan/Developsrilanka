@@ -11,6 +11,16 @@ logger = logging.getLogger(__name__)
 # Import models to ensure they're registered with SQLAlchemy
 import models
 
+# Wave 1 EVENT SPINE 2026-05-17 (council #2): import event_models so the
+# `events` table is registered with SQLAlchemy metadata for db.create_all().
+# The table is ALSO created via raw SQL in app._ensure_additive_schema() for
+# belt-and-braces — that path covers every entry point (gunicorn, wsgi, celery).
+try:
+    import event_models  # noqa: F401
+    logger.info("Event spine models loaded (events table)")
+except Exception as e:
+    logger.error(f"Error loading event_models: {str(e)}")
+
 # Import model event listeners (for auto-creating Personal Finances organization)
 try:
     import models_event_listener

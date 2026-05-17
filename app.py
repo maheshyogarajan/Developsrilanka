@@ -219,6 +219,47 @@ def _ensure_additive_schema():
                 'ALTER TABLE remittance_entries '
                 'ADD COLUMN IF NOT EXISTS ird_ready_staff_reviewed BOOLEAN NOT NULL DEFAULT FALSE'
             ))
+            # Wave 1 EVENT SPINE 2026-05-17 (council #2 unanimous): append-only
+            # analytics event table. CREATE TABLE IF NOT EXISTS guarantees the
+            # table is present in every entry point (gunicorn, wsgi, celery)
+            # even if SQLAlchemy metadata reflection via main.py db.create_all
+            # is delayed. The ORM model lives in event_models.py for queries.
+            db.session.execute(_sql_text(
+                'CREATE TABLE IF NOT EXISTS events ('
+                '  id SERIAL PRIMARY KEY,'
+                '  event_type VARCHAR(64) NOT NULL,'
+                '  user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL,'
+                '  organization_id INTEGER REFERENCES organization(id) ON DELETE SET NULL,'
+                '  payload JSON,'
+                '  source VARCHAR(32),'
+                '  session_id VARCHAR(64),'
+                '  ip_address VARCHAR(50),'
+                '  user_agent TEXT,'
+                '  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
+                ')'
+            ))
+            # Single-column indexes (match the ORM index=True on the columns).
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_event_type ON events (event_type)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_user_id ON events (user_id)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_created_at ON events (created_at)'
+            ))
+            # Composite indexes — match event_models.Event.__table_args__.
+            # These power the two leading-indicator query shapes Wave 2 needs:
+            #   "last N events of type X"          (event_type, created_at DESC)
+            #   "per-user timeline newest first"   (user_id, created_at DESC)
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_type_created_at '
+                'ON events (event_type, created_at DESC)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_user_created_at '
+                'ON events (user_id, created_at DESC)'
+            ))
             db.session.commit()
     except Exception as _alter_err:
         logging.warning(f"Could not ensure additive schema columns: {_alter_err}")
@@ -2411,7 +2452,20 @@ def verify_email(token):
                 # Continue with verification even if org creation fails
             
             db.session.commit()
-            
+
+            # Wave 1 EVENT SPINE: email-verified event. Activation-funnel signal.
+            # Feeds the persona-prompt timing model (council #2 2026-05-17).
+            try:
+                from events import emit as _emit_event
+                _emit_event(
+                    'email_verified',
+                    user_id=user.id,
+                    payload={'email': user.email},
+                    source='route:verify_email',
+                )
+            except Exception as _ev_err:
+                logging.debug(f"Event emit (email_verified) failed: {_ev_err}")
+
             # Log the user in and redirect to onboarding wizard
             login_user(user)
             flash('Your email has been verified! Please complete your account setup.', 'success')
@@ -2746,13 +2800,35 @@ def email_login():
                 
                 # Log successful user creation
                 log_registration_success(new_user.id, email, 'standard')
-                
+
                 # Also log to activity logger for admin dashboard
                 try:
                     from activity_logger import ActivityLogger
                     ActivityLogger.log_registration(new_user.id, email)
                 except Exception as log_err:
                     logging.debug(f"Activity logging failed: {log_err}")
+
+                # Wave 1 EVENT SPINE: emit signup event (best-effort, never raises).
+                # Feeds AI CRM cold-start + growth dashboards. Council #2 2026-05-17.
+                try:
+                    from events import emit as _emit_event
+                    _emit_event(
+                        'signup',
+                        user_id=new_user.id,
+                        payload={'persona': persona_value, 'method': 'email_password'},
+                        source='route:email_login',
+                    )
+                    if persona_value:
+                        # Persona set at signup is its own signal — important for the
+                        # AI CRM segmentation funnel (sl_foreign_income vs default).
+                        _emit_event(
+                            'persona_set',
+                            user_id=new_user.id,
+                            payload={'persona': persona_value, 'at': 'signup'},
+                            source='route:email_login',
+                        )
+                except Exception as _ev_err:
+                    logging.debug(f"Event emit (signup) failed: {_ev_err}")
                 
                 # Send email verification (organizations will be created after email verification)
                 try:

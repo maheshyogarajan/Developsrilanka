@@ -21,6 +21,7 @@ from remittance_models import (
 )
 from remittance_import import parse_upload, sha256_hex
 from fx_rate_service import get_rate as fx_get_rate, store_manual_rate as fx_store_manual
+from events import emit as emit_event  # Wave 1 EVENT SPINE 2026-05-17 (council #2)
 
 log = logging.getLogger(__name__)
 
@@ -238,6 +239,36 @@ def new():
         })
         db.session.commit()
         log.info("Remittance entry %s created (manual) by user %s", entry.id, current_user.id)
+
+        # Wave 1 EVENT SPINE: per-entry analytics event + IRD-ready badge event
+        # if all evidence is captured. Best-effort, never raises.
+        emit_event(
+            "remittance_added",
+            user_id=current_user.id,
+            organization_id=org.id if org else None,
+            payload={
+                "entry_id": entry.id,
+                "currency": foreign_currency,
+                "amount": str(foreign_amount),
+                "tax_year": entry.tax_year,
+                "cbsl_rate_source": rate_source_label,
+                "via": "manual",
+            },
+            source="route:remittance.new",
+        )
+        try:
+            _status_code, _ = entry.completeness_status()
+            if _status_code in ("ird_ready", "evidence_ready"):
+                emit_event(
+                    "remittance_ird_ready",
+                    user_id=current_user.id,
+                    organization_id=org.id if org else None,
+                    payload={"entry_id": entry.id, "status": _status_code},
+                    source="route:remittance.new",
+                )
+        except Exception as _ev_err:
+            log.debug("emit(remittance_ird_ready) failed for entry %s: %s", entry.id, _ev_err)
+
         flash("Remittance entry saved.", "success")
         return redirect(url_for("remittance.detail", entry_id=entry.id))
 
@@ -463,10 +494,46 @@ def import_confirm(import_id):
             "cbsl_rate_source": cbsl_source,
             "row_index": idx,
         })
+        # Wave 1 EVENT SPINE: per-row analytics event. We emit BEFORE the
+        # batch commit so that even if commit fails partway, the analytics
+        # rows we did get reflect what was attempted. emit() is best-effort.
+        emit_event(
+            "remittance_added",
+            user_id=current_user.id,
+            organization_id=org.id if org else None,
+            payload={
+                "entry_id": entry.id,
+                "currency": foreign_currency,
+                "amount": str(foreign_amount),
+                "tax_year": entry.tax_year,
+                "cbsl_rate_source": cbsl_source,
+                "via": "import",
+                "import_id": batch.import_id,
+                "row_index": idx,
+            },
+            source="route:remittance.import_confirm",
+        )
         created += 1
 
     batch.consumed_at = datetime.utcnow()
     db.session.commit()
+
+    # Wave 1 EVENT SPINE: bank-statement summary event. Single fire per
+    # /import/<id>/confirm regardless of row count. Feeds Gemini-cost monitor
+    # and import-quality KPI dashboards (council #2 2026-05-17).
+    emit_event(
+        "bank_statement_uploaded",
+        user_id=current_user.id,
+        organization_id=org.id if org else None,
+        payload={
+            "import_id": batch.import_id,
+            "filename": batch.filename,
+            "kind": batch.kind,
+            "created": created,
+            "skipped_ambiguous": skipped_ambiguous,
+        },
+        source="route:remittance.import_confirm",
+    )
 
     if created == 0:
         flash("No rows were imported (none selected or all skipped as ambiguous).", "warning")
