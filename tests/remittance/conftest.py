@@ -57,9 +57,14 @@ def db_session(app):
         _db.session.rollback()
 
 
-def _make_user(db_session, email_suffix: str, persona: str | None = None):
+def _make_user(db_session, email_suffix: str, persona=None):
     """Create a User row for the test and return it. Caller is responsible for
-    deleting it in teardown if needed."""
+    deleting it in teardown if needed.
+
+    Note: production DB has access_expiration_date NOT NULL (schema drift from
+    the model's nullable=True). We set a far-future date for the test row.
+    """
+    from datetime import datetime, timedelta
     from models import User
     from werkzeug.security import generate_password_hash
     u = User(
@@ -68,6 +73,7 @@ def _make_user(db_session, email_suffix: str, persona: str | None = None):
         name=f"Pytest {email_suffix}",
         role="user",
         subscription_status="free_trial",
+        access_expiration_date=datetime.utcnow() + timedelta(days=365),
         is_email_verified=True,
         onboarding_completed=True,
         persona=persona,
