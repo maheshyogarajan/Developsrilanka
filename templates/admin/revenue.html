@@ -1,0 +1,394 @@
+{% extends "layout.html" %}
+{#
+   Revenue Intelligence Dashboard (Wave 2.1) — admin-only.
+
+   Uses FIESTA tokens (loaded by base layout via fiesta-tokens.css):
+     - Display serif:  Fraunces      (headline ARR/MRR numbers)
+     - Body sans:      Manrope       (everything else)
+     - Mono numerics:  JetBrains Mono (metric values in cards/table)
+     - Accent:         copper #C77B3E (warm accent for headline hero)
+     - Brand:          purple #5B3FE4 (section underlines, indicator pills)
+
+   Cards are Bootstrap 5 grid; styling is inline so we don't have to ship a
+   new fiesta-components.css entry for Wave 2.1. If the dashboard sticks, the
+   styles get promoted to fiesta-components.css in Wave 2.2.
+#}
+
+{% block title %}Revenue Intelligence — FIESTA Admin{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* Page-scoped — these rules apply only to /admin/revenue */
+  .revintel-page {
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    min-height: 100vh;
+    padding: 2rem 0 4rem;
+  }
+  .revintel-page h1.display-hero {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-ink-900);
+  }
+  .revintel-eyebrow {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    font-size: var(--font-size-xs);
+    color: var(--color-accent-700);
+  }
+  .revintel-section-heading {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--color-ink-700);
+    border-bottom: 2px solid var(--color-brand-100);
+    padding-bottom: 0.5rem;
+    margin-top: 2.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .revintel-hero {
+    background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-accent-600) 100%);
+    color: var(--color-white);
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    box-shadow: 0 10px 40px rgba(91, 63, 228, 0.18);
+  }
+  .revintel-hero .hero-label {
+    font-family: var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    font-size: var(--font-size-xs);
+    opacity: 0.75;
+    margin-bottom: 0.25rem;
+  }
+  .revintel-hero .hero-value {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-4xl);
+    font-weight: 500;
+    line-height: var(--line-height-tight);
+    margin-bottom: 0;
+  }
+  .revintel-hero .hero-sub {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    opacity: 0.85;
+    margin-top: 0.25rem;
+  }
+
+  .revintel-card {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    height: 100%;
+    transition: box-shadow 150ms ease;
+  }
+  .revintel-card:hover {
+    box-shadow: 0 4px 18px rgba(15, 23, 41, 0.08);
+  }
+  .revintel-card .card-label {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+  }
+  .revintel-card .card-value {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-2xl);
+    font-weight: 500;
+    color: var(--color-ink-900);
+    line-height: var(--line-height-tight);
+  }
+  .revintel-card .card-meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+  }
+  .revintel-card .card-threshold {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-top: 0.35rem;
+  }
+
+  .revintel-pill {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    margin-top: 0.5rem;
+  }
+  .pill-healthy   { background: var(--color-success-100); color: var(--color-success-700); }
+  .pill-alert     { background: var(--color-warning-100); color: var(--color-warning-700); }
+  .pill-danger    { background: var(--color-danger-100);  color: var(--color-danger-700);  }
+  .pill-placeholder { background: var(--color-ink-100);   color: var(--color-text-secondary); }
+
+  .revintel-table {
+    background: var(--color-surface-raised);
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+  }
+  .revintel-table table {
+    margin-bottom: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+  }
+  .revintel-table th {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-secondary);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .revintel-footer {
+    margin-top: 2rem;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="revintel-page">
+  <div class="container">
+
+    {# ----- Error alert (visible only if compute_metrics() flagged any) ----- #}
+    {% if metrics.errors %}
+      <div class="alert alert-danger" role="alert">
+        <strong>{{ metrics.errors|length }} metric{{ 's' if metrics.errors|length != 1 else '' }} failed to compute.</strong>
+        Dashboard rendering continues with the metrics that succeeded.
+        <ul class="mb-0 mt-2 small">
+          {% for e in metrics.errors %}
+            <li><code>{{ e.section }}.{{ e.metric }}</code>: {{ e.error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {# ----- Header ----- #}
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <div class="revintel-eyebrow">FIESTA &middot; AI-run business cockpit</div>
+        <h1 class="display-hero h2 mb-0">Revenue Intelligence</h1>
+      </div>
+      <div class="text-end">
+        <a href="{{ url_for('revenue_intel.revenue_dashboard_json') }}"
+           class="btn btn-sm btn-outline-secondary me-2"
+           target="_blank" rel="noopener">
+          <i class="fas fa-code"></i> JSON
+        </a>
+        <button class="btn btn-sm btn-outline-primary" onclick="window.location.reload();">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+      </div>
+    </div>
+
+    {# ----- HERO: ARR + MRR + paid users ----- #}
+    {% set arr  = metrics.revenue.get('arr_estimate') %}
+    {% set mrr  = metrics.revenue.get('mrr_estimate') %}
+    <div class="revintel-hero mb-4">
+      <div class="row align-items-center">
+        <div class="col-md-5">
+          <div class="hero-label">Annual Recurring Revenue (estimate)</div>
+          <div class="hero-value">
+            ${{ '{:,.0f}'.format((arr.metric_value | float) if arr and arr.metric_value is not none else 0.0) }}
+          </div>
+          <div class="hero-sub">
+            {% if arr %}{{ arr.paid_user_count or 0 }} paid users &middot; {{ arr.user_count or 0 }} total accounts{% else %}n/a{% endif %}
+            &middot; blended ARPU $200/yr (Wave 2.2 will tier this)
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="hero-label">MRR</div>
+          <div class="hero-value">
+            ${{ '{:,.0f}'.format((mrr.metric_value | float) if mrr and mrr.metric_value is not none else 0.0) }}
+          </div>
+          <div class="hero-sub">monthly run-rate</div>
+        </div>
+        <div class="col-md-3">
+          <div class="hero-label">Trajectory</div>
+          {# Cast to float — SQL aggregates can return Decimal which Jinja's "/" rejects against float #}
+          {% set arr_val = (arr.metric_value | float) if arr and arr.metric_value is not none else 0.0 %}
+          <div class="hero-value">{{ '{:.1f}'.format((arr_val / 1000000.0) * 100.0) }}%</div>
+          <div class="hero-sub">of $1M ARR goal</div>
+        </div>
+      </div>
+    </div>
+
+    {# ----- LEADING INDICATORS ----- #}
+    <h2 class="revintel-section-heading h5">Leading Indicators</h2>
+    <div class="row g-3">
+      {% set indicator_titles = {
+        'activation_yield_7d':         'Activation Yield (7d)',
+        'warm_activated_to_paid_cvr':  'Warm-Activated → Paid CVR',
+        'lankatax_crosssell_take_rate':'Lanka.tax Cross-Sell Take Rate',
+        'false_ready_rate':            'False-Ready Rate (lower is better)',
+        'gross_margin_per_active_user':'Gross Margin / Active User',
+      } %}
+      {% set indicator_units = {
+        'activation_yield_7d': '%',
+        'warm_activated_to_paid_cvr': '%',
+        'lankatax_crosssell_take_rate': '%',
+        'false_ready_rate': '%',
+        'gross_margin_per_active_user': '$',
+      } %}
+      {% set indicator_direction = {
+        'activation_yield_7d':          'higher',
+        'warm_activated_to_paid_cvr':   'higher',
+        'lankatax_crosssell_take_rate': 'higher',
+        'false_ready_rate':             'lower',
+        'gross_margin_per_active_user': 'higher',
+      } %}
+      {% for key, title in indicator_titles.items() %}
+        {% set row = metrics.leading_indicators.get(key) %}
+        <div class="col-lg col-md-4 col-sm-6">
+          <div class="revintel-card">
+            <div class="card-label">{{ title }}</div>
+            {% if row is none %}
+              <div class="card-value text-muted">err</div>
+              <span class="revintel-pill pill-danger">query failed</span>
+            {% else %}
+              {# Cast to float — SQL aggregates return Decimal which doesn't mix with float ops in Jinja #}
+              {% set val = (row.metric_value | float) if row.metric_value is not none else 0.0 %}
+              {% set thresh = (row.healthy_threshold | float) if row.healthy_threshold is not none else 0.0 %}
+              {% set unit = indicator_units.get(key, '') %}
+              {% set is_placeholder = row.get('is_placeholder', False) %}
+              <div class="card-value">
+                {% if unit == '$' %}${{ '{:,.2f}'.format(val) }}
+                {% elif unit == '%' %}{{ '{:.1f}'.format(val) }}%
+                {% else %}{{ '{:,.0f}'.format(val) }}{% endif %}
+              </div>
+              <div class="card-threshold">
+                healthy: {% if indicator_direction.get(key) == 'lower' %}&le;{% else %}&ge;{% endif %}
+                {% if unit == '$' %}${{ '{:,.2f}'.format(thresh) }}
+                {% elif unit == '%' %}{{ '{:.1f}'.format(thresh) }}%
+                {% else %}{{ thresh }}{% endif %}
+              </div>
+              {% if is_placeholder %}
+                <span class="revintel-pill pill-placeholder">awaiting Wave 2.x data</span>
+              {% else %}
+                {# Direction-aware health pill #}
+                {% if indicator_direction.get(key) == 'lower' %}
+                  {% if val <= thresh %}
+                    <span class="revintel-pill pill-healthy">healthy</span>
+                  {% elif val <= thresh * 3 %}
+                    <span class="revintel-pill pill-alert">alert</span>
+                  {% else %}
+                    <span class="revintel-pill pill-danger">danger</span>
+                  {% endif %}
+                {% else %}
+                  {% if val >= thresh %}
+                    <span class="revintel-pill pill-healthy">healthy</span>
+                  {% elif val >= thresh * 0.4 %}
+                    <span class="revintel-pill pill-alert">alert</span>
+                  {% else %}
+                    <span class="revintel-pill pill-danger">below target</span>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+              {% if row.get('cohort_size') is not none %}
+                <div class="card-meta">n = {{ '{:,}'.format(row.cohort_size or 0) }}</div>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {# ----- FUNNEL ----- #}
+    <h2 class="revintel-section-heading h5">Conversion Funnel</h2>
+    <div class="row g-3">
+      {% set funnel_titles = {
+        'signup_to_persona_set':            'Signup → Persona Set',
+        'persona_set_to_first_remittance':  'Persona → First Remittance',
+        'first_remittance_to_paid':         'First Remittance → Paid',
+        'monthly_active_users':             'Monthly Active Users (30d)',
+      } %}
+      {% for key, title in funnel_titles.items() %}
+        {% set row = metrics.funnel.get(key) %}
+        <div class="col-md-3 col-sm-6">
+          <div class="revintel-card">
+            <div class="card-label">{{ title }}</div>
+            {% if row is none %}
+              <div class="card-value text-muted">err</div>
+              <span class="revintel-pill pill-danger">query failed</span>
+            {% else %}
+              {% set val = (row.metric_value | float) if row.metric_value is not none else 0.0 %}
+              <div class="card-value">
+                {% if key == 'monthly_active_users' %}
+                  {{ '{:,.0f}'.format(val) }}
+                {% else %}
+                  {{ '{:.1f}'.format(val) }}%
+                {% endif %}
+              </div>
+              {% if row.get('numerator') is not none and row.get('denominator') is not none %}
+                <div class="card-meta">{{ '{:,}'.format(row.numerator or 0) }} / {{ '{:,}'.format(row.denominator or 0) }}</div>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {# ----- CUMULATIVE SIGNUPS TABLE ----- #}
+    <h2 class="revintel-section-heading h5">Cumulative Signups — Last 30 Days</h2>
+    {% set csig = metrics.revenue.get('cumulative_signups_by_day_last_30d') %}
+    <div class="revintel-table">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th class="text-end">New signups</th>
+            <th class="text-end">Cumulative</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if csig and csig.metric_value %}
+            {% for r in csig.metric_value %}
+              <tr>
+                <td>{{ r.date }}</td>
+                <td class="text-end">{{ '{:,}'.format(r.new_signups or 0) }}</td>
+                <td class="text-end">{{ '{:,}'.format(r.cumulative or 0) }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-4">
+              No signup events recorded in the last 30 days.
+              <br><small>(Signups before the Event Spine shipped 2026-05-17 are not in this table.)</small>
+            </td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ----- FOOTER ----- #}
+    <div class="revintel-footer">
+      <div>
+        Last computed at <code>{{ metrics.computed_at }}</code>
+      </div>
+      <div>
+        FIESTA Revenue Intel &middot; Wave 2.1
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
