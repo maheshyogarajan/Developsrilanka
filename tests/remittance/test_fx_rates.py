@@ -44,14 +44,18 @@ def test_store_manual_rate_persists_and_is_retrievable(app):
 
 
 def test_store_manual_rate_sanity_filter(app):
-    """A wildly out-of-range rate is NOT cached (sanity guard)."""
+    """A wildly out-of-range rate is NOT cached (sanity guard).
+
+    Uses a date BEFORE the CBSL historical floor (2006-11-11) so the CBSL
+    scraper returns no rate; ecb_proxy only runs for today; so get_rate's
+    only path to a hit is the cache. If sanity rejected the write, lookup
+    returns None.
+    """
     from fx_rate_service import store_manual_rate, get_rate
     with app.app_context():
-        d = date(2026, 1, 6)
+        d = date(2005, 6, 1)  # before CBSL historical floor
         # USD sanity range: 250-450. 9999 is way over.
         fx = store_manual_rate("USD", d, Decimal("9999.00"))
-        # The FxRate object is returned but cache lookup should NOT find it
-        # (because _passes_sanity rejected the write).
         looked_up = get_rate("USD", d)
         assert looked_up is None, "Out-of-range rate should NOT be cached"
 
