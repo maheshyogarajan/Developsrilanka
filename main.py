@@ -214,6 +214,47 @@ try:
 except Exception as e:
     logger.error(f"Error loading remittance routes: {str(e)}")
 
+# Wave 2.1 — Revenue Intelligence Dashboard (2026-05-17)
+try:
+    import revenue_intel
+    revenue_intel.register_routes(app)
+    logger.info("Revenue Intelligence dashboard registered at /admin/revenue")
+except Exception as e:
+    logger.error(f"Error loading Revenue Intel: {str(e)}")
+
+# Wave 2.2 — Pricing Engine + Stripe webhook (2026-05-17)
+try:
+    import stripe_routes
+    stripe_routes.register_routes(app)
+    logger.info("Pricing + Stripe webhook registered")
+except Exception as e:
+    logger.error(f"Error loading Pricing/Stripe: {str(e)}")
+
+# Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
+try:
+    import customer_brain_routes
+    customer_brain_routes.register_routes(app)
+    logger.info("Customer Brain (AI CRM) registered at /admin/customer")
+except Exception as e:
+    logger.error(f"Error loading Customer Brain: {str(e)}")
+
+# Wave 2.4 — Ops Sentinel (2026-05-17)
+try:
+    import ops_routes
+    ops_routes.register_routes(app)
+    logger.info("Ops Sentinel registered at /internal/ops")
+except Exception as e:
+    logger.error(f"Error loading Ops Sentinel: {str(e)}")
+
+# Also import the modules so their Celery tasks register (decorators run on import)
+try:
+    import ai_crm  # noqa: F401  (registers ai_crm.recompute_all_active_profiles task)
+    import ops_sentinel  # noqa: F401  (registers ops_sentinel.run_and_alert task)
+    import gemini_cost_log_model  # noqa: F401  (registers GeminiCostLog model)
+    logger.info("AI-run Celery tasks + cost-log model loaded")
+except Exception as e:
+    logger.error(f"Error loading AI-run module imports: {str(e)}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,

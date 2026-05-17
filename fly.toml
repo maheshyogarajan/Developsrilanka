@@ -14,6 +14,7 @@ primary_region = "bom"
 [processes]
   app    = "gunicorn -w 2 -b 0.0.0.0:8080 --timeout 120 --access-logfile - wsgi:app"
   worker = "celery -A celery_config worker --loglevel=info --concurrency=2 --without-gossip --without-mingle --pool=prefork"
+  beat   = "celery -A celery_config beat --loglevel=info"
 
 # ── HTTP service (web process only) ──────────────────────────────────────────
 [[services]]

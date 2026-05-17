@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from celery.schedules import crontab
 import logging
 
 # Configure logging
@@ -61,6 +62,18 @@ app.conf.update(
 # Automatically retry failed tasks
 app.conf.task_default_retry_delay = 30  # 30 seconds
 app.conf.task_max_retries = 3  # retry 3 times max
+
+# AI-run beat schedule (Wave 2 council #2 — 2026-05-17)
+app.conf.beat_schedule = {
+    'ai_crm-recompute-nightly': {
+        'task': 'ai_crm.recompute_all_active_profiles',
+        'schedule': crontab(hour=2, minute=0),  # 02:00 UTC daily
+    },
+    'ops_sentinel-every-5min': {
+        'task': 'ops_sentinel.run_and_alert',
+        'schedule': crontab(minute='*/5'),
+    },
+}
 
 if __name__ == '__main__':
     app.start()
