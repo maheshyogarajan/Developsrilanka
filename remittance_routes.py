@@ -20,6 +20,7 @@ from remittance_models import (
     current_sl_tax_year, PERSONA_SL_FOREIGN_INCOME,
 )
 from remittance_import import parse_upload, sha256_hex
+from fx_rate_service import get_rate as fx_get_rate, store_manual_rate as fx_store_manual
 
 log = logging.getLogger(__name__)
 
@@ -188,6 +189,20 @@ def new():
             flash("Foreign currency and a positive amount are required.", "danger")
             return redirect(url_for("remittance.new"))
 
+        # Wave B1: if user didn't supply a CBSL rate, try the FX service.
+        # Frozen-at-entry: whatever we end up with is written into the record;
+        # the record never re-fetches.
+        rate_source_label = None
+        if cbsl_rate is None or cbsl_rate <= 0:
+            fx = fx_get_rate(foreign_currency, remittance_date)
+            if fx is not None:
+                cbsl_rate = fx.value
+                rate_source_label = fx.source        # 'cbsl' | 'cbsl_cached' | 'ecb_proxy'
+        else:
+            # User-supplied — cache it for future lookups + tag as manual
+            fx_store_manual(foreign_currency, remittance_date, cbsl_rate)
+            rate_source_label = "manual"
+
         lkr_amount_cbsl = None
         if cbsl_rate and cbsl_rate > 0:
             lkr_amount_cbsl = (foreign_amount * cbsl_rate).quantize(Decimal("0.01"))
@@ -202,10 +217,10 @@ def new():
             foreign_amount=foreign_amount,
             lkr_amount_bank_rate=lkr_amount_bank_rate,
             cbsl_rate=cbsl_rate,
-            cbsl_rate_source=cbsl_rate_source or ("manual entry" if cbsl_rate else None),
+            cbsl_rate_source=cbsl_rate_source or rate_source_label,
             cbsl_rate_captured_at=datetime.utcnow() if cbsl_rate else None,
             lkr_amount_cbsl=lkr_amount_cbsl,
-            rate_entered_manually=cbsl_rate is not None,
+            rate_entered_manually=(rate_source_label == "manual"),
             source_country=source_country,
             payer_name=payer_name,
             foreign_tax_withheld_amount=foreign_tax_amount,
@@ -415,6 +430,13 @@ def import_confirm(import_id):
         country = (request.form.get(f"country[{idx}]") or c.get("source_country_iso2") or "").strip().upper()[:2] or None
         notes = (request.form.get(f"notes[{idx}]") or c.get("description") or "")[:1000] or None
 
+        # Wave B1: auto-populate CBSL rate from FX service at import time.
+        # Frozen-at-entry per record. Source label preserved.
+        fx = fx_get_rate(foreign_currency, remittance_date)
+        cbsl_rate = fx.value if fx else None
+        cbsl_source = fx.source if fx else None
+        lkr_cbsl = (foreign_amount * cbsl_rate).quantize(Decimal("0.01")) if cbsl_rate else None
+
         entry = RemittanceEntry(
             user_id=current_user.id,
             organization_id=org.id if org else None,
@@ -422,6 +444,11 @@ def import_confirm(import_id):
             foreign_currency=foreign_currency,
             foreign_amount=foreign_amount,
             lkr_amount_bank_rate=lkr_bank,
+            cbsl_rate=cbsl_rate,
+            cbsl_rate_source=cbsl_source,
+            cbsl_rate_captured_at=datetime.utcnow() if cbsl_rate else None,
+            lkr_amount_cbsl=lkr_cbsl,
+            rate_entered_manually=False,
             source_country=country,
             payer_name=payer,
             tax_year=current_sl_tax_year(remittance_date),
@@ -433,6 +460,7 @@ def import_confirm(import_id):
             "source": f"import:{batch.import_id}",
             "foreign_currency": foreign_currency,
             "foreign_amount": str(foreign_amount),
+            "cbsl_rate_source": cbsl_source,
             "row_index": idx,
         })
         created += 1

@@ -67,7 +67,13 @@
         <dt class="col-sm-4 text-secondary">Source</dt>
         <dd class="col-sm-8">
           {{ entry.cbsl_rate_source or '—' }}
-          {% if entry.rate_entered_manually %}<span class="badge bg-warning-100 text-warning-700 ms-2">manual</span>{% endif %}
+          {% if entry.cbsl_rate_source == 'cbsl' or entry.cbsl_rate_source == 'cbsl_cached' %}
+            <span class="badge bg-success-100 text-success-700 ms-2">CBSL · IRD-defensible</span>
+          {% elif entry.cbsl_rate_source == 'ecb_proxy' %}
+            <span class="badge bg-warning-100 text-warning-700 ms-2">proxy · confirm with CBSL before filing</span>
+          {% elif entry.rate_entered_manually or entry.cbsl_rate_source == 'manual' %}
+            <span class="badge bg-info-100 text-info-700 ms-2">manual entry</span>
+          {% endif %}
         </dd>
 
         <dt class="col-sm-4 text-secondary">LKR at CBSL rate</dt>
