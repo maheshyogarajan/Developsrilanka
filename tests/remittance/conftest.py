@@ -30,11 +30,15 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 @pytest.fixture(scope="session")
 def app():
-    """The Flask app, in TESTING mode. Ensures the new Wave H tables exist."""
+    """The Flask app, in TESTING mode. Imports `main` to register ALL blueprints
+    (including getting_started, which layout.html references via url_for).
+    Ensures the new Wave H tables exist via db.create_all."""
+    # IMPORTANT: import `main` (not just `app`) so every blueprint registration
+    # in main.py runs. layout.html references url_for('getting_started.wizard')
+    # which would BuildError otherwise during the 404 → error.html path.
+    import main  # noqa: F401
     from app import app as flask_app, db
-    # Importing remittance_models registers RemittanceImportBatch with SQLAlchemy
-    # metadata so the create_all below picks it up.
-    import remittance_models  # noqa: F401
+    import remittance_models  # noqa: F401  (registers RemittanceImportBatch)
     flask_app.config["TESTING"] = True
     with flask_app.app_context():
         db.create_all()
