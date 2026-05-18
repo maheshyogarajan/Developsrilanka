@@ -285,6 +285,33 @@ try:
 except Exception as e:
     logger.error(f"Error loading Lanka.tax Cross-Sell: {str(e)}")
 
+# AI-Org Subagent A — Data Substrate (2026-05-18)
+try:
+    import ai_org_models  # noqa: F401  (8 tables incl APPEND-ONLY reputation_event)
+    import ai_org_substrate  # noqa: F401  (helpers + EVENT_AXIS_MAP)
+    logger.info('AI-Org substrate loaded (8 tables, APPEND-ONLY ledger)')
+except Exception as e:
+    logger.error(f'AI-Org substrate load failed: {e}')
+
+# AI-Org Subagent B — Attribution Writer + Audit (2026-05-18)
+try:
+    import ai_org_attribution_writer  # noqa: F401  (Celery task)
+    import ai_org_audit_harness  # noqa: F401
+    import ai_org_audit_routes
+    ai_org_audit_routes.register_routes(app)
+    logger.info('AI-Org attribution writer + audit harness registered')
+except Exception as e:
+    logger.error(f'AI-Org attribution load failed: {e}')
+
+# AI-Org Subagent C — Score Engine (2026-05-18)
+try:
+    import ai_org_score_engine  # noqa: F401  (Celery task)
+    import ai_org_score_routes
+    ai_org_score_routes.register_routes(app)
+    logger.info('AI-Org Score Engine + dashboards registered')
+except Exception as e:
+    logger.error(f'AI-Org Score Engine load failed: {e}')
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,

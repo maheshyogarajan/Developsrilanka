@@ -87,5 +87,18 @@ app.conf.beat_schedule.update({
     },
 })
 
+# AI-Org Subagents B + C additions (2026-05-18)
+app.conf.beat_schedule.update({
+    'ai_org_attribution-every-5min': {
+        'task': 'ai_org_attribution_writer.process_recent',
+        'schedule': crontab(minute='*/5'),
+        'kwargs': {'since_minutes': 15},
+    },
+    'ai_org_score_engine-recompute-nightly': {
+        'task': 'ai_org_score_engine.recompute_nightly',
+        'schedule': crontab(hour=3, minute=0),  # 03:00 UTC daily, no clash with ai_crm@02:00 or lankatax@07:00
+    },
+})
+
 if __name__ == '__main__':
     app.start()
