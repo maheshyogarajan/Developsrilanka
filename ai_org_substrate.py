@@ -68,6 +68,22 @@ EVENT_AXIS_MAP: Dict[str, str] = {
     "hallucination_flag": AXIS_AI_RELIABILITY,
     # Subagent-B-emitted
     "attribution_verified": AXIS_AI_RELIABILITY,
+    # ─────────────────────────────────────────────────────────────────────
+    # PCSE v1.0 (2026-05-19) — added per Strategist D + council refinement.
+    # 4 automation events (pin_check_completed / tin_registration_completed /
+    # tax_type_activated / ird_submission_executed) defer to PCSE v1.1.
+    # ─────────────────────────────────────────────────────────────────────
+    # Comms-channel events (Human Impact — proxy for outreach reach)
+    "email_sent": AXIS_HUMAN_IMPACT,
+    "whatsapp_sent": AXIS_HUMAN_IMPACT,
+    "telegram_sent": AXIS_HUMAN_IMPACT,
+    "sms_sent": AXIS_HUMAN_IMPACT,
+    # PCSE decision signals
+    "proposal_rejected_ceo": AXIS_AI_RELIABILITY,  # magnitude convention: -0.3
+    # Computation events (deferred D5 portion that's safe for v1.0 — these
+    # only fire on internal computation drafting, not on IRD submission)
+    "computation_drafted": AXIS_HUMAN_IMPACT,
+    "computation_completed": AXIS_ECONOMIC,
 }
 
 STANDARD_EVENTS = frozenset(EVENT_AXIS_MAP.keys())
