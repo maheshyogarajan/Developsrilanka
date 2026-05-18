@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+
+{% block title %}Sent to our team - FIESTA Support{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 720px;">
+  <div class="row mb-4">
+    <div class="col">
+      <span class="eyebrow">Support</span>
+      <h1 class="h3 mb-2">We sent this to our team</h1>
+      <p class="text-secondary mb-0">
+        {% if ticket_id %}
+          Ticket #{{ ticket_id }} ·
+        {% endif %}
+        Your question is in the queue for a human reviewer.
+        We'll reply within <strong>12 hours</strong>.
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card mb-4 border-warning">
+    <div class="card-body">
+      <h4 class="h6 mb-3">Why this didn't auto-answer</h4>
+      <p class="mb-2 text-secondary">
+        Our Copilot escalates instead of guessing when:
+      </p>
+      <ul class="text-secondary mb-3">
+        <li>The question mentions audits, IRD notices, refunds, or other relationship-critical topics.</li>
+        <li>Our knowledge base doesn't cover the topic with high confidence.</li>
+        <li>The question requires interpreting a tax rule we can't verify from documented sources.</li>
+      </ul>
+      {% if escalation_reason %}
+        <p class="small text-muted mb-0">
+          Reason logged: <code>{{ escalation_reason }}</code>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mb-5 bg-light border-0">
+    <div class="card-body">
+      <h4 class="h6 mb-2">What happens next</h4>
+      <ol class="mb-0">
+        <li>A Lanka.tax / FIESTA reviewer reads your question.</li>
+        <li>They reply via email to your account address.</li>
+        <li>If they need more from you, they'll ask in that reply.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-5">
+    <a href="{{ url_for('support.ask') }}" class="btn btn-outline-secondary">Ask another</a>
+    <span class="text-muted small">
+      Urgent? Email tax@lanka.tax directly.
+    </span>
+  </div>
+</div>
+{% endblock %}

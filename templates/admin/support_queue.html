@@ -1,0 +1,153 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Support Queue — Admin Panel — FIESTA{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-life-ring me-2"></i>
+        Support Queue
+      </h1>
+      <small class="text-muted">Escalated tickets awaiting human reply — oldest first.</small>
+    </div>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i> Back to Admin
+    </a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>{{ tickets|length }} open ticket{{ 's' if tickets|length != 1 else '' }}</strong>
+      <small class="text-muted">FIFO — longest-waiting at the top</small>
+    </div>
+
+    {% if tickets %}
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th>User</th>
+              <th>Persona</th>
+              <th>Question</th>
+              <th>Reason</th>
+              <th>Received</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in tickets %}
+              {% set t = row.ticket %}
+              <tr data-bs-toggle="collapse" data-bs-target="#row-detail-{{ t.id }}" style="cursor: pointer;">
+                <td><strong>{{ t.id }}</strong></td>
+                <td><span class="small">{{ row.user_email }}</span></td>
+                <td>
+                  {% if row.user_persona %}
+                    <span class="badge bg-info text-dark">{{ row.user_persona }}</span>
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="d-inline-block text-truncate" style="max-width: 380px;" title="{{ t.question }}">
+                    {{ t.question }}
+                  </span>
+                </td>
+                <td>
+                  {% if t.escalation_reason %}
+                    <code class="small">{{ t.escalation_reason }}</code>
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <small class="text-muted">
+                    {{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '—' }}
+                  </small>
+                </td>
+                <td class="text-end">
+                  <i class="fas fa-chevron-down small text-muted"></i>
+                </td>
+              </tr>
+              <tr class="collapse" id="row-detail-{{ t.id }}">
+                <td colspan="7" class="bg-light">
+                  <div class="p-3">
+
+                    <div class="row mb-3">
+                      <div class="col-md-6">
+                        <div class="text-muted small mb-1">Full question</div>
+                        <div class="border rounded p-2 bg-white" style="white-space: pre-wrap;">{{ t.question }}</div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="text-muted small mb-1">AI draft (if any)</div>
+                        <div class="border rounded p-2 bg-white" style="white-space: pre-wrap; min-height: 60px;">
+                          {{ t.ai_answer if t.ai_answer else '— no AI draft (escalated before Gemini)' }}
+                        </div>
+                        {% if t.confidence is not none %}
+                          <div class="small text-muted mt-1">
+                            AI confidence: {{ "%.2f"|format(t.confidence|float) }}
+                          </div>
+                        {% endif %}
+                        {% if t.citations %}
+                          <div class="small text-muted mt-1">
+                            Citations: {{ t.citations|join(', ') }}
+                          </div>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <form method="POST"
+                          action="{{ url_for('support_admin.resolve', ticket_id=t.id) }}"
+                          class="mt-2">
+                      {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                      <label for="human_answer_{{ t.id }}" class="form-label small fw-bold">
+                        Your reply (will be marked resolved when you submit)
+                      </label>
+                      <textarea
+                        name="human_answer"
+                        id="human_answer_{{ t.id }}"
+                        class="form-control mb-2"
+                        rows="4"
+                        placeholder="Type the answer here…"
+                        required></textarea>
+                      <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                          User #{{ t.user_id }} · ticket created {{ t.created_at.strftime('%Y-%m-%d %H:%M UTC') if t.created_at else '—' }}
+                        </small>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                          <i class="fas fa-check me-1"></i> Send + mark resolved
+                        </button>
+                      </div>
+                    </form>
+
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="card-body text-muted text-center py-5">
+        <i class="fas fa-check-circle fa-2x mb-3 text-success"></i><br>
+        Queue is clear — no open escalations.
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
