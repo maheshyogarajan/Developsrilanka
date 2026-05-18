@@ -1,0 +1,234 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Delivery Ops Command — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2 class="mb-0">Delivery Ops Command</h2>
+            <p class="text-muted mb-0">
+                AI-org runner for filing_submitted / remittance_ird_ready /
+                bank_statement_uploaded / sla_warning events. Five-role lifecycle:
+                Workflow Orchestrator &rarr; Queue Manager &rarr; SLA Monitor
+                &rarr; Quality Reviewer &rarr; Red-Team.
+                Celery beat every 10 min.
+            </p>
+        </div>
+        <div class="col-auto d-flex align-items-center gap-2">
+            <a href="{{ url_for('delivery_ops_command.admin_dashboard_json') }}"
+               class="btn btn-sm btn-outline-secondary"
+               target="_blank">
+                <i class="fas fa-code me-1"></i> JSON
+            </a>
+            <form method="POST"
+                  action="{{ url_for('delivery_ops_command.admin_run_pass') }}"
+                  class="d-inline">
+                {% if csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% endif %}
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-sync me-1"></i> Run pass now
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if data.org %}
+    <div class="alert alert-light border mb-3">
+        <strong>{{ data.org.name }}</strong>
+        (<code>{{ data.org.slug }}</code>) &middot;
+        Band <span class="badge bg-secondary">{{ data.org.status_band or "C" }}</span>
+        &middot; Composite
+        <code>{{ "%.2f"|format(data.org.status_score or 0) }}</code>
+        &middot; Last scored
+        <code>{{ data.org.last_computed_at or "—" }}</code>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        <strong>Delivery Ops Command not seeded.</strong> Run
+        <code>seed_initial_orgs()</code> from <code>ai_org_substrate</code>.
+    </div>
+    {% endif %}
+
+    {# --- Headline metric: First-Pass Completion Rate --- #}
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card border-primary h-100">
+                <div class="card-header bg-primary text-white">
+                    <strong>First-Pass Completion Rate (FPCR)</strong>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Last 24h</span>
+                        <span class="h4 mb-0 font-monospace">
+                            {% if data.fpcr_24h is not none %}
+                                {{ "%.1f%%"|format(data.fpcr_24h * 100) }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-0">
+                        <span class="text-muted">Last 7d</span>
+                        <span class="h5 mb-0 font-monospace">
+                            {% if data.fpcr_7d is not none %}
+                                {{ "%.1f%%"|format(data.fpcr_7d * 100) }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">
+                        Delivered / (Delivered + SLA breach + Failed QC).
+                        Rejected-capacity not counted.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>Mean cycle time</strong></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Last 24h</span>
+                        <span class="h5 mb-0 font-monospace">
+                            {{ "%.2f"|format(data.mean_cycle_time_24h or 0) }} h
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-0">
+                        <span class="text-muted">Last 7d</span>
+                        <span class="h6 mb-0 font-monospace">
+                            {{ "%.2f"|format(data.mean_cycle_time_7d or 0) }} h
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>Queue snapshot</strong></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Active</span>
+                        <span class="h5 mb-0 font-monospace">
+                            {{ data.active_count }} / {{ data.queue_capacity }}
+                        </span>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">
+                        Queued + In-flight proposals. Capacity gate triggers
+                        once active reaches capacity.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><strong>Last 24 hours</strong></div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td>Queued</td><td class="text-end font-monospace">{{ data.counts_24h.queued }}</td></tr>
+                            <tr><td>In-flight</td><td class="text-end font-monospace">{{ data.counts_24h.in_flight }}</td></tr>
+                            <tr><td>Delivered (within SLA)</td><td class="text-end font-monospace text-success">{{ data.counts_24h.delivered }}</td></tr>
+                            <tr><td>SLA breach</td><td class="text-end font-monospace text-warning">{{ data.counts_24h.sla_breach }}</td></tr>
+                            <tr><td>Failed QC / Red-Team</td><td class="text-end font-monospace text-danger">{{ data.counts_24h.failed_qc }}</td></tr>
+                            <tr><td>Rejected (capacity)</td><td class="text-end font-monospace text-muted">{{ data.counts_24h.rejected_cap }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><strong>Last 7 days</strong></div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td>Queued</td><td class="text-end font-monospace">{{ data.counts_7d.queued }}</td></tr>
+                            <tr><td>In-flight</td><td class="text-end font-monospace">{{ data.counts_7d.in_flight }}</td></tr>
+                            <tr><td>Delivered (within SLA)</td><td class="text-end font-monospace text-success">{{ data.counts_7d.delivered }}</td></tr>
+                            <tr><td>SLA breach</td><td class="text-end font-monospace text-warning">{{ data.counts_7d.sla_breach }}</td></tr>
+                            <tr><td>Failed QC / Red-Team</td><td class="text-end font-monospace text-danger">{{ data.counts_7d.failed_qc }}</td></tr>
+                            <tr><td>Rejected (capacity)</td><td class="text-end font-monospace text-muted">{{ data.counts_7d.rejected_cap }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><strong>Recent proposals (last 20)</strong></div>
+        <div class="card-body p-0">
+            {% if data.recent_proposals and data.recent_proposals|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Opportunity</th>
+                            <th>Job kind</th>
+                            <th>Status</th>
+                            <th class="text-end">Quoted (LKR)</th>
+                            <th class="text-end">Cycle h</th>
+                            <th class="text-end">SLA h</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in data.recent_proposals %}
+                        <tr>
+                            <td><code>{{ p.id }}</code></td>
+                            <td><code>{{ p.opportunity_slug }}</code></td>
+                            <td>{{ p.job_kind or "—" }}</td>
+                            <td>
+                                {% if p.status == "delivered" %}
+                                  <span class="badge bg-success">{{ p.status }}</span>
+                                {% elif p.status == "sla_breach" %}
+                                  <span class="badge bg-warning text-dark">{{ p.status }}</span>
+                                {% elif p.status == "in_flight" %}
+                                  <span class="badge bg-primary">{{ p.status }}</span>
+                                {% elif p.status == "queued" %}
+                                  <span class="badge bg-info text-dark">{{ p.status }}</span>
+                                {% elif p.status == "failed_qc" %}
+                                  <span class="badge bg-danger">{{ p.status }}</span>
+                                {% elif p.status == "rejected_cap" %}
+                                  <span class="badge bg-secondary">{{ p.status }}</span>
+                                {% else %}
+                                  <span class="badge bg-light text-dark">{{ p.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end font-monospace">
+                                {% if p.quoted_price_lkr is not none %}{{ "%.0f"|format(p.quoted_price_lkr) }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-end font-monospace">
+                                {% if p.cycle_time_h is not none %}{{ "%.2f"|format(p.cycle_time_h) }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-end font-monospace">
+                                {% if p.sla_target_h is not none %}{{ p.sla_target_h }}{% else %}—{% endif %}
+                            </td>
+                            <td><small class="text-muted">{{ p.submitted_at or "—" }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-3 text-muted">
+                No proposals yet. Run pass manually or wait for the 10-minute beat.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <p class="text-muted small mt-3 mb-0">
+        Generated <code>{{ data.as_of }}</code>.
+        Scoring breakdown: <a href="{{ url_for('ai_org_score.admin_scores') }}">/ai_org/admin/scores</a>.
+        Public band: <a href="{{ url_for('ai_org_score.leaderboard') }}">/ai_org/leaderboard</a>.
+    </p>
+</div>
+{% endblock %}
