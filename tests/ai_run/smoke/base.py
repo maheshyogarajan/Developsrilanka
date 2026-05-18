@@ -171,7 +171,31 @@ class BasicAttributionSmokeTest(SubagentSmokeTest):
     subagent_name = "attribution_writer_basic"
     default_timeout_seconds = 30  # synchronous → quick
 
+    @staticmethod
+    def _preload_models() -> None:
+        """Hydrate SQLAlchemy metadata in the correct dependency order.
+
+        Required because event_models.events has an FK to `organization`
+        (in models.py). If event_models is imported first, FK resolution
+        fails with NoReferencedTableError. Pytest's conftest hides this
+        because route registration pulls models transitively; standalone
+        `python -m tests.ai_run.smoke.run_all` does not.
+
+        Mirrors the preload order in celery_config.py's `include` list.
+        Idempotent — Python caches modules after first import.
+        """
+        import models  # noqa: F401  ← Organization table lives here
+        import event_models  # noqa: F401
+        import ai_org_models  # noqa: F401
+        try:
+            import lankatax_models  # noqa: F401
+        except Exception:
+            # lankatax_models is referenced by outreach lookups but the
+            # attribution smoke does not depend on it.
+            pass
+
     def emit_synthetic_event(self, marker: str) -> int:
+        self._preload_models()
         from app import app
         from app import db
         from event_models import Event
@@ -197,6 +221,7 @@ class BasicAttributionSmokeTest(SubagentSmokeTest):
         """Invoke process_event() synchronously. This is the same code path
         the Celery beat triggers — we just skip the broker hop.
         """
+        self._preload_models()
         from app import app
         from event_models import Event
         from ai_org_attribution_writer import process_event
@@ -225,6 +250,7 @@ class BasicAttributionSmokeTest(SubagentSmokeTest):
             self._attribution_ids = ids
 
     def assert_downstream(self, marker: str) -> dict:
+        self._preload_models()
         from app import app
         from ai_org_models import AttributionLedger, AIOrg
 
@@ -276,6 +302,7 @@ class BasicAttributionSmokeTest(SubagentSmokeTest):
         if event_id is None:
             return
 
+        self._preload_models()
         with app.app_context():
             try:
                 db.session.execute(
