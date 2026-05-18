@@ -54,6 +54,17 @@ app = Celery(
         'acquisition_studio_org',
         # AI-Org Subagent E — Delivery Ops Command (v18)
         'delivery_ops_command_org',
+        # ─────────────────────────────────────────────────────────────
+        # v18.1 BOOTSTRAP FIX: model-only modules that have no Celery
+        # tasks but MUST be loaded before lazy imports inside tasks try
+        # to reach them. Worker never runs main.py, so these don't load
+        # otherwise. Bug: 10:55 UTC 2026-05-18 — process_recent_events
+        # raised ModuleNotFoundError: event_models.
+        # ─────────────────────────────────────────────────────────────
+        'event_models',
+        'ai_org_models',
+        'models',
+        'lankatax_models',
     ]
 )
 
@@ -131,6 +142,74 @@ app.conf.beat_schedule.update({
         'kwargs': {'since_minutes': 15},
     },
 })
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v18.1 BOOTSTRAP FIX: push Flask app_context for every Celery task.
+#
+# Background: the Celery worker process does NOT run main.py — it imports
+# celery_config + the modules in `include`. Tasks that touch the database
+# need a pushed Flask app_context, but nothing was pushing one. Result:
+# every db.session / .query call inside a task raised "Working outside of
+# application context" (visible in ops_sentinel logs 2026-05-18 10:55 UTC).
+#
+# Tasks that already wrap themselves in `with flask_app.app_context():`
+# (Subagents C, D, E, and the new compliance_brigade in v19) continue to
+# work — the inner push is a no-op because there's already a context
+# pushed by this signal handler. Defence in depth.
+#
+# Subagents B (attribution_writer) and ops_sentinel did NOT self-wrap and
+# this signal handler is what makes them work post-v18.1.
+# ─────────────────────────────────────────────────────────────────────────────
+from celery.signals import task_prerun, task_postrun, worker_process_init
+
+_pushed_contexts = {}  # task_id -> pushed Flask app context (one per concurrent task)
+
+
+@worker_process_init.connect
+def _worker_process_init(**kwargs):
+    """Forked worker process boots → import the Flask app so the model
+    metadata + extensions are all loaded before tasks fire. The actual
+    app_context push happens per-task in task_prerun below.
+    """
+    try:
+        import app as _app_module  # noqa: F401
+        logger.info("v18.1 worker bootstrap: Flask app module imported")
+    except Exception as e:
+        logger.error(f"v18.1 worker bootstrap: failed to import app module: {e}")
+
+
+@task_prerun.connect
+def _push_app_context_for_task(task_id, task, *args, **kwargs):
+    """Push a Flask app_context for the duration of a task. Stored per
+    task_id so concurrent tasks each get their own push/pop pair.
+    """
+    try:
+        from app import app as flask_app
+        ctx = flask_app.app_context()
+        ctx.push()
+        _pushed_contexts[task_id] = ctx
+    except Exception as e:
+        logger.warning(
+            f"v18.1 task_prerun: failed to push app_context for task "
+            f"{task.name if task else '?'} (id={task_id}): {e}"
+        )
+
+
+@task_postrun.connect
+def _pop_app_context_for_task(task_id, task, *args, **kwargs):
+    """Pop the context pushed by task_prerun. Best-effort — if push
+    failed, pop silently no-ops.
+    """
+    ctx = _pushed_contexts.pop(task_id, None)
+    if ctx is not None:
+        try:
+            ctx.pop()
+        except Exception as e:
+            logger.warning(
+                f"v18.1 task_postrun: failed to pop app_context for task "
+                f"{task.name if task else '?'} (id={task_id}): {e}"
+            )
+
 
 if __name__ == '__main__':
     app.start()
