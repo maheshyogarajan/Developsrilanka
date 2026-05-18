@@ -377,7 +377,7 @@ def process_recent_events(since_minutes: int = 15) -> Dict[str, int]:
 # --------------------------------------------------------------------------- #
 
 try:
-    from celery_config import celery_app
+    from celery_config import app as celery_app
 
     @celery_app.task(name="ai_org_attribution_writer.process_recent")
     def process_recent_task(since_minutes: int = 15) -> Dict[str, int]:

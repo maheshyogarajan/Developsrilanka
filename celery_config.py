@@ -39,7 +39,18 @@ app = Celery(
     'develop_sri_lanka',
     broker=broker_url,
     backend=result_backend,
-    include=['image_processor']
+    include=[
+        'image_processor',
+        # Wave 2 tasks
+        'ai_crm',
+        'ops_sentinel',
+        # Wave 3 tasks
+        'engagement_engine',
+        'lankatax_crosssell',
+        # AI-Org Subagents B + C (2026-05-18)
+        'ai_org_attribution_writer',
+        'ai_org_score_engine',
+    ]
 )
 
 # Configure Celery
