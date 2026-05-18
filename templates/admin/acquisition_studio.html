@@ -1,0 +1,161 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Acquisition Studio — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2 class="mb-0">Acquisition Studio</h2>
+            <p class="text-muted mb-0">
+                AI-org runner for traffic_drop / cac_spike / pipeline_shortfall triggers.
+                Five-role lifecycle: Channel Strategist &rarr; CAC Analyst &rarr; Red-Team
+                &rarr; Outreach Closer. Hourly Celery beat at <code>:17</code>.
+            </p>
+        </div>
+        <div class="col-auto d-flex align-items-center gap-2">
+            <a href="{{ url_for('acquisition_studio.admin_dashboard_json') }}"
+               class="btn btn-sm btn-outline-secondary"
+               target="_blank">
+                <i class="fas fa-code me-1"></i> JSON
+            </a>
+            <form method="POST"
+                  action="{{ url_for('acquisition_studio.admin_run_pass') }}"
+                  class="d-inline">
+                {% if csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% endif %}
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-sync me-1"></i> Run pass now
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if data.studio %}
+    <div class="alert alert-light border mb-3">
+        <strong>{{ data.studio.name }}</strong>
+        (<code>{{ data.studio.slug }}</code>) &middot;
+        Band <span class="badge bg-secondary">{{ data.studio.status_band or "C" }}</span>
+        &middot; Composite
+        <code>{{ "%.2f"|format(data.studio.status_score or 0) }}</code>
+        &middot; Last scored
+        <code>{{ data.studio.last_computed_at or "—" }}</code>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        <strong>Acquisition Studio not seeded.</strong> Run
+        <code>seed_initial_orgs()</code> from <code>ai_org_substrate</code>.
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><strong>Last 24 hours</strong></div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td>Proposals submitted</td><td class="text-end font-monospace">{{ data.counts_24h.proposals }}</td></tr>
+                            <tr><td>Contracts signed</td><td class="text-end font-monospace">{{ data.counts_24h.contracts }}</td></tr>
+                            <tr><td>Deliverables completed</td><td class="text-end font-monospace">{{ data.counts_24h.deliverables }}</td></tr>
+                            <tr><td>Red-team rejections</td><td class="text-end font-monospace text-danger">{{ data.counts_24h.red_team_rejections }}</td></tr>
+                            <tr><td>CAC rejections</td><td class="text-end font-monospace text-warning">{{ data.counts_24h.cac_rejections }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><strong>Last 7 days</strong></div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td>Proposals submitted</td><td class="text-end font-monospace">{{ data.counts_7d.proposals }}</td></tr>
+                            <tr><td>Contracts signed</td><td class="text-end font-monospace">{{ data.counts_7d.contracts }}</td></tr>
+                            <tr><td>Deliverables completed</td><td class="text-end font-monospace">{{ data.counts_7d.deliverables }}</td></tr>
+                            <tr><td>Red-team rejections</td><td class="text-end font-monospace text-danger">{{ data.counts_7d.red_team_rejections }}</td></tr>
+                            <tr><td>CAC rejections</td><td class="text-end font-monospace text-warning">{{ data.counts_7d.cac_rejections }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><strong>Recent proposals (last 20)</strong></div>
+        <div class="card-body p-0">
+            {% if data.recent_proposals and data.recent_proposals|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Opportunity</th>
+                            <th>Trigger</th>
+                            <th>Status</th>
+                            <th class="text-end">Quoted (LKR)</th>
+                            <th class="text-end">CAC forecast</th>
+                            <th>Red-team</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in data.recent_proposals %}
+                        <tr>
+                            <td><code>{{ p.id }}</code></td>
+                            <td><code>{{ p.opportunity_slug }}</code></td>
+                            <td>{{ p.trigger_kind or "—" }}</td>
+                            <td>
+                                {% if p.status == "accepted" or p.status == "active" %}
+                                  <span class="badge bg-success">{{ p.status }}</span>
+                                {% elif p.status == "ready_contract" %}
+                                  <span class="badge bg-primary">{{ p.status }}</span>
+                                {% elif p.status == "submitted" %}
+                                  <span class="badge bg-info text-dark">{{ p.status }}</span>
+                                {% elif p.status == "reject_red_team" %}
+                                  <span class="badge bg-danger">{{ p.status }}</span>
+                                {% elif p.status == "reject_cac_high" %}
+                                  <span class="badge bg-warning text-dark">{{ p.status }}</span>
+                                {% else %}
+                                  <span class="badge bg-secondary">{{ p.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end font-monospace">
+                                {% if p.quoted_price_lkr is not none %}{{ "%.0f"|format(p.quoted_price_lkr) }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-end font-monospace">
+                                {% if p.cac_forecast is not none %}{{ "%.0f"|format(p.cac_forecast) }}{% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if p.red_team_decision == "pass" %}
+                                  <span class="text-success">pass</span>
+                                {% elif p.red_team_decision == "reject" %}
+                                  <span class="text-danger" title="{{ p.red_team_reason or '' }}">reject</span>
+                                {% else %}
+                                  <small class="text-muted">—</small>
+                                {% endif %}
+                            </td>
+                            <td><small class="text-muted">{{ p.submitted_at or "—" }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-3 text-muted">
+                No proposals yet. Run pass manually or wait for the hourly beat.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <p class="text-muted small mt-3 mb-0">
+        Generated <code>{{ data.as_of }}</code>.
+        Scoring breakdown: <a href="{{ url_for('ai_org_score.admin_scores') }}">/ai_org/admin/scores</a>.
+        Public band: <a href="{{ url_for('ai_org_score.leaderboard') }}">/ai_org/leaderboard</a>.
+    </p>
+</div>
+{% endblock %}
