@@ -322,6 +322,16 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Acquisition Studio load failed: {e}')
 
+# AI-Org Subagent E — Delivery Ops Command (2026-05-18)
+try:
+    import delivery_ops_command_org  # noqa: F401  (Celery task: run_pass)
+    import delivery_ops_command_proposals  # noqa: F401
+    import delivery_ops_command_routes
+    delivery_ops_command_routes.register_routes(app)
+    logger.info('AI-Org Delivery Ops Command (Subagent E) registered')
+except Exception as e:
+    logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,

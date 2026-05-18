@@ -52,6 +52,8 @@ app = Celery(
         'ai_org_score_engine',
         # AI-Org Subagent D — Acquisition Studio (v17)
         'acquisition_studio_org',
+        # AI-Org Subagent E — Delivery Ops Command (v18)
+        'delivery_ops_command_org',
     ]
 )
 
@@ -118,6 +120,15 @@ app.conf.beat_schedule.update({
     'acquisition_studio-hourly': {
         'task': 'acquisition_studio_org.run_pass',
         'schedule': crontab(minute=17),  # hourly at :17, offset from other AI-org tasks
+    },
+})
+
+# AI-Org Subagent E — Delivery Ops Command (v18, 2026-05-18)
+app.conf.beat_schedule.update({
+    'delivery_ops_command-every-10min': {
+        'task': 'delivery_ops_command_org.run_pass',
+        'schedule': crontab(minute='*/10'),  # every 10 min, offset from acquisition's :17
+        'kwargs': {'since_minutes': 15},
     },
 })
 
