@@ -312,6 +312,16 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Score Engine load failed: {e}')
 
+# AI-Org Subagent D — Acquisition Studio (2026-05-18)
+try:
+    import acquisition_studio_org  # noqa: F401  (Celery task: run_pass)
+    import acquisition_studio_proposals  # noqa: F401
+    import acquisition_studio_routes
+    acquisition_studio_routes.register_routes(app)
+    logger.info('AI-Org Acquisition Studio (Subagent D) registered')
+except Exception as e:
+    logger.error(f'AI-Org Acquisition Studio load failed: {e}')
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,

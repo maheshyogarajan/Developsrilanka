@@ -50,6 +50,8 @@ app = Celery(
         # AI-Org Subagents B + C (2026-05-18)
         'ai_org_attribution_writer',
         'ai_org_score_engine',
+        # AI-Org Subagent D — Acquisition Studio (v17)
+        'acquisition_studio_org',
     ]
 )
 
@@ -108,6 +110,14 @@ app.conf.beat_schedule.update({
     'ai_org_score_engine-recompute-nightly': {
         'task': 'ai_org_score_engine.recompute_nightly',
         'schedule': crontab(hour=3, minute=0),  # 03:00 UTC daily, no clash with ai_crm@02:00 or lankatax@07:00
+    },
+})
+
+# AI-Org Subagent D — Acquisition Studio (v17, 2026-05-18)
+app.conf.beat_schedule.update({
+    'acquisition_studio-hourly': {
+        'task': 'acquisition_studio_org.run_pass',
+        'schedule': crontab(minute=17),  # hourly at :17, offset from other AI-org tasks
     },
 })
 
