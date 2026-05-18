@@ -65,6 +65,24 @@ app = Celery(
         'ai_org_models',
         'models',
         'lankatax_models',
+        # ─────────────────────────────────────────────────────────────
+        # v18.2 BOOTSTRAP FIX: helper / substrate modules lazy-imported
+        # by task code. Same root-cause class as v18.1 — modules not in
+        # include list aren't loaded into worker process; lazy imports
+        # fail with ModuleNotFoundError despite being on filesystem.
+        # Surfaced 2026-05-18 12:45 UTC when attribution writer reached
+        # event 671 and failed on `from ai_org_substrate import ...`.
+        # ─────────────────────────────────────────────────────────────
+        # Substrate / business-logic helpers
+        'ai_org_substrate',              # attribution_writer L238, acquisition_studio_org L372, delivery_ops_command_org L351
+        'ai_org_audit_harness',          # ai_org_score_engine L265 (audit_metrics)
+        'acquisition_studio_proposals',  # acquisition_studio_org L376
+        'delivery_ops_command_proposals', # delivery_ops_command_org L252, L355
+        'events',                        # ops_sentinel L618/L676, engagement_engine L624, ai_org_score_engine L416
+        # Additional model modules surfaced during v18.2 sweep
+        'remittance_models',             # ai_crm L253/L340, engagement_engine L185
+        'engagement_models',             # engagement_engine L542 (InAppBanner)
+        'gemini_cost_log_model',         # ops_sentinel L178 (GeminiCostLog)
     ]
 )
 
