@@ -1,0 +1,123 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}AI-Org Attribution Audit - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2 class="mb-0">AI-Org Attribution Audit</h2>
+            <p class="text-muted mb-0">
+                Sample of {{ rows|length }} unverified attributions from the last {{ days_back }} days.
+                Confirm / reject / reassign each — your decisions feed the productize-trigger criterion 7
+                (attribution confidence &gt;85%).
+            </p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('ai_org_audit.metrics_json') }}"
+               class="btn btn-sm btn-outline-secondary"
+               target="_blank">
+                <i class="fas fa-chart-line me-1"></i> Metrics JSON
+            </a>
+            <a href="{{ url_for('ai_org_audit.sample_view') }}"
+               class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-sync me-1"></i> Re-sample
+            </a>
+        </div>
+    </div>
+
+    {% if rows|length == 0 %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        No unaudited attributions in the last {{ days_back }} days. The attribution writer
+        either hasn't run yet, or every recent claim has already been audited.
+        <a href="{{ url_for('ai_org_audit.sample_view', days_back=30) }}">Try the last 30 days</a>.
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped mb-0 align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Event</th>
+                            <th>Claimed by</th>
+                            <th>Kind</th>
+                            <th>Conf.</th>
+                            <th>Evidence</th>
+                            <th style="min-width: 480px;">Decision</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rows %}
+                        <tr>
+                            <td><code>{{ r.attribution_id }}</code></td>
+                            <td>
+                                <strong>{{ r.external_event_type }}</strong>
+                                <br><small class="text-muted">event_id={{ r.external_event_ref_id }}</small>
+                                {% if r.source_event_summary %}
+                                <br><small>user={{ r.source_event_summary.user_id }} / {{ r.source_event_summary.source or 'n/a' }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ r.claimed_by_org_slug or r.claimed_by_org_id }}</span>
+                            </td>
+                            <td><small>{{ r.attribution_kind }}</small></td>
+                            <td>{{ "%.2f"|format(r.confidence or 0) }}</td>
+                            <td>
+                                <details>
+                                    <summary class="small text-muted">payload</summary>
+                                    <pre class="small mb-0" style="max-width: 320px; overflow-x: auto;">{{ r.evidence_payload|tojson(indent=2) }}</pre>
+                                </details>
+                            </td>
+                            <td>
+                                <form method="POST"
+                                      action="{{ url_for('ai_org_audit.submit_decision', attribution_id=r.attribution_id) }}"
+                                      class="row g-1 align-items-center">
+                                    <div class="col-auto">
+                                        <select name="decision" class="form-select form-select-sm" required>
+                                            <option value="">— pick —</option>
+                                            <option value="confirm">confirm</option>
+                                            <option value="reject">reject</option>
+                                            <option value="reassign">reassign</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <select name="verifier_role_id" class="form-select form-select-sm" required>
+                                            <option value="">verifier role…</option>
+                                            {% for role in verifier_roles %}
+                                            <option value="{{ role.id }}">{{ role.role_slug }} (org {{ role.ai_org_id }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <select name="new_org_id" class="form-select form-select-sm">
+                                            <option value="">if reassign → org…</option>
+                                            {% for o in all_orgs %}
+                                            <option value="{{ o.id }}">{{ o.slug }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col">
+                                        <input type="text" name="notes"
+                                               class="form-control form-control-sm"
+                                               placeholder="notes (optional)">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
