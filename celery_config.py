@@ -75,5 +75,17 @@ app.conf.beat_schedule = {
     },
 }
 
+# Wave 3 additions (council #2 — 2026-05-18)
+app.conf.beat_schedule.update({
+    'engagement_engine-run-pass': {
+        'task': 'engagement_engine.run_pass',
+        'schedule': crontab(minute=0),  # top of every hour
+    },
+    'lankatax_crosssell-daily': {
+        'task': 'lankatax_crosssell.daily_pulse',
+        'schedule': crontab(hour=7, minute=0),  # 07:00 UTC daily
+    },
+})
+
 if __name__ == '__main__':
     app.start()

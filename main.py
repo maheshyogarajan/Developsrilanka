@@ -255,6 +255,36 @@ try:
 except Exception as e:
     logger.error(f"Error loading AI-run module imports: {str(e)}")
 
+# Wave 3.1 — Proactive Engagement Engine (2026-05-17/18)
+try:
+    import engagement_models  # noqa: F401  (registers InAppBanner table)
+    import engagement_engine  # noqa: F401  (registers Celery task)
+    import in_app_nudge_routes
+    in_app_nudge_routes.register_routes(app)
+    logger.info("Engagement Engine + in-app nudge routes registered")
+except Exception as e:
+    logger.error(f"Error loading Engagement Engine: {str(e)}")
+
+# Wave 3.2 — AI Support Copilot (2026-05-18)
+try:
+    import support_copilot_models  # noqa: F401
+    import support_copilot  # noqa: F401
+    import support_routes
+    support_routes.register_routes(app)
+    logger.info("AI Support Copilot registered at /support + /admin/support")
+except Exception as e:
+    logger.error(f"Error loading Support Copilot: {str(e)}")
+
+# Wave 3.3 — Lanka.tax Cross-Sell (2026-05-18)
+try:
+    import lankatax_models  # noqa: F401
+    import lankatax_crosssell  # noqa: F401  (registers Celery task)
+    import lankatax_onboarding_routes
+    lankatax_onboarding_routes.register_routes(app)
+    logger.info("Lanka.tax Cross-Sell + /onboarding/lankatax registered")
+except Exception as e:
+    logger.error(f"Error loading Lanka.tax Cross-Sell: {str(e)}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
