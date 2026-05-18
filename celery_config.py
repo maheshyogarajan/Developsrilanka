@@ -83,6 +83,14 @@ app = Celery(
         'remittance_models',             # ai_crm L253/L340, engagement_engine L185
         'engagement_models',             # engagement_engine L542 (InAppBanner)
         'gemini_cost_log_model',         # ops_sentinel L178 (GeminiCostLog)
+        # ─────────────────────────────────────────────────────────────
+        # v18.3 OPERATIONAL HARDENING: worker heartbeat (silent-failure
+        # detector). Telegram alerts CEO if no AI-org task has succeeded
+        # in the last 60 min (outside quiet window 22-07 UTC). Catches
+        # the 2026-05-15→18 failure mode where the worker was up but
+        # every task was silently erroring.
+        # ─────────────────────────────────────────────────────────────
+        'worker_heartbeat',
     ]
 )
 
@@ -158,6 +166,14 @@ app.conf.beat_schedule.update({
         'task': 'delivery_ops_command_org.run_pass',
         'schedule': crontab(minute='*/10'),  # every 10 min, offset from acquisition's :17
         'kwargs': {'since_minutes': 15},
+    },
+})
+
+# v18.3 — worker heartbeat (silent-failure detector)
+app.conf.beat_schedule.update({
+    'worker-heartbeat-30min': {
+        'task': 'worker_heartbeat.check_and_alert',
+        'schedule': crontab(minute='*/30'),
     },
 })
 
