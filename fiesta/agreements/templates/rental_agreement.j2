@@ -1,0 +1,232 @@
+{# fiesta/agreements/templates/rental_agreement.j2
+
+S9 Rental Agreement template -- v1 (2026-05-20).
+
+Source: G.1.3 proposal (working files/strategic/council/persistent/fiesta/
+blocker_G.1.3_proposal.md §5) + brief 2026-05-20 (13 sections, 364-day
+default, §195 conditional disclosure, bank-slip retention, SL law).
+
+ARCHITECTURE
+============
+Jinja2 -> markdown-lite -> pdf_engine.render_blocks_to_pdf.
+
+Recognised markdown-lite tokens (see pdf_engine._parse_blocks):
+    #..###     headings
+    N.M ...    numbered clause
+    - ...      bullet
+    :draft:    pending-legal banner
+    :sig:      vertical signature spacer
+
+EMPOWERMENT VOICE
+=================
+Per CEO directive, customer-facing copy says "we help you collect YOUR
+information", not "we collect documents". This template is the AGREEMENT
+itself (not customer-facing copy in the wizard); the form-side empowerment
+voice lives in rental_routes.html.
+
+§195 DISCLOSURE
+===============
+The disclosure block is rendered only when ctx.related_party.should_default_on
+is True OR ctx.related_party.override_force_on is True. Both paths persist a
+reason to RentalAgreementGenerated for audit.
+
+#}
+{%- if show_draft_banner -%}
+:draft:
+{%- endif %}
+
+# TENANCY AGREEMENT
+# (Workspace Rental for Production of Income)
+
+**Reference:** {{ ctx.reference_id }}
+**Date of Agreement:** {{ ctx.agreement_date.isoformat() }}
+
+## 1. PARTIES
+
+### 1.1 Landlord ("the Landlord")
+
+- Name: {{ ctx.landlord.full_name }}
+- National Identity Card No.: {{ ctx.landlord.nic or "[NIC not stated]" }}
+{%- if ctx.landlord.tin %}
+- Tax Identification Number (TIN): {{ ctx.landlord.tin }}
+{%- endif %}
+- Address: {{ ctx.landlord.address_line }}
+- Bank account for rent: {{ ctx.landlord.bank_name or "[bank not stated]" }}, Account No. {{ ctx.landlord.bank_account or "[not stated]" }}
+
+### 1.2 Tenant ("the Tenant")
+
+- Name: {{ ctx.tenant.full_name }}
+- National Identity Card No.: {{ ctx.tenant.nic or "[NIC not stated]" }}
+{%- if ctx.tenant.tin %}
+- Tax Identification Number (TIN): {{ ctx.tenant.tin }}
+{%- endif %}
+- Current address: {{ ctx.tenant.address_line }}
+
+The Tenant is a tax resident of Sri Lanka who intends to use the Premises for the production of income from a trade or business.
+
+## 2. PREMISES
+
+2.1 The Landlord lets to the Tenant the premises described as:
+
+- Address: {{ ctx.property.address_line }}
+{%- if ctx.property.lot_plan %}
+- Lot / plan no.: {{ ctx.property.lot_plan }}
+{%- endif %}
+{%- if ctx.property.area_sqft %}
+- Approximate area: {{ ctx.property.area_sqft }} sq ft
+{%- endif %}
+{%- if ctx.property.description %}
+- Description: {{ ctx.property.description }}
+{%- endif %}
+
+2.2 The Premises are let for use **wholly and exclusively as a place of work for the Tenant's trade or business** within the meaning of section 6 of the Inland Revenue Act No. 24 of 2017 (as amended). The Tenant shall not use the Premises for residential purposes.
+
+{%- if ctx.home_office_percentage and ctx.home_office_percentage < 1.0 %}
+
+2.3 The Parties record that the Tenant uses {{ "%.0f"|format(ctx.home_office_percentage * 100) }}% of the Premises wholly and exclusively for the trade or business referred to in clause 2.2, and the balance for other purposes. The Tenant shall claim only the portion of rent attributable to the trade-or-business use as a deduction under section 6 IRA -- being {{ ctx.currency }} {{ "%.2f"|format(ctx.home_office_portion_lkr) }} per calendar month.
+{%- endif %}
+
+## 3. TERM
+
+3.1 The Tenancy shall commence on {{ ctx.term_start.isoformat() }} and shall end on {{ ctx.term_end.isoformat() }}, being a term of {{ ctx.term_days }} days.
+
+{%- if ctx.term_days <= 364 %}
+
+3.2 The Parties record that the term is deliberately less than one year so that the instrument falls outside the chargeable lease threshold under the Stamp Duty Act No. 12 of 2006.
+
+3.3 This Tenancy shall **not** automatically renew. Any continuation of occupation beyond the end date requires a new written agreement executed by both Parties.
+{%- else %}
+
+3.2 The Parties record that the term exceeds 365 days. The Parties have elected to bear the stamp-duty liability that arises under the Stamp Duty Act No. 12 of 2006 in respect of this instrument; particulars are recorded in Schedule SD.
+
+3.3 This Tenancy shall **not** automatically renew without a fresh written agreement.
+{%- endif %}
+
+## 4. RENT
+
+4.1 The Tenant shall pay rent of **{{ ctx.currency }} {{ "%.2f"|format(ctx.monthly_rent_lkr) }} per calendar month**, in advance, on or before the {{ ctx.rent_due_day }}{{ "th" if ctx.rent_due_day not in (1,2,3) else ("st","nd","rd")[ctx.rent_due_day - 1] }} day of each calendar month.
+
+4.2 Rent shall be paid by electronic transfer to the Landlord's bank account in clause 1.1. **The Tenant shall retain the bank slip / transaction reference for each payment.** Such bank slips, together with this Agreement, are the Tenant's principal evidence of the deductible expense under section 6 IRA in the event of an audit by the Inland Revenue Department.
+
+4.3 The Landlord shall, on request, issue a written receipt for each rent payment. Where rent is paid by bank transfer, the bank slip is sufficient receipt for the purposes of this clause.
+
+{%- if ctx.currency != "LKR" %}
+
+4.4 Conversion of any rent denominated in a currency other than LKR shall be at the Central Bank of Sri Lanka selling rate prevailing on the date funds reach the Landlord's Sri Lankan bank account.
+{%- endif %}
+
+## 5. SECURITY DEPOSIT (Refundable)
+
+5.1 The Tenant shall pay on signing a refundable security deposit of {{ ctx.currency }} {{ "%.2f"|format(ctx.deposit_lkr) }} (equivalent to {{ "%.1f"|format(ctx.deposit_months) }} months' rent).
+
+5.2 The Landlord shall return the deposit, less any deductions for unpaid rent, unpaid utilities, or damage beyond normal wear and tear, within {{ ctx.deposit_return_days }} days of the Tenant vacating the Premises.
+
+5.3 Any deduction shall be itemised in writing.
+
+## 6. USE AND TENANT'S COVENANTS
+
+6.1 The Tenant shall:
+
+- use the Premises only as a place of work for the Tenant's trade or business (subject to clause 2.3 where applicable);
+- keep the Premises in tenantable condition (fair wear and tear excepted);
+- not assign, sublet, or part with possession without the Landlord's prior written consent;
+- not make structural alterations without the Landlord's prior written consent;
+- comply with all applicable laws and condominium / building regulations.
+
+6.2 The Tenant is entitled to install office equipment, telecommunications connections, internet routers and similar items reasonable for office use, and to remove them on vacation, making good any damage caused by removal.
+
+## 7. LANDLORD'S COVENANTS
+
+7.1 The Landlord shall:
+
+- give the Tenant quiet enjoyment of the Premises throughout the term;
+- maintain the structural elements of the building (roof, external walls, common services) in reasonable repair;
+- give the Tenant not less than 48 hours' written notice before entering the Premises for inspection or repair, except in emergency.
+
+## 8. UTILITIES AND OUTGOINGS
+
+8.1 The Tenant shall pay for: electricity consumption (CEB / LECO meter reading attributable to the Premises), water (NWS&DB attributable share), internet, telephone, and any business-rates levied on the Tenant's occupation.
+
+8.2 The Landlord shall pay for: property rates and taxes levied on ownership, building insurance, structural maintenance, and condominium service charges (where applicable).
+
+## 9. TAX TREATMENT
+
+9.1 The Parties acknowledge that the rent payable under this Agreement is a payment for the use of premises occupied **wholly and exclusively for the production of the Tenant's income from a trade or business**, and accordingly is intended by the Tenant to be deducted from the Tenant's assessable income under section 6 of the Inland Revenue Act.
+
+9.2 The Landlord is responsible for declaring the rental income received under this Agreement on the Landlord's own income tax return.
+
+9.3 Each Party shall, on reasonable written request, provide the other Party with such confirmation of payments made and received as is required for filings with, or audit by, the Inland Revenue Department.
+
+{%- if ctx.related_party.disclosure_applied %}
+
+## 10. RELATED-PARTY DISCLOSURE (IRA s.195)
+
+10.1 The Parties record that the Tenant and the Landlord are persons that may fall within the "associated persons" definition of section 195 of the Inland Revenue Act No. 24 of 2017 (as amended) on the following basis: **{{ ctx.related_party.stated_basis }}**.
+
+10.2 The Parties confirm that the rent stated in clause 4.1 is set on an arm's-length basis -- that is, on terms that would have applied between unrelated parties in comparable circumstances.
+
+10.3 The Tenant has obtained or shall obtain commercial-substance evidence supporting the arm's-length rent, including without limitation:
+
+{% if ctx.related_party.evidence_market_rate %}- market-rate citations for comparable premises in the same locality;
+{% endif %}{% if ctx.related_party.evidence_payment_cadence %}- bank statements demonstrating consistent monthly cadence of rent payment;
+{% endif %}{% if ctx.related_party.evidence_owner_occupation %}- evidence that the Premises are physically occupied by the Tenant for the trade or business referred to in clause 2.2;
+{% endif %}{% if ctx.related_party.evidence_third_party_quotes %}- written quotes from at least one unrelated landlord for comparable premises.
+{% endif %}
+
+10.4 The Tenant shall retain the commercial-substance evidence for a period of not less than seven years from the end of the year of assessment in which the rent is deducted, and shall produce it on demand to the Inland Revenue Department.
+
+10.5 The disclosure made in this clause is given in good faith on the basis of the information available to the Parties at the date of this Agreement. The Parties reserve the right to amend this clause if further information comes to light. No representation is made by FIESTA as to whether the Parties are or are not "associated persons" -- that determination is for the Inland Revenue Department and ultimately the Sri Lankan courts.
+
+{%- endif %}
+
+## {{ "11" if ctx.related_party.disclosure_applied else "10" }}. TERMINATION
+
+{{ "11" if ctx.related_party.disclosure_applied else "10" }}.1 Either Party may terminate this Agreement before its natural expiry by giving {{ ctx.termination_notice_months }} months' written notice, with the deposit treated as set out in clause 5.
+
+{{ "11" if ctx.related_party.disclosure_applied else "10" }}.2 The Landlord may terminate immediately on written notice if rent is more than {{ ctx.rent_arrears_days }} days in arrears and the Tenant has failed to remedy after 14 days' written demand.
+
+## {{ "12" if ctx.related_party.disclosure_applied else "11" }}. NOTICES
+
+Notices shall be in writing to the addresses in clause 1, or by email to {{ ctx.notice_email or "the email addresses notified in writing by each Party to the other" }}, and shall be deemed received 2 business days after dispatch.
+
+## {{ "13" if ctx.related_party.disclosure_applied else "12" }}. GOVERNING LAW AND DISPUTE RESOLUTION
+
+This Agreement is governed by the law of Sri Lanka. The Parties submit to the exclusive jurisdiction of the courts of {{ ctx.court_district or "Colombo" }}. Before commencing proceedings the Parties shall first attempt good-faith negotiation for not less than 21 days.
+
+## {{ "14" if ctx.related_party.disclosure_applied else "13" }}. GENERAL
+
+Force majeure, severability, entire agreement, counterparts/electronic signatures, and amendments are governed by the FIESTA standard clauses, available on request and deemed incorporated by reference. Electronic signatures complying with the Electronic Transactions Act No. 19 of 2006 are accepted.
+
+:sig:
+
+**SIGNATURES**
+
+Landlord: ______________________________   Date: ____________
+
+({{ ctx.landlord.full_name }})
+
+:sig:
+
+Tenant: ______________________________     Date: ____________
+
+({{ ctx.tenant.full_name }})
+
+:sig:
+
+Witnesses:
+
+1. ______________________________   Date: ____________
+
+2. ______________________________   Date: ____________
+
+:sig:
+
+*Generated by {{ branding.product_name }} ({{ branding.product_long_name }}, {{ branding.company_domain }}). Reference: {{ ctx.reference_id }}. Template version: {{ ctx.template_version }}.*
+
+{%- if ctx.term_days <= 364 %}
+*Stamp-duty note: this Agreement is for a term of {{ ctx.term_days }} days and is intended to fall outside the chargeable instrument provisions of the Stamp Duty Act No. 12 of 2006. Cumulative occupation that exceeds 365 days may attract retrospective stamp-duty exposure.*
+{%- else %}
+*Stamp-duty note: this Agreement is for a term of {{ ctx.term_days }} days and IS within the chargeable instrument provisions of the Stamp Duty Act No. 12 of 2006. Estimated stamp duty: LKR {{ "%.2f"|format(ctx.stamp_duty_lkr) }}. The Parties are responsible for ensuring stamp duty is paid before the instrument is presented in court.*
+{%- endif %}
+
+*This template is provided for the convenience of the Parties and does not constitute legal advice.*
