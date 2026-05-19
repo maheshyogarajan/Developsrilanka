@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% block title %}Welcome to tax year {{ new_year }} — FIESTA{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <header class="mb-4">
+    <h1 class="display-6 mb-1">Welcome to tax year {{ new_year }}</h1>
+    <p class="text-muted mb-0">
+      Sri Lanka's tax year runs 1 April {{ new_year_start_year }} to 31 March {{ new_year_end_year }}.
+    </p>
+  </header>
+
+  {# ---------- Prior-year status banner ---------- #}
+  <section class="card mb-4 border-{{ prior_status_class }}">
+    <div class="card-body">
+      <h2 class="h5 mb-2">
+        Tax year {{ prior_year }} return
+        <span class="badge bg-{{ prior_status_class }} ms-1">{{ prior_status|upper }}</span>
+      </h2>
+      {% if prior_status == "filed" %}
+        <p class="mb-0">Filed on {{ prior_return_filed_at }}. Nothing more to do for {{ prior_year }}.</p>
+      {% elif prior_status == "open" %}
+        <p class="mb-2">
+          Your {{ prior_year }} return is due by
+          <strong>30 November {{ prior_filing_year }}</strong>
+          ({{ prior_days_to_deadline }} days remaining).
+        </p>
+        <a href="{{ url_for('tax_return.dashboard', year=prior_year) }}"
+           class="btn btn-primary btn-sm">Finish {{ prior_year }} return</a>
+      {% elif prior_status == "closing_soon" %}
+        <p class="mb-2 text-warning">
+          <i class="bi bi-clock-history"></i>
+          Deadline in {{ prior_days_to_deadline }} days.
+        </p>
+        <a href="{{ url_for('tax_return.dashboard', year=prior_year) }}"
+           class="btn btn-warning btn-sm">File {{ prior_year }} now</a>
+      {% elif prior_status == "overdue" %}
+        <p class="mb-2 text-danger">
+          <i class="bi bi-exclamation-triangle"></i>
+          {{ prior_year }} return is overdue. Late-filing penalties accrue under IRA s.178.
+        </p>
+        <a href="{{ url_for('tax_return.dashboard', year=prior_year) }}"
+           class="btn btn-danger btn-sm">File {{ prior_year }} return</a>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ---------- Carry-over checklist ---------- #}
+  <section class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Carry-over checklist</h2>
+      <p class="text-muted small">
+        Items from {{ prior_year }} that need your confirmation for {{ new_year }}.
+      </p>
+
+      <ul class="list-group list-group-flush">
+        {# Service providers #}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>Service providers</strong>
+            <div class="text-muted small">
+              {{ carried_over.service_providers }} carried over from {{ prior_year }}.
+            </div>
+          </div>
+          <a class="btn btn-outline-secondary btn-sm"
+             href="{{ url_for('lifecycle.service_providers', year=new_year) }}">
+            Review &rarr;
+          </a>
+        </li>
+
+        {# Rental agreements + auto-renewals #}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>Rental agreements</strong>
+              <div class="text-muted small">
+                {{ carried_over.rental_agreements }} active.
+                {% if auto_renewals_pending %}
+                  <span class="text-warning">
+                    {{ auto_renewals_pending|length }} need renewal confirmation.
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm"
+               href="{{ url_for('lifecycle.rental_agreements', year=new_year) }}">
+              Review &rarr;
+            </a>
+          </div>
+          {% if auto_renewals_pending %}
+            <div class="mt-2 p-2 bg-light rounded small">
+              {% for r in auto_renewals_pending %}
+                <div class="d-flex justify-content-between">
+                  <span>{{ r.name }} (ends {{ r.ends_on }})</span>
+                  <span>
+                    <button class="btn btn-sm btn-success py-0 px-2"
+                            data-action="renew" data-id="{{ r.id }}">Renew</button>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                            data-action="end" data-id="{{ r.id }}">Don't renew</button>
+                  </span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </li>
+
+        {# Bank details #}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>Bank details</strong>
+            <div class="text-muted small">
+              {{ carried_over.bank_details }} on file (unchanged).
+            </div>
+          </div>
+          <a class="btn btn-outline-secondary btn-sm"
+             href="{{ url_for('bank_accounts.list') }}">Review &rarr;</a>
+        </li>
+
+        {# Persona #}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>Persona</strong>
+            <div class="text-muted small">
+              {% if persona %}{{ persona|title }}{% else %}Not set{% endif %}
+            </div>
+          </div>
+          <a class="btn btn-outline-secondary btn-sm"
+             href="{{ url_for('clients.persona_edit') }}">Change &rarr;</a>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  {# ---------- CTA ---------- #}
+  <div class="d-flex justify-content-end">
+    <a href="{{ url_for('tax_return.dashboard', year=new_year) }}"
+       class="btn btn-primary btn-lg">
+      Start tax year {{ new_year }} <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+  </div>
+</div>
+{% endblock %}

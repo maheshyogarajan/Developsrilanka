@@ -1,0 +1,155 @@
+{% extends "layout.html" %}
+{% block title %}Invoice cadence — {{ sp.name }} — FIESTA{% endblock %}
+{% block content %}
+<div class="container py-4">
+
+  <header class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+      <p class="text-muted small mb-1">Service provider</p>
+      <h1 class="h3 mb-0">{{ sp.name }}</h1>
+    </div>
+    <a href="{{ url_for('lifecycle.service_providers') }}"
+       class="btn btn-link">&larr; All providers</a>
+  </header>
+
+  {# ---------- Cadence summary card ---------- #}
+  <section class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Detected cadence</p>
+          <h2 class="h4 mb-0">
+            {% if check.actual_cadence %}
+              {{ check.actual_cadence|title }}
+              {% if check.actual_cadence == "irregular" %}
+                <span class="badge bg-danger ms-1">flag</span>
+              {% elif check.cadence_consistent %}
+                <span class="badge bg-success ms-1">matches expected</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">Insufficient data</span>
+            {% endif %}
+          </h2>
+          {% if check.coefficient_of_variation is not none %}
+            <p class="text-muted small mt-2 mb-0">
+              Variation: {{ "%.2f"|format(check.coefficient_of_variation) }}
+              (lower = more regular)
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Coverage check</p>
+          <h2 class="h4 mb-0">
+            {{ check.invoice_count - check.coverage_gaps_count }} / {{ check.invoice_count + check.coverage_gaps_count }} periods
+          </h2>
+          {% if check.coverage_gaps %}
+            <p class="text-warning small mt-2 mb-0">
+              Missing: {{ check.coverage_gaps_count }} period(s).
+            </p>
+          {% else %}
+            <p class="text-success small mt-2 mb-0">
+              Complete coverage.
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Audit risk</p>
+          <h2 class="h4 mb-0">
+            {% if check.irregular_flag and above_market %}
+              <span class="text-danger">High</span>
+            {% elif check.irregular_flag or above_market %}
+              <span class="text-warning">Medium</span>
+            {% else %}
+              <span class="text-success">Low</span>
+            {% endif %}
+          </h2>
+          <p class="text-muted small mt-2 mb-0">
+            {% if above_market %}Above market rate. {% endif %}
+            {% if check.irregular_flag %}Irregular cadence. {% endif %}
+            {% if not above_market and not check.irregular_flag %}
+              All signals consistent.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ---------- Monthly grid ---------- #}
+  <section class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5 mb-3">{{ year_label }} invoice grid</h2>
+      <div class="d-flex flex-wrap gap-1">
+        {% for month in months %}
+          <div class="text-center" style="width:62px;">
+            <div class="small text-muted">{{ month.label }}</div>
+            <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center"
+                 style="width:24px;height:24px;background:
+                  {% if month.invoice and month.invoice.status == 'paid' %}#198754
+                  {% elif month.invoice and month.invoice.status == 'issued' %}#0d6efd
+                  {% elif month.invoice and month.invoice.status == 'pending' %}#ffc107
+                  {% else %}#dee2e6
+                  {% endif %};">
+              {% if month.invoice %}<span class="text-white small">&check;</span>{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="text-muted small mt-2 mb-0">
+        <span class="badge bg-success">&nbsp;</span> Paid
+        <span class="badge bg-primary">&nbsp;</span> Issued
+        <span class="badge bg-warning">&nbsp;</span> Pending
+        <span class="badge bg-secondary">&nbsp;</span> No invoice
+      </p>
+    </div>
+  </section>
+
+  {# ---------- Coverage gaps + quick-add CTA ---------- #}
+  {% if check.coverage_gaps %}
+    <section class="card mb-4">
+      <div class="card-body">
+        <h2 class="h5 mb-3 text-warning">
+          <i class="bi bi-exclamation-triangle"></i> Missing periods
+        </h2>
+        <ul class="list-group list-group-flush">
+          {% for gap in check.coverage_gaps %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ gap.expected_period_start }} &rarr; {{ gap.expected_period_end }}</strong>
+                <div class="text-muted small">
+                  {{ gap.missed_count }} invoice(s) expected here.
+                </div>
+              </div>
+              <a class="btn btn-sm btn-outline-primary"
+                 href="{{ url_for('lifecycle.add_invoice',
+                                   sp_id=sp.id, hint_start=gap.expected_period_start) }}">
+                Add invoice
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  {% endif %}
+
+  {# ---------- Quick-add CTA ---------- #}
+  <div class="d-flex justify-content-end">
+    <a href="{{ url_for('lifecycle.add_invoice', sp_id=sp.id) }}"
+       class="btn btn-primary">
+      Add invoice for {{ next_due_label }}
+      <i class="bi bi-plus-circle ms-1"></i>
+    </a>
+  </div>
+
+</div>
+{% endblock %}
