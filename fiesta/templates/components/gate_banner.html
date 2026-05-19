@@ -1,0 +1,61 @@
+{# fiesta/templates/components/gate_banner.html
+   X6 compliance-gate banner. Renders ONE of three states based on
+   `gate_result` (fiesta.compliance.gate.GateResult instance, model_dump()-ed
+   to a dict for the Jinja context).
+
+   Usage:
+       {% include "components/gate_banner.html" with context %}
+
+   Expected context vars:
+       gate_result : dict with keys passed (bool), warnings (list), blocks (list),
+                     recommendations (list).
+       screen_id   : str (S2, S3, ...). Used in data-attribute for analytics
+                     hooks but not displayed.
+
+   Design intent: peer-to-engineer tone. We show the customer what we noticed,
+   never lecture. Green = looks audit-defensible; yellow = heads up; red =
+   needs a human (consultant). All copy in feedback_helping_not_collecting_for
+   voice ("we noticed", not "you violated").
+#}
+{% if gate_result.blocks %}
+  {# RED -- one or more blocks fired. Cannot proceed via self-serve. #}
+  <div class="gate-banner gate-banner-red"
+       data-screen-id="{{ screen_id }}"
+       role="alert"
+       aria-live="assertive">
+    <div class="gate-banner-icon" aria-hidden="true">!</div>
+    <div class="gate-banner-body">
+      <h3 class="gate-banner-title">A few things need a closer look</h3>
+      <ul class="gate-banner-list">
+        {% for block in gate_result.blocks %}
+          <li>
+            <strong>{{ block.message }}</strong>
+            <div class="gate-banner-help">
+              <span class="gate-banner-cite">{{ block.ira_section }}</span>
+              &mdash; {{ block.recommendation }}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if gate_result.recommendations %}
+        <p class="gate-banner-recommendation">
+          {{ gate_result.recommendations|join("  ") }}
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% elif gate_result.warnings %}
+  {# YELLOW -- warnings fired, customer can proceed. Use the warning template. #}
+  {% include "components/gate_warning.html" with context %}
+{% else %}
+  {# GREEN -- passed cleanly. #}
+  <div class="gate-banner gate-banner-green"
+       data-screen-id="{{ screen_id }}"
+       role="status"
+       aria-live="polite">
+    <div class="gate-banner-icon" aria-hidden="true">&check;</div>
+    <div class="gate-banner-body">
+      <p class="gate-banner-title">Looks audit-defensible.</p>
+    </div>
+  </div>
+{% endif %}
