@@ -265,7 +265,7 @@ def _render_email_template(campaign_key: str, variant: Optional[str], user) -> O
         return tmpl.render(
             user_name=(getattr(user, "name", None) or "there"),
             cta_url=cta_url,
-            tier_recommended="Pro Compliance",
+            tier_recommended="Self-File",
         )
     except TemplateNotFound:
         log.warning("_render_email_template: template not found: %s", template_name)

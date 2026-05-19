@@ -268,7 +268,7 @@ def test_answer_question_for_low_volume_user_emits_event(app, db_session, user_a
     # Monkeypatch Gemini to a fixed high-confidence cited answer.
     def _fake_gemini(question, kb_chunks, user_context):
         return {
-            "answer": "FIESTA Pro is LKR 1,500/month or LKR 15,000/year. The Family tier is LKR 3,500/month.",
+            "answer": "FIESTA Self-File is Rs 2,500 per Year of Assessment. Free Trial is 30 days, no card required.",
             "citations": ["fiesta_pricing_tiers"],
             "confidence": 0.95,
             "reason": "",
@@ -287,7 +287,11 @@ def test_answer_question_for_low_volume_user_emits_event(app, db_session, user_a
     assert answer is not None, "auto-answer path must return a CopilotAnswer (not None)"
     assert isinstance(answer, CopilotAnswer)
     assert answer.ticket_id == ticket_id
-    assert "Pro" in answer.answer or "pricing" in answer.answer.lower()
+    assert (
+        "Self-File" in answer.answer
+        or "pricing" in answer.answer.lower()
+        or "free trial" in answer.answer.lower()
+    )
     assert "fiesta_pricing_tiers" in answer.citations
     assert 0.0 <= answer.confidence <= 1.0
     assert abs(answer.confidence - 0.95) < 1e-6

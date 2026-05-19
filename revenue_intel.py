@@ -47,15 +47,19 @@ log = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------- #
-# FIESTA pricing — blended ARPU assumption for Wave 2.1 dashboard
+# FIESTA pricing — blended ARPU assumption for Wave 2.1 dashboard (v4.1)
 # --------------------------------------------------------------------------- #
-# Tier pricing is still being finalised (Wave 2.2: Stripe + Pricing). For the
-# v1 dashboard we use a blended ARPU so the headline MRR/ARR numbers move with
-# paid-user count and aren't blocked on the pricing decision.
+# v4.1 pricing schema: Free Trial (Rs 0) / Self-File (Rs 2,500) / Auto-File
+# (Rs 5,000 — v1.1, currently disabled) + Consultant Booking (Rs 5,000 one-off).
+# For the v1 dashboard we use a blended ARPU so the headline MRR/ARR numbers
+# move with paid-user count without depending on which tier each user picked.
 #
-# Once Wave 2.2 lands a `subscription_tier` column on user (or a stripe_subs
-# table), the mrr_estimate query gets refined to actual tier × price.
-BLENDED_ANNUAL_ARPU_USD = 200  # midpoint between Self-Serve $99 / Pro $199 / Premium $349
+# Council brief economic_model: assumed average revenue per paying customer
+# = LKR 3,500/year (mostly Self-File at Rs 2,500 + occasional consultant
+# bookings + future Auto-File upgrades). USD anchor included for legacy
+# dashboard widgets that read USD; converted at ~LKR 300/USD.
+BLENDED_ANNUAL_ARPU_LKR = 3500  # economic_model.average_revenue_per_paying_customer_lkr_per_year
+BLENDED_ANNUAL_ARPU_USD = 12    # ~Rs 3,500 / 300 LKR-per-USD; refresh when CBSL rate moves materially
 
 
 # --------------------------------------------------------------------------- #
