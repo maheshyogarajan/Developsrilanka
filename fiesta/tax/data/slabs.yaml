@@ -1,0 +1,71 @@
+# Sri Lanka Personal Income Tax — version-pinned slab tables
+#
+# Single source of truth for all FIESTA tax bracket arithmetic.
+# Gazette update = edit this file. No code touch. No magic numbers in Python.
+#
+# Provenance:
+#   - 24/25: extracted verbatim from
+#     `sf-metadata/sfdx_project/force-app/main/default/flows/Scr_Tax_Computation_for_PRM.flow-meta.xml`
+#     lines 912-922 (FML_gross_income_tax) and line 1131 (FMLTaxFreeAllowance, Tax_Year_ID=6).
+#   - 25/26: Inland Revenue (Amendment) Act gazette + FIESTA brief
+#     `core_concept.tax_math_anchors` (council brief 2026-05-19, slabs +
+#     personal_relief unanimous across 3 voices).
+#   - Senior-citizen extra relief: Inland Revenue Act §51, Rs 500K additional
+#     for resident individuals aged 60+ (applies on top of personal relief).
+#
+# Currency: LKR (Sri Lankan Rupees). All amounts integer (no decimals — IRD
+# gazette presents brackets as integers; the engine applies Decimal arithmetic
+# downstream for tax = bracket_width * rate so cent precision is preserved).
+#
+# Bracket semantics:
+#   - `up_to`: top of the band (inclusive). null = open-ended (top band).
+#   - `rate`: marginal rate applied to the slice of taxable income in this band.
+#   - Bracket walk: subtract personal relief first, then walk slabs in order.
+#
+# Validation gates before any edit:
+#   - 24/25 must reproduce 5 SF-computed historic cases cent-for-cent
+#     (regression oracle A, see tests/tax/test_engine_25_26.py)
+#   - 25/26 must reproduce 10 hand-calc cases that match IRD eService
+#     computation worksheet (regression oracle B)
+
+# Tax year keys use the YY_YY form (Python-identifier safe).
+years:
+
+  "24_25":
+    # Source: SF Scr_Tax_Computation_for_PRM.flow-meta.xml lines 912-922
+    # 6 bands at 500K width: 6/12/18/24/30/36
+    personal_relief_lkr: 1200000
+    senior_citizen_extra_relief_lkr: 0  # not differentiated in this SF flow version
+    brackets:
+      - up_to: 500000
+        rate: 0.06
+      - up_to: 1000000
+        rate: 0.12
+      - up_to: 1500000
+        rate: 0.18
+      - up_to: 2000000
+        rate: 0.24
+      - up_to: 2500000
+        rate: 0.30
+      - up_to: null     # open-ended
+        rate: 0.36
+
+  "25_26":
+    # Source: FIESTA council brief tax_math_anchors (unanimous, 2026-05-20)
+    # 5 bands: first band widened to 1M, 12% band removed
+    # Relief raised to 1.8M
+    personal_relief_lkr: 1800000
+    senior_citizen_extra_relief_lkr: 500000
+    brackets:
+      - up_to: 1000000
+        rate: 0.06
+      - up_to: 1500000
+        rate: 0.18
+      - up_to: 2000000
+        rate: 0.24
+      - up_to: 2500000
+        rate: 0.30
+      - up_to: null     # open-ended
+        rate: 0.36
+
+# --- end of slabs.yaml ---
