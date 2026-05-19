@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Already signed</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      max-width: 640px;
+      margin: 60px auto;
+      padding: 0 22px;
+      color: #1a1a1a;
+    }
+    .panel {
+      background: #f7faff;
+      border: 1px solid #b9d2ff;
+      padding: 22px;
+      border-radius: 6px;
+    }
+    .small { color: #555; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1 style="margin-top: 0;">You've already signed this agreement</h1>
+    <p>
+      Our records show this agreement was signed on
+      {{ workflow.sp_signed_at.strftime('%Y-%m-%d %H:%M UTC') if workflow.sp_signed_at else 'a previous date' }}.
+      Each signing link is single-use; you don't need to take any further
+      action here.
+    </p>
+    <p class="small">
+      If you believe you're seeing this in error, contact the customer who
+      originally sent you the agreement -- they can regenerate a fresh link
+      from their FIESTA account if needed.
+    </p>
+  </div>
+</body></html>

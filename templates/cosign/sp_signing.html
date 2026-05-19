@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Agreement -- review and sign</title>
+  <style>
+    /* Deliberately minimal -- the SP is not a FIESTA customer.            */
+    /* No FIESTA fonts, no marketing surface, no sidebar, no nav.          */
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      max-width: 760px;
+      margin: 30px auto;
+      padding: 0 22px;
+      color: #1a1a1a;
+      line-height: 1.55;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 0.4rem; }
+    .ref { color: #666; font-size: 0.9rem; }
+    .panel {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 18px 20px;
+      margin: 22px 0;
+      background: #fafafa;
+    }
+    .panel.primary { background: #f7faff; border-color: #b9d2ff; }
+    .panel.warn { background: #fff8e6; border-color: #ffd591; }
+    .panel.success { background: #effff2; border-color: #b7e9be; }
+    .btn {
+      display: inline-block;
+      padding: 9px 18px;
+      border-radius: 4px;
+      border: 1px solid #2a4d8f;
+      background: #2a4d8f;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      text-decoration: none;
+    }
+    .btn.secondary {
+      background: #fff;
+      color: #2a4d8f;
+    }
+    .btn.outline {
+      background: transparent;
+      color: #444;
+      border-color: #999;
+    }
+    .small { font-size: 0.85rem; color: #555; }
+    .err { color: #a00; font-size: 0.9rem; margin-top: 6px; }
+    input[type=text] {
+      width: 100%;
+      padding: 9px 11px;
+      font: inherit;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    label { display: block; margin: 12px 0 4px; }
+    details { margin: 14px 0; }
+    summary { cursor: pointer; font-weight: 600; }
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+    .tabs button {
+      background: none;
+      border: none;
+      padding: 10px 14px;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font: inherit;
+      color: #666;
+    }
+    .tabs button.active {
+      color: #1a1a1a;
+      border-bottom-color: #2a4d8f;
+      font-weight: 600;
+    }
+    pre {
+      background: #f3f3f3;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>{{ customer_name }} has prepared a Service Agreement</h1>
+<p class="ref">Reference: {{ agreement.reference_id }}</p>
+
+<div class="panel primary">
+  <p style="margin: 0;">
+    <strong>{{ customer_name }}</strong> works with you and is documenting
+    that work for Sri Lankan tax purposes.
+    This is a short Service Agreement covering the work you already do --
+    it doesn't create new obligations or change your tax situation.
+    Signing takes about 30 seconds.
+  </p>
+</div>
+
+<details>
+  <summary>What is this? (the short answer)</summary>
+  <div class="small">
+    <p>
+      Under Sri Lankan tax law (Inland Revenue Act, section 6), customers
+      can deduct genuine business expenses only when the underlying
+      relationship is documented. {{ customer_name }} is putting together
+      that documentation for the 2025/26 financial year.
+    </p>
+    <p>
+      <strong>What this is NOT:</strong>
+    </p>
+    <ul>
+      <li>Not an employment contract.</li>
+      <li>Not a change to your tax liability or VAT position.</li>
+      <li>Not a fee or invoice arrangement (those are separate).</li>
+      <li>Not a FIESTA service subscription.</li>
+    </ul>
+    <p>
+      <strong>What this IS:</strong> a confirmation that you and
+      {{ customer_name }} have a working relationship of the type described
+      in the PDF, and that the fee or arrangement described matches reality.
+      If anything in the PDF is wrong, click "I have concerns" below and
+      we'll route it to Lanka.tax support to sort out.
+    </p>
+  </div>
+</details>
+
+<div class="panel">
+  <h2 style="font-size: 1.1rem; margin: 0 0 8px;">The agreement</h2>
+  <p class="small">
+    <a class="btn outline" target="_blank"
+       href="{{ url_for('fiesta_agreements_service.download_pdf',
+                        sp_id=agreement.service_provider_id,
+                        gen_id=agreement.id) }}?token={{ tracking_token }}">
+      View / download the PDF
+    </a>
+    <span class="small">Reference: <code>{{ agreement.reference_id }}</code></span>
+  </p>
+  <p class="small">
+    Please read the document before signing. If something doesn't match
+    your understanding of the work, raise a concern instead of signing.
+  </p>
+</div>
+
+{% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+<!-- Tabs: typed-name vs print/sign-by-hand vs concerns -->
+<div class="tabs" role="tablist" style="border-bottom: 1px solid #eee; margin-top: 20px;">
+  <button type="button" class="tab-btn active" data-target="typed-name">
+    Sign by typing your name
+  </button>
+  <button type="button" class="tab-btn" data-target="printed">
+    Print, sign, and email back
+  </button>
+  <button type="button" class="tab-btn" data-target="concerns">
+    I have concerns
+  </button>
+</div>
+
+<!-- Typed-name -->
+<div class="tab-section active" id="tab-typed-name">
+  <form method="post"
+        action="{{ url_for('fiesta_cosign.sp_sign', tracking_token=tracking_token) }}">
+    <input type="hidden" name="method" value="typed-name">
+    <label for="typed_name">Type your full name to sign</label>
+    <input type="text" id="typed_name" name="typed_name" required
+           autocomplete="name" placeholder="e.g. K. Pradeep Senanayake">
+
+    <p class="small">
+      Typing your full name in this box constitutes an electronic signature
+      compliant with Sri Lanka's Electronic Transactions Act No. 19 of 2006.
+      We record your typed name, IP address, browser, and timestamp on the
+      agreement record.
+    </p>
+
+    <button class="btn" type="submit">Sign as typed name</button>
+  </form>
+</div>
+
+<!-- Printed / scan-back -->
+<div class="tab-section" id="tab-printed">
+  <p>
+    If you'd rather sign on paper:
+  </p>
+  <ol class="small">
+    <li>Download the PDF using the link above.</li>
+    <li>Print it, sign the signature block on the last page.</li>
+    <li>Scan or photograph the signed page and email it back to
+        <strong>{{ customer_email or "(your customer's email -- listed in the original message)" }}</strong>.</li>
+    <li>They'll upload it on their side; we'll mark the agreement signed-on-paper.</li>
+  </ol>
+  <form method="post"
+        action="{{ url_for('fiesta_cosign.sp_sign', tracking_token=tracking_token) }}">
+    <input type="hidden" name="method" value="printed-pdf">
+    <input type="hidden" name="typed_name" value="(signed on paper -- scan returned to customer)">
+    <p class="small">
+      Click below to mark "I'll print, sign and email back." We'll let
+      {{ customer_name }} know to expect your scan.
+    </p>
+    <button class="btn secondary" type="submit">Mark as printed / signing by hand</button>
+  </form>
+</div>
+
+<!-- Concerns -->
+<div class="tab-section" id="tab-concerns">
+  <p>
+    If something in the PDF doesn't match your understanding of the work
+    you do for {{ customer_name }}, or you'd rather not sign for any
+    reason, let us know -- a tax specialist at Lanka.tax will get in touch
+    to resolve it.
+  </p>
+  <form method="post"
+        action="{{ url_for('fiesta_cosign.sp_sign', tracking_token=tracking_token) }}">
+    <input type="hidden" name="action" value="concern">
+    <label for="concern_message">Your message (optional)</label>
+    <textarea id="concern_message" name="concern_message" rows="4"
+              style="width: 100%; padding: 9px 11px; font: inherit; border: 1px solid #bbb; border-radius: 4px; box-sizing: border-box;"
+              placeholder="e.g. 'The fee in the agreement doesn't match what I actually charge.'"></textarea>
+    <button class="btn outline" type="submit" style="margin-top: 10px;">
+      Send concern to Lanka.tax support
+    </button>
+  </form>
+</div>
+
+<p class="small" style="margin-top: 50px; color: #999;">
+  Powered by FIESTA. Privacy: your name, IP, and timestamp are stored only on
+  the agreement record visible to {{ customer_name }} and are never used for
+  marketing.
+</p>
+
+<script>
+document.querySelectorAll(".tab-btn").forEach((b) => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((x) => x.classList.remove("active"));
+    document.querySelectorAll(".tab-section").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    const id = "tab-" + b.getAttribute("data-target");
+    document.getElementById(id).classList.add("active");
+  });
+});
+</script>
+
+</body></html>
