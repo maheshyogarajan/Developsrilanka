@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+
+{% block title %}Processing payment - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-6 text-center">
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-5">
+
+          <div class="mb-3">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Processing...</span>
+            </div>
+          </div>
+
+          <h2 class="h4 mb-2">Payment received</h2>
+          <p class="text-muted">
+            Stripe is confirming your charge. This usually takes a few seconds.
+            We'll route you back to where you left off as soon as it clears.
+          </p>
+
+          <p class="text-muted small mt-4 mb-0">
+            Session: <code>{{ session_id[:16] }}&hellip;</code>
+          </p>
+
+        </div>
+      </div>
+
+      <p class="text-muted small mt-4">
+        Not redirected automatically?
+        <a href="{{ return_to }}">Continue to {{ return_to }}</a>.
+      </p>
+
+    </div>
+  </div>
+</div>
+
+<meta http-equiv="refresh" content="3; url={{ return_to }}"/>
+{% endblock %}
