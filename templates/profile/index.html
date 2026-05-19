@@ -1,0 +1,428 @@
+{% extends 'layout.html' %}
+
+{% block title %}Your Profile — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .fp-shell { max-width: 880px; margin: 0 auto; padding: 1.5rem; }
+  .fp-hero { margin-bottom: 1.5rem; }
+  .fp-hero h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.85rem; margin: 0 0 .25rem; }
+  .fp-hero p { color: var(--color-ink-600, #6b7280); margin: 0; }
+
+  .fp-progress-wrap {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem 1.25rem; background: var(--color-cream-50, #fefcf7);
+    border: 1px solid var(--color-ink-100, #e5e7eb); border-radius: 12px;
+    margin-bottom: 1.5rem;
+  }
+  .fp-progress-text { font-weight: 600; min-width: 120px; }
+  .fp-progress-bar { flex: 1; height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+  .fp-progress-bar .fill { height: 100%; background: linear-gradient(90deg, #2bb673, #1e9e60); transition: width .4s ease; }
+
+  .fp-tabs { display: flex; gap: .25rem; margin-bottom: 1rem; overflow-x: auto; }
+  .fp-tab {
+    padding: .55rem 1rem; border: 1px solid var(--color-ink-200, #d1d5db);
+    background: white; cursor: pointer; border-radius: 8px;
+    font-weight: 500; font-size: .92rem; white-space: nowrap;
+    color: var(--color-ink-700, #374151);
+  }
+  .fp-tab[aria-selected="true"] {
+    background: var(--color-ink-900, #111827); color: white; border-color: var(--color-ink-900, #111827);
+  }
+  .fp-tab .pct { opacity: .75; margin-left: .35rem; font-size: .85em; }
+
+  .fp-panel { display: none; padding: 1.5rem; background: white; border: 1px solid var(--color-ink-100, #e5e7eb); border-radius: 12px; }
+  .fp-panel.active { display: block; }
+  .fp-panel h2 { font-family: 'Fraunces', serif; font-size: 1.25rem; margin: 0 0 .25rem; font-weight: 600; }
+  .fp-panel .sub { color: var(--color-ink-600, #6b7280); margin: 0 0 1.25rem; font-size: .95rem; }
+
+  .fp-field { margin-bottom: 1.1rem; }
+  .fp-field label { display: block; font-weight: 500; margin-bottom: .25rem; }
+  .fp-field .help { font-size: .82rem; color: var(--color-ink-500, #6b7280); margin-top: .25rem; }
+  .fp-field input, .fp-field select, .fp-field textarea {
+    width: 100%; padding: .55rem .75rem; border: 1px solid var(--color-ink-200, #d1d5db);
+    border-radius: 8px; font-size: .98rem; font-family: inherit;
+  }
+  .fp-field input:focus, .fp-field select:focus { outline: 2px solid var(--color-ink-900, #111827); outline-offset: 1px; }
+  .fp-field .skip-link {
+    display: inline-block; margin-top: .3rem; font-size: .82rem; color: var(--color-ink-500, #6b7280);
+    text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0;
+  }
+  .fp-field .field-status { font-size: .82rem; margin-top: .25rem; min-height: 1.1em; }
+  .fp-field .field-status.ok { color: #1e9e60; }
+  .fp-field .field-status.err { color: #b91c1c; }
+
+  .fp-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 575px) { .fp-grid-2 { grid-template-columns: 1fr; } }
+
+  .fp-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; }
+  .fp-save-state { font-size: .85rem; color: var(--color-ink-500, #6b7280); }
+  .fp-save-state.saving { color: #6b7280; }
+  .fp-save-state.saved { color: #1e9e60; }
+  .fp-save-state.err { color: #b91c1c; }
+
+  .fp-locked-badge { display: inline-block; font-size: .72rem; padding: .15rem .5rem;
+    background: var(--color-ink-100, #e5e7eb); color: var(--color-ink-700, #374151);
+    border-radius: 999px; margin-left: .5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fp-shell">
+
+  <div class="fp-hero">
+    <h1>Help us help you</h1>
+    <p>We only ask for what we need, when we need it. Skip anything that isn&rsquo;t relevant yet &mdash; we&rsquo;ll come back when it matters.</p>
+  </div>
+
+  <div class="fp-progress-wrap" aria-live="polite">
+    <div class="fp-progress-text">
+      <span id="fp-progress-count">{{ (sections.values()|map(attribute='filled')|sum) }}</span>/<span id="fp-progress-total">{{ (sections.values()|map(attribute='total')|sum) }}</span> fields complete
+    </div>
+    <div class="fp-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ total_pct }}">
+      <div class="fill" id="fp-progress-fill" style="width: {{ total_pct }}%"></div>
+    </div>
+    <div class="fp-save-state" id="fp-save-state" aria-live="polite"></div>
+  </div>
+
+  <div class="fp-tabs" role="tablist">
+    <button class="fp-tab" role="tab" aria-selected="true" data-target="panel-identity">
+      Identity <span class="pct">{{ sections.identity.pct }}%</span>
+    </button>
+    <button class="fp-tab" role="tab" aria-selected="false" data-target="panel-address">
+      Address <span class="pct">{{ sections.address.pct }}%</span>
+    </button>
+    <button class="fp-tab" role="tab" aria-selected="false" data-target="panel-residency">
+      Tax residency <span class="pct">{{ sections.residency.pct }}%</span>
+    </button>
+    <button class="fp-tab" role="tab" aria-selected="false" data-target="panel-employer">
+      Employer <span class="pct">{{ sections.employer.pct }}%</span>
+    </button>
+    <button class="fp-tab" role="tab" aria-selected="false" data-target="panel-bank">
+      Bank <span class="pct">{{ sections.bank.pct }}%</span>
+    </button>
+  </div>
+
+  <form id="fp-form" method="POST" action="{{ url_for('fiesta_profile.save') }}" autocomplete="on" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    {# -------------------- Identity -------------------- #}
+    <div class="fp-panel active" id="panel-identity" role="tabpanel" aria-labelledby="tab-identity">
+      <h2>Identity</h2>
+      <p class="sub">Two IDs. Your NIC stays with FIESTA; your TIN lets us file on the IRD portal.</p>
+
+      <div class="fp-field">
+        <label for="nic">National Identity Card (NIC)</label>
+        <input type="text" id="nic" name="nic" maxlength="20"
+               value="{{ profile.nic or '' }}"
+               placeholder="e.g. 853310123V or 198533101230"
+               data-field="nic" data-validate="nic" />
+        <div class="help">Why we ask: confirms your Sri Lankan tax identity and unlocks IRD-defensible deductions. Section &sect;199 (residency definition).</div>
+        <div class="field-status" data-status-for="nic"></div>
+      </div>
+
+      <div class="fp-field">
+        <label for="tin">Tax Identification Number (TIN)
+          <span class="text-muted" style="font-weight:400; font-size:.85rem;">&mdash; optional now, needed before filing</span>
+        </label>
+        <input type="text" id="tin" name="tin" maxlength="20"
+               value="{{ profile.tin or '' }}"
+               placeholder="12 digits, issued by IRD"
+               data-field="tin" />
+        <div class="help">Why we ask: required when you submit your return. If you don&rsquo;t have one yet, FIESTA can walk you through registration later.</div>
+        <button type="button" class="skip-link" data-skip="tin">Skip for now</button>
+        <div class="field-status" data-status-for="tin"></div>
+      </div>
+    </div>
+
+    {# -------------------- Address -------------------- #}
+    <div class="fp-panel" id="panel-address" role="tabpanel">
+      <h2>Address</h2>
+      <p class="sub">Your registered SL address. Used on agreements, invoices, and the year-end pack.</p>
+
+      <div class="fp-field">
+        <label for="address_line1">Address line 1</label>
+        <input type="text" id="address_line1" name="address_line1" maxlength="255"
+               value="{{ profile.address_line1 or '' }}"
+               placeholder="Street, number"
+               data-field="address_line1" />
+        <div class="field-status" data-status-for="address_line1"></div>
+      </div>
+
+      <div class="fp-field">
+        <label for="address_line2">Address line 2 <span class="text-muted" style="font-weight:400;font-size:.85rem;">&mdash; optional</span></label>
+        <input type="text" id="address_line2" name="address_line2" maxlength="255"
+               value="{{ profile.address_line2 or '' }}"
+               placeholder="Apartment, suite, etc."
+               data-field="address_line2" />
+        <button type="button" class="skip-link" data-skip="address_line2">Skip for now</button>
+      </div>
+
+      <div class="fp-grid-2">
+        <div class="fp-field">
+          <label for="city">City</label>
+          <input type="text" id="city" name="city" maxlength="100"
+                 value="{{ profile.city or '' }}"
+                 placeholder="e.g. Colombo"
+                 data-field="city" />
+          <div class="field-status" data-status-for="city"></div>
+        </div>
+        <div class="fp-field">
+          <label for="postcode">Postcode <span class="text-muted" style="font-weight:400;font-size:.85rem;">&mdash; optional</span></label>
+          <input type="text" id="postcode" name="postcode" maxlength="10"
+                 value="{{ profile.postcode or '' }}"
+                 placeholder="5 digits"
+                 data-field="postcode" />
+          <button type="button" class="skip-link" data-skip="postcode">Skip for now</button>
+          <div class="field-status" data-status-for="postcode"></div>
+        </div>
+      </div>
+
+      <div class="fp-field">
+        <label for="country">Country</label>
+        <select id="country" name="country" data-field="country">
+          <option value="LK" {% if (profile.country or 'LK') == 'LK' %}selected{% endif %}>Sri Lanka (LK)</option>
+          <option value="GB" {% if profile.country == 'GB' %}selected{% endif %}>United Kingdom (GB)</option>
+          <option value="US" {% if profile.country == 'US' %}selected{% endif %}>United States (US)</option>
+          <option value="AU" {% if profile.country == 'AU' %}selected{% endif %}>Australia (AU)</option>
+          <option value="CA" {% if profile.country == 'CA' %}selected{% endif %}>Canada (CA)</option>
+        </select>
+        <div class="help">Default: Sri Lanka. Change only if you&rsquo;re abroad &mdash; affects residency rules (&sect;10).</div>
+      </div>
+    </div>
+
+    {# -------------------- Tax residency -------------------- #}
+    <div class="fp-panel" id="panel-residency" role="tabpanel">
+      <h2>Tax residency</h2>
+      <p class="sub">How long you&rsquo;ve lived in Sri Lanka. Drives which sections of the IRA apply to your income.</p>
+
+      <div class="fp-field">
+        <label for="tax_resident_year">How many years have you been tax-resident in Sri Lanka?</label>
+        <select id="tax_resident_year" name="tax_resident_year" data-field="tax_resident_year">
+          <option value="">&mdash; select &mdash;</option>
+          <option value="1" {% if profile.tax_resident_year == 1 %}selected{% endif %}>First year (just moved back / arrived)</option>
+          <option value="2" {% if profile.tax_resident_year == 2 %}selected{% endif %}>Second year</option>
+          <option value="3" {% if profile.tax_resident_year == 3 %}selected{% endif %}>Third year or more (settled resident)</option>
+        </select>
+        <div class="help">Why we ask: first-year residents have special rules under &sect;10 of the IRA.</div>
+      </div>
+
+      <div class="fp-field">
+        <label for="days_in_sl_current_year">Days in Sri Lanka this tax year</label>
+        <input type="number" id="days_in_sl_current_year" name="days_in_sl_current_year"
+               min="0" max="366"
+               value="{{ profile.days_in_sl_current_year or '' }}"
+               data-field="days_in_sl_current_year" />
+        <div class="help">183+ days = full SL tax resident. Your foreign-income screen can auto-fill this from travel records.</div>
+      </div>
+    </div>
+
+    {# -------------------- Employer status -------------------- #}
+    <div class="fp-panel" id="panel-employer" role="tabpanel">
+      <h2>How do you earn?</h2>
+      <p class="sub">We use this to label parties correctly on the service agreements FIESTA generates for you.</p>
+
+      <div class="fp-field">
+        <label for="employment_type">Your primary work style</label>
+        <select id="employment_type" name="employment_type" data-field="employment_type">
+          <option value="">&mdash; select &mdash;</option>
+          <option value="employee" {% if profile.employment_type == 'employee' %}selected{% endif %}>Employee (on someone else&rsquo;s payroll)</option>
+          <option value="contractor" {% if profile.employment_type == 'contractor' %}selected{% endif %}>Contractor / freelancer (invoice-based)</option>
+          <option value="business_owner" {% if profile.employment_type == 'business_owner' %}selected{% endif %}>Business owner (own company / sole prop)</option>
+          <option value="mix" {% if profile.employment_type == 'mix' %}selected{% endif %}>Mix of the above</option>
+        </select>
+      </div>
+
+      <div class="fp-field">
+        <label>
+          <input type="checkbox" id="has_foreign_clients" name="has_foreign_clients" value="true"
+                 {% if profile.has_foreign_clients %}checked{% endif %}
+                 data-field="has_foreign_clients" />
+          I have foreign clients (US LLC, UK Ltd, EU GmbH, Upwork, Fiverr, etc.)
+        </label>
+        <div class="help">This is FIESTA&rsquo;s core use case &mdash; tick it so we surface the foreign-income deductions.</div>
+      </div>
+    </div>
+
+    {# -------------------- Bank -------------------- #}
+    <div class="fp-panel" id="panel-bank" role="tabpanel">
+      <h2>Sri Lankan bank account</h2>
+      <p class="sub">For refunds, direct-debit auto-file, and your year-end pack. Stays with FIESTA &mdash; never shared.</p>
+
+      <div class="fp-field">
+        <label for="bank_account_holder_name">Account holder name</label>
+        <input type="text" id="bank_account_holder_name" name="bank_account_holder_name" maxlength="255"
+               value="{{ profile.bank_account_holder_name or '' }}"
+               placeholder="As printed on your statement"
+               data-field="bank_account_holder_name" />
+      </div>
+
+      <div class="fp-grid-2">
+        <div class="fp-field">
+          <label for="bank_name">Bank</label>
+          <select id="bank_name" name="bank_name" data-field="bank_name">
+            <option value="">&mdash; select &mdash;</option>
+            {% for b in sl_banks %}
+              <option value="{{ b }}" {% if profile.bank_name == b %}selected{% endif %}>{{ b }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fp-field">
+          <label for="bank_branch">Branch</label>
+          <input type="text" id="bank_branch" name="bank_branch" maxlength="255"
+                 value="{{ profile.bank_branch or '' }}"
+                 placeholder="e.g. Bambalapitiya"
+                 data-field="bank_branch" />
+        </div>
+      </div>
+
+      <div class="fp-field">
+        <label for="bank_account_number">Account number</label>
+        <input type="text" id="bank_account_number" name="bank_account_number" maxlength="50"
+               value="{{ profile.bank_account_number or '' }}"
+               placeholder="e.g. 1234567890"
+               autocomplete="off"
+               data-field="bank_account_number" />
+        <div class="help">Stored on FIESTA servers. v1: at-rest plaintext (v1.1: field-level Fernet encryption planned).</div>
+      </div>
+    </div>
+
+    <div class="fp-actions">
+      <span class="fp-locked-badge">Persona: Self (v1)</span>
+      <button type="submit" class="btn btn-primary">Save and continue</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById('fp-form');
+  if (!form) return;
+  const csrfToken = form.querySelector('input[name="csrf_token"]').value;
+  const saveState = document.getElementById('fp-save-state');
+  const progressFill = document.getElementById('fp-progress-fill');
+  const progressCount = document.getElementById('fp-progress-count');
+  const progressTotal = document.getElementById('fp-progress-total');
+
+  // Tab switching
+  const tabs = document.querySelectorAll('.fp-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
+      tab.setAttribute('aria-selected', 'true');
+      document.querySelectorAll('.fp-panel').forEach(p => p.classList.remove('active'));
+      const target = document.getElementById(tab.dataset.target);
+      if (target) target.classList.add('active');
+    });
+  });
+
+  function setSaveState(state, msg) {
+    saveState.className = 'fp-save-state ' + state;
+    saveState.textContent = msg || '';
+  }
+
+  // Async save (per-field on blur)
+  async function autoSave(field, value) {
+    setSaveState('saving', 'Saving...');
+    try {
+      const payload = {};
+      payload[field] = value;
+      const resp = await fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auto-Save': '1',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setSaveState('saved', 'Saved');
+        if (typeof data.progress_pct === 'number' && progressFill) {
+          progressFill.style.width = data.progress_pct + '%';
+        }
+        // Refresh per-section counts
+        if (data.sections) {
+          const allFilled = Object.values(data.sections).reduce((a, s) => a + s.filled, 0);
+          const allTotal = Object.values(data.sections).reduce((a, s) => a + s.total, 0);
+          if (progressCount) progressCount.textContent = allFilled;
+          if (progressTotal) progressTotal.textContent = allTotal;
+          tabs.forEach(t => {
+            const panelId = t.dataset.target;
+            const sectionName = panelId.replace('panel-', '');
+            const s = data.sections[sectionName];
+            if (s) {
+              const pctEl = t.querySelector('.pct');
+              if (pctEl) pctEl.textContent = s.pct + '%';
+            }
+          });
+        }
+        setTimeout(() => setSaveState('', ''), 1500);
+      } else {
+        const errMsg = (data.errors && data.errors[0] && data.errors[0].msg) || 'Save failed';
+        setSaveState('err', errMsg);
+        // Show inline field error if available
+        if (data.errors) {
+          data.errors.forEach(e => {
+            const status = document.querySelector(`[data-status-for="${e.field}"]`);
+            if (status) {
+              status.className = 'field-status err';
+              status.textContent = e.msg;
+            }
+          });
+        }
+      }
+    } catch (e) {
+      setSaveState('err', 'Network error');
+    }
+  }
+
+  // Bind blur handlers
+  document.querySelectorAll('[data-field]').forEach(input => {
+    input.addEventListener('blur', () => {
+      const field = input.dataset.field;
+      const value = input.type === 'checkbox' ? input.checked : input.value;
+      autoSave(field, value);
+    });
+  });
+
+  // NIC availability check
+  const nicInput = document.getElementById('nic');
+  if (nicInput) {
+    nicInput.addEventListener('blur', async () => {
+      const value = nicInput.value.trim();
+      const status = document.querySelector('[data-status-for="nic"]');
+      if (!value || !status) return;
+      try {
+        const resp = await fetch(`{{ url_for('fiesta_profile.check', field='nic') }}?value=${encodeURIComponent(value)}`);
+        const data = await resp.json();
+        if (data.ok && data.available) {
+          status.className = 'field-status ok';
+          status.textContent = 'Looks good';
+        } else {
+          status.className = 'field-status err';
+          status.textContent = data.msg || 'Check failed';
+        }
+      } catch (e) { /* ignore */ }
+    });
+  }
+
+  // Skip links — just clear the input and move focus to next field
+  document.querySelectorAll('.skip-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const field = btn.dataset.skip;
+      const input = document.querySelector(`[data-field="${field}"]`);
+      if (input) {
+        input.value = '';
+        const next = input.closest('.fp-field').nextElementSibling;
+        if (next) {
+          const nextInput = next.querySelector('input,select,textarea');
+          if (nextInput) nextInput.focus();
+        }
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}
