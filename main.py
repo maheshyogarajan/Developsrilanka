@@ -230,6 +230,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading Pricing/Stripe: {str(e)}")
 
+# Wave 2 X1 — Paywall trigger (cross-cutting, 2026-05-20)
+# Decorator + Self-File product + idempotent Stripe webhook for S6-S14 gating.
+try:
+    from fiesta.paywall import register_routes as register_paywall_routes
+    register_paywall_routes(app)
+    logger.info("Paywall X1 trigger registered (/pricing/x1, /webhooks/stripe/paywall)")
+except Exception as e:
+    logger.error(f"Error loading Paywall X1: {str(e)}")
+
 # Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
 try:
     import customer_brain_routes
