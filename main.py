@@ -359,6 +359,7 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
 
+<<<<<<< HEAD
 # Wave 1 — S2 Signup (2026-05-20)
 # FIESTA-branded zero-friction signup at /signup, with ToS/Privacy gate.
 # Lives alongside the existing /register flow in app.py.
@@ -402,6 +403,14 @@ try:
     logger.info("FIESTA S12 tax-bill screen registered at /tax-bill")
 except Exception as e:
     logger.error(f"FIESTA S12 tax-bill load failed: {e}")
+
+# FIESTA Wave 3 Week 5 — S14 Submit (final gate + IRD-ready export pack)
+try:
+    from fiesta.submit.routes import register_routes as register_submit
+    register_submit(app)
+    logger.info('FIESTA S14 Submit registered at /submit')
+except Exception as e:
+    logger.error(f'FIESTA S14 Submit load failed: {e}')
 
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied

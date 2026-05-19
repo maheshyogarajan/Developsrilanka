@@ -1,0 +1,452 @@
+{% extends 'empty_layout.html' %}
+
+{% block title %}Submit -- final review + filing pack -- FIESTA{% endblock %}
+
+{% block content %}
+<style>
+  /* S14 Submit -- the final gate. Empowerment voice through the friction. */
+
+  :root {
+    --s14-bg:           #f7f5f0;
+    --s14-ink:          #1a1d27;
+    --s14-ink-soft:     #4a4f5c;
+    --s14-brand:        #c1442d;
+    --s14-brand-soft:   #f4e7e2;
+    --s14-surface:      #ffffff;
+    --s14-border:       #e3ddd0;
+    --s14-success:      #2d8659;
+    --s14-success-soft: #e1efe7;
+    --s14-warning:      #c9882a;
+    --s14-warning-soft: #fcf3df;
+    --s14-danger:       #b54029;
+    --s14-danger-soft:  #fbeae5;
+  }
+
+  body {
+    background: var(--s14-bg);
+    color: var(--s14-ink);
+    font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+  }
+
+  .s14-wrap {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+
+  .s14-brand-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1rem;
+  }
+  .s14-brand {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: var(--s14-ink);
+    margin: 0;
+  }
+  .s14-step-label {
+    font-size: 0.85rem;
+    color: var(--s14-ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .s14-h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 2rem;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 1.5rem 0 0.75rem;
+  }
+  .s14-tag {
+    color: var(--s14-ink-soft);
+    font-size: 1.05rem;
+    margin: 0 0 2rem;
+  }
+
+  .s14-card {
+    background: var(--s14-surface);
+    border: 1px solid var(--s14-border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .s14-card h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.25rem;
+    margin: 0 0 0.75rem;
+  }
+
+  .s14-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .s14-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid var(--s14-border);
+    background: var(--s14-surface);
+  }
+  .s14-pill--on { background: var(--s14-success-soft); border-color: var(--s14-success); color: var(--s14-success); }
+  .s14-pill--off { color: var(--s14-ink-soft); }
+
+  .s14-tax-line {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    color: var(--s14-ink);
+    margin: 1rem 0;
+  }
+
+  .s14-banner {
+    border-left: 4px solid;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .s14-banner--warn { background: var(--s14-warning-soft); border-color: var(--s14-warning); }
+  .s14-banner--block { background: var(--s14-danger-soft); border-color: var(--s14-danger); }
+  .s14-banner h3 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 600; }
+  .s14-banner p { margin: 0 0 0.3rem; font-size: 0.95rem; }
+  .s14-banner .s14-cite { font-size: 0.8rem; color: var(--s14-ink-soft); font-style: italic; }
+
+  .s14-form-block { margin-bottom: 1.25rem; }
+  .s14-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    color: var(--s14-ink);
+  }
+  .s14-input {
+    width: 100%;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--s14-border);
+    border-radius: 8px;
+    background: var(--s14-surface);
+    color: var(--s14-ink);
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  .s14-input:focus {
+    outline: 2px solid var(--s14-brand);
+    outline-offset: 1px;
+  }
+  .s14-attestation-text {
+    font-family: 'Manrope', system-ui, sans-serif;
+    background: var(--s14-bg);
+    border: 1px solid var(--s14-border);
+    border-radius: 8px;
+    padding: 1rem;
+    white-space: pre-wrap;
+    color: var(--s14-ink);
+    line-height: 1.55;
+    font-size: 0.95rem;
+  }
+  .s14-checkbox-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    margin-bottom: 0.6rem;
+  }
+  .s14-checkbox-row input { margin-top: 0.25rem; }
+
+  .s14-btn {
+    display: inline-block;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    font-family: inherit;
+  }
+  .s14-btn--primary { background: var(--s14-brand); color: white; }
+  .s14-btn--primary:hover { background: #a83925; }
+  .s14-btn--primary:disabled { background: #cccccc; cursor: not-allowed; }
+  .s14-btn--ghost { background: transparent; border-color: var(--s14-border); color: var(--s14-ink); }
+  .s14-btn--ghost:hover { background: var(--s14-bg); }
+
+  .s14-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+
+  .s14-meta { font-size: 0.85rem; color: var(--s14-ink-soft); }
+  .s14-meta code { background: var(--s14-bg); padding: 0.1rem 0.35rem; border-radius: 4px; }
+
+  .s14-flash {
+    padding: 0.8rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--s14-border);
+  }
+  .s14-flash--success { background: var(--s14-success-soft); border-color: var(--s14-success); color: var(--s14-success); }
+  .s14-flash--danger { background: var(--s14-danger-soft); border-color: var(--s14-danger); color: var(--s14-danger); }
+  .s14-flash--warning { background: var(--s14-warning-soft); border-color: var(--s14-warning); color: var(--s14-warning); }
+  .s14-flash--info { background: var(--s14-brand-soft); border-color: var(--s14-brand); color: var(--s14-brand); }
+
+  @media (max-width: 600px) {
+    .s14-wrap { padding: 1.5rem 1rem 3rem; }
+    .s14-h1 { font-size: 1.6rem; }
+    .s14-tax-line { font-size: 1.25rem; }
+  }
+</style>
+
+<div class="s14-wrap">
+
+  <div class="s14-brand-row">
+    <h1 class="s14-brand">FIESTA</h1>
+    <span class="s14-step-label">S14 -- Submit ({{ tax_year }})</span>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="s14-flash s14-flash--{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <h2 class="s14-h1">Almost there -- one final review.</h2>
+  <p class="s14-tag">
+    You've done the work. Below is a final check, a one-sentence declaration,
+    and the IRD-ready filing pack. Take a minute -- this is the moment that
+    matters.
+  </p>
+
+  <!-- Status pills -->
+  <div class="s14-status-row">
+    <span class="s14-pill {% if submission.status != 'preparing' %}s14-pill--on{% else %}s14-pill--off{% endif %}">
+      {% if submission.status != 'preparing' %}+{% else %}-{% endif %} Final gate evaluated
+    </span>
+    <span class="s14-pill {% if submission.attestation_signed_at %}s14-pill--on{% else %}s14-pill--off{% endif %}">
+      {% if submission.attestation_signed_at %}+{% else %}-{% endif %} Attestation signed
+    </span>
+    <span class="s14-pill {% if submission.ird_export_generated_at %}s14-pill--on{% else %}s14-pill--off{% endif %}">
+      {% if submission.ird_export_generated_at %}+{% else %}-{% endif %} Export pack generated
+    </span>
+    <span class="s14-pill {% if submission.customer_filed_at %}s14-pill--on{% else %}s14-pill--off{% endif %}">
+      {% if submission.customer_filed_at %}+{% else %}-{% endif %} Filed on IRD
+    </span>
+  </div>
+
+  <!-- Final tax payable -->
+  <div class="s14-card">
+    <h2>Your final tax bill</h2>
+    <div class="s14-tax-line">
+      LKR {{ "{:,.2f}".format(final_tax_payable_lkr|float) }}
+    </div>
+    <p class="s14-meta">
+      Tax year {{ tax_year }}. This figure flows from the S12 computation +
+      any FIESTA-flagged adjustments you accepted.
+    </p>
+  </div>
+
+  <!-- Gate banners -->
+  {% if gate.blocks %}
+    <div class="s14-card">
+      <h2 style="color: var(--s14-danger);">Required: resolve before submitting</h2>
+      {% for b in gate.blocks %}
+        <div class="s14-banner s14-banner--block">
+          <h3>{{ b.message }}</h3>
+          <p>{{ b.recommendation }}</p>
+          <div class="s14-cite">{{ b.ira_section }} -- rule: <code>{{ b.rule_id }}</code></div>
+        </div>
+      {% endfor %}
+      {% for r in gate.recommendations %}
+        <p class="s14-meta">{{ r }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if gate.warnings %}
+    <div class="s14-card">
+      <h2 style="color: var(--s14-warning);">Worth a second look (yellow flags)</h2>
+      <p class="s14-meta">These don't block submission, but you must explicitly acknowledge each before signing.</p>
+      <form method="post" action="{{ url_for('fiesta_submit.post_attest') }}" id="s14-attest-form">
+        <input type="hidden" name="tax_year" value="{{ tax_year }}">
+        <input type="hidden" name="final_tax_payable_lkr" value="{{ final_tax_payable_lkr }}">
+        {% for w in gate.warnings %}
+          <div class="s14-banner s14-banner--warn">
+            <h3>{{ w.message }}</h3>
+            <p>{{ w.recommendation }}</p>
+            <div class="s14-cite">{{ w.ira_section }} -- rule: <code>{{ w.rule_id }}</code></div>
+            <div class="s14-checkbox-row" style="margin-top: 0.75rem;">
+              <input type="checkbox" name="rule_ack_{{ w.rule_id }}" value="yes" id="ack_{{ w.rule_id }}" required>
+              <label for="ack_{{ w.rule_id }}">I've reviewed this and want to proceed.</label>
+            </div>
+          </div>
+        {% endfor %}
+      </form>
+    </div>
+  {% endif %}
+
+  <!-- Attestation -->
+  {% if not gate.blocks %}
+    <div class="s14-card">
+      <h2>Declaration + signature</h2>
+      {% if submission.attestation_signed_at %}
+        <div class="s14-flash s14-flash--success">
+          Attestation signed on
+          <strong>{{ submission.attestation_signed_at.strftime('%Y-%m-%d %H:%M UTC') }}</strong>.
+        </div>
+        <pre class="s14-attestation-text">{{ submission.attestation_text }}</pre>
+      {% else %}
+        <p class="s14-meta">
+          Read the declaration below. When you're ready, type your full name
+          to sign. Your IP + timestamp are captured per the Electronic
+          Transactions Act No. 19 of 2006.
+        </p>
+        <pre class="s14-attestation-text">{{ attestation_preview }}</pre>
+
+        {% if not gate.warnings %}
+          <form method="post" action="{{ url_for('fiesta_submit.post_attest') }}" id="s14-attest-form-clean">
+            <input type="hidden" name="tax_year" value="{{ tax_year }}">
+            <input type="hidden" name="final_tax_payable_lkr" value="{{ final_tax_payable_lkr }}">
+        {% endif %}
+
+        {# If warnings exist the form was opened above; we close it after the signature inputs. #}
+        <div class="s14-form-block" style="margin-top: 1rem;">
+          <label class="s14-label" for="signature_name">Type your full name to sign:</label>
+          <input
+            type="text"
+            class="s14-input"
+            id="signature_name"
+            name="signature_name"
+            placeholder="e.g. {{ current_user.name or 'Your Full Name' }}"
+            autocomplete="off"
+            required>
+        </div>
+
+        <div class="s14-actions">
+          <button type="submit" class="s14-btn s14-btn--primary">
+            Sign + accept
+          </button>
+          <a href="{{ url_for('fiesta_submit.show_submit', tax_year=tax_year) }}"
+             class="s14-btn s14-btn--ghost">Refresh</a>
+        </div>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Export pack -->
+  {% if submission.status in ['attested', 'export-generated', 'customer-filed-on-ird'] %}
+    <div class="s14-card">
+      <h2>IRD-ready filing pack</h2>
+      <p>
+        One ZIP, everything inside: pre-filled IRD return form, FIESTA audit
+        pack, your supporting agreements. Download, then use the walkthrough
+        below to file on
+        <a href="https://eservices.ird.gov.lk" target="_blank" rel="noopener">eservices.ird.gov.lk</a>.
+      </p>
+      <div class="s14-actions">
+        <a href="{{ url_for('fiesta_submit.get_export', tax_year=tax_year) }}"
+           class="s14-btn s14-btn--primary">
+          Download FIESTA_TaxReturn ZIP
+        </a>
+        <a href="{{ url_for('fiesta_submit.get_walkthrough', tax_year=tax_year) }}"
+           class="s14-btn s14-btn--ghost">
+          Open IRD walkthrough
+        </a>
+      </div>
+      {% if submission.ird_export_zip_sha256 %}
+        <p class="s14-meta" style="margin-top: 1rem;">
+          Last build: <code>{{ submission.ird_export_zip_sha256[:16] }}...</code>
+          on
+          {{ submission.ird_export_generated_at.strftime('%Y-%m-%d %H:%M UTC') }}
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Mark filed -->
+  {% if submission.status == 'export-generated' %}
+    <div class="s14-card">
+      <h2>Already filed?</h2>
+      <p class="s14-meta">
+        Once you've submitted on the IRD portal, let us know. Optionally
+        paste the IRD acknowledgment number you saw.
+      </p>
+      <form method="post" action="{{ url_for('fiesta_submit.post_mark_filed') }}">
+        <input type="hidden" name="tax_year" value="{{ tax_year }}">
+        <div class="s14-form-block">
+          <label class="s14-label" for="ack_number">IRD acknowledgment number (optional):</label>
+          <input type="text" class="s14-input" name="ack_number" id="ack_number"
+                 placeholder="e.g. IRD/PIT/2026/123456">
+        </div>
+        <div class="s14-actions">
+          <button type="submit" class="s14-btn s14-btn--primary">I've filed on IRD</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+  <!-- Upload IRD receipt -->
+  {% if submission.status == 'customer-filed-on-ird' %}
+    <div class="s14-card">
+      <h2>Upload your IRD acknowledgment receipt (PDF)</h2>
+      <p class="s14-meta">
+        IRD emails / shows a PDF receipt after submission. Upload it here so
+        FIESTA has the full audit trail for your 5-year retention period
+        (Inland Revenue Act section 120).
+      </p>
+      <form method="post" action="{{ url_for('fiesta_submit.post_upload_confirmation') }}"
+            enctype="multipart/form-data">
+        <input type="hidden" name="tax_year" value="{{ tax_year }}">
+        <div class="s14-form-block">
+          <label class="s14-label" for="receipt_pdf">IRD receipt PDF:</label>
+          <input type="file" class="s14-input" name="receipt_pdf" id="receipt_pdf"
+                 accept="application/pdf" required>
+        </div>
+        <div class="s14-form-block">
+          <label class="s14-label" for="ack_number2">Acknowledgment number (optional):</label>
+          <input type="text" class="s14-input" name="ack_number" id="ack_number2"
+                 placeholder="From the IRD receipt">
+        </div>
+        <div class="s14-actions">
+          <button type="submit" class="s14-btn s14-btn--primary">Upload</button>
+        </div>
+      </form>
+      {% if submission.receipts %}
+        <p class="s14-meta" style="margin-top: 1rem;">
+          {{ submission.receipts|length }} receipt(s) on file.
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Reopen -->
+  {% if submission.is_locked_for_upstream_edits() %}
+    <div class="s14-card">
+      <h2 style="font-size: 1rem;">Need to make a correction?</h2>
+      <p class="s14-meta">
+        If you spot an error in your profile, income, or deductions, you can
+        reopen this submission. The prior attestation is preserved in the
+        audit log; you'll need to re-sign before exporting again.
+      </p>
+      <form method="post" action="{{ url_for('fiesta_submit.post_reopen') }}">
+        <input type="hidden" name="tax_year" value="{{ tax_year }}">
+        <div class="s14-actions">
+          <button type="submit" class="s14-btn s14-btn--ghost">Reopen for edits</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
