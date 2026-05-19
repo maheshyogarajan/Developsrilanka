@@ -345,11 +345,11 @@ def _rule_S5_related_party_check(
                         "bank_account": customer_bank,
                         "full_name": customer_data.get("full_name", ""),
                     },
-                    counterparty=sp,
+                    service_provider=sp,
                 )
-                if getattr(rp_result, "is_related", False):
+                if getattr(rp_result, "should_default_on_disclosure", False) or getattr(rp_result, "is_related", False):
                     signals = [
-                        s.signal_type if hasattr(s, "signal_type") else str(s)
+                        (s.value if hasattr(s, "value") else (s.name if hasattr(s, "name") else str(s)))
                         for s in getattr(rp_result, "signals", [])
                     ]
             except Exception:  # noqa: BLE001 -- degrade gracefully
@@ -547,12 +547,16 @@ def _rule_S8_section_195_disclosure(
                     "bank_account": customer_data.get("bank_account", ""),
                     "full_name": customer_data.get("full_name", ""),
                 },
-                counterparty=sp,
+                service_provider=sp,
             )
-            is_related = bool(getattr(rp, "is_related", False))
+            # Wave4 API: should_default_on_disclosure indicates related-party determination
+            is_related = bool(
+                getattr(rp, "should_default_on_disclosure", False)
+                or getattr(rp, "is_related", False)
+            )
             signals = getattr(rp, "signals", [])
             signal_summary = ", ".join(
-                getattr(s, "signal_type", str(s)) for s in signals
+                getattr(s, "value", None) or getattr(s, "name", str(s)) for s in signals
             )
         except Exception:  # noqa: BLE001
             is_related = False
