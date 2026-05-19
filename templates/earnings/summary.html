@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block title %}Income summary — FIESTA{% endblock %}
+
+{% block content %}
+<style>
+  .sum-wrap { max-width: 880px; margin: 1.5rem auto; padding: 0 1rem; }
+  .sum-wrap h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .sum-wrap .lede { color: #555; margin-bottom: 1.5rem; line-height: 1.5; }
+  .totals { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+  .totals .big { font-size: 1.85rem; font-weight: 700; color: #0c4a6e; }
+  .totals .meta { color: #075985; font-size: 0.9rem; margin-top: 0.25rem; }
+
+  table.tbl { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e2e6ee; border-radius: 8px; overflow: hidden; margin-bottom: 1.25rem; }
+  table.tbl th, table.tbl td { padding: 0.6rem 0.85rem; text-align: left; font-size: 0.9rem; border-bottom: 1px solid #f1f3f7; }
+  table.tbl th { background: #f8fafc; font-weight: 600; color: #1f2937; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.tbl tr.zero td { color: #9ca3af; }
+  table.tbl tr.total { font-weight: 700; background: #f9fafb; }
+
+  .banner { padding: 0.85rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.92rem; }
+  .banner.warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+  .ty-pick form { display: inline; }
+  .ty-pick input { padding: 0.35rem 0.5rem; border: 1px solid #c8d0db; border-radius: 4px; font-size: 0.85rem; width: 100px; }
+  .ty-pick button { padding: 0.35rem 0.75rem; background: #1f2937; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+
+  .nav-back { color: #2563eb; text-decoration: none; font-size: 0.9rem; }
+</style>
+
+<div class="sum-wrap">
+  <p><a class="nav-back" href="{{ url_for('earnings.index') }}">&larr; Back to statements</a></p>
+  <h1>Income summary</h1>
+  <p class="lede">Confirmed entries only — these are the numbers that feed into your tax computation.</p>
+
+  <div class="ty-pick" style="margin-bottom:1rem;">
+    <form method="GET">
+      <label for="tax_year" style="font-weight:600;font-size:0.85rem;margin-right:0.5rem;">Tax year</label>
+      <input type="text" name="tax_year" id="tax_year" value="{{ tax_year }}" pattern="\d{4}-\d{2}">
+      <button type="submit">Show</button>
+    </form>
+  </div>
+
+  <div class="totals">
+    <div class="big">LKR {{ '{:,.2f}'.format(payload.total_lkr|float) }}</div>
+    <div class="meta">{{ payload.entry_count }} confirmed {{ 'entry' if payload.entry_count == 1 else 'entries' }} for tax year {{ tax_year }}</div>
+  </div>
+
+  {% if payload.fx_warnings %}
+    <div class="banner warn">
+      <strong>FX rates missing:</strong> {{ payload.unconverted_currencies|join(', ') }} — these rows aren't yet in the LKR total.
+      <details style="margin-top:0.5rem;"><summary style="cursor:pointer;">Show details</summary>
+        <ul style="margin-top:0.5rem;">
+          {% for w in payload.fx_warnings %}<li>{{ w }}</li>{% endfor %}
+        </ul>
+      </details>
+    </div>
+  {% endif %}
+
+  <h2 style="font-size:1.05rem;margin-top:1.25rem;">By category (LKR)</h2>
+  <table class="tbl">
+    <thead><tr><th>Category</th><th class="num">LKR</th></tr></thead>
+    <tbody>
+      {% for cat, amt in payload.by_category_lkr.items() %}
+        <tr {% if amt == 0 %}class="zero"{% endif %}>
+          <td>{{ cat.replace('_', ' ').title() }}</td>
+          <td class="num">{{ '{:,.2f}'.format(amt|float) }}</td>
+        </tr>
+      {% endfor %}
+      <tr class="total"><td>Total</td><td class="num">{{ '{:,.2f}'.format(payload.total_lkr|float) }}</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:1.05rem;margin-top:1.25rem;">By currency (originals)</h2>
+  <table class="tbl">
+    <thead><tr><th>Currency</th><th class="num">Original amount</th></tr></thead>
+    <tbody>
+      {% if not payload.by_currency %}
+        <tr><td colspan="2" style="color:#9ca3af;">No confirmed entries yet.</td></tr>
+      {% endif %}
+      {% for ccy, amt in payload.by_currency.items() %}
+        <tr><td>{{ ccy }}</td><td class="num">{{ '{:,.2f}'.format(amt|float) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

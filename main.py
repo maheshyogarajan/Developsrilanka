@@ -214,6 +214,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading remittance routes: {str(e)}")
 
+# Wave 3 / S4 — Connect-earnings 'drop in statements' screen (2026-05-20)
+try:
+    import fiesta.earnings.models  # noqa: F401  (registers Statement + IncomeEntry tables)
+    from fiesta.earnings.routes import register_routes as register_earnings_routes
+    register_earnings_routes(app)
+    logger.info("Earnings (S4) routes registered at /earnings/*")
+except Exception as e:
+    logger.error(f"Error loading earnings routes: {str(e)}")
+
 # Wave 2.1 — Revenue Intelligence Dashboard (2026-05-17)
 try:
     import revenue_intel

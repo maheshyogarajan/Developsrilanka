@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+
+{% block title %}Review extracted entries — FIESTA{% endblock %}
+
+{% block content %}
+<style>
+  .ext-wrap { max-width: 980px; margin: 1.5rem auto; padding: 0 1rem; }
+  .ext-wrap h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .ext-wrap .lede { color: #555; margin-bottom: 1.5rem; line-height: 1.5; }
+  .meta-card { background: #f9fafb; border: 1px solid #e2e6ee; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+  .meta-card dt { font-weight: 600; color: #1f2937; font-size: 0.85rem; }
+  .meta-card dd { margin: 0 0 0.5rem 0; color: #4b5563; font-size: 0.9rem; }
+  .meta-card .grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.75rem 1.25rem; }
+  @media (max-width: 700px) { .meta-card .grid { grid-template-columns: 1fr 1fr; } }
+
+  .banner { padding: 0.85rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.92rem; }
+  .banner.low { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .banner.empty { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .banner.fail { background: #fecaca; color: #991b1b; border: 1px solid #fca5a5; }
+
+  table.entries { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e2e6ee; border-radius: 8px; overflow: hidden; }
+  table.entries th, table.entries td { padding: 0.65rem 0.85rem; text-align: left; font-size: 0.88rem; border-bottom: 1px solid #f1f3f7; vertical-align: middle; }
+  table.entries th { background: #f8fafc; font-weight: 600; color: #1f2937; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.entries td input, table.entries td select { padding: 0.35rem 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.85rem; background: white; }
+  table.entries td input[type=number] { width: 130px; }
+  table.entries td input.text-sm { width: 100%; }
+  table.entries tr.confirmed { background: #f0fdf4; }
+
+  .row-actions button { padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600; border: none; }
+  .row-actions .confirm { background: #16a34a; color: white; }
+  .row-actions .save { background: #2563eb; color: white; }
+  .row-actions .confirmed-pill { background: #bbf7d0; color: #166534; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+
+  .nav-back { color: #2563eb; text-decoration: none; font-size: 0.9rem; }
+  .nav-back:hover { text-decoration: underline; }
+</style>
+
+<div class="ext-wrap">
+  <p><a class="nav-back" href="{{ url_for('earnings.index') }}">&larr; All statements</a></p>
+  <h1>{{ statement.file_name }}</h1>
+  <p class="lede">Here's what we pulled out. Confirm what's right; edit anything that isn't.</p>
+
+  <div class="meta-card">
+    <div class="grid">
+      <div><dt>Document type</dt><dd>{{ statement.doc_type.replace('_', ' ').title() }}</dd></div>
+      <div><dt>Status</dt><dd>{{ statement.status }}</dd></div>
+      <div><dt>Confidence</dt><dd>{% if statement.extraction_confidence is not none %}{{ '%.0f%%'|format(statement.extraction_confidence * 100) }}{% else %}—{% endif %}</dd></div>
+      <div><dt>Method</dt><dd>{{ statement.extraction_method or '—' }}</dd></div>
+      <div><dt>Bank</dt><dd>{{ statement.bank_name or '—' }}</dd></div>
+      <div><dt>Period</dt><dd>{% if statement.period_start and statement.period_end %}{{ statement.period_start }} → {{ statement.period_end }}{% else %}—{% endif %}</dd></div>
+      <div><dt>Tax year</dt><dd>{{ statement.tax_year or '—' }}</dd></div>
+      <div><dt>Attempts</dt><dd>{{ statement.extraction_attempts }} / 5</dd></div>
+    </div>
+  </div>
+
+  {% if statement.extraction_confidence is not none and statement.extraction_confidence < 0.6 %}
+    <div class="banner low">
+      <strong>Heads up:</strong> our confidence in this extraction is low. Please double-check every value before confirming.
+    </div>
+  {% endif %}
+
+  {% if statement.failure_reason %}
+    <div class="banner fail"><strong>Extraction note:</strong> {{ statement.failure_reason }}</div>
+  {% endif %}
+
+  {% if not entries %}
+    <div class="banner empty">
+      We didn't pull any income line items from this document — that's normal for balance-only statements,
+      assets &amp; liability declarations, or unstructured employer letters.
+      <a href="{{ url_for('earnings.manual_entry_form') }}">Add entries manually &rarr;</a>
+    </div>
+  {% else %}
+    <table class="entries">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Currency</th>
+          <th>Amount</th>
+          <th>Source</th>
+          <th>Category</th>
+          <th>State</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr class="{{ 'confirmed' if e.confirmed_by_customer else '' }}">
+          <form method="POST" action="{{ url_for('earnings.edit_entry', entry_id=e.id) }}">
+            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+            <td><input type="date" name="entry_date" value="{{ e.entry_date.isoformat() if e.entry_date else '' }}"></td>
+            <td><input type="text" name="currency" value="{{ e.currency }}" maxlength="3" style="width:60px;text-transform:uppercase"></td>
+            <td><input type="number" step="0.01" name="amount" value="{{ '%.2f'|format(e.amount) if e.amount is not none else '' }}"></td>
+            <td><input type="text" class="text-sm" name="source" value="{{ e.source or '' }}"></td>
+            <td>
+              <select name="category">
+                {% for c in categories %}
+                  <option value="{{ c }}" {% if c == e.category %}selected{% endif %}>{{ c.replace('_', ' ') }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              {% if e.confirmed_by_customer %}
+                <span class="row-actions confirmed-pill">confirmed</span>
+              {% else %}
+                <span style="color:#9a3412;font-size:0.78rem">pending</span>
+              {% endif %}
+            </td>
+            <td class="row-actions">
+              <button type="submit" class="save">Save</button>
+          </form>
+              {% if not e.confirmed_by_customer %}
+              <form method="POST" action="{{ url_for('earnings.confirm_entry', entry_id=e.id) }}" style="display:inline">
+                {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                <button type="submit" class="confirm">Confirm</button>
+              </form>
+              {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <p style="margin-top:1.5rem;">
+    <a href="{{ url_for('earnings.index') }}">&larr; Back to your statements</a>
+    &nbsp;·&nbsp;
+    <a href="{{ url_for('earnings.manual_entry_form') }}">+ Add another entry manually</a>
+    &nbsp;·&nbsp;
+    <a href="{{ url_for('earnings.summary') }}">View income summary &rarr;</a>
+  </p>
+</div>
+{% endblock %}

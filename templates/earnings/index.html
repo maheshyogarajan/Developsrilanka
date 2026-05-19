@@ -1,0 +1,186 @@
+{% extends "layout.html" %}
+
+{% block title %}Drop in your statements — FIESTA{% endblock %}
+
+{% block content %}
+<style>
+  .earn-wrap { max-width: 920px; margin: 1.5rem auto; padding: 0 1rem; }
+  .earn-wrap h1 { font-size: 1.6rem; margin-bottom: 0.25rem; letter-spacing: -0.01em; }
+  .earn-wrap .lede { color: #555; margin-bottom: 1.5rem; font-size: 1rem; line-height: 1.5; max-width: 640px; }
+
+  .drop-zone {
+    background: linear-gradient(180deg, #f6f9fc 0%, #eef2f8 100%);
+    border: 2px dashed #9bb0c9;
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .drop-zone.hover { border-color: #2563eb; background: #e6efff; }
+  .drop-zone label.file-pick {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    background: #1f2937;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .drop-zone label.file-pick:hover { background: #111827; }
+  .drop-zone input[type=file] { display: none; }
+  .drop-zone .filename { margin-left: 0.75rem; color: #444; font-size: 0.9rem; }
+  .drop-zone .field-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+  .drop-zone .field { flex: 1 1 200px; }
+  .drop-zone label.field-label { display: block; font-weight: 600; font-size: 0.85rem; color: #1f2937; margin-bottom: 0.25rem; }
+  .drop-zone select, .drop-zone input[type=text], .drop-zone input[type=date] {
+    width: 100%; padding: 0.5rem; border: 1px solid #c8d0db; border-radius: 4px; background: white; box-sizing: border-box;
+  }
+  .drop-zone button.submit {
+    margin-top: 1rem; padding: 0.65rem 1.5rem; background: #2563eb; color: white;
+    border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 600;
+  }
+  .drop-zone button.submit:hover { background: #1d4ed8; }
+  .drop-zone .hint { color: #6b7280; font-size: 0.85rem; margin-top: 0.5rem; }
+
+  .stmt-list { margin-top: 2rem; }
+  .stmt-list h2 { font-size: 1.1rem; margin-bottom: 0.5rem; color: #1f2937; }
+  .stmt-row {
+    display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1rem;
+    background: white; border: 1px solid #e2e6ee; border-radius: 8px; margin-bottom: 0.5rem;
+  }
+  .stmt-row .stmt-name { flex: 1; min-width: 0; }
+  .stmt-row .stmt-name strong { display: block; color: #1f2937; font-size: 0.95rem; }
+  .stmt-row .stmt-name .meta { color: #6b7280; font-size: 0.8rem; margin-top: 0.15rem; }
+  .stmt-row .badge {
+    display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge.uploaded { background: #fef3c7; color: #92400e; }
+  .badge.processing { background: #dbeafe; color: #1e40af; }
+  .badge.extracted { background: #c7d2fe; color: #3730a3; }
+  .badge.confirmed { background: #bbf7d0; color: #166534; }
+  .badge.rejected { background: #fecaca; color: #991b1b; }
+
+  .stmt-row .actions a, .stmt-row .actions button {
+    color: #2563eb; font-size: 0.85rem; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0.25rem 0.5rem;
+  }
+  .stmt-row .actions form { display: inline; }
+  .stmt-row .actions a:hover, .stmt-row .actions button:hover { text-decoration: underline; }
+
+  .empty { color: #6b7280; padding: 2rem 1rem; text-align: center; background: #f9fafb; border-radius: 8px; }
+
+  .header-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 1rem; }
+  .header-row .right a { color: #2563eb; font-size: 0.9rem; text-decoration: none; }
+  .header-row .right a:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    .drop-zone { padding: 1.5rem 1rem; }
+    .stmt-row { flex-direction: column; align-items: stretch; }
+    .stmt-row .actions { display: flex; gap: 0.5rem; }
+  }
+</style>
+
+<div class="earn-wrap">
+  <h1>Drop your statements here — we'll do the math</h1>
+  <p class="lede">
+    Upload your bank statements, employer letters, and foreign income receipts. We'll pull out the income
+    line items and let you confirm them. No spreadsheets, no manual typing — unless you want to.
+  </p>
+
+  <form class="drop-zone" id="dropZone" method="POST" action="{{ url_for('earnings.upload') }}" enctype="multipart/form-data">
+    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+
+    <div>
+      <label class="file-pick" for="document">Pick a PDF</label>
+      <input type="file" name="document" id="document" accept="application/pdf,.pdf,image/png,image/jpeg" required>
+      <span class="filename" id="fileName">or drop it onto this zone</span>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label" for="doc_type">Document type</label>
+        <select name="doc_type" id="doc_type">
+          {% for value, label in doc_types %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="tax_year">Tax year</label>
+        <input type="text" name="tax_year" id="tax_year" value="{{ tax_year }}" pattern="\d{4}-\d{2}" title="e.g. 2025-26">
+      </div>
+      <div class="field">
+        <label class="field-label" for="period_start">Period start <span style="color:#9ca3af;font-weight:400">(optional)</span></label>
+        <input type="date" name="period_start" id="period_start">
+      </div>
+      <div class="field">
+        <label class="field-label" for="period_end">Period end <span style="color:#9ca3af;font-weight:400">(optional)</span></label>
+        <input type="date" name="period_end" id="period_end">
+      </div>
+    </div>
+
+    <button type="submit" class="submit">Drop it in</button>
+    <p class="hint">PDF preferred. Max {{ max_mb }}MB. Or <a href="{{ url_for('earnings.manual_entry_form') }}">type it in manually</a> if you'd rather.</p>
+  </form>
+
+  <div class="stmt-list">
+    <div class="header-row">
+      <h2>Your statements</h2>
+      <span class="right"><a href="{{ url_for('earnings.summary') }}">View income summary &rarr;</a></span>
+    </div>
+    {% if not statements %}
+      <div class="empty">Nothing uploaded yet. Drop your first statement above.</div>
+    {% else %}
+      {% for s in statements %}
+      <div class="stmt-row">
+        <div class="stmt-name">
+          <strong>{{ s.file_name }}</strong>
+          <span class="meta">
+            {{ s.doc_type.replace('_', ' ').title() }}
+            {% if s.bank_name %} · {{ s.bank_name }}{% endif %}
+            {% if s.period_start and s.period_end %} · {{ s.period_start }} → {{ s.period_end }}{% endif %}
+            · uploaded {{ s.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+            {% if s.extraction_confidence is not none %} · confidence {{ '%.0f%%'|format(s.extraction_confidence * 100) }}{% endif %}
+          </span>
+        </div>
+        <span class="badge {{ s.status }}">{{ s.status }}</span>
+        <div class="actions">
+          {% if s.status in ('extracted', 'confirmed', 'uploaded') %}
+            <a href="{{ url_for('earnings.extraction', statement_id=s.id) }}">Review</a>
+          {% endif %}
+          <form method="POST" action="{{ url_for('earnings.delete_statement', statement_id=s.id) }}" onsubmit="return confirm('Remove this statement and its entries?')">
+            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+            <input type="hidden" name="_method" value="DELETE">
+            <button type="submit" style="color:#b91c1c">Remove</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function() {
+  var dz = document.getElementById('dropZone');
+  var inp = document.getElementById('document');
+  var fname = document.getElementById('fileName');
+  if (!dz || !inp || !fname) return;
+  ['dragenter','dragover'].forEach(function(e){
+    dz.addEventListener(e, function(ev){ ev.preventDefault(); dz.classList.add('hover'); });
+  });
+  ['dragleave','drop'].forEach(function(e){
+    dz.addEventListener(e, function(ev){ ev.preventDefault(); dz.classList.remove('hover'); });
+  });
+  dz.addEventListener('drop', function(ev){
+    if (ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length) {
+      inp.files = ev.dataTransfer.files;
+      fname.textContent = ev.dataTransfer.files[0].name;
+    }
+  });
+  inp.addEventListener('change', function(){
+    if (inp.files && inp.files.length) fname.textContent = inp.files[0].name;
+  });
+})();
+</script>
+{% endblock %}
