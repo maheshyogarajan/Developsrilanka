@@ -33,6 +33,11 @@ dependencies = [
     "itsdangerous>=2.2.0",
     "pypdf2>=3.0.1",
     "stripe>=8.0.0",
+    # FIESTA v1 PDF/YAML deps (added 2026-05-20 — required at deploy time).
+    # ReportLab: S8 service_pdf.py, S9 rental_pdf.py, S12 audit_pack.py, S14 export.py.
+    # PyYAML: tax engine slabs.yaml loader, S5 catalog.yaml, market_rates_table.yaml.
+    "reportlab>=4.5.1",
+    "pyyaml>=6.0.3",
 ]
 
 [[tool.uv.index]]
