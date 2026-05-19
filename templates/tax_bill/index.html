@@ -1,0 +1,702 @@
+{% extends "layout.html" %}
+{% block title %}Your tax bill -- FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+    /* S12 outcome page -- calm, IRA-anchored, audit-defensibility-front-and-centre. */
+    .tb-hero {
+        background: linear-gradient(135deg, var(--color-brand-50, #EFF6FF) 0%, #fff 100%);
+        border: 1px solid var(--color-brand-200, #BFDBFE);
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        margin-bottom: 1.5rem;
+    }
+    .tb-hero h1 {
+        font-family: 'Fraunces', serif;
+        font-weight: 500;
+        font-size: 1.1rem;
+        color: var(--color-ink-700, #334155);
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.02em;
+    }
+    .tb-hero .tb-final {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 3rem;
+        color: var(--color-brand-900, #0B5394);
+        line-height: 1.1;
+        margin-bottom: 1rem;
+    }
+    .tb-hero .tb-savings {
+        font-size: 1.05rem;
+        color: var(--color-ink-600, #475569);
+    }
+    .tb-hero .tb-savings strong {
+        color: var(--color-success-700, #047857);
+        font-weight: 600;
+    }
+    .tb-section {
+        background: #fff;
+        border: 1px solid var(--color-ink-200, #E2E8F0);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .tb-section summary {
+        cursor: pointer;
+        font-family: 'Fraunces', serif;
+        font-weight: 500;
+        font-size: 1.15rem;
+        color: var(--color-ink-800, #1E293B);
+        padding: 0.25rem 0;
+        list-style: none;
+    }
+    .tb-section summary::-webkit-details-marker {
+        display: none;
+    }
+    .tb-section summary::after {
+        content: '+';
+        float: right;
+        font-size: 1.4rem;
+        color: var(--color-ink-500, #64748B);
+        transition: transform 0.2s;
+    }
+    .tb-section[open] summary::after {
+        content: '−';
+    }
+    .tb-section .tb-section-total {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.95rem;
+        color: var(--color-ink-600, #475569);
+        margin-left: 0.5rem;
+    }
+    .tb-section .tb-section-content {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-ink-100, #F1F5F9);
+    }
+    .tb-table {
+        width: 100%;
+        font-size: 0.9rem;
+        border-collapse: collapse;
+    }
+    .tb-table th {
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-ink-500, #64748B);
+        padding: 0.5rem 0.5rem;
+        border-bottom: 2px solid var(--color-ink-200, #E2E8F0);
+    }
+    .tb-table td {
+        padding: 0.6rem 0.5rem;
+        border-bottom: 1px solid var(--color-ink-100, #F1F5F9);
+        vertical-align: top;
+    }
+    .tb-table .tb-num {
+        text-align: right;
+        font-family: 'JetBrains Mono', monospace;
+        white-space: nowrap;
+    }
+    .tb-total-row td {
+        font-weight: 600;
+        border-top: 2px solid var(--color-ink-300, #CBD5E1);
+        border-bottom: none;
+        padding-top: 0.8rem;
+    }
+    .tb-evidence {
+        display: inline-block;
+        padding: 0.15rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.78rem;
+        font-weight: 500;
+    }
+    .tb-evidence-collected, .tb-evidence-submitted {
+        background: #DCFCE7;
+        color: #166534;
+    }
+    .tb-evidence-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+    .tb-evidence-rejected {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+    .tb-disclosure-applied {
+        background: #DCFCE7;
+        color: #166534;
+        padding: 0.15rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.78rem;
+    }
+    .tb-disclosure-missing {
+        background: #FEE2E2;
+        color: #991B1B;
+        padding: 0.15rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.78rem;
+        font-weight: 500;
+    }
+    .tb-ira-cite {
+        font-size: 0.75rem;
+        color: var(--color-ink-500, #64748B);
+        font-style: italic;
+        margin-top: 0.15rem;
+    }
+
+    /* Defensibility score panel. */
+    .tb-defensibility {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+    .tb-def-strong { background: #DCFCE7; }
+    .tb-def-moderate { background: #FEF3C7; }
+    .tb-def-atrisk { background: #FEE2E2; }
+    .tb-defensibility .tb-def-score {
+        font-family: 'Fraunces', serif;
+        font-size: 2.5rem;
+        font-weight: 600;
+        line-height: 1;
+        min-width: 80px;
+    }
+    .tb-defensibility .tb-def-label {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    .tb-defensibility .tb-def-explain {
+        font-size: 0.9rem;
+        color: var(--color-ink-700, #334155);
+        margin-top: 0.25rem;
+    }
+
+    /* Gate banners. */
+    .tb-gate-block, .tb-gate-warn {
+        padding: 1rem 1.25rem;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+        border-left: 4px solid;
+    }
+    .tb-gate-block {
+        background: #FEE2E2;
+        color: #7F1D1D;
+        border-left-color: #DC2626;
+    }
+    .tb-gate-warn {
+        background: #FEF3C7;
+        color: #78350F;
+        border-left-color: #F59E0B;
+    }
+    .tb-gate-block strong, .tb-gate-warn strong {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.95rem;
+    }
+    .tb-gate-block .tb-gate-recommend, .tb-gate-warn .tb-gate-recommend {
+        margin-top: 0.4rem;
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+
+    /* CTAs */
+    .tb-ctas {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+    .tb-cta-primary, .tb-cta-secondary {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .tb-cta-primary {
+        background: var(--color-brand-700, #0B5394);
+        color: #fff;
+    }
+    .tb-cta-primary:hover { background: var(--color-brand-800, #08406F); color: #fff; }
+    .tb-cta-secondary {
+        background: #fff;
+        color: var(--color-ink-700, #334155);
+        border: 1px solid var(--color-ink-300, #CBD5E1);
+    }
+    .tb-cta-secondary:hover { background: var(--color-ink-50, #F8FAFC); }
+    .tb-cta-disabled {
+        background: var(--color-ink-200, #E2E8F0);
+        color: var(--color-ink-500, #64748B);
+        cursor: not-allowed;
+    }
+
+    .tb-finalized-banner {
+        background: var(--color-success-50, #ECFDF5);
+        border: 1px solid var(--color-success-200, #A7F3D0);
+        color: var(--color-success-800, #065F46);
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+    }
+
+    .tb-engine-error {
+        background: #FEE2E2;
+        color: #7F1D1D;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .tb-hero .tb-final { font-size: 2.2rem; }
+        .tb-section { padding: 1rem; }
+        .tb-table { font-size: 0.85rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 1080px; padding: 1rem 1.5rem;">
+
+    {% if report.is_finalized %}
+        <div class="tb-finalized-banner">
+            <strong>Bill finalized.</strong>
+            This bill is locked. To edit it, contact support before submission.
+        </div>
+    {% endif %}
+
+    {# ---- Engine error fallback ----------------------------------------- #}
+    {% if report.engine_error %}
+        <div class="tb-engine-error">
+            <strong>Tax engine unavailable.</strong>
+            {{ report.engine_error }} You can still review the breakdown below.
+        </div>
+    {% endif %}
+
+    {# ---- Hero ------------------------------------------------------------ #}
+    <section class="tb-hero">
+        <h1>Your {{ tax_year_display }} tax bill</h1>
+        <div class="tb-final">Rs {{ "{:,.2f}".format(report.net_tax_payable_lkr) }}</div>
+        {% if report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0 %}
+            <div class="tb-savings">
+                <strong>FIESTA helped you save Rs
+                    {{ "{:,.2f}".format(report.savings_vs_no_deductions_lkr) }}</strong>
+                versus filing without these deductions
+                (Rs {{ "{:,.2f}".format(report.tax_without_deductions_lkr) }}).
+            </div>
+        {% elif inputs.deductions_itemised %}
+            <div class="tb-savings">
+                Deductions claimed: Rs {{ "{:,.2f}".format(inputs.deductions_total_lkr) }}.
+            </div>
+        {% else %}
+            <div class="tb-savings">
+                No deductions claimed yet --
+                <a href="/reduce-tax">see Reduce your tax</a>
+                to find allowable deductions before filing.
+            </div>
+        {% endif %}
+    </section>
+
+    {# ---- Audit defensibility ------------------------------------------- #}
+    {% set def_class = 'tb-def-atrisk' %}
+    {% if report.audit_defensibility_label == 'Strong' %}
+        {% set def_class = 'tb-def-strong' %}
+    {% elif report.audit_defensibility_label == 'Moderate' %}
+        {% set def_class = 'tb-def-moderate' %}
+    {% endif %}
+    <div class="tb-defensibility {{ def_class }}">
+        <div class="tb-def-score">{{ report.audit_defensibility_score }}</div>
+        <div>
+            <div class="tb-def-label">
+                Audit defensibility: {{ report.audit_defensibility_label }}
+            </div>
+            <div class="tb-def-explain">
+                {% if report.audit_defensibility_label == 'Strong' %}
+                    Your filing is well-supported. Routine IRD review is unlikely
+                    to surface issues.
+                {% elif report.audit_defensibility_label == 'Moderate' %}
+                    Your filing is mostly defensible but has a few items
+                    worth tightening before submission.
+                {% else %}
+                    Your filing has issues that an IRD review would likely
+                    challenge. Address the flags below before submission.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ---- X6 + S12 gate output ----------------------------------------- #}
+    {% if gate %}
+        {% for block in gate.blocks %}
+            <div class="tb-gate-block">
+                <strong>{{ block.message }}</strong>
+                <div>{{ block.ira_section }}</div>
+                <div class="tb-gate-recommend">{{ block.recommendation }}</div>
+            </div>
+        {% endfor %}
+        {% for warn in gate.warnings %}
+            <div class="tb-gate-warn">
+                <strong>{{ warn.message }}</strong>
+                <div>{{ warn.ira_section }}</div>
+                <div class="tb-gate-recommend">{{ warn.recommendation }}</div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {# ---- Section A: INCOME -------------------------------------------- #}
+    <details class="tb-section" open>
+        <summary>
+            Income
+            <span class="tb-section-total">Rs {{ "{:,.2f}".format(report.gross_income_lkr) }}</span>
+        </summary>
+        <div class="tb-section-content">
+            {% if not inputs.income_by_category_lkr or report.gross_income_lkr <= 0 %}
+                <p style="color: var(--color-ink-500); font-size: 0.9rem;">
+                    No income entries for {{ tax_year_display }}.
+                    <a href="/earnings">Connect your earnings</a> to begin.
+                </p>
+            {% else %}
+                <table class="tb-table">
+                    <thead>
+                        <tr><th>Category</th><th class="tb-num">Amount (LKR)</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for cat, amt in inputs.income_by_category_lkr.items() %}
+                            {% if amt and amt > 0 %}
+                                <tr>
+                                    <td>{{ cat.replace('_', ' ').title() }}</td>
+                                    <td class="tb-num">{{ "{:,.2f}".format(amt) }}</td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                        <tr class="tb-total-row">
+                            <td>Total gross income</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(report.gross_income_lkr) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% if inputs.income_by_currency and inputs.income_by_currency|length > 1 %}
+                    <p style="margin-top: 1rem; font-size: 0.85rem; color: var(--color-ink-500);">
+                        Original currency breakdown:
+                        {% for cur, amt in inputs.income_by_currency.items() %}
+                            {{ cur }} {{ "{:,.2f}".format(amt) }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                {% endif %}
+                {% if inputs.income_fx_warnings %}
+                    {% for w in inputs.income_fx_warnings %}
+                        <div class="tb-gate-warn" style="margin-top: 0.5rem;">
+                            <strong>FX rate missing:</strong> {{ w }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endif %}
+        </div>
+    </details>
+
+    {# ---- Section B: DEDUCTIONS ---------------------------------------- #}
+    <details class="tb-section">
+        <summary>
+            Deductions
+            <span class="tb-section-total">
+                Rs {{ "{:,.2f}".format(inputs.deductions_total_lkr) }} ·
+                {{ inputs.deductions_with_evidence_count }}/{{ inputs.deductions_itemised|length }} with evidence
+            </span>
+        </summary>
+        <div class="tb-section-content">
+            {% if not inputs.deductions_itemised %}
+                <p style="color: var(--color-ink-500); font-size: 0.9rem;">
+                    No deductions claimed.
+                    <a href="/reduce-tax">See Reduce your tax</a>
+                    to identify allowable deductions.
+                </p>
+            {% else %}
+                <table class="tb-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="tb-num">Amount</th>
+                            <th>Evidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in inputs.deductions_itemised %}
+                            <tr>
+                                <td>
+                                    {{ d.name }}
+                                    <div class="tb-ira-cite">
+                                        Inland Revenue Act {{ d.ira_section }}{% if d.cap_note %} · {{ d.cap_note }}{% endif %}
+                                    </div>
+                                </td>
+                                <td class="tb-num">{{ "{:,.2f}".format(d.used_lkr) }}</td>
+                                <td>
+                                    <span class="tb-evidence tb-evidence-{{ d.evidence_status }}">
+                                        {{ d.evidence_status|capitalize }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        <tr class="tb-total-row">
+                            <td>Total deductions</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(inputs.deductions_total_lkr) }}</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    </details>
+
+    {# ---- Section C: AGREEMENTS --------------------------------------- #}
+    <details class="tb-section">
+        <summary>
+            Agreements & §195 disclosures
+            <span class="tb-section-total">
+                {{ inputs.service_providers|length }} SP ·
+                {{ inputs.rentals|length }} rental{% if inputs.rentals|length != 1 %}s{% endif %}
+            </span>
+        </summary>
+        <div class="tb-section-content">
+            {% if not inputs.service_providers and not inputs.rentals %}
+                <p style="color: var(--color-ink-500); font-size: 0.9rem;">
+                    No service-provider or rental arrangements recorded for
+                    {{ tax_year_display }}.
+                </p>
+            {% endif %}
+
+            {% if inputs.service_providers %}
+                <h6 style="font-family: 'Fraunces', serif; font-weight: 500; margin-top: 0.5rem;">
+                    Service providers
+                </h6>
+                <table class="tb-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th class="tb-num">Monthly</th>
+                            <th>Disclosure</th>
+                            <th>Agreement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sp in inputs.service_providers %}
+                            <tr>
+                                <td>{{ sp.name }}</td>
+                                <td>{{ sp.service_type.replace('_', ' ') }}</td>
+                                <td class="tb-num">{{ "{:,.2f}".format(sp.monthly_rate_lkr) }}</td>
+                                <td>
+                                    {% if sp.requires_disclosure and sp.disclosure_applied_in_agreement %}
+                                        <span class="tb-disclosure-applied">§195 applied</span>
+                                    {% elif sp.requires_disclosure %}
+                                        <span class="tb-disclosure-missing">§195 missing</span>
+                                    {% else %}
+                                        <span style="color: var(--color-ink-500); font-size: 0.8rem;">Arm's-length</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sp.agreement_reference_id %}
+                                        {{ sp.agreement_status }}<br>
+                                        <span style="font-size: 0.75rem; color: var(--color-ink-500);">
+                                            {{ sp.agreement_reference_id }}
+                                        </span>
+                                    {% else %}
+                                        <span style="color: var(--color-ink-500); font-size: 0.85rem;">
+                                            Not generated
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+            {% if inputs.rentals %}
+                <h6 style="font-family: 'Fraunces', serif; font-weight: 500; margin-top: 1.5rem;">
+                    Rental arrangements
+                </h6>
+                <table class="tb-table">
+                    <thead>
+                        <tr>
+                            <th>Property</th>
+                            <th>Landlord</th>
+                            <th class="tb-num">Monthly rent</th>
+                            <th class="tb-num">Home-office</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in inputs.rentals %}
+                            <tr>
+                                <td>{{ r.property_address }}</td>
+                                <td>
+                                    {{ r.landlord_name }}<br>
+                                    <span style="font-size: 0.75rem; color: var(--color-ink-500);">
+                                        ({{ r.landlord_relationship }})
+                                    </span>
+                                </td>
+                                <td class="tb-num">{{ "{:,.2f}".format(r.monthly_rent_lkr) }}</td>
+                                <td class="tb-num">
+                                    {{ "{:,.2f}".format(r.home_office_portion_monthly_lkr) }}
+                                    {% if r.home_office_percentage %}
+                                        <br><span style="font-size: 0.75rem; color: var(--color-ink-500);">
+                                            ({{ r.home_office_percentage }}%)
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if r.requires_disclosure and r.disclosure_applied_in_agreement %}
+                                        <span class="tb-disclosure-applied">§195 applied</span>
+                                    {% elif r.requires_disclosure %}
+                                        <span class="tb-disclosure-missing">§195 missing</span>
+                                    {% endif %}
+                                    {% if r.stamp_duty_chargeable %}
+                                        <br><span style="font-size: 0.75rem;">
+                                            Stamp duty: Rs {{ "{:,.2f}".format(r.stamp_duty_lkr) }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    </details>
+
+    {# ---- Section D: COMPUTATION (bracket-by-bracket) ------------------ #}
+    <details class="tb-section">
+        <summary>
+            Computation walk
+            <span class="tb-section-total">Rs {{ "{:,.2f}".format(report.gross_tax_payable_lkr) }}</span>
+        </summary>
+        <div class="tb-section-content">
+            {% if report.computation_with_deductions %}
+                {% set comp = report.computation_with_deductions %}
+                <table class="tb-table">
+                    <thead>
+                        <tr>
+                            <th>Step</th>
+                            <th class="tb-num">Amount (LKR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Gross income</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(comp.gross_income_lkr) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Less: deductions input</td>
+                            <td class="tb-num">- {{ "{:,.2f}".format(comp.deductions_input_lkr) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Less: personal relief
+                                {% if comp.relief_applied.senior_citizen_extra_lkr and comp.relief_applied.senior_citizen_extra_lkr > 0 %}
+                                    + senior-citizen extra
+                                {% endif %}
+                            </td>
+                            <td class="tb-num">- {{ "{:,.2f}".format(comp.relief_applied.total()) }}</td>
+                        </tr>
+                        <tr class="tb-total-row">
+                            <td>Taxable income</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(comp.taxable_income_lkr) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h6 style="font-family: 'Fraunces', serif; margin-top: 1.5rem; font-weight: 500;">
+                    Bracket walk
+                </h6>
+                <table class="tb-table">
+                    <thead>
+                        <tr>
+                            <th>Band (LKR)</th>
+                            <th class="tb-num">Income in band</th>
+                            <th class="tb-num">Rate</th>
+                            <th class="tb-num">Tax in band</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in comp.by_band %}
+                            <tr>
+                                <td>
+                                    {% if b.band_upper %}
+                                        {{ "{:,.0f}".format(b.band_lower) }} − {{ "{:,.0f}".format(b.band_upper) }}
+                                    {% else %}
+                                        above {{ "{:,.0f}".format(b.band_lower) }}
+                                    {% endif %}
+                                </td>
+                                <td class="tb-num">{{ "{:,.2f}".format(b.income_in_band) }}</td>
+                                <td class="tb-num">{{ "{:.0%}".format(b.rate) }}</td>
+                                <td class="tb-num">{{ "{:,.2f}".format(b.tax_in_band) }}</td>
+                            </tr>
+                        {% endfor %}
+                        <tr class="tb-total-row">
+                            <td>Gross tax</td>
+                            <td class="tb-num" colspan="2"></td>
+                            <td class="tb-num">{{ "{:,.2f}".format(comp.gross_tax_lkr) }}</td>
+                        </tr>
+                        <tr class="tb-total-row">
+                            <td>Net tax due</td>
+                            <td class="tb-num" colspan="2"></td>
+                            <td class="tb-num">{{ "{:,.2f}".format(comp.net_tax_due_lkr) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-ink-500);">
+                    Effective rate {{ "{:.2%}".format(comp.effective_rate) }} ·
+                    Marginal rate {{ "{:.0%}".format(comp.marginal_rate) }}
+                </p>
+            {% else %}
+                <p style="color: var(--color-ink-500); font-size: 0.9rem;">
+                    The tax engine did not produce a computation.
+                    {% if report.engine_error %}({{ report.engine_error }}){% endif %}
+                </p>
+            {% endif %}
+        </div>
+    </details>
+
+    {# ---- CTAs --------------------------------------------------------- #}
+    <div class="tb-ctas">
+        <a href="{{ url_for('fiesta_tax_bill.export_audit_pack', tax_year=tax_year_s4) }}"
+           class="tb-cta-secondary">
+            Export audit pack PDF
+        </a>
+
+        {% if gate and gate.blocks %}
+            <span class="tb-cta-primary tb-cta-disabled"
+                  title="Resolve the flagged items above before continuing to submit.">
+                Continue to submit (blocked)
+            </span>
+        {% elif report.is_finalized %}
+            <a href="/submit" class="tb-cta-primary">Continue to submit</a>
+        {% else %}
+            <form method="post"
+                  action="{{ url_for('fiesta_tax_bill.finalize', tax_year=tax_year_s4) }}"
+                  style="display: inline;">
+                {% if csrf_token %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% endif %}
+                <button type="submit" class="tb-cta-primary">
+                    Lock this bill & continue to submit
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    <p style="margin-top: 2rem; font-size: 0.85rem; color: var(--color-ink-500);">
+        Document reference will be embedded in the audit-pack PDF.
+        Every deduction line cites its Inland Revenue Act section.
+        The same numbers shown here power the IRD-defensibility-ready audit pack.
+    </p>
+
+</div>
+{% endblock %}
