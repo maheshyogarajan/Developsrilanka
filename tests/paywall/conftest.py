@@ -19,15 +19,80 @@ from datetime import datetime, timedelta
 import pytest
 
 # Re-export the base remittance fixtures so paywall tests can use them.
+# We DO NOT re-export user_a/user_b — we define our own below so we can purge
+# PaywallEvent / Subscription rows BEFORE the User row is deleted (the
+# remittance fixture's user teardown otherwise hits FK violations).
 from tests.remittance.conftest import (  # noqa: F401
     app as _base_app,
     client,
     db_session,
-    user_a,
-    user_b,
     login_as,
     _make_user,
 )
+
+
+def _purge_paywall_rows_for_user(user_id):
+    """Best-effort purge of all paywall rows for a single user, run BEFORE
+    user deletion to avoid FK violations.
+
+    Order matters: Subscription references PaywallEvent (triggering_paywall_event_id),
+    so Subscriptions must be deleted FIRST, then PaywallEvents.
+    """
+    try:
+        from fiesta.paywall import get_models
+        Subscription, PaywallEvent, _ = get_models()
+        from app import db
+        if Subscription is not None:
+            Subscription.query.filter(Subscription.user_id == user_id).delete(
+                synchronize_session=False
+            )
+            db.session.flush()
+        if PaywallEvent is not None:
+            PaywallEvent.query.filter(PaywallEvent.user_id == user_id).delete(
+                synchronize_session=False
+            )
+        db.session.commit()
+    except Exception:
+        try:
+            from app import db
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+@pytest.fixture
+def user_a(db_session):
+    """Drop-in for tests.remittance.conftest.user_a — but purges paywall rows
+    BEFORE deleting the User row."""
+    from models import User
+    u = _make_user(db_session, "user_a", persona="sl_foreign_income")
+    yield u
+    # Paywall cleanup FIRST (before FKs trip)
+    _purge_paywall_rows_for_user(u.id)
+    # Then the standard remittance + user cleanup
+    from remittance_models import RemittanceEntry, RemittanceImportBatch
+    from models import AuditLog
+    AuditLog.query.filter(AuditLog.user_id == u.id).delete()
+    RemittanceEntry.query.filter(RemittanceEntry.user_id == u.id).delete()
+    RemittanceImportBatch.query.filter(RemittanceImportBatch.user_id == u.id).delete()
+    User.query.filter(User.id == u.id).delete()
+    db_session.commit()
+
+
+@pytest.fixture
+def user_b(db_session):
+    """Drop-in for tests.remittance.conftest.user_b — paywall-aware teardown."""
+    from models import User
+    u = _make_user(db_session, "user_b", persona="sl_foreign_income")
+    yield u
+    _purge_paywall_rows_for_user(u.id)
+    from remittance_models import RemittanceEntry, RemittanceImportBatch
+    from models import AuditLog
+    AuditLog.query.filter(AuditLog.user_id == u.id).delete()
+    RemittanceEntry.query.filter(RemittanceEntry.user_id == u.id).delete()
+    RemittanceImportBatch.query.filter(RemittanceImportBatch.user_id == u.id).delete()
+    User.query.filter(User.id == u.id).delete()
+    db_session.commit()
 
 
 @pytest.fixture(scope="session")
@@ -113,29 +178,17 @@ def subscription_factory(app, db_session):
 
 
 @pytest.fixture(autouse=True)
-def _purge_paywall_rows(db_session, request):
-    """After every test, sweep paywall rows tied to pytest_* users."""
+def _purge_paywall_tombstones(db_session, request):
+    """After every test, sweep evt_pytest_* StripeEvent tombstone rows.
+
+    PaywallEvent and Subscription cleanup happens INSIDE user_a / user_b
+    fixture teardowns above (before User.delete, so FK constraints don't trip).
+    """
     yield
     try:
         from fiesta.paywall import get_models
-        Subscription, PaywallEvent, StripeEvent = get_models()
+        _, _, StripeEvent = get_models()
         from app import db
-        from models import User
-        # Find pytest user ids
-        pytest_user_ids = [
-            u.id for u in User.query.filter(User.email.like("pytest_%@fiesta.local")).all()
-        ]
-        if pytest_user_ids:
-            if PaywallEvent is not None:
-                PaywallEvent.query.filter(PaywallEvent.user_id.in_(pytest_user_ids)).delete(
-                    synchronize_session=False
-                )
-            if Subscription is not None:
-                Subscription.query.filter(Subscription.user_id.in_(pytest_user_ids)).delete(
-                    synchronize_session=False
-                )
-        # Stripe-event tombstones inserted by tests use the prefix
-        # "evt_pytest_". Sweep those.
         if StripeEvent is not None:
             StripeEvent.query.filter(
                 StripeEvent.stripe_event_id.like("evt_pytest_%")
