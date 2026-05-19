@@ -1,0 +1,502 @@
+{% extends 'empty_layout.html' %}
+
+{% block title %}Start your FIESTA trial — Sign up{% endblock %}
+
+{% block content %}
+<style>
+  /* S2 signup — FIESTA-branded, empowerment voice, jurisdiction-neutral. */
+
+  :root {
+    --s2-bg:           #f7f5f0;        /* warm parchment — FIESTA neutral */
+    --s2-ink:          #1a1d27;        /* near-black, slightly warm */
+    --s2-ink-soft:     #4a4f5c;
+    --s2-brand:        #c1442d;        /* FIESTA accent */
+    --s2-brand-soft:   #f4e7e2;
+    --s2-surface:      #ffffff;
+    --s2-border:       #e3ddd0;
+    --s2-success:      #2d8659;
+    --s2-warning:      #c9882a;
+    --s2-danger:       #b54029;
+  }
+
+  body {
+    background: var(--s2-bg);
+    color: var(--s2-ink);
+    font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  .s2-wrap {
+    max-width: 30rem;
+    margin: 0 auto;
+    padding: 3rem 1.25rem 4rem;
+  }
+
+  @media (min-width: 768px) {
+    .s2-wrap { padding-top: 5rem; }
+  }
+
+  .s2-brand {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.75rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.5rem;
+    color: var(--s2-ink);
+  }
+
+  .s2-tag {
+    color: var(--s2-ink-soft);
+    font-size: 0.95rem;
+    margin: 0 0 2rem;
+  }
+
+  .s2-card {
+    background: var(--s2-surface);
+    border: 1px solid var(--s2-border);
+    border-radius: 14px;
+    padding: 1.75rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .s2-card h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.35rem;
+    margin: 0 0 0.25rem;
+  }
+
+  .s2-card .lede {
+    color: var(--s2-ink-soft);
+    margin: 0 0 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .s2-field {
+    margin-bottom: 1rem;
+  }
+
+  .s2-field label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.35rem;
+    color: var(--s2-ink);
+  }
+
+  .s2-field input[type="email"],
+  .s2-field input[type="password"] {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border: 1px solid var(--s2-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--s2-ink);
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .s2-field input:focus {
+    outline: none;
+    border-color: var(--s2-brand);
+    box-shadow: 0 0 0 3px var(--s2-brand-soft);
+  }
+
+  .s2-meter {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 4px;
+  }
+
+  .s2-meter-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--s2-border);
+    border-radius: 2px;
+    transition: background 0.2s ease;
+  }
+
+  .s2-meter[data-strength="weak"]   .s2-meter-bar:nth-child(1) { background: var(--s2-danger); }
+  .s2-meter[data-strength="fair"]   .s2-meter-bar:nth-child(-n+2) { background: var(--s2-warning); }
+  .s2-meter[data-strength="strong"] .s2-meter-bar { background: var(--s2-success); }
+
+  .s2-rules {
+    margin-top: 0.5rem;
+    font-size: 0.825rem;
+    color: var(--s2-ink-soft);
+    list-style: none;
+    padding: 0;
+  }
+
+  .s2-rules li {
+    padding: 0.1rem 0 0.1rem 1.25rem;
+    position: relative;
+  }
+  .s2-rules li::before {
+    content: '·';
+    position: absolute;
+    left: 0.35rem;
+    color: var(--s2-ink-soft);
+  }
+  .s2-rules li.ok {
+    color: var(--s2-success);
+  }
+  .s2-rules li.ok::before {
+    content: '✓';
+    color: var(--s2-success);
+  }
+
+  .s2-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin: 0.6rem 0;
+    font-size: 0.875rem;
+    color: var(--s2-ink);
+    line-height: 1.45;
+  }
+
+  .s2-check input[type="checkbox"] {
+    margin-top: 0.2rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    cursor: pointer;
+    accent-color: var(--s2-brand);
+    flex-shrink: 0;
+  }
+
+  .s2-check label {
+    cursor: pointer;
+  }
+
+  .s2-check a {
+    color: var(--s2-brand);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .s2-draft-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    background: #fbf3da;
+    color: #6b4f1a;
+    margin-left: 0.25rem;
+    vertical-align: 1px;
+  }
+
+  .s2-submit {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: var(--s2-brand);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 1.25rem;
+    transition: background 0.15s ease, transform 0.05s ease;
+  }
+  .s2-submit:hover { background: #a8381e; }
+  .s2-submit:active { transform: translateY(1px); }
+  .s2-submit:disabled { background: #c8c4bb; cursor: not-allowed; }
+
+  .s2-trust {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: rgba(255,255,255,0.6);
+    border-radius: 10px;
+    font-size: 0.875rem;
+  }
+
+  @media (min-width: 480px) {
+    .s2-trust {
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+    }
+  }
+
+  .s2-trust > div {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    color: var(--s2-ink-soft);
+  }
+
+  .s2-trust > div span:first-child {
+    font-size: 1.05rem;
+    line-height: 1;
+    margin-top: 0.1rem;
+  }
+
+  .s2-next {
+    margin-top: 1.5rem;
+    padding: 1rem 1.1rem;
+    background: var(--s2-brand-soft);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    color: var(--s2-ink);
+  }
+
+  .s2-next-title {
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+  }
+
+  .s2-foot {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--s2-ink-soft);
+  }
+
+  .s2-foot a {
+    color: var(--s2-brand);
+    text-decoration: underline;
+  }
+
+  .s2-legal-disclosure {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--s2-ink-soft);
+    line-height: 1.5;
+  }
+  .s2-legal-disclosure summary {
+    cursor: pointer;
+    color: var(--s2-brand);
+    font-weight: 500;
+  }
+  .s2-legal-disclosure p {
+    margin: 0.5rem 0 0;
+  }
+
+  .s2-flash {
+    margin-bottom: 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    border: 1px solid;
+  }
+  .s2-flash.danger  { background: #fdecea; border-color: #f5c2b8; color: #7a2418; }
+  .s2-flash.warning { background: #fdf6e1; border-color: #ecd58b; color: #5e4710; }
+  .s2-flash.success { background: #e7f3ec; border-color: #b5dac3; color: #205a3c; }
+  .s2-flash.info    { background: #e8edf6; border-color: #b8c5e0; color: #233557; }
+
+  .s2-error-inline {
+    font-size: 0.8rem;
+    color: var(--s2-danger);
+    margin-top: 0.3rem;
+    min-height: 1em;
+  }
+
+  .s2-testimonial {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: rgba(193, 68, 45, 0.04);
+    border-left: 3px solid var(--s2-brand);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    color: var(--s2-ink-soft);
+    font-style: italic;
+  }
+</style>
+
+<div class="s2-wrap">
+  <h1 class="s2-brand">FIESTA</h1>
+  <p class="s2-tag">Foreign Income Earner Saving &amp; Tax Advisor</p>
+
+  <div class="s2-card">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="s2-flash {{ category }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <h2>Let's get you set up.</h2>
+    <p class="lede">Email + password. That's it. No NIC, no TIN, no PIN at signup.</p>
+
+    <form method="POST" action="{{ url_for('signup.signup_submit') }}" novalidate id="s2-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="s2-field">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          name="email"
+          id="email"
+          autocomplete="email"
+          required
+          placeholder="you@example.com"
+        >
+        <div class="s2-error-inline" id="email-error"></div>
+      </div>
+
+      <div class="s2-field">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          name="password"
+          id="password"
+          autocomplete="new-password"
+          minlength="{{ min_password_length }}"
+          required
+        >
+        <div class="s2-meter" data-strength="" aria-hidden="true">
+          <div class="s2-meter-bar"></div>
+          <div class="s2-meter-bar"></div>
+          <div class="s2-meter-bar"></div>
+          <div class="s2-meter-bar"></div>
+        </div>
+        <ul class="s2-rules" id="pw-rules" aria-live="polite">
+          <li data-rule="length_ok">At least {{ min_password_length }} characters</li>
+          <li data-rule="has_digit">One number</li>
+          <li data-rule="has_symbol">One symbol (e.g. ! @ # ?)</li>
+          <li data-rule="mixed_case">Mixed uppercase and lowercase</li>
+        </ul>
+      </div>
+
+      <div class="s2-field">
+        <label for="confirm_password">Confirm password</label>
+        <input
+          type="password"
+          name="confirm_password"
+          id="confirm_password"
+          autocomplete="new-password"
+          required
+        >
+        <div class="s2-error-inline" id="confirm-error"></div>
+      </div>
+
+      <div class="s2-check">
+        <input type="checkbox" name="accept_tos" id="accept_tos" value="1" required>
+        <label for="accept_tos">
+          I agree to the
+          <a href="{{ url_for('signup.terms_of_service') }}" target="_blank" rel="noopener">Terms of Service</a>{% if tos_is_draft %} <span class="s2-draft-tag">DRAFT</span>{% endif %}.
+        </label>
+      </div>
+
+      <div class="s2-check">
+        <input type="checkbox" name="accept_privacy" id="accept_privacy" value="1" required>
+        <label for="accept_privacy">
+          I agree to the
+          <a href="{{ url_for('signup.privacy_policy') }}" target="_blank" rel="noopener">Privacy Policy</a>{% if privacy_is_draft %} <span class="s2-draft-tag">DRAFT</span>{% endif %}.
+        </label>
+      </div>
+
+      <button type="submit" class="s2-submit" id="s2-submit-btn">Start my free trial</button>
+    </form>
+
+    <div class="s2-next">
+      <div class="s2-next-title">What you'll see next</div>
+      A clear breakdown of your tax-year savings — no jargon, just math.
+    </div>
+
+    <div class="s2-testimonial">
+      "FIESTA flagged Rs 540K of allowable expenses I'd missed — the Rs 2,500 trial paid for itself in five minutes." <!-- placeholder: replace with verified testimonial once CEO approves. -->
+    </div>
+
+    <details class="s2-legal-disclosure">
+      <summary>How FIESTA stays legal</summary>
+      <p>
+        FIESTA is a software tool — not a tax practitioner. We apply Sri Lankan tax law
+        (Inland Revenue Act No. 24 of 2017 §6 on income classification + §120 on
+        record-keeping) to the data you enter. Your records stay yours; we retain a copy
+        for seven years to cover the IRD's five-year assessment window with a two-year
+        buffer (Personal Data Protection Act No. 9 of 2022 §3-5 lawful bases). For
+        tailored advice, our consultant-booking surface is one route — you're free to
+        use any other.
+      </p>
+    </details>
+  </div>
+
+  <div class="s2-trust">
+    <div><span>🔒</span><span>No NIC, no TIN, no PIN at signup. Just email.</span></div>
+    <div><span>💸</span><span>Rs 2,500 — refundable for 14 days.</span></div>
+    <div><span>🇱🇰</span><span>Sri Lankan tax law, jurisdiction-neutral software.</span></div>
+  </div>
+
+  <p class="s2-foot">
+    Already have an account? <a href="{{ url_for('login') }}">Sign in</a>.
+  </p>
+</div>
+
+<script>
+  (function () {
+    var MIN_LEN = {{ min_password_length }};
+    var pw     = document.getElementById('password');
+    var conf   = document.getElementById('confirm_password');
+    var email  = document.getElementById('email');
+    var meter  = document.querySelector('.s2-meter');
+    var rules  = document.getElementById('pw-rules');
+    var btn    = document.getElementById('s2-submit-btn');
+    var form   = document.getElementById('s2-form');
+    var confErr = document.getElementById('confirm-error');
+    var emailErr = document.getElementById('email-error');
+
+    function check(p) {
+      return {
+        length_ok:  (p || '').length >= MIN_LEN,
+        has_digit:  /\d/.test(p || ''),
+        has_symbol: /[^A-Za-z0-9]/.test(p || ''),
+        mixed_case: /[a-z]/.test(p || '') && /[A-Z]/.test(p || '')
+      };
+    }
+
+    function bucket(c) {
+      var pass = (c.length_ok ? 1 : 0) + (c.has_digit ? 1 : 0)
+               + (c.has_symbol ? 1 : 0) + (c.mixed_case ? 1 : 0);
+      if (pass <= 1) return 'weak';
+      if (pass <= 3) return 'fair';
+      return 'strong';
+    }
+
+    function render() {
+      var c = check(pw.value);
+      meter.setAttribute('data-strength', pw.value ? bucket(c) : '');
+      Array.prototype.forEach.call(rules.querySelectorAll('li'), function (li) {
+        var rule = li.getAttribute('data-rule');
+        if (c[rule]) li.classList.add('ok'); else li.classList.remove('ok');
+      });
+    }
+
+    function checkConfirm() {
+      if (!conf.value) { confErr.textContent = ''; return; }
+      if (conf.value !== pw.value) {
+        confErr.textContent = "Passwords don't match yet.";
+      } else {
+        confErr.textContent = '';
+      }
+    }
+
+    function checkEmail() {
+      if (!email.value) { emailErr.textContent = ''; return; }
+      // Match server regex shape.
+      var ok = /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(email.value);
+      emailErr.textContent = ok ? '' : 'That email looks incomplete.';
+    }
+
+    pw.addEventListener('input', function () { render(); checkConfirm(); });
+    conf.addEventListener('input', checkConfirm);
+    email.addEventListener('blur', checkEmail);
+
+    // Disable submit briefly on send to avoid double-tap dupes.
+    form.addEventListener('submit', function () {
+      btn.disabled = true;
+      btn.textContent = 'Setting up your trial…';
+    });
+  })();
+</script>
+{% endblock %}
