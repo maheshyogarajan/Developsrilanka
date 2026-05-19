@@ -1,0 +1,431 @@
+{% extends 'layout.html' %}
+
+{% block title %}Reduce your tax — 10 ways · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* ---- S5 page-only styles ----------------------------------------- */
+  .s5-page {
+    --card-radius: 14px;
+    --ink-strong: var(--color-ink-900, #0f1115);
+    --ink-soft: var(--color-ink-700, #4b525c);
+    --ink-mute: var(--color-ink-500, #6e7682);
+    --line: var(--color-ink-100, #e6e8ec);
+    --accent: var(--color-accent-700, #7c3aed);
+    --accent-soft: var(--color-accent-50, #f3efff);
+    --success: #157f3d;
+    --success-soft: #eaf8ef;
+    --warn: #b45309;
+    padding: 1rem 1rem 4rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .s5-header {
+    display: flex; flex-direction: column; gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .s5-title {
+    font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: clamp(1.5rem, 3vw + 1rem, 2.5rem);
+    color: var(--ink-strong); letter-spacing: -0.01em; line-height: 1.1;
+    margin: 0;
+  }
+  .s5-sub {
+    color: var(--ink-soft); font-size: 1.05rem;
+    max-width: 60ch; line-height: 1.55;
+  }
+
+  .s5-tally {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--card-radius);
+    padding: 1rem 1.25rem;
+    margin: 1rem 0 1.5rem;
+    display: flex; flex-wrap: wrap; gap: 1.25rem;
+    align-items: baseline;
+  }
+  .s5-tally__label {
+    color: var(--ink-soft); font-size: 0.95rem; letter-spacing: 0.01em;
+  }
+  .s5-tally__amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; font-size: 1.6rem;
+    color: var(--accent);
+  }
+  .s5-tally__detail {
+    color: var(--ink-mute); font-size: 0.85rem;
+  }
+
+  .s5-grid {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  @media (min-width: 992px) {
+    .s5-grid { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  .s5-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--card-radius);
+    padding: 1rem 1rem 1.25rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+    transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+    cursor: pointer;
+    min-height: 230px;
+  }
+  .s5-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.05); }
+  .s5-card.is-claimed { border-color: var(--success); background: var(--success-soft); }
+  .s5-card.is-claimed .s5-icon { color: var(--success); }
+
+  .s5-card__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .s5-icon { font-size: 1.6rem; color: var(--accent); }
+  .s5-tick {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: transparent;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    flex: 0 0 26px;
+  }
+  .s5-card.is-claimed .s5-tick {
+    background: var(--success); border-color: var(--success); color: #fff;
+  }
+  .s5-card__name {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.1rem;
+    color: var(--ink-strong); margin: 0; line-height: 1.25;
+  }
+  .s5-card__hint { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.45; }
+  .s5-card__saving {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--ink-mute); font-size: 0.85rem;
+  }
+  .s5-card__saving strong { color: var(--ink-strong); font-weight: 600; }
+
+  .s5-card__detail {
+    display: none;
+    border-top: 1px dashed var(--line); padding-top: 0.75rem;
+    color: var(--ink-soft); font-size: 0.9rem; line-height: 1.55;
+  }
+  .s5-card.is-expanded .s5-card__detail { display: block; }
+  .s5-card__cite {
+    display: inline-block;
+    font-size: 0.8rem; color: var(--accent);
+    text-decoration: underline dotted; cursor: pointer; margin-top: 0.25rem;
+  }
+  .s5-evidence { margin: 0.5rem 0 0 1.1rem; padding: 0; }
+  .s5-evidence li { font-size: 0.85rem; color: var(--ink-mute); margin-bottom: 0.2rem; }
+
+  .s5-card__claim-row {
+    display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .s5-card__claim-row input[type="number"] {
+    flex: 1 1 100px; min-width: 100px;
+    padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+  }
+  .s5-btn {
+    padding: 0.4rem 0.85rem; border-radius: 6px; border: 1px solid var(--accent);
+    background: var(--accent); color: #fff; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .s5-btn--ghost {
+    background: transparent; color: var(--accent);
+  }
+
+  .s5-cta {
+    margin-top: 2rem; padding: 1.25rem 1.5rem;
+    border: 1px solid var(--line); border-radius: var(--card-radius);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fafbfc; flex-wrap: wrap; gap: 1rem;
+  }
+  .s5-cta__text { color: var(--ink-soft); }
+  .s5-cta__btn {
+    padding: 0.7rem 1.25rem; border-radius: 8px;
+    background: var(--accent); color: #fff; text-decoration: none;
+    font-weight: 600;
+  }
+
+  /* Legal modal */
+  .s5-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1050; padding: 1rem;
+  }
+  .s5-modal.is-open { display: flex; }
+  .s5-modal__card {
+    background: #fff; max-width: 640px; width: 100%;
+    border-radius: 14px; padding: 1.5rem 1.75rem;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .s5-modal__close {
+    float: right; background: transparent; border: 0; font-size: 1.4rem; cursor: pointer; color: var(--ink-mute);
+  }
+  .s5-modal h3 { font-family: 'Fraunces', serif; }
+  .s5-modal .s5-cite-block {
+    margin: 0.75rem 0; padding: 0.75rem 1rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    color: var(--ink-strong);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s5-page">
+  <header class="s5-header">
+    <h1 class="s5-title">Reduce your tax — 10 ways</h1>
+    <p class="s5-sub">
+      These are the deductions the Sri Lankan Inland Revenue Act allows
+      for people in your situation. Pick the ones that apply to you. We
+      show the legal basis for every category — you can read it before
+      you claim, or save it for your records.
+    </p>
+  </header>
+
+  <!-- Running tally ------------------------------------------------------ -->
+  <div class="s5-tally" id="s5-tally" aria-live="polite">
+    <div>
+      <div class="s5-tally__label">You could save</div>
+      <div class="s5-tally__amount" id="s5-tally-saving">
+        Rs {{ '{:,.0f}'.format(summary.estimated_saving_lkr) }}
+      </div>
+      <div class="s5-tally__detail">
+        on {{ '{:,.0f}'.format(summary.total_deduction_lkr) }} of deductions
+        {% if marginal_rate and marginal_rate > 0 %}
+          at your {{ (marginal_rate * 100)|round(0)|int }}% marginal rate
+        {% endif %}
+      </div>
+    </div>
+    {% if summary.deduction_cap_applied %}
+    <div class="s5-tally__detail" style="color: var(--warn);">
+      {{ summary.deduction_cap_applied }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 10 cards ----------------------------------------------------------- -->
+  <div class="s5-grid">
+    {% for cat in categories %}
+    <article class="s5-card {% if cat._is_claimed %}is-claimed{% endif %}"
+             data-category-id="{{ cat.id }}"
+             role="button" tabindex="0"
+             aria-pressed="{{ 'true' if cat._is_claimed else 'false' }}">
+      <header class="s5-card__head">
+        <i class="bi {{ cat.icon }} s5-icon" aria-hidden="true"></i>
+        <span class="s5-tick" aria-hidden="true">
+          <i class="bi bi-check-lg"></i>
+        </span>
+      </header>
+      <h2 class="s5-card__name">{{ cat.name }}</h2>
+      <p class="s5-card__hint">{{ cat.short_summary }}</p>
+      <p class="s5-card__saving">
+        Save approx.
+        <strong>
+          Rs {{ '{:,.0f}'.format(cat._saving_range.low_saving_lkr) }}
+          – Rs {{ '{:,.0f}'.format(cat._saving_range.high_saving_lkr) }}
+        </strong>
+        / year
+      </p>
+
+      <!-- Expandable detail ------------------------------------------ -->
+      <div class="s5-card__detail">
+        <p>{{ cat.plain_english_description }}</p>
+
+        {% if cat.eligibility_criteria %}
+        <p><strong>You qualify if:</strong></p>
+        <ul class="s5-evidence">
+          {% for crit in cat.eligibility_criteria %}<li>{{ crit }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if cat.evidence_required %}
+        <p><strong>Keep on file:</strong></p>
+        <ul class="s5-evidence">
+          {% for ev in cat.evidence_required %}<li>{{ ev }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        <a class="s5-card__cite" data-legal-for="{{ cat.id }}"
+           role="button" tabindex="0">
+          Show legal basis ({{ cat.ira_section }}) &uarr;&nearr;
+        </a>
+
+        <div class="s5-card__claim-row">
+          <input type="number" min="0" step="1000"
+                 placeholder="Estimated Rs"
+                 value="{{ '{:.0f}'.format(cat._estimated_lkr) if cat._estimated_lkr else '' }}"
+                 data-amount-input>
+          {% if cat._is_claimed %}
+          <button class="s5-btn s5-btn--ghost" data-unclaim>Unclaim</button>
+          {% else %}
+          <button class="s5-btn" data-claim>Claim this</button>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  <!-- CTA to next step --------------------------------------------------- -->
+  <section class="s5-cta">
+    <div class="s5-cta__text">
+      <strong>Next:</strong> connect the people who help you deliver your
+      work — your Service Providers — so the deduction holds up under audit.
+    </div>
+    <a class="s5-cta__btn" href="{{ url_for('static', filename='#') }}#s6">
+      Connect your Service Providers &rarr;
+    </a>
+  </section>
+</div>
+
+<!-- Legal modal -------------------------------------------------------- -->
+<div class="s5-modal" id="s5-legal-modal" role="dialog" aria-modal="true" aria-labelledby="s5-legal-title">
+  <div class="s5-modal__card">
+    <button class="s5-modal__close" id="s5-legal-close" aria-label="Close">&times;</button>
+    <h3 id="s5-legal-title">Legal basis</h3>
+    <div class="s5-cite-block" id="s5-legal-cite"></div>
+    <div id="s5-legal-body"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const tallySaving = document.getElementById('s5-tally-saving');
+  const cards = document.querySelectorAll('.s5-card');
+  const modal = document.getElementById('s5-legal-modal');
+  const modalCite = document.getElementById('s5-legal-cite');
+  const modalBody = document.getElementById('s5-legal-body');
+  const modalClose = document.getElementById('s5-legal-close');
+  const modalTitle = document.getElementById('s5-legal-title');
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+  function fmt(n) {
+    try {
+      return 'Rs ' + Math.round(Number(n)).toLocaleString();
+    } catch (e) { return 'Rs ' + n; }
+  }
+
+  async function refreshTally() {
+    try {
+      const r = await fetch('/reduce-tax/estimate', { credentials: 'same-origin' });
+      if (!r.ok) return;
+      const data = await r.json();
+      if (data.ok && tallySaving) {
+        tallySaving.textContent = fmt(data.estimated_saving_lkr);
+      }
+    } catch (e) {
+      console.warn('tally refresh failed', e);
+    }
+  }
+
+  async function postClaim(catId, action, amount) {
+    const url = '/reduce-tax/' + action + '/' + encodeURIComponent(catId);
+    const body = (action === 'claim' && amount !== null) ? JSON.stringify({ estimated_lkr: amount }) : null;
+    const r = await fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: body,
+    });
+    return r.json();
+  }
+
+  cards.forEach(card => {
+    const catId = card.dataset.categoryId;
+
+    // Tap card head -> expand detail
+    card.addEventListener('click', (e) => {
+      // Skip interactive children
+      if (e.target.closest('button, input, [data-legal-for]')) return;
+      card.classList.toggle('is-expanded');
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.classList.toggle('is-expanded');
+      }
+    });
+
+    // Claim button
+    const claimBtn = card.querySelector('[data-claim]');
+    if (claimBtn) {
+      claimBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const amtInput = card.querySelector('[data-amount-input]');
+        const amount = amtInput && amtInput.value ? Number(amtInput.value) : null;
+        const result = await postClaim(catId, 'claim', amount);
+        if (result.ok) {
+          card.classList.add('is-claimed');
+          card.setAttribute('aria-pressed', 'true');
+          claimBtn.outerHTML = '<button class="s5-btn s5-btn--ghost" data-unclaim>Unclaim</button>';
+          card.querySelector('[data-unclaim]').addEventListener('click', unclaimHandler(card, catId));
+          await refreshTally();
+        } else {
+          alert('Could not claim: ' + (result.error || 'unknown error'));
+        }
+      });
+    }
+    const unclaimBtn = card.querySelector('[data-unclaim]');
+    if (unclaimBtn) {
+      unclaimBtn.addEventListener('click', unclaimHandler(card, catId));
+    }
+
+    // Legal-basis link
+    const legalLink = card.querySelector('[data-legal-for]');
+    if (legalLink) {
+      legalLink.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const r = await fetch('/reduce-tax/legal/' + encodeURIComponent(catId), { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const data = await r.json();
+        if (!data.ok) return;
+        modalTitle.textContent = data.name + ' — legal basis';
+        modalCite.textContent = data.ira_section_long || data.ira_section;
+        modalBody.innerHTML = '<p>' + (data.plain_english_description || '').replace(/\n/g, '<br>') + '</p>'
+          + '<p style="color: var(--ink-mute); font-size: 0.85rem;">'
+          + 'This deduction is documented in the FIESTA records you keep for your return — '
+          + 'every claim is audit-defensible by design.</p>';
+        modal.classList.add('is-open');
+      });
+    }
+  });
+
+  function unclaimHandler(card, catId) {
+    return async function (e) {
+      e.stopPropagation();
+      const result = await postClaim(catId, 'unclaim', null);
+      if (result.ok) {
+        card.classList.remove('is-claimed');
+        card.setAttribute('aria-pressed', 'false');
+        const row = card.querySelector('.s5-card__claim-row');
+        if (row) {
+          const oldBtn = row.querySelector('[data-unclaim]');
+          if (oldBtn) {
+            oldBtn.outerHTML = '<button class="s5-btn" data-claim>Claim this</button>';
+            row.querySelector('[data-claim]').addEventListener('click', async (e2) => {
+              e2.stopPropagation();
+              const amtInput = card.querySelector('[data-amount-input]');
+              const amount = amtInput && amtInput.value ? Number(amtInput.value) : null;
+              await postClaim(catId, 'claim', amount);
+              location.reload();
+            });
+          }
+        }
+        await refreshTally();
+      }
+    };
+  }
+
+  modalClose.addEventListener('click', () => modal.classList.remove('is-open'));
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('is-open'); });
+})();
+</script>
+{% endblock %}

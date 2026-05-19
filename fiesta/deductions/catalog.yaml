@@ -1,0 +1,387 @@
+# fiesta/deductions/catalog.yaml
+# S5 "Reduce your tax — 10 ways" — 10 deductible expense categories.
+#
+# Author: CEO-OS subagent (FIESTA Wave 3 dispatch, 2026-05-20)
+# Source of law: Sri Lankan Inland Revenue Act No. 24 of 2017
+#   (consolidated to 31 March 2025).
+# Primary reference: IRA §6 "wholly, exclusively and necessarily incurred
+#   in the production of income from a business" — the canonical
+#   business-expense deductibility rule. Specific sections cited per-category.
+#
+# Voice convention (every card):
+#   - plain_english_description: 50-100 words, second-person, empowerment.
+#     "Here's what you can legally claim" — never "tricks", "hacks", or
+#     advisory phrasing.
+#   - ira_section: machine-citable reference for /reduce-tax/legal modal.
+#   - eligibility_criteria: short bullet list, jurisdiction-neutral.
+#   - typical_lkr_range: [low, high] — guidance only, never default amount.
+#   - evidence_required: documents the customer must keep (audit defence).
+#   - ranking_signal_for_persona: keys that personalize.py uses to bubble up
+#     the most-relevant cards first.
+#
+# Cap rules (IRA-grounded):
+#   - Solar: capital allowance capped at Rs 600,000 (per brief).
+#   - Charitable donations: relief capped at 5% of taxable income (per brief).
+#   - All others: no statutory cap — limited by actual spend with evidence.
+
+version: "1.0.0"
+schema_version: 1
+last_updated: "2026-05-20"
+jurisdiction: "LK"
+tax_year: "2025/2026"
+
+categories:
+
+  - id: home_office_rental
+    name: "Home office rental"
+    icon: "bi-house-door"
+    ira_section: "§6"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 (deductions wholly, exclusively and necessarily incurred in producing business income)"
+    short_summary: "The portion of your rent used as your work area is deductible."
+    plain_english_description: >-
+      If you work from home, the part of your rent that covers the space
+      you actually use for income-earning work is deductible. The law calls
+      this "wholly and exclusively for the business". You don't need a
+      separate building — a dedicated room, or a measured share of a shared
+      space, both count. The maths is straightforward: floor area used for
+      work divided by total floor area, applied to your monthly rent.
+      Document the layout with a simple sketch and a photograph. Keep
+      twelve months of rent receipts or your tenancy agreement. This is
+      one of the most commonly missed deductions among foreign-income
+      earners working from home.
+    eligibility_criteria:
+      - "You pay rent for your residence (owner-occupied does not qualify here — see capital allowance instead)."
+      - "A defined part of the residence is used for income-earning work."
+      - "You can describe the work-use proportion and document it."
+    typical_lkr_range: [60000, 480000]
+    evidence_required:
+      - "Tenancy agreement OR 12 months of rent receipts"
+      - "Floor plan / sketch identifying the work area"
+      - "Photograph of the work area"
+      - "Calculation showing work-use percentage"
+    ranking_signal_for_persona:
+      - has_home_office
+      - works_from_home
+      - rents_residence
+
+  - id: internet_telecom
+    name: "Internet & telecom for work"
+    icon: "bi-wifi"
+    ira_section: "§6"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 (deductions wholly, exclusively and necessarily incurred in producing business income)"
+    short_summary: "The work-use share of your internet and phone bills is deductible."
+    plain_english_description: >-
+      Internet, mobile, and landline costs are deductible to the extent
+      they are used for income-earning work. If your home line carries
+      both personal and work use, apportion it — typically 50% to 80%
+      for a foreign-income earner who relies on video calls and uploads
+      for client delivery. Keep the original bills, not just bank
+      statements; the bill shows the service-period dates and the
+      account holder name. A short note explaining your work-use
+      percentage is sufficient. This category is small per month but
+      reliable across the year.
+    eligibility_criteria:
+      - "Service is in your name OR you can show you paid (bank statement)."
+      - "You can describe the work-use proportion."
+      - "Service is active during the period claimed."
+    typical_lkr_range: [12000, 120000]
+    evidence_required:
+      - "Monthly bills for the tax year (12 months)"
+      - "Bank or card statements showing payment"
+      - "Short note explaining work-use proportion"
+    ranking_signal_for_persona:
+      - works_from_home
+      - foreign_clients
+      - remote_work
+
+  - id: equipment_capex
+    name: "Equipment — laptop, monitor, software"
+    icon: "bi-laptop"
+    ira_section: "§6 + §13"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 (revenue expenditure) read with §13 (capital allowance / depreciation on plant and equipment used in business)"
+    short_summary: "Your work equipment is deductible — outright for software, via capital allowance for hardware."
+    plain_english_description: >-
+      Laptops, monitors, keyboards, hard drives, headsets, and other
+      equipment used for your work are deductible. Hardware items
+      typically claim capital allowance (a portion deducted each year
+      over the useful life — usually a third per year for computers).
+      Software subscriptions (Adobe, Microsoft 365, design tools,
+      development tools) are fully deductible in the year you pay
+      them. Keep the original invoice — particularly important for
+      imported items where you may also need the customs declaration.
+      The serial number on hardware should match the invoice.
+    eligibility_criteria:
+      - "Item is used primarily for income-earning work."
+      - "You hold the original invoice (digital is fine if it's the issuer's PDF)."
+      - "For hardware: serial number documented."
+    typical_lkr_range: [50000, 800000]
+    evidence_required:
+      - "Original purchase invoice (digital PDF acceptable)"
+      - "Serial numbers for hardware items"
+      - "Customs declaration if imported and >Rs 50,000"
+      - "Bank or card statement showing payment"
+    ranking_signal_for_persona:
+      - foreign_clients
+      - software_developer
+      - designer
+      - works_from_home
+
+  - id: training_certifications
+    name: "Training & certifications"
+    icon: "bi-mortarboard"
+    ira_section: "§6"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 (deductions wholly, exclusively and necessarily incurred to maintain or improve income-earning capacity in the existing business)"
+    short_summary: "Training that maintains or improves your existing work is deductible."
+    plain_english_description: >-
+      Courses, certifications, conference fees, and books that maintain
+      or improve the skills you use in your existing work are deductible.
+      The key word is "existing" — training that prepares you for a
+      different field is not deductible (it would be capital). A
+      developer taking an advanced framework course: yes. A developer
+      taking a flower-arranging course: no. Online platforms (Coursera,
+      Udemy, Pluralsight) qualify on the same basis as classroom
+      courses, provided you hold a receipt showing the course and the
+      amount paid. Foreign-currency course fees are converted at the
+      payment-date rate.
+    eligibility_criteria:
+      - "Course content relates to your existing income-earning work."
+      - "You have a receipt and a completion record (or enrolment confirmation)."
+    typical_lkr_range: [15000, 400000]
+    evidence_required:
+      - "Course / certification receipt"
+      - "Enrolment confirmation or completion certificate"
+      - "Bank or card statement showing payment"
+      - "Short note explaining relevance to your work"
+    ranking_signal_for_persona:
+      - software_developer
+      - designer
+      - foreign_clients
+      - career_growth
+
+  - id: subcontractor_fees
+    name: "Service Provider fees (subcontractors)"
+    icon: "bi-people"
+    ira_section: "§6 + §195"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 (deductible business expense) read with §195 (disclosure of payments to associated and unrelated persons exceeding statutory thresholds)"
+    short_summary: "Fees you pay to people who help deliver your work are deductible — with proper documentation."
+    plain_english_description: >-
+      When you pay another person to help deliver your work — a
+      designer for a slice of your project, an editor, a research
+      assistant, a translator, a developer — those fees are
+      deductible. This is one of the largest deduction categories
+      for foreign-income earners because outsourced work is common.
+      The documentation bar is higher here: a Service Agreement on
+      file (we help with this in S8), an invoice from the Service
+      Provider, evidence of payment, and the recipient's name + NIC
+      or business registration. §195 requires you to disclose
+      payments above the statutory threshold; keeping the paperwork
+      clean is what makes that easy.
+    eligibility_criteria:
+      - "Service Provider has a name + NIC or business registration."
+      - "Written agreement or scope-of-work on file."
+      - "Invoice + proof of payment for each transaction."
+    typical_lkr_range: [100000, 3000000]
+    evidence_required:
+      - "Service Agreement (FIESTA S8 generates this)"
+      - "Service Provider's invoices for each payment"
+      - "Bank transfer records / payment receipts"
+      - "Service Provider's NIC or business registration on file"
+    ranking_signal_for_persona:
+      - foreign_clients
+      - has_subcontractors
+      - high_revenue
+
+  - id: work_travel
+    name: "Travel for work"
+    icon: "bi-airplane"
+    ira_section: "§6"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 (deductions wholly, exclusively and necessarily incurred for business travel)"
+    short_summary: "Travel for client meetings, conferences, and field work is deductible — with documentation."
+    plain_english_description: >-
+      Travel undertaken for work — visiting a foreign client, attending
+      an industry conference, field work for a project — is deductible.
+      Both domestic and international qualify. The threshold is purpose:
+      the travel must be for income-earning work, not a personal trip
+      with one work meeting tacked on. Documentation matters: keep the
+      flight ticket, the hotel invoice, taxi receipts, and a short note
+      describing the work purpose ("Met Acme Inc. team in Singapore to
+      scope Q3 project"). For mixed-purpose trips, apportion fairly —
+      the days actually spent on work divided by total trip days.
+    eligibility_criteria:
+      - "Travel is primarily for income-earning work."
+      - "You can describe the work purpose for each trip."
+      - "Receipts retained for transport + accommodation."
+    typical_lkr_range: [50000, 1500000]
+    evidence_required:
+      - "Flight / transport tickets"
+      - "Hotel / accommodation invoices"
+      - "Taxi / ride receipts"
+      - "Short note describing work purpose for each trip"
+      - "Calendar entries or meeting confirmations"
+    ranking_signal_for_persona:
+      - foreign_clients
+      - international_travel
+      - sales_role
+      - has_subcontractors
+      - high_revenue
+
+  - id: professional_services
+    name: "Professional services"
+    icon: "bi-briefcase"
+    ira_section: "§6"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 (deductions for professional services incurred in producing business income)"
+    short_summary: "Your accountant, tax counsel, and legal fees for the business are deductible."
+    plain_english_description: >-
+      Fees you pay to your accountant, tax counsel, lawyer (for
+      business matters), or other professional advisers are
+      deductible. This includes the fees you pay FIESTA / Lanka.tax
+      to prepare and file your tax return — yes, the cost of doing
+      your taxes is itself deductible. Legal fees for personal
+      matters (family, criminal) do NOT qualify. Keep the
+      professional's invoice; if their fee is a fixed annual rate,
+      one invoice covers the year. Foreign-currency professional
+      fees are converted at the payment-date rate.
+    eligibility_criteria:
+      - "Service is professional and relates to the business / income-earning activity."
+      - "You hold the professional's invoice."
+    typical_lkr_range: [20000, 500000]
+    evidence_required:
+      - "Professional's invoice (per engagement)"
+      - "Bank or card statement showing payment"
+      - "Short note for any service whose business relevance is not obvious"
+    ranking_signal_for_persona:
+      - all_personas
+      - high_revenue
+      - foreign_clients
+
+  - id: health_insurance
+    name: "Health insurance & medical"
+    icon: "bi-heart-pulse"
+    ira_section: "Relief schedule"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017 — Personal relief schedule for qualifying health-insurance premiums (resident individuals)"
+    short_summary: "Health insurance premiums qualify for personal relief — within the statutory cap."
+    plain_english_description: >-
+      Health insurance premiums you pay for yourself and your
+      dependants qualify for personal relief, up to the statutory
+      cap published each year. This is a relief (a reduction at
+      the relief tier), not a business deduction — the mechanics
+      are different but the customer experience is the same: it
+      reduces your tax. Keep the insurer's premium-paid certificate
+      (most insurers issue this annually). Standalone hospital
+      bills are NOT a relief unless your insurer reimbursed and you
+      claim the unreimbursed portion under medical relief — check
+      your policy first.
+    eligibility_criteria:
+      - "Policy is for the taxpayer or qualifying dependants."
+      - "Premium is paid in the tax year claimed."
+      - "Insurer is licensed in Sri Lanka."
+    typical_lkr_range: [30000, 250000]
+    evidence_required:
+      - "Insurer's premium-paid certificate (annual)"
+      - "Bank statement showing premium payment"
+      - "Policy schedule listing the insured persons"
+    ranking_signal_for_persona:
+      - has_dependants
+      - senior
+      - family
+
+  - id: solar_installation
+    name: "Solar installations"
+    icon: "bi-sun"
+    ira_section: "§6 + §13"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017, §6 read with §13 (capital allowance on plant and equipment), capped at Rs 600,000 per the qualifying-renewable-energy schedule"
+    short_summary: "Rooftop solar installations qualify for a capital allowance — capped at Rs 600,000."
+    plain_english_description: >-
+      A rooftop solar installation on a residence used for
+      income-earning work, or on a business premises, qualifies
+      for a capital allowance. The allowance is capped at
+      Rs 600,000 across the useful-life period — claim it in
+      portions year by year. The installer's invoice and the
+      grid-connection certificate from CEB / LECO are the key
+      documents. If the solar serves both personal and work use,
+      apportion fairly. This is a meaningful deduction for
+      foreign-income earners who work from home and have made
+      the solar investment.
+    eligibility_criteria:
+      - "Solar installation on premises used (at least partly) for income-earning work."
+      - "Installation completed in the tax year claimed (or in prior years if the allowance schedule has remaining portion)."
+      - "Invoice + grid-connection certificate on file."
+    typical_lkr_range: [200000, 600000]
+    evidence_required:
+      - "Installer's invoice (with itemised components)"
+      - "Grid-connection certificate (CEB / LECO)"
+      - "Photographs of installed system"
+      - "Calculation of work-use proportion if mixed"
+    ranking_signal_for_persona:
+      - works_from_home
+      - has_home_office
+      - environmental
+      - has_property
+
+  - id: charitable_donations
+    name: "Charitable donations"
+    icon: "bi-heart"
+    ira_section: "Relief schedule"
+    ira_section_long: "Inland Revenue Act No. 24 of 2017 — Personal relief schedule for qualifying donations to Approved Charities, capped at 5% of taxable income"
+    short_summary: "Donations to approved charities qualify for relief — up to 5% of taxable income."
+    plain_english_description: >-
+      Donations to charities on the Inland Revenue Department's
+      approved-charities list qualify for personal relief. The
+      relief is capped at 5% of your taxable income. The charity
+      issues a receipt that names the donor, the date, and the
+      amount; that receipt is your evidence. Donations to charities
+      that are NOT on the approved list — religious bodies, informal
+      community groups, individual fundraisers — are admirable but
+      do not qualify. Foreign-currency donations are converted at
+      the payment-date rate.
+    eligibility_criteria:
+      - "Recipient is on the IRD approved-charities list."
+      - "Donation receipt issued in your name."
+      - "Donation is unconditional (no goods / services received in exchange)."
+    typical_lkr_range: [10000, 500000]
+    evidence_required:
+      - "Charity receipt (per donation)"
+      - "Bank or card statement showing payment"
+      - "Confirmation the charity appears on IRD's approved list"
+    ranking_signal_for_persona:
+      - philanthropic
+      - high_revenue
+      - religious_active
+
+# ---------------------------------------------------------------------------
+# Statutory caps (machine-readable for estimate.py)
+# ---------------------------------------------------------------------------
+caps:
+  solar_installation:
+    type: "absolute"
+    amount_lkr: 600000
+    rule: "Capital allowance on solar installations is capped at Rs 600,000 across the useful-life period."
+  charitable_donations:
+    type: "percent_of_taxable_income"
+    percent: 5.0
+    rule: "Charitable donations relief is capped at 5% of taxable income."
+
+# ---------------------------------------------------------------------------
+# Persona signal vocabulary (used by personalize.py).
+# ---------------------------------------------------------------------------
+persona_signals:
+  - has_home_office
+  - works_from_home
+  - rents_residence
+  - foreign_clients
+  - software_developer
+  - designer
+  - remote_work
+  - has_subcontractors
+  - high_revenue
+  - international_travel
+  - sales_role
+  - has_dependants
+  - senior
+  - family
+  - environmental
+  - has_property
+  - philanthropic
+  - religious_active
+  - career_growth
+  - all_personas
