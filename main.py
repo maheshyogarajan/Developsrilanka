@@ -332,6 +332,14 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
 
+# Wave 3 S3 — Progressive customer profile (2026-05-20)
+try:
+    from fiesta.profile.routes import register_blueprint as register_fiesta_profile
+    register_fiesta_profile(app)
+    logger.info("Wave 3 S3 — fiesta_profile blueprint registered at /fiesta/profile")
+except Exception as e:
+    logger.error(f"Error loading fiesta_profile (S3): {str(e)}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
