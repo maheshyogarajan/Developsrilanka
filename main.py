@@ -232,6 +232,28 @@ try:
 except Exception as e:
     logger.error(f"FIESTA S6 service-providers load failed: {e}")
 
+# X2 Persona switch (Wave 3, 2026-05-19) — top-bar cross-screen pill, v1 self-locked.
+try:
+    from fiesta.persona import routes as persona_routes
+    from fiesta.persona.models import current_persona as _cp
+    persona_routes.register_routes(app)
+
+    @app.context_processor
+    def _inject_persona_switcher_label():
+        """Make persona_switcher_current_label available on every page."""
+        try:
+            from flask_login import current_user
+            if not getattr(current_user, "is_authenticated", False):
+                return {}
+            p = _cp(current_user)
+            return {"persona_switcher_current_label": p.display_label if p else "Self (you)"}
+        except Exception:
+            return {"persona_switcher_current_label": "Self (you)"}
+
+    logger.info("X2 Persona routes + context processor registered at /persona/*")
+except Exception as e:
+    logger.error(f"Error loading X2 persona module: {str(e)}")
+
 # Wave 2.1 — Revenue Intelligence Dashboard (2026-05-17)
 try:
     import revenue_intel
@@ -359,7 +381,6 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
 
-<<<<<<< HEAD
 # Wave 1 — S2 Signup (2026-05-20)
 # FIESTA-branded zero-friction signup at /signup, with ToS/Privacy gate.
 # Lives alongside the existing /register flow in app.py.
