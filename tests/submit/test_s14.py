@@ -391,11 +391,12 @@ def _try_import_submission():
 def test_16_reopen_clears_attestation_and_export():
     """reopen_for_edits() clears attestation + export, status -> preparing."""
     Submission = _try_import_submission()
-    sub = (
-        Submission.__new__(Submission)
-        if hasattr(Submission, "__tablename__")
-        else Submission()
-    )
+    # NOTE: When the real SQLAlchemy-mapped Submission is returned, use the
+    # default constructor so SQLAlchemy's `_sa_instance_state` is initialised.
+    # Earlier versions used `__new__` to skip __init__, but that bypasses
+    # SQLAlchemy's instrumentation and crashes on the first attribute set
+    # once any prior test has loaded the mapper (cross-suite pollution).
+    sub = Submission()
     sub.status = "attested"
     sub.attestation_text = "I, Anuk..."
     sub.attestation_signature = '{"x":1}'
@@ -420,11 +421,9 @@ def test_16_reopen_clears_attestation_and_export():
 def test_17_lifecycle_helpers_match_status():
     """is_locked_for_upstream_edits / can_attest / can_export semantics."""
     Submission = _try_import_submission()
-    sub = (
-        Submission.__new__(Submission)
-        if hasattr(Submission, "__tablename__")
-        else Submission()
-    )
+    # See test_16 note: SQLAlchemy mapped class must go through __init__ so
+    # _sa_instance_state is wired up before we touch instance attributes.
+    sub = Submission()
 
     sub.status = "preparing"
     assert sub.is_locked_for_upstream_edits() is False
