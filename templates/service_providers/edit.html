@@ -1,0 +1,273 @@
+{% extends 'layout.html' %}
+
+{% block title %}Edit {{ sp.name }} · Service Providers · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .s6e-page {
+    max-width: 720px; margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+  }
+  .s6e-back {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    color: var(--color-ink-700, #4b525c); text-decoration: none;
+    font-size: 0.9rem; margin-bottom: 1rem;
+  }
+  .s6e-back:hover { color: var(--color-accent-700, #7c3aed); }
+  .s6e-title {
+    font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: 1.8rem; margin: 0 0 0.25rem;
+    color: var(--color-ink-900, #0f1115);
+  }
+  .s6e-sub {
+    color: var(--color-ink-500, #6e7682); margin: 0 0 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .s6e-section {
+    background: #fff;
+    border: 1px solid var(--color-ink-100, #e6e8ec);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .s6e-section h3 {
+    font-size: 1rem; font-weight: 600; margin: 0 0 1rem;
+    color: var(--color-ink-900, #0f1115);
+  }
+  .s6e-field { margin-bottom: 0.9rem; }
+  .s6e-field label {
+    display: block; font-weight: 500; font-size: 0.88rem;
+    color: var(--color-ink-900, #0f1115); margin-bottom: 0.25rem;
+  }
+  .s6e-field input, .s6e-field select, .s6e-field textarea {
+    width: 100%; padding: 0.5rem 0.6rem;
+    border: 1px solid var(--color-ink-100, #e6e8ec);
+    border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+  }
+  .s6e-row { display: flex; gap: 0.75rem; }
+  .s6e-row > .s6e-field { flex: 1; }
+
+  .s6e-actions {
+    display: flex; gap: 0.5rem; justify-content: space-between;
+    margin-top: 1.5rem;
+  }
+  .s6e-btn-primary, .s6e-btn-secondary, .s6e-btn-danger {
+    border-radius: 999px; padding: 0.6rem 1.2rem; font-weight: 500;
+    cursor: pointer; font-size: 0.95rem;
+  }
+  .s6e-btn-primary {
+    background: var(--color-accent-700, #7c3aed); color: #fff; border: none;
+  }
+  .s6e-btn-secondary {
+    background: #fff; color: var(--color-ink-900, #0f1115);
+    border: 1px solid var(--color-ink-100, #e6e8ec);
+  }
+  .s6e-btn-danger {
+    background: #fff; color: #b00020; border: 1px solid #f0c0c8;
+  }
+
+  .s6e-disclosure {
+    background: #ecf5fc; border: 1px solid rgba(30,111,184,0.25);
+    border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem;
+  }
+  .s6e-disclosure h4 {
+    margin: 0 0 0.5rem; font-size: 1rem; color: #1e6fb8;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .s6e-disclosure ul {
+    padding-left: 1.2rem; margin: 0.5rem 0;
+    font-size: 0.9rem;
+  }
+  .s6e-disclosure li { margin-bottom: 0.4rem; color: #214a72; }
+  .s6e-override {
+    margin-top: 0.75rem; padding-top: 0.75rem;
+    border-top: 1px solid rgba(30,111,184,0.15);
+  }
+  .s6e-override textarea {
+    width: 100%; min-height: 5em; padding: 0.5rem;
+    border: 1px solid #c3d7ea; border-radius: 8px;
+    font-family: inherit; font-size: 0.9rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s6e-page">
+  <a href="{{ url_for('fiesta_service_providers.index') }}" class="s6e-back">
+    <i class="bi bi-arrow-left"></i> All Service Providers
+  </a>
+
+  <h1 class="s6e-title">{{ sp.name }}</h1>
+  <p class="s6e-sub">
+    Edit details, re-run the §195 review, or archive this entry.
+  </p>
+
+  {% if relationship and relationship.should_default_on_disclosure %}
+    <div class="s6e-disclosure">
+      <h4><i class="bi bi-info-circle"></i> Heads up — disclosure recommended</h4>
+      <p style="margin:0 0 0.5rem; font-size:0.92rem; color:#214a72;">
+        Based on what you've shared, this looks like it may be a related-party
+        arrangement under IRA §195. We'll default the disclosure clause
+        <strong>ON</strong> when we generate the agreement.
+      </p>
+      <details>
+        <summary style="cursor:pointer; color:#1e6fb8; font-weight:500;">Why?</summary>
+        <ul>
+          {% for r in relationship.reasoning %}
+            <li>{{ r }}</li>
+          {% endfor %}
+        </ul>
+      </details>
+
+      <div class="s6e-override">
+        <p style="margin:0 0 0.4rem; font-weight:500; color:#1e6fb8;">
+          Believe this is genuinely arm's length?
+        </p>
+        <p style="margin:0 0 0.5rem; font-size:0.85rem; color:#214a72;">
+          You can override our suggestion — please add a short note about
+          the commercial substance (rates set at market, regular invoicing,
+          public-facing business, etc.). Auditors look for this.
+        </p>
+        <form method="POST" action="{{ url_for('fiesta_service_providers.override_disclosure', sp_id=sp.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="override" value="false">
+          <textarea name="justification" placeholder="e.g. We hired her through Upwork after a public search. Rates match her published rate card. She invoices monthly with itemised hours.">{{ relationship.override_justification or '' }}</textarea>
+          <div style="display:flex; gap:0.4rem; margin-top:0.5rem;">
+            <button type="submit" class="s6e-btn-secondary">Mark as arm's length</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_service_providers.update', sp_id=sp.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="_method" value="PUT">
+
+    <div class="s6e-section">
+      <h3>Who they are</h3>
+      <div class="s6e-field">
+        <label for="se-name">Name</label>
+        <input type="text" id="se-name" name="name" value="{{ sp.name or '' }}" required maxlength="255">
+      </div>
+      <div class="s6e-row">
+        <div class="s6e-field">
+          <label for="se-svc">Service type</label>
+          <select id="se-svc" name="service_type" required>
+            {% for cat in service_type_catalog %}
+              <option value="{{ cat.id }}" {% if cat.id == sp.service_type %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="s6e-field">
+          <label for="se-rel">How you know them</label>
+          <select id="se-rel" name="stated_relationship_to_customer">
+            {% for value, label in stated_relationship_choices %}
+              <option value="{{ value }}" {% if value == sp.stated_relationship_to_customer %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="s6e-section">
+      <h3>How you pay them</h3>
+      <div class="s6e-field">
+        <label for="se-fee">Fee structure</label>
+        <select id="se-fee" name="fee_structure">
+          {% for value, label in fee_structure_choices %}
+            <option value="{{ value }}" {% if value == sp.fee_structure %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="s6e-row">
+        <div class="s6e-field">
+          <label for="se-monthly">Monthly rate (LKR)</label>
+          <input type="number" id="se-monthly" name="monthly_rate" min="0" step="100"
+                 value="{{ sp.monthly_rate if sp.monthly_rate is not none else '' }}">
+        </div>
+        <div class="s6e-field">
+          <label for="se-hourly">Hourly rate (LKR)</label>
+          <input type="number" id="se-hourly" name="hourly_rate" min="0" step="50"
+                 value="{{ sp.hourly_rate if sp.hourly_rate is not none else '' }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="s6e-section">
+      <h3>Identifying details (optional)</h3>
+      <div class="s6e-row">
+        <div class="s6e-field">
+          <label for="se-nic">NIC</label>
+          <input type="text" id="se-nic" name="nic" maxlength="32" value="{{ sp.nic or '' }}">
+        </div>
+        <div class="s6e-field">
+          <label for="se-tin">TIN</label>
+          <input type="text" id="se-tin" name="tin" maxlength="32" value="{{ sp.tin or '' }}">
+        </div>
+      </div>
+      <div class="s6e-field">
+        <label for="se-addr">Address</label>
+        <input type="text" id="se-addr" name="address_line1" maxlength="255"
+               placeholder="Street" value="{{ sp.address_line1 or '' }}">
+        <input type="text" id="se-city" name="city" maxlength="128"
+               placeholder="City" style="margin-top:0.4rem;" value="{{ sp.city or '' }}">
+      </div>
+      <div class="s6e-row">
+        <div class="s6e-field">
+          <label for="se-bank-name">Bank</label>
+          <input type="text" id="se-bank-name" name="bank_name" maxlength="128" value="{{ sp.bank_name or '' }}">
+        </div>
+        <div class="s6e-field">
+          <label for="se-bank">Account number</label>
+          <input type="text" id="se-bank" name="bank_account_number" maxlength="64" value="{{ sp.bank_account_number or '' }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="s6e-section">
+      <h3>Notes</h3>
+      <div class="s6e-field">
+        <textarea name="notes" rows="3" maxlength="2048" placeholder="Anything else worth remembering">{{ sp.notes or '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="s6e-actions">
+      <form method="POST" action="{{ url_for('fiesta_service_providers.archive', sp_id=sp.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="_method" value="DELETE">
+        <button type="submit" class="s6e-btn-danger"
+                onclick="return confirm('Archive this Service Provider?');">
+          Archive
+        </button>
+      </form>
+      <div style="display:flex; gap:0.5rem;">
+        <button type="button" class="s6e-btn-secondary" onclick="s6Redetect({{ sp.id }})">
+          Re-check §195
+        </button>
+        <button type="submit" class="s6e-btn-primary">Save</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+async function s6Redetect(spId) {
+  var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  try {
+    var resp = await fetch('/service-providers/' + spId + '/re-detect', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'X-CSRF-Token': csrf,
+      }
+    });
+    if (!resp.ok) throw new Error('Status ' + resp.status);
+    window.location.reload();
+  } catch (e) {
+    alert('Could not re-check — please try again.');
+  }
+}
+</script>
+{% endblock %}

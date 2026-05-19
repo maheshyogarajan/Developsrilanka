@@ -1,0 +1,498 @@
+{% extends 'layout.html' %}
+
+{% block title %}Your support team — Service Providers · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* ---- S6 page-only styles ----------------------------------------- */
+  .s6-page {
+    --card-radius: 14px;
+    --ink-strong: var(--color-ink-900, #0f1115);
+    --ink-soft: var(--color-ink-700, #4b525c);
+    --ink-mute: var(--color-ink-500, #6e7682);
+    --line: var(--color-ink-100, #e6e8ec);
+    --accent: var(--color-accent-700, #7c3aed);
+    --accent-soft: var(--color-accent-50, #f3efff);
+    --success: #157f3d;
+    --success-soft: #eaf8ef;
+    --warn: #b45309;
+    --warn-soft: #fff7eb;
+    --info: #1e6fb8;
+    --info-soft: #ecf5fc;
+    padding: 1rem 1rem 4rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .s6-header {
+    display: flex; flex-direction: column; gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .s6-title {
+    font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: clamp(1.5rem, 3vw + 1rem, 2.4rem);
+    color: var(--ink-strong); letter-spacing: -0.01em; line-height: 1.1;
+    margin: 0;
+  }
+  .s6-sub {
+    color: var(--ink-soft); font-size: 1.05rem;
+    max-width: 64ch; line-height: 1.55;
+  }
+
+  .s6-add-bar {
+    display: flex; gap: 0.5rem; flex-wrap: wrap;
+    margin: 1rem 0 1.5rem;
+  }
+  .s6-add-btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 999px; padding: 0.65rem 1.25rem;
+    font-weight: 600; font-size: 0.95rem;
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    cursor: pointer;
+    transition: filter 120ms ease, transform 120ms ease;
+  }
+  .s6-add-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+
+  .s6-grid {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .s6-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--card-radius);
+    padding: 1rem 1.1rem 1.25rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+    transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+    min-height: 180px;
+    position: relative;
+  }
+  .s6-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.05); }
+
+  .s6-card__head {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+  }
+  .s6-card__icon {
+    font-size: 1.4rem; color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+  .s6-card__name {
+    font-weight: 600; color: var(--ink-strong); margin: 0;
+    font-size: 1.05rem; line-height: 1.25;
+  }
+  .s6-card__svc {
+    font-size: 0.85rem; color: var(--ink-mute); margin: 0.1rem 0 0;
+  }
+  .s6-card__rate {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500; font-size: 0.95rem;
+    color: var(--ink-strong);
+  }
+
+  .s6-badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.78rem; font-weight: 500;
+    border: 1px solid var(--line);
+    color: var(--ink-soft); background: #fff;
+    white-space: nowrap;
+  }
+  .s6-badge--success {
+    background: var(--success-soft); color: var(--success);
+    border-color: rgba(21,127,61,0.25);
+  }
+  .s6-badge--warn {
+    background: var(--warn-soft); color: var(--warn);
+    border-color: rgba(180,83,9,0.25);
+  }
+  .s6-badge--info {
+    background: var(--info-soft); color: var(--info);
+    border-color: rgba(30,111,184,0.25);
+  }
+  .s6-banner {
+    background: var(--info-soft);
+    border: 1px solid rgba(30,111,184,0.25);
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+    color: var(--info);
+    display: flex; gap: 0.4rem; align-items: flex-start;
+  }
+  .s6-banner__icon { flex-shrink: 0; margin-top: 0.1rem; }
+
+  .s6-card__actions {
+    margin-top: auto;
+    display: flex; gap: 0.4rem; flex-wrap: wrap;
+  }
+  .s6-card__actions a, .s6-card__actions button {
+    font-size: 0.82rem; padding: 0.3rem 0.6rem;
+    border-radius: 6px; border: 1px solid var(--line);
+    background: #fff; color: var(--ink-soft);
+    text-decoration: none; cursor: pointer;
+  }
+  .s6-card__actions a:hover, .s6-card__actions button:hover {
+    border-color: var(--accent); color: var(--accent);
+  }
+  .s6-card__actions .danger:hover {
+    border-color: #b00020; color: #b00020;
+  }
+
+  /* Empty state */
+  .s6-empty {
+    border: 1px dashed var(--line);
+    border-radius: var(--card-radius);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: var(--ink-soft);
+  }
+  .s6-empty h3 {
+    font-family: 'Fraunces', serif; font-size: 1.4rem;
+    color: var(--ink-strong); margin: 0.5rem 0;
+  }
+
+  /* Modal */
+  .s6-modal-back {
+    position: fixed; inset: 0;
+    background: rgba(15,17,21,0.55);
+    z-index: 1050;
+    display: none;
+    align-items: flex-start; justify-content: center;
+    overflow-y: auto;
+    padding: 4rem 1rem;
+  }
+  .s6-modal-back.is-open { display: flex; }
+  .s6-modal {
+    background: #fff; border-radius: var(--card-radius);
+    max-width: 560px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+  .s6-modal__head {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .s6-modal__head h2 {
+    margin: 0; font-family: 'Fraunces', serif;
+    font-size: 1.25rem; color: var(--ink-strong);
+  }
+  .s6-modal__body { padding: 1.25rem; }
+  .s6-modal__close {
+    background: none; border: none; font-size: 1.4rem; color: var(--ink-mute);
+    cursor: pointer; line-height: 1; padding: 0.25rem 0.5rem;
+  }
+
+  .s6-field { margin-bottom: 1rem; }
+  .s6-field label {
+    display: block; font-weight: 500; font-size: 0.9rem;
+    color: var(--ink-strong); margin-bottom: 0.3rem;
+  }
+  .s6-field input, .s6-field select, .s6-field textarea {
+    width: 100%; padding: 0.55rem 0.65rem;
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 0.95rem; font-family: inherit;
+  }
+  .s6-field__hint {
+    font-size: 0.8rem; color: var(--ink-mute); margin-top: 0.25rem;
+  }
+  .s6-modal__foot {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--line);
+    display: flex; gap: 0.5rem; justify-content: flex-end;
+  }
+  .s6-btn-secondary {
+    background: #fff; color: var(--ink-strong);
+    border: 1px solid var(--line);
+    border-radius: 999px; padding: 0.55rem 1.1rem;
+    font-weight: 500; font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .s6-btn-primary {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 999px; padding: 0.55rem 1.1rem;
+    font-weight: 600; font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  @media (max-width: 600px) {
+    .s6-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s6-page">
+
+  <header class="s6-header">
+    <h1 class="s6-title">Your support team</h1>
+    <p class="s6-sub">
+      The people you pay to help produce your income — subcontractors, your
+      accountant, lawyer, designer, marketer, virtual assistant. List them
+      here so we can keep deductible expenses tidy and generate clean
+      service agreements when you need them.
+    </p>
+  </header>
+
+  <div class="s6-add-bar">
+    <button class="s6-add-btn" onclick="s6OpenAdd()">
+      <i class="bi bi-plus-lg"></i> Add a Service Provider
+    </button>
+  </div>
+
+  {% if cards %}
+    <div class="s6-grid">
+      {% for card in cards %}
+        {% set sp = card.sp %}
+        {% set rel = card.relationship %}
+        <article class="s6-card" data-sp-id="{{ sp.id }}">
+          <div class="s6-card__head">
+            <i class="bi bi-person-circle s6-card__icon"></i>
+            <div>
+              <h3 class="s6-card__name">{{ sp.name }}</h3>
+              <p class="s6-card__svc">{{ card.service_type_label }}</p>
+            </div>
+          </div>
+
+          <div>
+            {% if sp.monthly_rate is not none %}
+              <span class="s6-card__rate">LKR {{ '{:,.0f}'.format(sp.monthly_rate) }}/mo</span>
+            {% elif sp.hourly_rate is not none %}
+              <span class="s6-card__rate">LKR {{ '{:,.0f}'.format(sp.hourly_rate) }}/hr</span>
+            {% else %}
+              <span class="s6-card__rate" style="color:var(--ink-mute)">Fee not yet set</span>
+            {% endif %}
+          </div>
+
+          <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+            {% if rel and rel.audit_substance_risk == 'high' %}
+              <span class="s6-badge s6-badge--warn">
+                <i class="bi bi-shield-exclamation"></i> Disclosure recommended
+              </span>
+            {% elif rel and rel.audit_substance_risk == 'medium' %}
+              <span class="s6-badge s6-badge--info">
+                <i class="bi bi-info-circle"></i> Review suggested
+              </span>
+            {% else %}
+              <span class="s6-badge s6-badge--success">
+                <i class="bi bi-check2"></i> Arm's length
+              </span>
+            {% endif %}
+            {% if sp.requires_disclosure %}
+              <span class="s6-badge s6-badge--info">
+                <i class="bi bi-file-earmark-text"></i> §195 ON
+              </span>
+            {% endif %}
+          </div>
+
+          {% if rel and rel.should_default_on_disclosure %}
+            <div class="s6-banner">
+              <i class="bi bi-info-circle s6-banner__icon"></i>
+              <span>
+                Heads up: This Service Provider may need additional
+                disclosure under IRA §195. We'll guide you through it when
+                we generate the agreement.
+              </span>
+            </div>
+          {% endif %}
+
+          <div class="s6-card__actions">
+            <a href="{{ url_for('fiesta_service_providers.show', sp_id=sp.id) }}">Edit</a>
+            <button type="button" onclick="s6ShowSignals({{ sp.id }})">Why this?</button>
+            <button type="button" class="danger" onclick="s6Archive({{ sp.id }})">Archive</button>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="s6-empty">
+      <i class="bi bi-people" style="font-size:2rem; color:var(--ink-mute)"></i>
+      <h3>No Service Providers yet</h3>
+      <p>
+        Add the first person who helps you produce your income.<br>
+        We'll keep their details tidy for deductions and agreements.
+      </p>
+      <button class="s6-add-btn" onclick="s6OpenAdd()">
+        <i class="bi bi-plus-lg"></i> Add a Service Provider
+      </button>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Add Service Provider modal --------------------------------------- -->
+<div class="s6-modal-back" id="s6-add-modal" role="dialog" aria-modal="true" aria-labelledby="s6-add-title">
+  <div class="s6-modal">
+    <div class="s6-modal__head">
+      <h2 id="s6-add-title">Add a Service Provider</h2>
+      <button class="s6-modal__close" onclick="s6CloseAdd()" aria-label="Close">&times;</button>
+    </div>
+    <form method="POST" action="{{ url_for('fiesta_service_providers.create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="s6-modal__body">
+
+        <div class="s6-field">
+          <label for="s6-name">Name <span style="color:#b00020">*</span></label>
+          <input type="text" id="s6-name" name="name" required maxlength="255"
+                 placeholder="e.g. Anuradha Perera">
+        </div>
+
+        <div class="s6-field">
+          <label for="s6-svc">What do they do? <span style="color:#b00020">*</span></label>
+          <select id="s6-svc" name="service_type" required>
+            <option value="">— pick one —</option>
+            {% for cat in service_type_catalog %}
+              <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="s6-field">
+          <label for="s6-rel">How do you know this person?</label>
+          <select id="s6-rel" name="stated_relationship_to_customer">
+            {% for value, label in stated_relationship_choices %}
+              <option value="{{ value }}" {% if value == 'professional_arms_length' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <p class="s6-field__hint">
+            Most are independent professionals — pick the first option if so.
+            Honest answers here keep your tax filing audit-defensible.
+          </p>
+        </div>
+
+        <details>
+          <summary style="cursor:pointer; color:var(--accent); font-weight:500; margin-bottom:1rem;">
+            Optional: rate, NIC, address, bank
+          </summary>
+
+          <div class="s6-field">
+            <label for="s6-fee-structure">Fee structure</label>
+            <select id="s6-fee-structure" name="fee_structure">
+              {% for value, label in fee_structure_choices %}
+                <option value="{{ value }}" {% if value == 'monthly' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="s6-field">
+            <label for="s6-monthly">Monthly rate (LKR)</label>
+            <input type="number" id="s6-monthly" name="monthly_rate" min="0" step="100">
+            <p class="s6-field__hint">If you pay a monthly retainer.</p>
+          </div>
+
+          <div class="s6-field">
+            <label for="s6-hourly">Hourly rate (LKR)</label>
+            <input type="number" id="s6-hourly" name="hourly_rate" min="0" step="50">
+            <p class="s6-field__hint">If you pay by the hour instead.</p>
+          </div>
+
+          <div class="s6-field">
+            <label for="s6-nic">NIC (optional)</label>
+            <input type="text" id="s6-nic" name="nic" maxlength="32"
+                   placeholder="200012345678 or 851234567V">
+          </div>
+
+          <div class="s6-field">
+            <label for="s6-addr1">Address</label>
+            <input type="text" id="s6-addr1" name="address_line1" maxlength="255"
+                   placeholder="Street">
+            <input type="text" id="s6-city" name="city" maxlength="128"
+                   placeholder="City" style="margin-top:0.5rem;">
+          </div>
+
+          <div class="s6-field">
+            <label for="s6-bank">Bank account number</label>
+            <input type="text" id="s6-bank" name="bank_account_number" maxlength="64">
+          </div>
+        </details>
+      </div>
+
+      <div class="s6-modal__foot">
+        <button type="button" class="s6-btn-secondary" onclick="s6CloseAdd()">Cancel</button>
+        <button type="submit" class="s6-btn-primary">Add Service Provider</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Why-this? modal (signal trace) ----------------------------------- -->
+<div class="s6-modal-back" id="s6-signals-modal" role="dialog" aria-modal="true">
+  <div class="s6-modal">
+    <div class="s6-modal__head">
+      <h2>Why we suggested this</h2>
+      <button class="s6-modal__close" onclick="s6CloseSignals()">&times;</button>
+    </div>
+    <div class="s6-modal__body" id="s6-signals-body">
+      Loading...
+    </div>
+    <div class="s6-modal__foot">
+      <button type="button" class="s6-btn-secondary" onclick="s6CloseSignals()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function s6OpenAdd() { document.getElementById('s6-add-modal').classList.add('is-open'); }
+function s6CloseAdd() { document.getElementById('s6-add-modal').classList.remove('is-open'); }
+
+function s6CloseSignals() { document.getElementById('s6-signals-modal').classList.remove('is-open'); }
+
+async function s6ShowSignals(spId) {
+  var modal = document.getElementById('s6-signals-modal');
+  var body = document.getElementById('s6-signals-body');
+  body.innerHTML = 'Loading...';
+  modal.classList.add('is-open');
+  try {
+    var resp = await fetch('/service-providers/related-party-signals/' + spId, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!resp.ok) throw new Error('Status ' + resp.status);
+    var data = await resp.json();
+    var html = '<p><strong>' + (data.sp_name || '') + '</strong></p>';
+    if (!data.signals || data.signals.length === 0) {
+      html += '<p>No related-party signals detected — this looks arm\'s length on the evidence so far.</p>';
+    } else {
+      html += '<p><em>Signals detected: ' + data.signals.join(', ') + '</em></p>';
+      html += '<ul style="padding-left:1.2rem;">';
+      (data.reasoning || []).forEach(function(r) {
+        html += '<li style="margin-bottom:0.5rem;">' + r + '</li>';
+      });
+      html += '</ul>';
+    }
+    if (data.should_default_on_disclosure) {
+      html += '<p style="color:var(--info); font-weight:500;">'
+            + 'We\'ll default the §195 disclosure ON when we generate the '
+            + 'agreement. You can switch it off if the situation is '
+            + 'genuinely arm\'s length.</p>';
+    }
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = '<p style="color:#b00020;">Could not load the trace. Refresh and try again.</p>';
+  }
+}
+
+async function s6Archive(spId) {
+  if (!confirm('Archive this Service Provider? We\'ll keep their record for audit but hide them from this list.')) return;
+  var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  try {
+    var resp = await fetch('/service-providers/' + spId, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'X-CSRF-Token': csrf,
+      }
+    });
+    if (!resp.ok) throw new Error('Status ' + resp.status);
+    window.location.reload();
+  } catch (e) {
+    alert('Could not archive — please try again.');
+  }
+}
+
+// Click outside to dismiss.
+document.querySelectorAll('.s6-modal-back').forEach(function(b) {
+  b.addEventListener('click', function(e) {
+    if (e.target === b) b.classList.remove('is-open');
+  });
+});
+</script>
+{% endblock %}

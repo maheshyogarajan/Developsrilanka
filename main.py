@@ -214,6 +214,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading remittance routes: {str(e)}")
 
+# FIESTA S6 — "Your support team — Service Providers" (Wave 3, 2026-05-20)
+try:
+    from fiesta.service_providers import models as fiesta_sp_models  # noqa: F401
+    from fiesta.service_providers import routes as fiesta_sp_routes
+    fiesta_sp_routes.register_blueprint(app)
+    logger.info("FIESTA S6 service-providers screen registered at /service-providers")
+except Exception as e:
+    logger.error(f"FIESTA S6 service-providers load failed: {e}")
+
 # Wave 2.1 — Revenue Intelligence Dashboard (2026-05-17)
 try:
     import revenue_intel
