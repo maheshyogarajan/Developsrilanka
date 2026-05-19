@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+
+{% block title %}Inbound Reply Queue{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Inbound Reply Queue</h2>
+    <div>
+      <span class="badge bg-secondary me-2">{{ rows|length }} pending</span>
+      <span class="text-muted small">Tier-1 approval required for all auto-replies</span>
+    </div>
+  </div>
+
+  <form method="get" class="row g-2 mb-3" action="">
+    <div class="col-md-3">
+      <label class="form-label small text-muted mb-0">Filter category</label>
+      <select name="category" class="form-select form-select-sm">
+        <option value="">All categories</option>
+        {% for c in categories %}
+        <option value="{{ c }}" {% if current_filter == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small text-muted mb-0">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="ready_for_approval" {% if current_status == 'ready_for_approval' %}selected{% endif %}>Ready for approval</option>
+        <option value="approved" {% if current_status == 'approved' %}selected{% endif %}>Approved</option>
+        <option value="sent" {% if current_status == 'sent' %}selected{% endif %}>Sent</option>
+        <option value="dismissed" {% if current_status == 'dismissed' %}selected{% endif %}>Dismissed</option>
+        <option value="all" {% if current_status == 'all' %}selected{% endif %}>All</option>
+      </select>
+    </div>
+    <div class="col-md-2 align-self-end">
+      <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+    </div>
+  </form>
+
+  {% if not rows %}
+  <div class="alert alert-light border text-center py-4">
+    <p class="mb-0 text-muted">No inbound replies match the current filter.</p>
+  </div>
+  {% else %}
+  <div class="list-group">
+    {% for row in rows %}
+    <div class="list-group-item">
+      <div class="row g-3">
+        <!-- INBOUND COLUMN -->
+        <div class="col-md-6 border-end">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <strong>From:</strong> {{ row.inbound.from_addr }}<br>
+              <small class="text-muted">{{ row.inbound.received_at }}</small>
+            </div>
+            <span class="badge bg-{{ row.category_badge_class }}">{{ row.inbound.classified_as or 'unclassified' }}</span>
+          </div>
+          <div class="mb-2">
+            <strong>Subject:</strong> {{ row.inbound.subject or '(no subject)' }}
+          </div>
+          <div class="border rounded p-2 bg-light" style="max-height: 220px; overflow-y: auto; white-space: pre-wrap;">{{ row.inbound.body_text or '(no plain-text body)' }}</div>
+
+          {% if row.inbound.is_autoreply_noise %}
+          <div class="alert alert-warning mt-2 mb-0 py-1 px-2 small">
+            <strong>Autoreply noise:</strong> looks like an OOO / bounce. No draft was generated.
+          </div>
+          {% endif %}
+
+          {% if not row.inbound.customer_matched %}
+          <div class="alert alert-warning mt-2 mb-0 py-1 px-2 small">
+            <strong>Unmatched customer:</strong> from_addr does not match any FIESTA user. Body redacted for privacy.
+          </div>
+          {% endif %}
+
+          <div class="mt-2 small text-muted">
+            <strong>Reasoning:</strong> {{ row.inbound.classifier_reasoning }}
+          </div>
+        </div>
+
+        <!-- DRAFT COLUMN -->
+        <div class="col-md-6">
+          {% if row.draft %}
+          <form method="post" action="{{ url_for('inbound_queue_action', draft_id=row.draft.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-2">
+              <strong>Draft subject</strong>
+              <input type="text" name="draft_subject" class="form-control form-control-sm" value="{{ row.draft.draft_subject }}">
+            </div>
+            <div class="mb-2">
+              <strong>Draft body</strong>
+              <textarea name="draft_body" class="form-control form-control-sm" rows="10">{{ row.draft.draft_body }}</textarea>
+            </div>
+            <div class="mb-2 small text-muted">
+              <strong>Linkback:</strong> {{ row.draft.linkback_url }}<br>
+              <strong>Route hint:</strong> {{ row.draft.route_hint }}
+            </div>
+            {% if row.draft.gates_failed %}
+            <div class="alert alert-warning py-1 px-2 small mb-2">
+              <strong>Gates failed:</strong> {{ row.draft.gates_failed }}
+            </div>
+            {% endif %}
+            {% if row.draft.warnings %}
+            <div class="alert alert-info py-1 px-2 small mb-2">
+              <strong>Warnings:</strong> {{ row.draft.warnings }}
+            </div>
+            {% endif %}
+            <div class="d-flex gap-2">
+              <button type="submit" name="action" value="approve_and_send" class="btn btn-sm btn-success">Approve &amp; send</button>
+              <button type="submit" name="action" value="save_edits" class="btn btn-sm btn-outline-primary">Save edits</button>
+              <button type="submit" name="action" value="dismiss" class="btn btn-sm btn-outline-secondary">Dismiss</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="text-muted small">
+            <em>No draft generated.</em>
+            <p class="mt-2">Compose a manual reply, or dismiss with a reason.</p>
+            <form method="post" action="{{ url_for('inbound_queue_action_inbound', inbound_id=row.inbound.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" name="action" value="dismiss" class="btn btn-sm btn-outline-secondary">Dismiss</button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
