@@ -1,0 +1,49 @@
+# Sri Lanka Personal Income Tax — version-pinned slab tables (PREVIEW MODULE)
+#
+# Authoritative SoT shared with fiesta.tax engine.
+#
+# Provenance:
+#   - 24/25: SF Scr_Tax_Computation_for_PRM.flow-meta.xml lines 912-922
+#   - 25/26: Inland Revenue (Amendment) Act gazette + FIESTA council brief
+#     core_concept.tax_math_anchors (unanimous, council 2026-05-19/20)
+#   - Senior-citizen relief: IRA §51 — Rs 500K extra for resident individuals
+#     aged 60+, on top of personal relief.
+#
+# Currency: LKR. Integer amounts. Engine applies Decimal arithmetic downstream.
+
+years:
+
+  "24_25":
+    personal_relief_lkr: 1200000
+    senior_citizen_extra_relief_lkr: 0
+    brackets:
+      - up_to: 500000
+        rate: 0.06
+      - up_to: 1000000
+        rate: 0.12
+      - up_to: 1500000
+        rate: 0.18
+      - up_to: 2000000
+        rate: 0.24
+      - up_to: 2500000
+        rate: 0.30
+      - up_to: null
+        rate: 0.36
+
+  "25_26":
+    # First band widened to 1M, 12% band removed; relief raised to 1.8M
+    personal_relief_lkr: 1800000
+    senior_citizen_extra_relief_lkr: 500000
+    brackets:
+      - up_to: 1000000
+        rate: 0.06
+      - up_to: 1500000
+        rate: 0.18
+      - up_to: 2000000
+        rate: 0.24
+      - up_to: 2500000
+        rate: 0.30
+      - up_to: null
+        rate: 0.36
+
+# --- end of slabs.yaml ---
