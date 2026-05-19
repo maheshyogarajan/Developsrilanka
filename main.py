@@ -332,6 +332,15 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
 
+# FIESTA S5 — "Reduce your tax — 10 ways" (Wave 3, 2026-05-20)
+try:
+    from fiesta.deductions import models as fiesta_deductions_models  # noqa: F401
+    from fiesta.deductions import routes as fiesta_deductions_routes
+    fiesta_deductions_routes.register_blueprint(app)
+    logger.info("FIESTA S5 deductions screen registered at /reduce-tax")
+except Exception as e:
+    logger.error(f"FIESTA S5 deductions load failed: {e}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
