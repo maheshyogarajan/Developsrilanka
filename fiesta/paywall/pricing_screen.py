@@ -43,6 +43,10 @@ from .models import (
     SELF_FILE_PRICE_LKR, SELF_FILE_PRICE_CENTS,
     TIER_SELF_FILE, current_sl_tax_year, expires_at_for_tax_year,
 )
+from .stripe_config import (
+    log_startup_stripe_status,
+    validate_stripe_config,
+)
 
 log = logging.getLogger(__name__)
 
@@ -531,6 +535,38 @@ def _handle_charge_refunded(stripe_event: dict) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Health endpoint — Stripe key-mode indicator (added 2026-05-20 for v1 deploy).
+# --------------------------------------------------------------------------- #
+
+@paywall_bp.route("/healthz/stripe", methods=["GET"])
+def stripe_healthz():
+    """Report Stripe-key-mode (test vs live) + readiness.
+
+    JSON shape (see fiesta.paywall.stripe_config.validate_stripe_config):
+
+        {
+          "mode":               "live" | "test" | "missing" | "unknown",
+          "webhook":            "configured" | "missing",
+          "ready":              bool,
+          "live_required":      bool,
+          "issues":             [str, ...],
+          "warnings":           [str, ...],
+          "live_webhook_match": bool | null
+        }
+
+    HTTP status:
+        200  -- ready=True (paywall is operational)
+        503  -- ready=False (issues present; webhook/checkout will 503)
+
+    Designed to be polled by external monitoring AND eyeballed by the
+    operator immediately before/after a live-keys swap.
+    """
+    snapshot = validate_stripe_config()
+    status_code = 200 if snapshot["ready"] else 503
+    return jsonify(snapshot), status_code
+
+
+# --------------------------------------------------------------------------- #
 # Registration helper — orchestrator calls this from main.py.
 # --------------------------------------------------------------------------- #
 
@@ -555,8 +591,16 @@ def register_routes(app):
         log.warning("Could not CSRF-exempt paywall webhook (%s); POSTs may 400",
                     exc)
 
+    # Stripe key-mode startup validation (non-fatal in dev, surfaces issues
+    # in the app log so the operator sees them at boot before any traffic).
+    try:
+        log_startup_stripe_status(app)
+    except Exception as exc:  # pragma: no cover -- defensive only
+        log.warning("Stripe startup validation hook crashed: %s", exc)
+
     log.info("Paywall X1 routes registered "
-             "(/pricing/x1, /pricing/x1/checkout, /webhooks/stripe/paywall)")
+             "(/pricing/x1, /pricing/x1/checkout, /webhooks/stripe/paywall, "
+             "/healthz/stripe)")
 
 
 __all__ = [

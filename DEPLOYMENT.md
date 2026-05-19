@@ -32,6 +32,32 @@ FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
 
 # Processing configuration
 ENABLE_ASYNC_PROCESSING=True
+
+# Stripe / FIESTA X1 paywall (added 2026-05-20 for FIESTA v1 deploy)
+#
+# v1 ships with test-mode keys; swap to live-mode at deploy time.
+#
+#   STRIPE_SECRET_KEY                Must start with sk_live_ in production.
+#                                    sk_test_ values are accepted for dev/staging.
+#   STRIPE_PAYWALL_WEBHOOK_SECRET    X1 webhook signing secret (whsec_...). Falls
+#                                    back to STRIPE_WEBHOOK_SECRET if unset.
+#   STRIPE_LIVE_WEBHOOK_SECRET       (optional) explicit live-mode webhook secret;
+#                                    when both this AND the active webhook secret
+#                                    are present and mode=live they MUST match
+#                                    or /healthz/stripe reports ready=False.
+#   STRIPE_LIVE_KEYS_REQUIRED        Set to "1" in production. When true, missing
+#                                    or test-mode keys are reported as ISSUES
+#                                    (ready=False) rather than warnings.
+#
+# Verify mode at deploy time:
+#   curl https://YOUR_DOMAIN/healthz/stripe
+#   Expected: HTTP 200 with {"mode": "live", "ready": true, ...}
+#   HTTP 503 indicates a configuration problem; do not flip DNS until fixed.
+#
+STRIPE_SECRET_KEY=sk_live_XXXXXXXXXXXXXXXX
+STRIPE_PAYWALL_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXX
+STRIPE_LIVE_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXX
+STRIPE_LIVE_KEYS_REQUIRED=1
 ```
 
 ## Deployment Steps
