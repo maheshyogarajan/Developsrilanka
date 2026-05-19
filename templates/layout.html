@@ -381,7 +381,13 @@
                         <span class="menu-text">Scan</span>
                     </a>
                 </li>
-                
+                <li class="menu-item">
+                    <a href="{{ url_for('lanka_tax_doc_scan') }}" class="menu-link {% if request.path == '/tax-doc/scan' %}active{% endif %}">
+                        <i class="fas fa-file-invoice menu-icon"></i>
+                        <span class="menu-text">Tax Documents</span>
+                    </a>
+                </li>
+
                 <!-- Getting Started -->
                 <li class="menu-item">
                     <a href="{{ url_for('getting_started.wizard') }}" class="menu-link {% if '/getting-started' in request.path %}active{% endif %}">
