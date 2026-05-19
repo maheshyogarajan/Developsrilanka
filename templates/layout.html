@@ -635,8 +635,10 @@
             </h1>
             
             {% if current_user.is_authenticated %}
-            <div class="d-none d-md-flex align-items-center">
-                <div class="dropdown">
+            <div class="d-flex align-items-center">
+                {# X2 Persona switcher — cross-screen top-bar pill. V1: self-locked. #}
+                {% include 'components/persona_switcher.html' ignore missing %}
+                <div class="dropdown d-none d-md-block">
                     <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-user-circle me-1"></i>
                         {{ current_user.name or current_user.email }}

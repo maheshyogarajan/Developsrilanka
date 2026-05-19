@@ -1,0 +1,198 @@
+{# Persona switcher — X2 top-bar component (v1 self-locked).
+
+  Drop this include in layout.html's main-header alongside the user dropdown.
+  V1 contract: only 'self' is active. Other persona slots are greyed with a
+  "Available in v1.1" tooltip + "Notify me" capture.
+
+  On mobile (<768px) the dropdown becomes a bottom sheet via Bootstrap's
+  offcanvas-bottom collapse pattern.
+
+  Context expected (any of):
+    - persona_switcher_current_label : str  (preferred — set by context processor)
+    - current_user                   : Flask-Login proxy (fallback for label)
+  No context = component renders nothing.
+#}
+{% if current_user is defined and current_user.is_authenticated %}
+{% set _ps_label = persona_switcher_current_label or 'Self (you)' %}
+<div class="persona-switcher dropdown me-2" id="personaSwitcher" data-component="x2-persona-switcher">
+    <button
+        class="btn btn-sm btn-outline-secondary dropdown-toggle"
+        type="button"
+        id="personaSwitcherToggle"
+        data-bs-toggle="dropdown"
+        aria-expanded="false"
+        aria-label="Filing persona switcher"
+        title="Filing as: {{ _ps_label }}"
+        onclick="window.__personaSwitcherOpened && window.__personaSwitcherOpened()"
+    >
+        <i class="fas fa-user-friends me-1" aria-hidden="true"></i>
+        <span class="persona-switcher-label">Filing as:</span>
+        <strong class="persona-switcher-current">{{ _ps_label }}</strong>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end persona-switcher-menu" aria-labelledby="personaSwitcherToggle">
+        <li class="dropdown-header small text-muted">Who are you filing for?</li>
+
+        {# Active persona — v1 self only #}
+        <li>
+            <span class="dropdown-item active" aria-current="true">
+                <i class="fas fa-check me-2 text-success" aria-hidden="true"></i>
+                Filing as: <strong>Self (you)</strong>
+            </span>
+        </li>
+
+        <li><hr class="dropdown-divider"></li>
+
+        <li class="dropdown-header small text-muted">Coming in v1.1</li>
+
+        {# Locked personas — greyed, with interest capture #}
+        <li>
+            <button
+                type="button"
+                class="dropdown-item disabled-persona text-muted"
+                data-persona-type="spouse"
+                data-bs-toggle="tooltip"
+                data-bs-placement="left"
+                title="Available in v1.1. We'll email you when ready."
+                onclick="window.__captureV11Interest && window.__captureV11Interest('spouse', this)"
+            >
+                <i class="fas fa-plus me-2" aria-hidden="true"></i>
+                Add spouse
+                <span class="badge bg-secondary ms-1 small">v1.1</span>
+                <span class="notify-me small d-block text-primary mt-1">Notify me when ready &raquo;</span>
+            </button>
+        </li>
+        <li>
+            <button
+                type="button"
+                class="dropdown-item disabled-persona text-muted"
+                data-persona-type="dependant_1"
+                data-bs-toggle="tooltip"
+                data-bs-placement="left"
+                title="Available in v1.1. We'll email you when ready."
+                onclick="window.__captureV11Interest && window.__captureV11Interest('dependant_1', this)"
+            >
+                <i class="fas fa-plus me-2" aria-hidden="true"></i>
+                Add dependant
+                <span class="badge bg-secondary ms-1 small">v1.1</span>
+                <span class="notify-me small d-block text-primary mt-1">Notify me when ready &raquo;</span>
+            </button>
+        </li>
+        <li>
+            <button
+                type="button"
+                class="dropdown-item disabled-persona text-muted"
+                data-persona-type="parent_1"
+                data-bs-toggle="tooltip"
+                data-bs-placement="left"
+                title="Available in v1.1. We'll email you when ready."
+                onclick="window.__captureV11Interest && window.__captureV11Interest('parent_1', this)"
+            >
+                <i class="fas fa-plus me-2" aria-hidden="true"></i>
+                Add parent
+                <span class="badge bg-secondary ms-1 small">v1.1</span>
+                <span class="notify-me small d-block text-primary mt-1">Notify me when ready &raquo;</span>
+            </button>
+        </li>
+
+        <li><hr class="dropdown-divider"></li>
+        <li>
+            <a class="dropdown-item small text-muted" href="{{ url_for('persona.persona_home') }}">
+                <i class="fas fa-info-circle me-2" aria-hidden="true"></i>
+                About filing personas
+            </a>
+        </li>
+    </ul>
+</div>
+
+<style>
+    .persona-switcher .persona-switcher-label {
+        opacity: 0.7;
+        font-weight: 400;
+    }
+    .persona-switcher .dropdown-item.disabled-persona {
+        cursor: pointer; /* tooltip + interest capture still active */
+        opacity: 0.65;
+    }
+    .persona-switcher .dropdown-item.disabled-persona:hover {
+        background-color: rgba(13, 110, 253, 0.06);
+    }
+    .persona-switcher .dropdown-item.disabled-persona .notify-me {
+        font-weight: 500;
+    }
+    .persona-switcher .dropdown-item.disabled-persona.interest-captured {
+        background-color: rgba(25, 135, 84, 0.08);
+    }
+    .persona-switcher .dropdown-item.disabled-persona.interest-captured .notify-me::after {
+        content: ' \2713'; /* ✓ */
+        color: #198754;
+    }
+    @media (max-width: 767.98px) {
+        .persona-switcher .dropdown-menu {
+            position: fixed !important;
+            inset: auto 0 0 0 !important;
+            transform: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 1rem 1rem 0 0 !important;
+            box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        .persona-switcher .persona-switcher-label {
+            display: none;
+        }
+    }
+</style>
+
+<script>
+(function () {
+    if (window.__personaSwitcherInit) return;
+    window.__personaSwitcherInit = true;
+
+    // CSRF token (FIESTA-wide pattern: <meta name="csrf-token">).
+    function _csrfToken() {
+        var el = document.querySelector('meta[name="csrf-token"]');
+        return el ? el.getAttribute('content') : '';
+    }
+
+    window.__personaSwitcherOpened = function () {
+        // Best-effort beacon. Server also emits via GET /persona render.
+        try {
+            if (navigator.sendBeacon) {
+                // No-op endpoint on the server side — emit happens via the
+                // /persona page open path. This beacon is reserved for v1.1
+                // when the dropdown is the primary signal. Keep stub so we
+                // don't lose the analytics intent.
+            }
+        } catch (e) { /* swallow */ }
+    };
+
+    window.__captureV11Interest = function (personaType, btnEl) {
+        if (!personaType) return;
+        var body = new URLSearchParams();
+        body.append('persona_type', personaType);
+        fetch('{{ url_for("persona.persona_interest") }}', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': _csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: body.toString()
+        }).then(function (r) {
+            return r.ok ? r.json() : null;
+        }).then(function (j) {
+            if (!j || !btnEl) return;
+            btnEl.classList.add('interest-captured');
+            var notify = btnEl.querySelector('.notify-me');
+            if (notify) {
+                notify.textContent = j.already_captured
+                    ? 'On the waitlist'
+                    : 'We’ll email you when ready';
+            }
+        }).catch(function () { /* swallow — best-effort */ });
+    };
+})();
+</script>
+{% endif %}

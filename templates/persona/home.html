@@ -1,0 +1,103 @@
+{% extends "layout.html" %}
+{% block title %}Filing personas{% endblock %}
+{% block content %}
+<div class="container py-3" data-page="persona-home">
+    <div class="row">
+        <div class="col-lg-8">
+            <h2 class="mb-3">Filing personas</h2>
+            <p class="text-muted">
+                A persona is a person you're preparing a tax return for. Today,
+                FIESTA supports filing for <strong>yourself</strong>. In v1.1 you'll
+                be able to add spouse, dependants and parents — switching between
+                them from the top-bar dropdown.
+            </p>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-user-check fa-2x text-success me-3" aria-hidden="true"></i>
+                        <div>
+                            <h5 class="mb-0">Filing as: {{ current_persona_row.display_label }}</h5>
+                            <small class="text-muted">Active &middot; v1</small>
+                        </div>
+                    </div>
+                    <p class="mb-0 small text-muted">
+                        Every screen — Scan, Tax Documents, Remittance, Reports — is
+                        currently scoped to your own filing.
+                    </p>
+                </div>
+            </div>
+
+            <h5 class="mb-2">Coming in v1.1</h5>
+            <p class="text-muted small">
+                Tap <em>Notify me</em> on a persona you'd want first. It helps us
+                ship the most-wanted one first.
+            </p>
+
+            <div class="list-group mb-4" id="lockedPersonaList">
+                {% for lp in locked_personas %}
+                <div class="list-group-item d-flex align-items-center justify-content-between"
+                     data-persona-type="{{ lp.persona_type }}"
+                     data-interest-captured="{{ 'true' if lp.interest_captured else 'false' }}">
+                    <div>
+                        <strong class="text-muted">{{ lp.label }}</strong>
+                        <span class="badge bg-secondary ms-1 small">v1.1</span>
+                    </div>
+                    <button
+                        type="button"
+                        class="btn btn-sm {{ 'btn-success' if lp.interest_captured else 'btn-outline-primary' }} persona-interest-btn"
+                        data-persona-type="{{ lp.persona_type }}"
+                    >
+                        {% if lp.interest_captured %}
+                            <i class="fas fa-check me-1" aria-hidden="true"></i> On the waitlist
+                        {% else %}
+                            Notify me
+                        {% endif %}
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="alert alert-info small">
+                <i class="fas fa-info-circle me-2" aria-hidden="true"></i>
+                Why personas matter: many SL households file across multiple returns
+                (yourself, spouse, dependant children with rental income, retired
+                parents). FIESTA is built for the household, not just one return.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    function csrfToken() {
+        var el = document.querySelector('meta[name="csrf-token"]');
+        return el ? el.getAttribute('content') : '';
+    }
+    document.querySelectorAll('.persona-interest-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var pt = btn.getAttribute('data-persona-type');
+            var body = new URLSearchParams();
+            body.append('persona_type', pt);
+            fetch('{{ url_for("persona.persona_interest") }}', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: body.toString()
+            }).then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (j) {
+                  if (!j) return;
+                  btn.classList.remove('btn-outline-primary');
+                  btn.classList.add('btn-success');
+                  btn.innerHTML = '<i class="fas fa-check me-1"></i> On the waitlist';
+              })
+              .catch(function () { /* swallow */ });
+        });
+    });
+})();
+</script>
+{% endblock %}
