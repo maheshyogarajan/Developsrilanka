@@ -1,0 +1,191 @@
+{% extends 'layout.html' %}
+
+{% block title %}Rental · {{ property.address_line1 }} · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .s7r-page { max-width: 780px; margin: 0 auto; padding: 1rem 1rem 4rem;
+    --line: var(--color-ink-100, #e6e8ec);
+    --ink: var(--color-ink-900, #0f1115);
+    --soft: var(--color-ink-700, #4b525c);
+    --mute: var(--color-ink-500, #6e7682);
+    --accent: var(--color-accent-700, #7c3aed);
+    --accent-soft: var(--color-accent-50, #f3efff);
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --warn-border: #facc15;
+  }
+  .s7r-title { font-family:'Fraunces', serif; font-weight:600;
+    font-size: clamp(1.4rem, 2vw + 1rem, 2.1rem); margin: 0 0 .25rem; }
+  .s7r-sub { color: var(--soft); margin-bottom: 1.5rem; }
+
+  .s7r-banner {
+    background: var(--accent-soft); border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: .85rem 1rem; margin-bottom: 1rem;
+    color: var(--ink); font-size: .92rem; line-height: 1.5;
+  }
+
+  .s7r-form { background:white; border:1px solid var(--line); border-radius:14px;
+    padding:1.25rem; }
+  .s7r-grid {
+    display: grid; gap: .85rem 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  .s7r-grid label { display:flex; flex-direction:column; gap:.25rem;
+    font-size:.92rem; color: var(--soft); }
+  .s7r-grid input, .s7r-grid select {
+    padding:.55rem .7rem; border:1px solid var(--line); border-radius:8px;
+    font-size:.95rem;
+  }
+
+  .s7r-portion {
+    margin: 1rem 0; padding: 1rem; background: var(--accent-soft);
+    border-radius: 8px; font-size: .95rem; color: var(--ink); line-height: 1.5;
+  }
+  .s7r-portion strong { font-family: 'JetBrains Mono', monospace; }
+
+  .s7r-warn {
+    background: var(--warn-soft); border-left: 4px solid var(--warn-border);
+    border-radius: 8px; padding: .85rem 1rem; margin: .75rem 0;
+    color: var(--ink); font-size: .92rem; line-height: 1.5;
+  }
+  .s7r-warn strong { color: var(--warn); }
+  .s7r-warn .citation { color: var(--mute); font-size: .82rem; margin-top: .3rem; }
+
+  .s7r-actions { display: flex; gap: .6rem; margin-top: 1.25rem; flex-wrap: wrap; }
+  .btn-primary { background: var(--accent); color: white; border: 0;
+    padding: .55rem 1.1rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .btn-ghost { background: white; color: var(--soft); border:1px solid var(--line);
+    padding: .55rem 1.1rem; border-radius:8px; cursor:pointer; text-decoration:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s7r-page">
+  <a href="{{ url_for('fiesta_property.detail', property_id=property.id) }}" style="color: var(--accent); text-decoration:none;">
+    &larr; {{ property.address_line1 }}
+  </a>
+  <h1 class="s7r-title">Rental agreement</h1>
+  <p class="s7r-sub">
+    Tell us the rent terms. We'll calculate the home-office portion
+    automatically using your {{ property.home_office_percentage or 0 }}% allocation.
+  </p>
+
+  <div class="s7r-banner">
+    <strong>Stamp-duty default:</strong> the agreement is set to 364 days so
+    the term stays under 12 months — that keeps it stamp-duty-free under
+    Sri Lankan revenue law. Adjust if your arrangement is longer.
+  </div>
+
+  {% if not landlord %}
+  <div class="s7r-warn">
+    <strong>Add the landlord first.</strong> The rental agreement needs to
+    reference a landlord on file.
+    <div class="citation">
+      <a href="{{ url_for('fiesta_property.landlord_detail', property_id=property.id) }}">→ Add landlord</a>
+    </div>
+  </div>
+  {% else %}
+
+  <form class="s7r-form"
+        method="POST"
+        action="{{ url_for('fiesta_property.rental_save', property_id=property.id) }}"
+        id="s7r-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="s7r-grid">
+      <label>Tax year
+        <input name="tax_year" value="{{ rental.tax_year if rental else '2025/2026' }}">
+      </label>
+      <label>Start date
+        <input name="start_date" type="date"
+               value="{{ rental.start_date if rental else '' }}"
+               id="s7r-start">
+      </label>
+      <label>End date (defaults to start + 364 days)
+        <input name="end_date" type="date"
+               value="{{ rental.end_date if rental else '' }}"
+               id="s7r-end">
+      </label>
+      <label>Monthly rent (LKR)
+        <input name="monthly_rent_lkr" type="number" min="0" step="0.01" required
+               value="{{ rental.monthly_rent_lkr if rental else '' }}"
+               id="s7r-rent" oninput="s7rPortion()">
+      </label>
+      <label>Deposit paid (LKR, optional)
+        <input name="deposit_paid" type="number" min="0" step="0.01"
+               value="{{ rental.deposit_paid if rental else '' }}">
+      </label>
+      <label>Payment method
+        <select name="payment_method">
+          {% set m = rental.payment_method if rental else 'transfer' %}
+          <option value="transfer" {% if m=='transfer' %}selected{% endif %}>Bank transfer</option>
+          <option value="standing-order" {% if m=='standing-order' %}selected{% endif %}>Standing order</option>
+          <option value="cheque" {% if m=='cheque' %}selected{% endif %}>Cheque</option>
+          <option value="cash" {% if m=='cash' %}selected{% endif %}>Cash</option>
+        </select>
+      </label>
+      <label>Payment frequency
+        <select name="payment_frequency">
+          {% set f = rental.payment_frequency if rental else 'monthly' %}
+          <option value="monthly" {% if f=='monthly' %}selected{% endif %}>Monthly</option>
+          <option value="quarterly" {% if f=='quarterly' %}selected{% endif %}>Quarterly</option>
+          <option value="annual" {% if f=='annual' %}selected{% endif %}>Annual</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="s7r-portion" id="s7r-portion-card">
+      Home-office portion: <strong id="s7r-portion-lkr">LKR —</strong>
+      &nbsp;({{ property.home_office_percentage or 0 }}% of monthly rent)
+      <div style="margin-top:.4rem; color: var(--mute); font-size:.82rem;">
+        Inland Revenue Act §6 — this is the deductible slice.
+      </div>
+    </div>
+
+    <div class="s7r-actions">
+      <button type="submit" class="btn-primary">Save rental</button>
+      <a href="{{ url_for('fiesta_property.detail', property_id=property.id) }}" class="btn-ghost">Cancel</a>
+      <button type="button" class="btn-ghost" onclick="s7rPrefill()">Pre-fill from previous year</button>
+    </div>
+  </form>
+
+  {% endif %}
+</div>
+
+<script>
+  function s7rPortion() {
+    var rent = parseFloat(document.getElementById('s7r-rent').value || '0');
+    var pct = {{ (property.home_office_percentage or 0) }};
+    var portion = (rent * pct / 100.0).toFixed(2);
+    document.getElementById('s7r-portion-lkr').textContent =
+      'LKR ' + Number(portion).toLocaleString();
+  }
+  (function autoEndDate() {
+    var s = document.getElementById('s7r-start');
+    var e = document.getElementById('s7r-end');
+    if (!s || !e) return;
+    s.addEventListener('change', function() {
+      if (!e.value && s.value) {
+        var d = new Date(s.value);
+        d.setDate(d.getDate() + 364);
+        e.value = d.toISOString().substring(0,10);
+      }
+    });
+  })();
+  function s7rPrefill() {
+    fetch("{{ url_for('fiesta_property.prefill_prior_year', property_id=property.id) }}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({})
+    }).then(r => r.json()).then(data => {
+      if (data.ok) location.reload();
+      else alert(data.error || 'No prior-year agreement to pre-fill.');
+    });
+  }
+  s7rPortion();
+</script>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends 'layout.html' %}
+
+{% block title %}Landlord · {{ property.address_line1 }} · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .s7l-page { max-width: 780px; margin: 0 auto; padding: 1rem 1rem 4rem;
+    --line: var(--color-ink-100, #e6e8ec);
+    --ink: var(--color-ink-900, #0f1115);
+    --soft: var(--color-ink-700, #4b525c);
+    --mute: var(--color-ink-500, #6e7682);
+    --accent: var(--color-accent-700, #7c3aed);
+    --accent-soft: var(--color-accent-50, #f3efff);
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --warn-border: #facc15;
+    --info-soft: #e0f2fe;
+    --info-border: #0284c7;
+  }
+  .s7l-title { font-family:'Fraunces', serif; font-weight:600;
+    font-size: clamp(1.4rem, 2vw + 1rem, 2.1rem); margin: 0 0 .25rem; }
+  .s7l-sub { color: var(--soft); margin-bottom: 1.5rem; }
+
+  .s7l-form { background:white; border:1px solid var(--line); border-radius:14px;
+    padding:1.25rem; }
+  .s7l-grid {
+    display: grid; gap: .85rem 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  .s7l-grid label { display:flex; flex-direction:column; gap:.25rem; font-size:.92rem; color: var(--soft); }
+  .s7l-grid input, .s7l-grid select {
+    padding:.55rem .7rem; border:1px solid var(--line); border-radius:8px; font-size:.95rem;
+  }
+
+  .s7l-disclosure {
+    margin: 1rem 0; padding: .9rem 1rem;
+    background: var(--warn-soft); border-left: 4px solid var(--warn-border);
+    border-radius: 8px; font-size: .92rem; color: var(--ink); line-height: 1.5;
+  }
+  .s7l-disclosure.is-info {
+    background: var(--info-soft); border-color: var(--info-border);
+  }
+  .s7l-disclosure strong { color: var(--warn); }
+  .s7l-disclosure.is-info strong { color: var(--info-border); }
+  .s7l-explain {
+    margin-top: .5rem; color: var(--soft); font-size: .85rem;
+    line-height: 1.4;
+  }
+
+  .s7l-actions { display: flex; gap: .6rem; margin-top: 1.25rem; flex-wrap: wrap; }
+  .btn-primary { background: var(--accent); color: white; border: 0;
+    padding: .55rem 1.1rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .btn-ghost { background: white; color: var(--soft); border:1px solid var(--line);
+    padding: .55rem 1.1rem; border-radius:8px; cursor:pointer; text-decoration:none; }
+
+  .s7l-help-modal {
+    display:none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 100;
+    align-items:center; justify-content:center; padding: 1rem;
+  }
+  .s7l-help-modal.is-open { display:flex; }
+  .s7l-help-card {
+    background: white; border-radius: 14px; padding: 1.5rem; max-width: 540px;
+    max-height: 85vh; overflow: auto;
+  }
+  .s7l-help-card h3 { margin-top: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s7l-page">
+  <a href="{{ url_for('fiesta_property.detail', property_id=property.id) }}" style="color: var(--accent); text-decoration:none;">
+    &larr; {{ property.address_line1 }}
+  </a>
+  <h1 class="s7l-title">Landlord</h1>
+  <p class="s7l-sub">
+    Who do you pay rent to? Some customers pay a third-party landlord; some
+    pay a family member; some own the property and have their business pay
+    them rent. We need to know which — it affects how we describe the
+    arrangement to IRD.
+  </p>
+
+  <form class="s7l-form"
+        method="POST"
+        action="{{ url_for('fiesta_property.landlord_save', property_id=property.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="s7l-grid">
+      <label>Full name<input name="full_name" required value="{{ landlord.full_name if landlord else '' }}"></label>
+      <label>NIC (optional)<input name="nic" value="{{ landlord.nic if landlord else '' }}"></label>
+      <label>TIN (optional)<input name="tin" value="{{ landlord.tin if landlord else '' }}"></label>
+      <label>Address (defaults to property address)
+        <input name="address" value="{{ landlord.address if landlord else '' }}">
+      </label>
+      <label>Phone<input name="phone" value="{{ landlord.phone if landlord else '' }}"></label>
+      <label>Email<input name="email" type="email" value="{{ landlord.email if landlord else '' }}"></label>
+      <label>Bank name<input name="bank_name" value="{{ landlord.bank_name if landlord else '' }}"></label>
+      <label>Bank account number<input name="bank_account_number" value="{{ landlord.bank_account_number if landlord else '' }}"></label>
+      <label>Relationship to you
+        <select name="relationship_to_customer" id="s7l-rel" onchange="s7lToggleHelp()">
+          {% set cur = landlord.relationship_to_customer if landlord else "arm's-length" %}
+          <option value="arm's-length" {% if cur == "arm's-length" %}selected{% endif %}>Arm's length</option>
+          <option value="family" {% if cur == 'family' %}selected{% endif %}>Family</option>
+          <option value="spouse" {% if cur == 'spouse' %}selected{% endif %}>Spouse</option>
+          <option value="parent" {% if cur == 'parent' %}selected{% endif %}>Parent</option>
+          <option value="sibling" {% if cur == 'sibling' %}selected{% endif %}>Sibling</option>
+          <option value="child" {% if cur == 'child' %}selected{% endif %}>Child</option>
+          <option value="friend" {% if cur == 'friend' %}selected{% endif %}>Friend</option>
+          <option value="self-owns" {% if cur == 'self-owns' %}selected{% endif %}>I own this property — paying myself</option>
+          <option value="business-associate" {% if cur == 'business-associate' %}selected{% endif %}>Business associate</option>
+        </select>
+      </label>
+    </div>
+
+    {% if detection %}
+      {% set sig_list = detection.signals_csv.split(',') if detection.signals_csv else [] %}
+      {% if detection.should_default_on_disclosure %}
+      <div class="s7l-disclosure">
+        <strong>§195 related-party disclosure: ON</strong><br>
+        Based on what you've told us, IRD requires the rental agreement to
+        flag this as a related-party transaction. Don't worry — it's legal,
+        but it has to be disclosed. We'll handle the wording.
+        <button type="button" class="btn-ghost" style="margin-left:.5rem;"
+                onclick="document.getElementById('s7l-help').classList.add('is-open')">
+          What does §195 mean?
+        </button>
+        <div class="s7l-explain">
+          Signals: {{ sig_list|join(', ') }} · Risk: {{ detection.audit_substance_risk }}
+        </div>
+      </div>
+      {% else %}
+      <div class="s7l-disclosure is-info">
+        <strong>§195 disclosure: OFF (arm's-length)</strong><br>
+        Your arrangement looks arm's-length on the evidence available. You
+        can toggle disclosure on if you want to be conservative.
+      </div>
+      {% endif %}
+    {% endif %}
+
+    <div class="s7l-actions">
+      <button type="submit" class="btn-primary">Save landlord</button>
+      <a href="{{ url_for('fiesta_property.detail', property_id=property.id) }}" class="btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<div id="s7l-help" class="s7l-help-modal" onclick="if(event.target===this) this.classList.remove('is-open')">
+  <div class="s7l-help-card">
+    <h3>What is §195?</h3>
+    <p>
+      Inland Revenue Act §195 governs "associated person" transactions — deals
+      between you and a family member, business partner, or yourself
+      (e.g. your company paying you rent for a room in your house).
+    </p>
+    <p>
+      <strong>It is not illegal</strong> to have a related-party rental — many
+      legitimate arrangements are exactly this. But IRD requires:
+    </p>
+    <ul>
+      <li>The arrangement is <strong>disclosed</strong> on the return.</li>
+      <li>The rent is at <strong>market rate</strong> (we sanity-check this for you).</li>
+      <li>The room is used <strong>wholly + exclusively + necessarily</strong> for business (Inland Revenue Act §6).</li>
+    </ul>
+    <p>
+      We'll generate a rental agreement that satisfies these tests so an
+      auditor can sign off cleanly if they ever review your file.
+    </p>
+    <button type="button" class="btn-primary" onclick="document.getElementById('s7l-help').classList.remove('is-open')">Got it</button>
+  </div>
+</div>
+
+<script>
+  function s7lToggleHelp() {
+    var v = document.getElementById('s7l-rel').value;
+    if (v === 'self-owns') {
+      // Show inline hint
+      var hint = document.getElementById('s7l-self-hint');
+      if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 's7l-self-hint';
+        hint.className = 's7l-disclosure';
+        hint.innerHTML =
+          '<strong>Heads up — "I own this" route.</strong><br>' +
+          'Paying yourself rent for a room you own is legitimate, but §195 ' +
+          'disclosure is mandatory. Make sure your business actually pays ' +
+          'the rent monthly (don\'t treat it as bookkeeping-only).';
+        document.querySelector('.s7l-form').appendChild(hint);
+      }
+    } else {
+      var h = document.getElementById('s7l-self-hint');
+      if (h) h.remove();
+    }
+  }
+</script>
+{% endblock %}
