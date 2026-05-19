@@ -5,44 +5,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Develop Sri Lanka - Receipt Scanner{% endblock %}</title>
-    
-    <!-- Bootstrap CSS basic -->
+    <title>{% block title %}FIESTA - Foreign Income Earner Saving & Tax Advisor{% endblock %}</title>
+    <meta name="description" content="FIESTA - Bookkeeping and audit-defence for foreign income earners and self-employed professionals.">
+    <meta name="application-name" content="FIESTA">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="alternate icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <!-- Google Fonts: Fraunces (display serif) + Manrope (body sans) + JetBrains Mono (numerics) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..700,30..100;1,9..144,400..700,30..100&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap CSS (loaded first so FIESTA stylesheets can override) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    
+
     <!-- Animate.css for animations -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    
-    <!-- Custom CSS -->
+
+    <!-- Legacy custom CSS — pre-FIESTA rules; FIESTA stylesheets below will override -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    
+
     <!-- Improved Toggle Styling -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/improved-toggles.css') }}">
+
+    <!-- FIESTA design system: tokens MUST come before components; both AFTER custom.css so they win the cascade -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-components.css') }}">
     
     <!-- Additional page-specific styles -->
     {% block additional_styles %}{% endblock %}
     
     <style>
+        /* Layout-only sidebar geometry. Color / type tokens are owned by fiesta-tokens.css. */
         :root {
-            --sidebar-width: 260px;
-            --sidebar-collapsed-width: 70px;
-            --primary-color: #6200EA;
-            --primary-light: #e9f0ff;
-            --secondary-color: #7E57C2;
-            --text-color: #495057;
-            --submenu-bg: #f8f9fa;
-            --transition-speed: 0.3s;
+            --submenu-bg: var(--color-ink-50);
         }
-        
+
         body {
             overflow-x: hidden;
-            color: var(--text-color);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -102,56 +108,43 @@
         }
         
         .sidebar-toggle:hover {
-            background-color: var(--primary-light);
+            background-color: var(--color-brand-50);
+            color: var(--color-brand-700);
         }
         
-        /* Navigation Menu */
+        /* Navigation Menu — geometry only. Color/type owned by fiesta-components.css */
         .sidebar-menu {
             list-style: none;
             padding: 0;
             margin: 0;
         }
-        
+
         .menu-item {
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.125rem;
         }
-        
+
         .menu-link {
             display: flex;
             align-items: center;
-            padding: 0.75rem 1.5rem;
-            color: var(--text-color);
             text-decoration: none;
-            transition: all 0.2s ease;
             border-left: 3px solid transparent;
+            transition: all var(--transition-speed) var(--easing-standard);
         }
-        
-        .menu-link:hover {
-            background-color: var(--primary-light);
-            color: var(--primary-color);
-        }
-        
-        .menu-link.active {
-            color: var(--primary-color);
-            background-color: var(--primary-light);
-            border-left-color: var(--primary-color);
-            font-weight: 500;
-        }
-        
+
         .menu-icon {
-            font-size: 1.25rem;
+            font-size: 1.05rem;
             width: 24px;
             text-align: center;
             margin-right: 0.75rem;
             transition: margin var(--transition-speed);
         }
-        
+
         .menu-text {
             transition: opacity var(--transition-speed);
             white-space: nowrap;
         }
-        
-        /* Submenu Styling */
+
+        /* Submenu Styling — geometry only */
         .submenu {
             max-height: 0;
             overflow: hidden;
@@ -159,28 +152,15 @@
             padding-left: 0;
             transition: max-height 0.3s ease;
         }
-        
+
         .submenu-link {
             display: flex;
             align-items: center;
-            padding: 0.5rem 1rem 0.5rem 3.25rem;
-            color: var(--text-color);
+            padding: 0.4rem 1rem 0.4rem 3.25rem;
             text-decoration: none;
             transition: all 0.2s ease;
-            font-size: 0.95rem;
         }
-        
-        .submenu-link:hover {
-            background-color: var(--submenu-bg);
-            color: var(--primary-color);
-        }
-        
-        .submenu-link.active {
-            color: var(--primary-color);
-            background-color: var(--submenu-bg);
-            font-weight: 500;
-        }
-        
+
         .submenu-icon {
             font-size: 0.9rem;
             width: 18px;
@@ -246,33 +226,21 @@
         }
         
         .main-header {
-            background-color: #fff;
-            border-bottom: 1px solid #e9ecef;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.035);
-            padding: 0.75rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
-        
-        .page-title {
-            font-size: 1.25rem;
-            font-weight: 500;
-            margin: 0;
-            color: var(--text-color);
-        }
-        
+
         .main-content {
-            padding: 1.5rem;
             flex: 1;
         }
-        
-        /* Mobile Styles */
+
+        /* Mobile Header (geometry only — color owned by fiesta-components.css) */
         .mobile-header {
             display: none;
-            background-color: #fff;
-            padding: 0.75rem 1rem;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            background-color: var(--color-surface-raised);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-3) var(--space-4);
             position: fixed;
             top: 0;
             left: 0;
@@ -283,7 +251,7 @@
         .mobile-toggle {
             background: none;
             border: none;
-            color: var(--text-color);
+            color: var(--color-ink-700);
             font-size: 1.5rem;
             cursor: pointer;
         }
@@ -339,10 +307,8 @@
             }
         }
         
-        /* Footer */
+        /* Footer geometry (color owned by fiesta-components.css) */
         .footer {
-            background-color: #f8f9fa;
-            padding: 1rem;
             margin-top: auto;
         }
     </style>
@@ -355,7 +321,7 @@
             <i class="fas fa-bars"></i>
         </button>
         <a href="/" class="sidebar-brand mx-auto">
-            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo" style="height: 30px;">
+            {% include '_fiesta_logo.html' %}
         </a>
     </header>
     
@@ -366,8 +332,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/" class="sidebar-brand">
-                <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Logo" class="brand-logo">
-                <span class="brand-text">Develop Sri Lanka</span>
+                {% include '_fiesta_logo.html' %}
             </a>
             <button class="sidebar-toggle" id="sidebarToggle">
                 <i class="fas fa-chevron-left"></i>
@@ -659,7 +624,7 @@
                 {% elif '/admin/' in request.path %}
                     Admin Dashboard
                 {% else %}
-                    Develop Sri Lanka
+                    FIESTA
                 {% endif %}
             </h1>
             
@@ -697,20 +662,16 @@
         
         <footer class="footer">
             <div class="container-fluid">
-                <div class="row">
+                <div class="row align-items-center">
                     <div class="col-md-6 text-center text-md-start">
-                        <p class="mb-0">&copy; 2025 Develop Sri Lanka. All rights reserved.</p>
+                        <p class="mb-0">
+                            &copy; 2025 <strong style="color: var(--color-ink-700);">FIESTA</strong> &middot; Foreign Income Earner Saving &amp; Tax Advisor
+                        </p>
                     </div>
-                    <div class="col-md-6 text-center text-md-end">
-                        <a href="#" class="text-decoration-none text-muted me-2">
-                            <i class="fab fa-facebook"></i>
-                        </a>
-                        <a href="#" class="text-decoration-none text-muted me-2">
-                            <i class="fab fa-twitter"></i>
-                        </a>
-                        <a href="#" class="text-decoration-none text-muted">
-                            <i class="fab fa-instagram"></i>
-                        </a>
+                    <div class="col-md-6 text-center text-md-end small">
+                        <a href="#" class="text-muted me-3" style="text-decoration: none;">Privacy</a>
+                        <a href="#" class="text-muted me-3" style="text-decoration: none;">Terms</a>
+                        <a href="#" class="text-muted" style="text-decoration: none;">Support</a>
                     </div>
                 </div>
             </div>

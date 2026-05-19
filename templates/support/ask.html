@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% block title %}Support - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 760px;">
+  <div class="row mb-4">
+    <div class="col">
+      <span class="eyebrow">Support</span>
+      <h1 class="h2 mb-2">Ask the Copilot</h1>
+      <p class="text-secondary mb-0">
+        We use your ledger + the IRD rule book to draft an answer. If we're not
+        confident, your question goes to our team instead of getting a guess.
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('support.submit') }}" novalidate>
+    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <label for="question" class="form-label fw-semibold">Your question</label>
+        <textarea
+          name="question"
+          id="question"
+          class="form-control"
+          rows="5"
+          maxlength="5000"
+          placeholder="e.g. What CBSL rate should I use for a USD remittance on a public holiday?"
+          required
+          autofocus></textarea>
+        <div class="form-text mt-2">
+          Helpful: include the date and currency if your question is about a specific
+          remittance. We can see your ledger; we will cite the exact entries we reference.
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4 border-0 bg-light">
+      <div class="card-body small text-secondary">
+        <strong>What gets sent to our team instead of auto-answered:</strong>
+        questions mentioning IRD notices, audits, refunds, lawsuits, penalties, fraud, or any urgent
+        relationship issue. Also any question where we don't have a confident, cited answer.
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <a href="{{ url_for('index') if url_for else '#' }}" class="btn btn-outline-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">Ask the Copilot</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

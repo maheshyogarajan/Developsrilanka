@@ -33,7 +33,16 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PROVIDER = "glm"
+# DEFAULT_PROVIDER: "gemini" (was "glm" in the Replit codebase).
+# CHANGED 2026-05-16 per FIESTA Strategy Council (4/4 voices flagged Zhipu/GLM's
+# api.z.ai routing of SL tax-resident PII to a US-Entity-Listed Chinese provider
+# as the top compliance risk). GLM remains available via:
+#   - Organization.ocr_provider = "glm"   (per-org opt-in)
+#   - OCR_PROVIDER=glm env var            (global override; do not set in prod)
+#   - explicit `provider="glm"` arg       (test code paths only)
+# When GLM is selected, in-app UI should display the disclosure banner.
+# See SUB_G_PREMORTEM.md risk T2.
+DEFAULT_PROVIDER = "gemini"
 _ALLOWED = ("gemini", "glm")
 
 

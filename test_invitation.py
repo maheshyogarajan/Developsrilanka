@@ -42,7 +42,7 @@ def send_test_invitation():
         msg = MIMEMultipart()
         msg['From'] = username
         msg['To'] = "test@example.com"  # Replace with your test email
-        msg['Subject'] = "DevelopSriLanka.com Invitation Test"
+        msg['Subject'] = "FIESTA Invitation Test"
         
         # HTML message body 
         html = """
@@ -51,7 +51,7 @@ def send_test_invitation():
             <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px;">
                 <!-- Header with gradient background -->
                 <div style="background: linear-gradient(135deg, #004b87 0%, #00285a 100%); padding: 25px; text-align: center;">
-                    <h1 style="color: white;">DevelopSriLanka.com</h1>
+                    <h1 style="color: white;">FIESTA</h1>
                     <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0; font-size: 16px;">Empowering financial intelligence</p>
                 </div>
                 
@@ -78,7 +78,7 @@ def send_test_invitation():
             <!-- Footer -->
             <div style="text-align: center; color: #718096; font-size: 0.9em; margin-top: 20px;">
                 <p>This is a test email. No action is required.</p>
-                <p>&copy; 2025 DevelopSriLanka.com. All rights reserved.</p>
+                <p>&copy; 2025 FIESTA. All rights reserved.</p>
             </div>
         </body>
         </html>

@@ -86,7 +86,7 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = ('DevelopSriLanka.com', os.environ.get('GMAIL_USERNAME'))
+app.config['MAIL_DEFAULT_SENDER'] = ('FIESTA', os.environ.get('GMAIL_USERNAME'))
 app.config['MAIL_MAX_EMAILS'] = 5
 app.config['MAIL_DEBUG'] = True
 mail.init_app(app)
@@ -210,9 +210,59 @@ def _ensure_additive_schema():
             db.session.execute(_sql_text(
                 'ALTER TABLE organization ADD COLUMN IF NOT EXISTS ocr_provider VARCHAR(20)'
             ))
+            # Wave A 2026-05-16: SL foreign-income persona flag for User.
+            db.session.execute(_sql_text(
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS persona VARCHAR(50)'
+            ))
+            # Wave H 2026-05-17 (council #1): IRD-ready badge requires staff review.
+            db.session.execute(_sql_text(
+                'ALTER TABLE remittance_entries '
+                'ADD COLUMN IF NOT EXISTS ird_ready_staff_reviewed BOOLEAN NOT NULL DEFAULT FALSE'
+            ))
+            # Wave 1 EVENT SPINE 2026-05-17 (council #2 unanimous): append-only
+            # analytics event table. CREATE TABLE IF NOT EXISTS guarantees the
+            # table is present in every entry point (gunicorn, wsgi, celery)
+            # even if SQLAlchemy metadata reflection via main.py db.create_all
+            # is delayed. The ORM model lives in event_models.py for queries.
+            db.session.execute(_sql_text(
+                'CREATE TABLE IF NOT EXISTS events ('
+                '  id SERIAL PRIMARY KEY,'
+                '  event_type VARCHAR(64) NOT NULL,'
+                '  user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL,'
+                '  organization_id INTEGER REFERENCES organization(id) ON DELETE SET NULL,'
+                '  payload JSON,'
+                '  source VARCHAR(32),'
+                '  session_id VARCHAR(64),'
+                '  ip_address VARCHAR(50),'
+                '  user_agent TEXT,'
+                '  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
+                ')'
+            ))
+            # Single-column indexes (match the ORM index=True on the columns).
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_event_type ON events (event_type)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_user_id ON events (user_id)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_created_at ON events (created_at)'
+            ))
+            # Composite indexes — match event_models.Event.__table_args__.
+            # These power the two leading-indicator query shapes Wave 2 needs:
+            #   "last N events of type X"          (event_type, created_at DESC)
+            #   "per-user timeline newest first"   (user_id, created_at DESC)
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_type_created_at '
+                'ON events (event_type, created_at DESC)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_events_user_created_at '
+                'ON events (user_id, created_at DESC)'
+            ))
             db.session.commit()
     except Exception as _alter_err:
-        logging.warning(f"Could not ensure organization.ocr_provider column: {_alter_err}")
+        logging.warning(f"Could not ensure additive schema columns: {_alter_err}")
         try:
             db.session.rollback()
         except Exception:
@@ -261,6 +311,11 @@ RECEIPT_FIELDS = [
     "expense_major_category",
     "expense_minor_category"
 ]
+
+@app.route('/healthz')
+def healthz():
+    """Fly.io healthcheck alias — returns 200 ok for liveness probes."""
+    return 'ok', 200
 
 @app.route('/health')
 def health_check():
@@ -338,18 +393,23 @@ def index():
     if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
         flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
         return redirect(url_for('verify_email_reminder'))
-    
+
     # Check if onboarding is completed (admins bypass this check)
     if hasattr(current_user, 'onboarding_completed') and not current_user.onboarding_completed and current_user.role != 'admin':
         flash('Please complete your account setup before using the app.', 'info')
         return redirect(url_for('onboarding_wizard'))
-    
+
     # Check if user has any organizations
     if not current_user.organizations:
         # Redirect to onboarding wizard if no organizations exist
         flash("Please complete your account setup before scanning receipts.", "warning")
         return redirect(url_for('onboarding_wizard'))
-    
+
+    # Persona reroute (Wave A 2026-05-16): SL foreign-income earners land on the Remittance
+    # Ledger, not the generic receipt-scan page. Reversible per-user via profile settings.
+    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        return redirect(url_for('remittance.dashboard'))
+
     return render_template('index.html')
 
 @app.route('/history')
@@ -2392,7 +2452,20 @@ def verify_email(token):
                 # Continue with verification even if org creation fails
             
             db.session.commit()
-            
+
+            # Wave 1 EVENT SPINE: email-verified event. Activation-funnel signal.
+            # Feeds the persona-prompt timing model (council #2 2026-05-17).
+            try:
+                from events import emit as _emit_event
+                _emit_event(
+                    'email_verified',
+                    user_id=user.id,
+                    payload={'email': user.email},
+                    source='route:verify_email',
+                )
+            except Exception as _ev_err:
+                logging.debug(f"Event emit (email_verified) failed: {_ev_err}")
+
             # Log the user in and redirect to onboarding wizard
             login_user(user)
             flash('Your email has been verified! Please complete your account setup.', 'success')
@@ -2706,13 +2779,20 @@ def email_login():
                 from datetime import datetime, timedelta
                 initial_expiration = datetime.utcnow() + timedelta(days=30)
                 
+                # Persona: SL foreign-income earner opt-in at signup (Wave A 2026-05-16).
+                # NULL persona = legacy/default flows; 'sl_foreign_income' routes to /remittance/dashboard.
+                persona_value = None
+                if request.form.get('persona_sl_foreign_income') in ('1', 'on', 'true', 'yes'):
+                    persona_value = 'sl_foreign_income'
+
                 new_user = User(
                     email=email,
                     password_hash=generate_password_hash(password),
                     name=email.split('@')[0],  # Use part of email as name
                     role='user',  # Set default role
                     subscription_status='free_trial',
-                    access_expiration_date=initial_expiration  # Set initial 30-day access period
+                    access_expiration_date=initial_expiration,  # Set initial 30-day access period
+                    persona=persona_value
                 )
                 
                 db.session.add(new_user)
@@ -2720,13 +2800,35 @@ def email_login():
                 
                 # Log successful user creation
                 log_registration_success(new_user.id, email, 'standard')
-                
+
                 # Also log to activity logger for admin dashboard
                 try:
                     from activity_logger import ActivityLogger
                     ActivityLogger.log_registration(new_user.id, email)
                 except Exception as log_err:
                     logging.debug(f"Activity logging failed: {log_err}")
+
+                # Wave 1 EVENT SPINE: emit signup event (best-effort, never raises).
+                # Feeds AI CRM cold-start + growth dashboards. Council #2 2026-05-17.
+                try:
+                    from events import emit as _emit_event
+                    _emit_event(
+                        'signup',
+                        user_id=new_user.id,
+                        payload={'persona': persona_value, 'method': 'email_password'},
+                        source='route:email_login',
+                    )
+                    if persona_value:
+                        # Persona set at signup is its own signal — important for the
+                        # AI CRM segmentation funnel (sl_foreign_income vs default).
+                        _emit_event(
+                            'persona_set',
+                            user_id=new_user.id,
+                            payload={'persona': persona_value, 'at': 'signup'},
+                            source='route:email_login',
+                        )
+                except Exception as _ev_err:
+                    logging.debug(f"Event emit (signup) failed: {_ev_err}")
                 
                 # Send email verification (organizations will be created after email verification)
                 try:
@@ -3445,7 +3547,7 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
         app_url = request.host_url.rstrip('/')
         
         # Create the subject for email
-        subject = f"{from_user.name} invites you to join DevelopSriLanka.com"
+        subject = f"{from_user.name} invites you to join FIESTA"
         
         # Log the email attempt
         logging.info(f"Sending friend invitation email to: {to_email}")
@@ -3498,13 +3600,13 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
         )
         
         # Set the friendly display name separately for better compatibility
-        message.from_email.name = f"{from_user.name} via DevelopSriLanka"
+        message.from_email.name = f"{from_user.name} via FIESTA"
         
         # Send the email using SendGrid
         try:
             # Log email sending details using both regular logger and SendGrid logger
             logging.info(f"Preparing to send friend invitation email with SendGrid:")
-            logging.info(f"From: {from_user.name} via DevelopSriLanka <{sender_email}>")
+            logging.info(f"From: {from_user.name} via FIESTA <{sender_email}>")
             logging.info(f"To: {recipient_email}")
             logging.info(f"Subject: {subject}")
             
@@ -3512,7 +3614,7 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
             log_api_request(
                 recipient_email=recipient_email, 
                 sender_email=sender_email,
-                sender_name=f"{from_user.name} via DevelopSriLanka",
+                sender_name=f"{from_user.name} via FIESTA",
                 subject=subject
             )
             
@@ -3561,7 +3663,7 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
             logging.error(f"Error type: {type(sendgrid_error).__name__}")
             logging.error(f"Error message: {str(sendgrid_error)}")
             logging.error(f"From email: {sender_email}")
-            logging.error(f"From name: {from_user.name} via DevelopSriLanka")
+            logging.error(f"From name: {from_user.name} via FIESTA")
             logging.error(f"Full error traceback: {error_details}")
             logging.error(f"==== END SENDGRID ERROR DETAILS ====")
             

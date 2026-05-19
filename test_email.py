@@ -36,13 +36,13 @@ def test_email():
     try:
         # Create a test message
         msg = Message(
-            subject="Test Email from DevelopSriLanka.com",
+            subject="Test Email from FIESTA",
             recipients=["test@example.com"],  # Replace with your test email
             html="""
             <html>
             <body>
                 <h1>Test Email</h1>
-                <p>This is a test email from DevelopSriLanka.com.</p>
+                <p>This is a test email from FIESTA.</p>
                 <p>If you're seeing this, email sending is working!</p>
             </body>
             </html>

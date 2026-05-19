@@ -1,276 +1,281 @@
 {% extends 'layout.html' %}
 
-{% block title %}Home - Develop Sri Lanka{% endblock %}
+{% block title %}Home - FIESTA{% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<div class="home-hero py-5">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-6 mb-4 mb-lg-0">
-                <h1 class="display-4 fw-bold text-primary mb-3">Simplify Your Financial Management</h1>
-                <div class="lead mb-4">
-                    <p>Streamline your business finances with our all-in-one platform for receipt scanning, expense tracking, invoicing, and tax optimization.</p>
-                </div>
-                
-                {% if current_user.is_authenticated %}
-                <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-4">
-                    <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 me-md-2">
-                        <i class="fas fa-camera me-2"></i>Scan Receipt
-                    </a>
-                    <a href="{{ url_for('getting_started.wizard') }}" class="btn btn-outline-secondary btn-lg px-4">
-                        <i class="fas fa-check-circle me-2"></i>Getting Started
-                    </a>
-                </div>
-                {% else %}
-                <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-4">
-                    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4 me-md-2">
-                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
-                    </a>
-                    <a href="{{ url_for('register') }}" class="btn btn-outline-secondary btn-lg px-4">
-                        <i class="fas fa-user-plus me-2"></i>Register
-                    </a>
-                </div>
-                <div class="mt-4">
-                    <div class="demo-button-container position-relative">
-                        <a href="{{ url_for('preview') }}" class="btn btn-success btn-lg px-5 py-3 d-block shadow-lg fw-bold">
-                            <i class="fas fa-play-circle me-2"></i>TRY DEMO
-                        </a>
-                        <div class="pulse-animation position-absolute top-0 start-0 w-100 h-100"></div>
-                    </div>
-                    <p class="text-muted small mt-2 text-center">Experience the platform without creating an account</p>
-                </div>
-                
-                <style>
-                    .demo-button-container {
-                        margin: 20px auto;
-                        max-width: 300px;
-                        overflow: hidden;
-                        border-radius: 0.5rem;
-                    }
-                    .pulse-animation {
-                        background: rgba(25, 135, 84, 0.2);
-                        border-radius: 0.5rem;
-                        animation: pulse 2s infinite;
-                        pointer-events: none;
-                        z-index: -1;
-                    }
-                    @keyframes pulse {
-                        0% { transform: scale(1); opacity: 1; }
-                        50% { transform: scale(1.05); opacity: 0.8; }
-                        100% { transform: scale(1); opacity: 1; }
-                    }
-                </style>
-                {% endif %}
-            </div>
-            <div class="col-lg-6">
-                <div class="card border-0 shadow-lg">
-                    <div class="card-body p-4">
-                        <div class="embed-responsive embed-responsive-16by9 mb-4">
-                            <img src="{{ url_for('static', filename='img/app-dashboard.svg') }}" alt="Application Dashboard" class="img-fluid rounded" onerror="this.src='https://via.placeholder.com/600x340?text=Financial+Management+Platform'">
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="badge bg-primary rounded-pill px-3 py-2 me-2">
-                                <i class="fas fa-receipt me-1"></i> Receipt Scanning
-                            </span>
-                            <span class="badge bg-success rounded-pill px-3 py-2 me-2">
-                                <i class="fas fa-file-invoice-dollar me-1"></i> Invoicing
-                            </span>
-                            <span class="badge bg-info rounded-pill px-3 py-2">
-                                <i class="fas fa-building me-1"></i> Organizations
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- ====== HERO ====== -->
+<section class="fiesta-hero">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <span class="fiesta-hero__eyebrow">
+          <i class="fas fa-globe-asia" aria-hidden="true"></i>
+          For foreign income earners &amp; the self-employed
+        </span>
+        <h1 class="fiesta-hero__title">
+          Bookkeeping built to <em>defend</em> every number.
+        </h1>
+        <p class="fiesta-hero__subtitle">
+          FIESTA &mdash; the Foreign Income Earner Saving &amp; Tax Advisor.
+          A globally accessible P&amp;L tracker for freelancers, consultants,
+          and remote earners. Capture every receipt, generate audit-defensible
+          records, and stay ready for your accountant year-round.
+        </p>
 
-<!-- Key Features Section -->
-<div class="bg-light py-5">
-    <div class="container">
-        <div class="text-center mb-5">
-            <h2 class="fw-bold text-primary">Complete Financial Management Solution</h2>
-            <p class="lead text-muted">All the tools you need to manage your business finances in one place</p>
+        {% if current_user.is_authenticated %}
+        <div class="fiesta-hero__cta-row">
+          <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-camera"></i> Scan a Receipt
+          </a>
+          <a href="{{ url_for('getting_started.wizard') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="fas fa-check-circle"></i> Getting Started
+          </a>
         </div>
-        
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm hover-card">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon bg-primary bg-gradient text-white rounded-circle p-3 d-inline-flex mb-3">
-                            <i class="fas fa-money-bill-wave fa-lg"></i>
-                        </div>
-                        <h3 class="fs-4">Expense Management</h3>
-                        <p class="text-muted">Automatically scan and categorize receipts, track expenses, and identify tax-deductible items.</p>
-                        {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('classify.classify_receipts') }}" class="btn btn-sm btn-outline-primary mt-2">Manage Expenses</a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm hover-card">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon bg-success bg-gradient text-white rounded-circle p-3 d-inline-flex mb-3">
-                            <i class="fas fa-file-invoice fa-lg"></i>
-                        </div>
-                        <h3 class="fs-4">Invoice Generation</h3>
-                        <p class="text-muted">Create professional invoices, track payments, and manage clients with our intuitive tools.</p>
-                        {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('invoices') }}" class="btn btn-sm btn-outline-success mt-2">Create Invoice</a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm hover-card">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon bg-info bg-gradient text-white rounded-circle p-3 d-inline-flex mb-3">
-                            <i class="fas fa-building fa-lg"></i>
-                        </div>
-                        <h3 class="fs-4">Organization Management</h3>
-                        <p class="text-muted">Create and manage multiple organizations, invite team members, and control access.</p>
-                        {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('organizations.organizations') }}" class="btn btn-sm btn-outline-info mt-2">Manage Organizations</a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+        {% else %}
+        <div class="fiesta-hero__cta-row">
+          <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-user-plus"></i> Create Free Account
+          </a>
+          <a href="{{ url_for('preview') }}" class="btn btn-accent btn-lg">
+            <i class="fas fa-play-circle"></i> Try the Demo
+          </a>
+          <a href="{{ url_for('login') }}" class="btn btn-ghost btn-lg">
+            Sign in
+          </a>
         </div>
-    </div>
-</div>
+        <p class="text-muted small mt-4 mb-0">
+          <i class="fas fa-shield-alt me-1 text-accent"></i>
+          Free during launch &middot; No card required &middot; Your data stays yours
+        </p>
+        {% endif %}
+      </div>
 
-<!-- How It Works Section -->
-<div class="container py-5">
+      <div class="col-lg-6">
+        <div class="fiesta-hero__visual">
+          <!-- Inline preview "dashboard" — geometric, no stock photo -->
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+              <div class="text-muted small" style="letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;">This Quarter</div>
+              <div class="d-flex align-items-baseline gap-2 mt-1">
+                <span style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 600; color: var(--color-ink-900); line-height: 1;">LKR&nbsp;1,284,500</span>
+              </div>
+              <div class="text-muted small mt-1">Net profit, year-to-date</div>
+            </div>
+            <span class="badge bg-success" style="font-size: 0.75rem;">
+              <i class="fas fa-arrow-trend-up"></i> 18.4%
+            </span>
+          </div>
+
+          <!-- Simulated chart bars -->
+          <div class="d-flex align-items-end gap-2 mb-4" style="height: 120px;">
+            {% for h in [42, 68, 55, 78, 92, 71, 88] %}
+            <div style="flex: 1; height: {{ h }}%; background: linear-gradient(180deg, var(--color-brand-600) 0%, var(--color-brand-300) 100%); border-radius: var(--radius-sm) var(--radius-sm) 0 0;"></div>
+            {% endfor %}
+          </div>
+
+          <!-- Recent activity rows -->
+          <div class="border-top pt-3" style="border-color: var(--color-border) !important;">
+            <div class="d-flex justify-content-between align-items-center py-2">
+              <div class="d-flex align-items-center gap-3">
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--color-accent-100); color: var(--color-accent-700); display: inline-flex; align-items: center; justify-content: center;">
+                  <i class="fas fa-receipt"></i>
+                </div>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.875rem;">Cloud hosting &mdash; AWS</div>
+                  <div class="text-muted small">Auto-classified &middot; Software expense</div>
+                </div>
+              </div>
+              <div class="text-end">
+                <div style="font-family: var(--font-mono); font-weight: 600;">LKR 18,750</div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2">
+              <div class="d-flex align-items-center gap-3">
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--color-success-100); color: var(--color-success-700); display: inline-flex; align-items: center; justify-content: center;">
+                  <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.875rem;">Invoice #2026-014 paid</div>
+                  <div class="text-muted small">Client: Helix Consulting Inc</div>
+                </div>
+              </div>
+              <div class="text-end">
+                <div style="font-family: var(--font-mono); font-weight: 600; color: var(--color-success-700);">+LKR 425,000</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== FEATURES ====== -->
+<section class="section section--surface">
+  <div class="container">
     <div class="text-center mb-5">
-        <h2 class="fw-bold text-primary">How It Works</h2>
-        <p class="lead text-muted">Get started in just a few simple steps</p>
+      <span class="eyebrow">What FIESTA does</span>
+      <h2 class="display-5 mb-3">Built for the way you actually earn.</h2>
+      <p class="lead text-secondary" style="max-width: 42rem; margin-inline: auto;">
+        Everything you need to keep clean books and defend every line to a tax authority &mdash; in one place.
+      </p>
     </div>
-    
-    <div class="row">
-        <div class="col-lg-10 mx-auto">
-            <div class="steps-container">
-                <div class="step-item">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h4>Create Your Account</h4>
-                        <p>Sign up and set up your profile to get started with our platform.</p>
-                    </div>
-                </div>
-                
-                <div class="step-item">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h4>Set Up Your Organization</h4>
-                        <p>Create your organization, customize your branding, and invite team members.</p>
-                    </div>
-                </div>
-                
-                <div class="step-item">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h4>Scan Your First Receipt</h4>
-                        <p>Upload or take a photo of a receipt and let our AI extract all the details.</p>
-                    </div>
-                </div>
-                
-                <div class="step-item">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h4>Manage Your Finances</h4>
-                        <p>Create invoices, track expenses, and optimize your tax savings.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Call to Action Section -->
-<div class="bg-primary text-white py-5">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 text-center">
-                <h2 class="fw-bold mb-3">Start Managing Your Finances Today</h2>
-                <p class="lead mb-4">Join thousands of businesses and individuals who trust Develop Sri Lanka to simplify their financial management.</p>
-                {% if current_user.is_authenticated %}
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                    <a href="{{ url_for('index') }}" class="btn btn-light btn-lg px-4">Scan Receipt</a>
-                    <a href="{{ url_for('getting_started.wizard') }}" class="btn btn-outline-light btn-lg px-4">Complete Setup</a>
-                </div>
-                {% else %}
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                    <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-4">Sign Up Now</a>
-                    <a href="{{ url_for('preview') }}" class="btn btn-outline-light btn-lg px-4">Try Demo</a>
-                </div>
-                {% endif %}
-            </div>
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="fiesta-feature">
+          <div class="fiesta-feature__icon">
+            <i class="fas fa-receipt"></i>
+          </div>
+          <h3 class="fiesta-feature__title">Receipts &amp; Expenses</h3>
+          <p class="fiesta-feature__body">
+            Snap a photo, drop a PDF, or forward an email. FIESTA extracts the data,
+            classifies it against your chart of accounts, and files the proof for audit day.
+          </p>
+          {% if current_user.is_authenticated %}
+          <a href="{{ url_for('classify.classify_receipts') }}" class="btn btn-ghost btn-sm mt-3" style="padding-left: 0;">
+            Manage expenses <i class="fas fa-arrow-right"></i>
+          </a>
+          {% endif %}
         </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="fiesta-feature">
+          <div class="fiesta-feature__icon fiesta-feature__icon--accent">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <h3 class="fiesta-feature__title">Invoicing &amp; Cash-In</h3>
+          <p class="fiesta-feature__body">
+            Send clean, branded invoices in any currency. Track payments. Reconcile against
+            the actual deposit. No more chasing PDFs through email.
+          </p>
+          {% if current_user.is_authenticated %}
+          <a href="{{ url_for('invoices') }}" class="btn btn-ghost btn-sm mt-3" style="padding-left: 0;">
+            Create an invoice <i class="fas fa-arrow-right"></i>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="fiesta-feature">
+          <div class="fiesta-feature__icon fiesta-feature__icon--success">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h3 class="fiesta-feature__title">Audit-Defensible Records</h3>
+          <p class="fiesta-feature__body">
+            Every entry carries its source. A receipt links to a transaction links to a journal entry &mdash;
+            so when the tax authority asks, you have the chain, not a guess.
+          </p>
+          {% if current_user.is_authenticated %}
+          <a href="{{ url_for('accounts.dashboard') }}" class="btn btn-ghost btn-sm mt-3" style="padding-left: 0;">
+            Open your accounts <i class="fas fa-arrow-right"></i>
+          </a>
+          {% endif %}
+        </div>
+      </div>
     </div>
-</div>
+  </div>
+</section>
+
+<!-- ====== HOW IT WORKS ====== -->
+<section class="section">
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="eyebrow">Get started in minutes</span>
+      <h2 class="display-5 mb-3">Four steps to clean books.</h2>
+    </div>
+
+    <div class="row g-4 justify-content-center">
+      <div class="col-lg-10">
+        <div class="row g-4">
+          <div class="col-md-6 col-lg-3">
+            <div class="text-center">
+              <div class="step-circle">1</div>
+              <h4 class="h5 mt-3">Create your account</h4>
+              <p class="text-secondary small">Sign up in 30 seconds &mdash; free for the launch period.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3">
+            <div class="text-center">
+              <div class="step-circle">2</div>
+              <h4 class="h5 mt-3">Set up your organization</h4>
+              <p class="text-secondary small">Define how you earn, who your clients are, what currency you bill in.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3">
+            <div class="text-center">
+              <div class="step-circle">3</div>
+              <h4 class="h5 mt-3">Capture your first receipt</h4>
+              <p class="text-secondary small">Upload, snap, or forward &mdash; FIESTA reads it and files it.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3">
+            <div class="text-center">
+              <div class="step-circle">4</div>
+              <h4 class="h5 mt-3">Defend your numbers</h4>
+              <p class="text-secondary small">Generate audit-ready reports whenever your accountant or tax authority asks.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== CALL TO ACTION ====== -->
+<section class="section section--brand">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8 text-center">
+        <h2 class="display-5 mb-3" style="color: var(--color-text-inverse);">
+          Start defending your numbers today.
+        </h2>
+        <p class="lead mb-5" style="color: rgba(255,255,255,0.78);">
+          Join the foreign income earners and self-employed professionals
+          who trust FIESTA to keep their books audit-ready year-round.
+        </p>
+
+        {% if current_user.is_authenticated %}
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
+          <a href="{{ url_for('index') }}" class="btn btn-light btn-lg">
+            <i class="fas fa-camera"></i> Scan a Receipt
+          </a>
+          <a href="{{ url_for('getting_started.wizard') }}" class="btn btn-outline-light btn-lg">
+            Complete Setup
+          </a>
+        </div>
+        {% else %}
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
+          <a href="{{ url_for('register') }}" class="btn btn-light btn-lg">
+            <i class="fas fa-user-plus"></i> Create Free Account
+          </a>
+          <a href="{{ url_for('preview') }}" class="btn btn-outline-light btn-lg">
+            Try the Demo
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
 
 <style>
-    .home-hero {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    }
-    
-    .feature-icon {
-        width: 60px;
-        height: 60px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .hover-card {
-        transition: transform 0.3s ease;
-    }
-    
-    .hover-card:hover {
-        transform: translateY(-10px);
-    }
-    
-    .steps-container {
-        position: relative;
-    }
-    
-    .step-item {
-        display: flex;
-        margin-bottom: 2rem;
-        position: relative;
-    }
-    
-    .step-item:not(:last-child):before {
-        content: '';
-        position: absolute;
-        left: 25px;
-        top: 60px;
-        height: calc(100% - 40px);
-        width: 2px;
-        background-color: #dee2e6;
-    }
-    
-    .step-number {
-        width: 50px;
-        height: 50px;
-        background-color: #0d6efd;
-        color: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 1.25rem;
-        margin-right: 1rem;
-        flex-shrink: 0;
-    }
-    
-    .step-content {
-        padding-top: 0.5rem;
-    }
+  /* Page-scoped polish for the home steps */
+  .step-circle {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-brand-100);
+    color: var(--color-brand-700);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    border: 1px solid var(--color-brand-300);
+  }
 </style>
 {% endblock %}

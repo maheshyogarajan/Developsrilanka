@@ -11,6 +11,16 @@ logger = logging.getLogger(__name__)
 # Import models to ensure they're registered with SQLAlchemy
 import models
 
+# Wave 1 EVENT SPINE 2026-05-17 (council #2): import event_models so the
+# `events` table is registered with SQLAlchemy metadata for db.create_all().
+# The table is ALSO created via raw SQL in app._ensure_additive_schema() for
+# belt-and-braces — that path covers every entry point (gunicorn, wsgi, celery).
+try:
+    import event_models  # noqa: F401
+    logger.info("Event spine models loaded (events table)")
+except Exception as e:
+    logger.error(f"Error loading event_models: {str(e)}")
+
 # Import model event listeners (for auto-creating Personal Finances organization)
 try:
     import models_event_listener
@@ -195,6 +205,132 @@ try:
     logger.info("PDF lineage API routes loaded successfully")
 except Exception as e:
     logger.error(f"Error loading PDF lineage API routes: {str(e)}")
+
+# Import foreign-income remittance routes (Wave A 2026-05-16)
+try:
+    import remittance_routes
+    remittance_routes.register_routes(app)
+    logger.info("Remittance (foreign-income) routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading remittance routes: {str(e)}")
+
+# Wave 2.1 — Revenue Intelligence Dashboard (2026-05-17)
+try:
+    import revenue_intel
+    revenue_intel.register_routes(app)
+    logger.info("Revenue Intelligence dashboard registered at /admin/revenue")
+except Exception as e:
+    logger.error(f"Error loading Revenue Intel: {str(e)}")
+
+# Wave 2.2 — Pricing Engine + Stripe webhook (2026-05-17)
+try:
+    import stripe_routes
+    stripe_routes.register_routes(app)
+    logger.info("Pricing + Stripe webhook registered")
+except Exception as e:
+    logger.error(f"Error loading Pricing/Stripe: {str(e)}")
+
+# Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
+try:
+    import customer_brain_routes
+    customer_brain_routes.register_routes(app)
+    logger.info("Customer Brain (AI CRM) registered at /admin/customer")
+except Exception as e:
+    logger.error(f"Error loading Customer Brain: {str(e)}")
+
+# Wave 2.4 — Ops Sentinel (2026-05-17)
+try:
+    import ops_routes
+    ops_routes.register_routes(app)
+    logger.info("Ops Sentinel registered at /internal/ops")
+except Exception as e:
+    logger.error(f"Error loading Ops Sentinel: {str(e)}")
+
+# Also import the modules so their Celery tasks register (decorators run on import)
+try:
+    import ai_crm  # noqa: F401  (registers ai_crm.recompute_all_active_profiles task)
+    import ops_sentinel  # noqa: F401  (registers ops_sentinel.run_and_alert task)
+    import gemini_cost_log_model  # noqa: F401  (registers GeminiCostLog model)
+    logger.info("AI-run Celery tasks + cost-log model loaded")
+except Exception as e:
+    logger.error(f"Error loading AI-run module imports: {str(e)}")
+
+# Wave 3.1 — Proactive Engagement Engine (2026-05-17/18)
+try:
+    import engagement_models  # noqa: F401  (registers InAppBanner table)
+    import engagement_engine  # noqa: F401  (registers Celery task)
+    import in_app_nudge_routes
+    in_app_nudge_routes.register_routes(app)
+    logger.info("Engagement Engine + in-app nudge routes registered")
+except Exception as e:
+    logger.error(f"Error loading Engagement Engine: {str(e)}")
+
+# Wave 3.2 — AI Support Copilot (2026-05-18)
+try:
+    import support_copilot_models  # noqa: F401
+    import support_copilot  # noqa: F401
+    import support_routes
+    support_routes.register_routes(app)
+    logger.info("AI Support Copilot registered at /support + /admin/support")
+except Exception as e:
+    logger.error(f"Error loading Support Copilot: {str(e)}")
+
+# Wave 3.3 — Lanka.tax Cross-Sell (2026-05-18)
+try:
+    import lankatax_models  # noqa: F401
+    import lankatax_crosssell  # noqa: F401  (registers Celery task)
+    import lankatax_onboarding_routes
+    lankatax_onboarding_routes.register_routes(app)
+    logger.info("Lanka.tax Cross-Sell + /onboarding/lankatax registered")
+except Exception as e:
+    logger.error(f"Error loading Lanka.tax Cross-Sell: {str(e)}")
+
+# AI-Org Subagent A — Data Substrate (2026-05-18)
+try:
+    import ai_org_models  # noqa: F401  (8 tables incl APPEND-ONLY reputation_event)
+    import ai_org_substrate  # noqa: F401  (helpers + EVENT_AXIS_MAP)
+    logger.info('AI-Org substrate loaded (8 tables, APPEND-ONLY ledger)')
+except Exception as e:
+    logger.error(f'AI-Org substrate load failed: {e}')
+
+# AI-Org Subagent B — Attribution Writer + Audit (2026-05-18)
+try:
+    import ai_org_attribution_writer  # noqa: F401  (Celery task)
+    import ai_org_audit_harness  # noqa: F401
+    import ai_org_audit_routes
+    ai_org_audit_routes.register_routes(app)
+    logger.info('AI-Org attribution writer + audit harness registered')
+except Exception as e:
+    logger.error(f'AI-Org attribution load failed: {e}')
+
+# AI-Org Subagent C — Score Engine (2026-05-18)
+try:
+    import ai_org_score_engine  # noqa: F401  (Celery task)
+    import ai_org_score_routes
+    ai_org_score_routes.register_routes(app)
+    logger.info('AI-Org Score Engine + dashboards registered')
+except Exception as e:
+    logger.error(f'AI-Org Score Engine load failed: {e}')
+
+# AI-Org Subagent D — Acquisition Studio (2026-05-18)
+try:
+    import acquisition_studio_org  # noqa: F401  (Celery task: run_pass)
+    import acquisition_studio_proposals  # noqa: F401
+    import acquisition_studio_routes
+    acquisition_studio_routes.register_routes(app)
+    logger.info('AI-Org Acquisition Studio (Subagent D) registered')
+except Exception as e:
+    logger.error(f'AI-Org Acquisition Studio load failed: {e}')
+
+# AI-Org Subagent E — Delivery Ops Command (2026-05-18)
+try:
+    import delivery_ops_command_org  # noqa: F401  (Celery task: run_pass)
+    import delivery_ops_command_proposals  # noqa: F401
+    import delivery_ops_command_routes
+    delivery_ops_command_routes.register_routes(app)
+    logger.info('AI-Org Delivery Ops Command (Subagent E) registered')
+except Exception as e:
+    logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
 
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied

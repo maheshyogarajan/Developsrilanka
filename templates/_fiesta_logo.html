@@ -1,0 +1,21 @@
+{# FIESTA wordmark logo — inline SVG. Used in sidebar, mobile header, emails, and login/register cards.
+   Refined by SUB-B to use the Fraunces display serif for the wordmark and a slightly tightened "F" geometry. #}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56" class="brand-logo" style="height: 36px;" role="img" aria-label="FIESTA">
+  <defs>
+    <linearGradient id="fiestaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B3FE4"/>
+      <stop offset="100%" stop-color="#7E57C2"/>
+    </linearGradient>
+  </defs>
+  <!-- mark: stylized "F" inside a rounded square -->
+  <rect x="2" y="4" width="48" height="48" rx="11" fill="url(#fiestaGradient)"/>
+  <path d="M14 16 L40 16 L40 22 L21 22 L21 30 L36 30 L36 36 L21 36 L21 44 L14 44 Z" fill="#ffffff"/>
+  <!-- wordmark — Fraunces display serif with italic personality -->
+  <text x="60" y="38"
+        font-family="Fraunces, 'Iowan Old Style', Georgia, serif"
+        font-weight="600"
+        font-size="28"
+        font-style="normal"
+        letter-spacing="0.5"
+        fill="#0F1729">FIESTA</text>
+</svg>

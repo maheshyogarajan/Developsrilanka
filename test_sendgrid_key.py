@@ -51,7 +51,7 @@ def check_sendgrid_key():
                 subject="SendGrid API Test",
                 plain_text_content="This is just a test to verify API key permissions."
             )
-            message.from_email.name = "DevelopSriLanka"
+            message.from_email.name = "FIESTA"
             
             # Get request body without actually sending
             request_body = message.get()
@@ -104,7 +104,7 @@ def check_sendgrid_key():
                     subject="SendGrid API Test - " + api_key_prefix,
                     plain_text_content="This is a test email from the SendGrid API key checker script."
                 )
-                message.from_email.name = "DevelopSriLanka"
+                message.from_email.name = "FIESTA"
                 
                 response = sg.send(message)
                 print(f"Response Status Code: {response.status_code}")

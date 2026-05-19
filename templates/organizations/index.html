@@ -3,9 +3,13 @@
 {% block title %}My Organizations{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>My Organizations</h1>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-end mb-5 gap-3 flex-wrap">
+        <div>
+            <span class="eyebrow">Who</span>
+            <h1 class="h2 mb-2">Organizations</h1>
+            <p class="text-secondary mb-0">Each entity you bill from &mdash; with its own branding, currency, and chart of accounts.</p>
+        </div>
         <a href="{{ url_for('organizations.create_organization') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Organization
         </a>

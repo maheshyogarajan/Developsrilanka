@@ -1,281 +1,173 @@
 {% extends 'layout.html' %}
 
-{% block title %}Register - Develop Sri Lanka{% endblock %}
+{% block title %}Create your FIESTA account{% endblock %}
 
-{% block head %}
-{{ super() }}
+{% block additional_styles %}
 <style>
-    /* Clean, minimal styling for the registration page */
-    .register-card {
-        border-radius: 10px;
-        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-    }
-    
-    .register-btn {
-        transition: all 0.3s ease;
-    }
-    
-    .register-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .form-control {
-        transition: all 0.3s ease;
-        border: 1px solid #ced4da;
-    }
-    
-    .form-control:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
-    }
-    
-    /* Animation styles for the auto-redirect notification */
-    .redirect-message {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        z-index: 1000;
-        width: 90%;
-        max-width: 400px;
-        text-align: center;
-        transition: opacity 0.3s ease, transform 0.4s ease;
-    }
-    
-    .overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 999;
-        transition: opacity 0.3s ease;
-    }
-    
-    .redirect-message {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: white;
-        padding: 2rem;
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-        z-index: 1000;
-        width: 90%;
-        max-width: 400px;
-        transition: all 0.3s ease;
-    }
-    
-    .progress-bar {
-        height: 4px;
-        background-color: #007bff;
-        width: 0%;
-        transition: width 2s ease-in-out;
-        margin: 15px 0;
-        border-radius: 2px;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-    
-    @keyframes slideUp {
-        from { transform: translateY(10px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-    
-    .spinner {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #007bff;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 15px auto;
-    }
-    
-    .redirect-icon {
-        font-size: 2.5rem;
-        margin-bottom: 15px;
-        color: #007bff;
-        animation: pulse 1s infinite;
-    }
-    
-    .success-icon {
-        color: #28a745;
-        animation: pulse 1s ease-in-out;
-    }
-    
-    #step1, #step2 {
-        transition: opacity 0.3s ease;
-    }
-    
-    /* Password strength meter */
-    .password-strength-meter {
-        height: 5px;
-        background-color: #f3f3f3;
-        border-radius: 3px;
-        margin-top: 5px;
-        overflow: hidden;
-    }
-    
-    .password-strength-meter div {
-        height: 100%;
-        border-radius: 3px;
-        transition: width 0.3s ease, background-color 0.3s ease;
-        width: 0;
-    }
-    
-    .password-strength-text {
-        font-size: 0.75rem;
-        margin-top: 5px;
-        transition: color 0.3s ease;
-    }
-    
-    /* Enhanced alert styles */
-    .alert {
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        position: relative;
-        padding-right: 2.5rem;
-        transition: all 0.3s ease;
-        animation: slideIn 0.3s ease-out;
-    }
-    
-    .alert-danger {
-        border-left: 4px solid #dc3545;
-    }
-    
-    .alert-warning {
-        border-left: 4px solid #ffc107;
-    }
-    
-    .alert-info {
-        border-left: 4px solid #17a2b8;
-    }
-    
-    .alert-dismissible .btn-close {
-        position: absolute;
-        top: 0.5rem;
-        right: 0.5rem;
-        padding: 0.5rem;
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
+  /* Page-local: overlay + password meter, restyled to FIESTA system */
+  .overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(15, 23, 41, 0.55);
+    z-index: var(--z-overlay);
+    transition: opacity var(--duration-slow) var(--easing-standard);
+  }
+  .redirect-message {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--color-surface-raised);
+    padding: var(--space-8);
+    border-radius: var(--radius-xl);
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+    z-index: var(--z-modal);
+    width: 90%; max-width: 26rem;
+    transition: opacity var(--duration-slow) var(--easing-standard),
+                transform var(--duration-slow) var(--easing-standard);
+  }
+  .progress-bar {
+    height: 4px;
+    background-color: var(--color-brand-600);
+    width: 0%;
+    transition: width 2s ease-in-out;
+    margin: var(--space-4) 0;
+    border-radius: var(--radius-full);
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .spinner {
+    border: 3px solid var(--color-ink-100);
+    border-top: 3px solid var(--color-brand-600);
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--space-4);
+  }
+  .redirect-icon {
+    font-size: 2.25rem;
+    color: var(--color-accent-600);
+    margin-bottom: var(--space-3);
+  }
+
+  /* Password strength meter */
+  .password-strength-meter {
+    height: 4px;
+    background-color: var(--color-ink-100);
+    border-radius: var(--radius-full);
+    margin-top: var(--space-2);
+    overflow: hidden;
+  }
+  .password-strength-meter div {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width var(--duration-base) var(--easing-standard),
+                background-color var(--duration-base) var(--easing-standard);
+    width: 0;
+  }
+  .password-strength-text {
+    font-size: var(--font-size-xs);
+    margin-top: var(--space-1);
+    transition: color var(--duration-base) var(--easing-standard);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container my-3 my-md-5">
-    <div class="row justify-content-center">
-        <div class="col-sm-12 col-md-8 col-lg-5">
-            <div class="card register-card">
-                <div class="card-body p-3 p-md-4 text-center">
-                    <div class="mb-3 mb-md-4">
-                        <a href="{{ url_for('home') }}">
-                            <img src="{{ url_for('static', filename='images/dev-sri-logo.jpg') }}" alt="Develop Sri Lanka Logo" class="img-fluid mb-2" style="max-width: 100px;">
-                        </a>
-                        <h2 class="fs-3 mb-2">Create Your Account</h2>
-                        <p class="text-muted small">Join Develop Sri Lanka and start tracking your receipts</p>
-                    </div>
+<div class="fiesta-auth">
+  <div class="register-card card">
+    <div class="card-body">
+      <div class="text-center mb-4">
+        <a href="{{ url_for('home') }}" aria-label="FIESTA home" class="d-inline-block mb-3">
+          {% include '_fiesta_logo.html' %}
+        </a>
+        <h1 class="h2 mb-2">Start defending your numbers.</h1>
+        <p class="text-secondary small mb-0">
+          Free during launch &middot; No card required
+        </p>
+      </div>
 
-                    <!-- Flash messages are now displayed in the main layout template -->
+      <form method="POST" action="{{ url_for('email_login') }}" id="registerForm" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                    <form method="POST" action="{{ url_for('email_login') }}" class="mb-3" id="registerForm">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="mb-3">
-                            <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required>
-                        </div>
-                        <div class="mb-3">
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Choose a Password" required minlength="8">
-                            <div class="password-strength-meter mt-1">
-                                <div id="passwordStrength"></div>
-                            </div>
-                            <small id="passwordStrengthText" class="password-strength-text text-muted">Password strength</small>
-                        </div>
-                        <div class="mb-3">
-                            <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm Password" required>
-                            <small id="passwordMatchText" class="form-text text-muted"></small>
-                        </div>
-                        <!-- Hidden input for action -->
-                        <input type="hidden" name="action" id="action_input" value="register">
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success register-btn" id="registerButton">Create Account</button>
-                            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Already have an account? Sign In</a>
-                        </div>
-                    </form>
-                    
-                    <div class="text-center text-muted mt-3">
-                        <p class="small mb-0">By creating an account, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
-                        <hr class="my-2">
-                        <p class="small mb-0">Powered by Develop Sri Lanka Initiative</p>
-                    </div>
-                </div>
-            </div>
+        <div class="mb-3">
+          <label for="email" class="form-label">Email address</label>
+          <input type="email" class="form-control" id="email" name="email"
+                 placeholder="you@example.com" autocomplete="email" required>
         </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="password" name="password"
+                 placeholder="At least 8 characters" autocomplete="new-password"
+                 required minlength="8">
+          <div class="password-strength-meter">
+            <div id="passwordStrength"></div>
+          </div>
+          <small id="passwordStrengthText" class="password-strength-text text-muted">Password strength</small>
+        </div>
+
+        <div class="mb-3">
+          <label for="confirmPassword" class="form-label">Confirm password</label>
+          <input type="password" class="form-control" id="confirmPassword"
+                 placeholder="Re-enter your password" autocomplete="new-password" required>
+          <small id="passwordMatchText" class="form-text"></small>
+        </div>
+
+        <div class="mb-3 p-3" style="background: var(--color-brand-50, #F3F0FF); border-radius: var(--radius-md, 8px); border: 1px solid var(--color-brand-100, #E4DCFF);">
+          <label class="form-label fw-semibold mb-2" for="persona_foreign_income">
+            Do you receive foreign income into a Sri Lankan bank account?
+          </label>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="persona_sl_foreign_income" id="persona_foreign_income" value="1">
+            <label class="form-check-label small" for="persona_foreign_income">
+              Yes — route me to the Foreign Income Remittance Ledger (CBSL-rate, IRD-defensible, under 15% flat rate from 2025-04-01).
+            </label>
+          </div>
+        </div>
+
+        <input type="hidden" name="action" id="action_input" value="register">
+
+        <div class="d-grid gap-2 mt-4">
+          <button type="submit" class="btn btn-primary btn-lg" id="registerButton">
+            Create my account
+          </button>
+          <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+            I already have an account
+          </a>
+        </div>
+      </form>
+
+      <hr class="divider">
+
+      <div class="text-center">
+        <p class="text-muted small mb-1">
+          By creating an account, you agree to our
+          <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+        </p>
+        <p class="text-muted small mb-0">Powered by FIESTA</p>
+      </div>
     </div>
+  </div>
 </div>
 
-<!-- Overlay for the animation -->
+<!-- Overlay -->
 <div class="overlay" id="overlay"></div>
-
-<!-- Redirect Message Animation -->
 <div class="redirect-message" id="redirectMessage">
-    <div id="step1">
-        <div class="spinner"></div>
-        <h5>Creating your account...</h5>
-    </div>
-    
-    <div id="step2" style="display: none;">
-        <i class="bi bi-hourglass-split redirect-icon" style="color: #ffc107; animation: hourglass-spin 2s infinite linear;"></i>
-        <h5>Registration Submitted!</h5>
-        <p>Verifying your information <i class="bi bi-arrow-right-circle-fill"></i></p>
-        <div class="progress-bar" id="progressBar"></div>
-        <p class="small text-muted mt-2">Setting up your account at Develop Sri Lanka</p>
-    </div>
-    
-    <style>
-        @keyframes hourglass-spin {
-            0% { transform: rotate(0deg); }
-            25% { transform: rotate(15deg); }
-            50% { transform: rotate(0deg); }
-            75% { transform: rotate(-15deg); }
-            100% { transform: rotate(0deg); }
-        }
-    </style>
+  <div id="step1">
+    <div class="spinner"></div>
+    <h5 class="mb-0">Creating your account&hellip;</h5>
+  </div>
+  <div id="step2" style="display: none;">
+    <i class="bi bi-envelope-check-fill redirect-icon"></i>
+    <h5 class="mb-2">Almost there.</h5>
+    <p class="text-secondary small mb-0">Verifying your information.</p>
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
 </div>
 
 <script>
@@ -291,127 +183,84 @@ document.addEventListener('DOMContentLoaded', function() {
     const step1 = document.getElementById('step1');
     const step2 = document.getElementById('step2');
     const progressBar = document.getElementById('progressBar');
-    
-    // Initially hide the overlay and animation
+
     overlay.style.display = 'none';
     redirectMessage.style.display = 'none';
-    
-    // Password strength meter
+
+    // FIESTA-tuned color values
+    const C_DANGER = getComputedStyle(document.documentElement).getPropertyValue('--color-danger-600').trim() || '#C0392B';
+    const C_WARN = getComputedStyle(document.documentElement).getPropertyValue('--color-warning-600').trim() || '#B9791A';
+    const C_BRAND = getComputedStyle(document.documentElement).getPropertyValue('--color-brand-600').trim() || '#5B3FE4';
+    const C_SUCCESS = getComputedStyle(document.documentElement).getPropertyValue('--color-success-600').trim() || '#2A8460';
+
     passwordInput.addEventListener('input', function() {
         const password = passwordInput.value;
         let strength = 0;
-        
-        // Length check
         if (password.length >= 8) strength += 25;
-        
-        // Contains lowercase
         if (/[a-z]/.test(password)) strength += 25;
-        
-        // Contains uppercase
         if (/[A-Z]/.test(password)) strength += 25;
-        
-        // Contains number or special character
         if (/[0-9!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 25;
-        
-        // Update visual indicator
         passwordStrength.style.width = strength + '%';
-        
-        // Update color
         if (strength <= 25) {
-            passwordStrength.style.backgroundColor = '#dc3545'; // Red - weak
+            passwordStrength.style.backgroundColor = C_DANGER;
             passwordStrengthText.textContent = 'Weak password';
-            passwordStrengthText.style.color = '#dc3545';
+            passwordStrengthText.style.color = C_DANGER;
         } else if (strength <= 50) {
-            passwordStrength.style.backgroundColor = '#ffc107'; // Yellow - moderate
+            passwordStrength.style.backgroundColor = C_WARN;
             passwordStrengthText.textContent = 'Moderate password';
-            passwordStrengthText.style.color = '#ffc107';
+            passwordStrengthText.style.color = C_WARN;
         } else if (strength <= 75) {
-            passwordStrength.style.backgroundColor = '#6c757d'; // Blue - good
+            passwordStrength.style.backgroundColor = C_BRAND;
             passwordStrengthText.textContent = 'Good password';
-            passwordStrengthText.style.color = '#6c757d';
+            passwordStrengthText.style.color = C_BRAND;
         } else {
-            passwordStrength.style.backgroundColor = '#28a745'; // Green - strong
+            passwordStrength.style.backgroundColor = C_SUCCESS;
             passwordStrengthText.textContent = 'Strong password';
-            passwordStrengthText.style.color = '#28a745';
+            passwordStrengthText.style.color = C_SUCCESS;
         }
-        
-        // Check password match if confirm field has value
-        if (confirmInput.value) {
-            checkPasswordMatch();
-        }
+        if (confirmInput.value) checkPasswordMatch();
     });
-    
-    // Password match verification
+
     confirmInput.addEventListener('input', checkPasswordMatch);
-    
+
     function checkPasswordMatch() {
         if (passwordInput.value === confirmInput.value) {
             passwordMatchText.textContent = 'Passwords match';
-            passwordMatchText.style.color = '#28a745'; // Green
+            passwordMatchText.style.color = C_SUCCESS;
             confirmInput.setCustomValidity('');
         } else {
             passwordMatchText.textContent = 'Passwords do not match';
-            passwordMatchText.style.color = '#dc3545'; // Red
+            passwordMatchText.style.color = C_DANGER;
             confirmInput.setCustomValidity('Passwords must match');
         }
     }
-    
-    // Add event listener to register form submission
+
     registerForm.addEventListener('submit', function(e) {
-        // Only show the animation if the form is actually filled in properly
         if (registerForm.checkValidity()) {
-            // Prevent the default form submission briefly to show the animation
             e.preventDefault();
-            
-            // Console log for debugging
-            console.log('Form submission for registration');
-            
-            // Show overlay with fade effect
             overlay.style.display = 'block';
             overlay.style.opacity = 0;
-            setTimeout(() => {
-                overlay.style.opacity = 1;
-            }, 10);
-            
-            // Show message with animation
+            setTimeout(() => { overlay.style.opacity = 1; }, 10);
             redirectMessage.style.display = 'block';
             redirectMessage.style.opacity = 0;
             redirectMessage.style.transform = 'translate(-50%, -60%)';
-            
             setTimeout(() => {
                 redirectMessage.style.opacity = 1;
                 redirectMessage.style.transform = 'translate(-50%, -50%)';
             }, 100);
-            
-            // Show first step - creating account
             step1.style.display = 'block';
-            
-            // After a delay, transition to success message
             setTimeout(() => {
-                // Hide first step with animation
-                step1.style.opacity = 1;
                 step1.style.transition = 'opacity 0.3s ease';
                 step1.style.opacity = 0;
-                
                 setTimeout(() => {
                     step1.style.display = 'none';
-                    
-                    // Show success step with animation
                     step2.style.display = 'block';
                     step2.style.opacity = 0;
-                    
                     setTimeout(() => {
                         step2.style.opacity = 1;
-                        
-                        // Animate progress bar
                         setTimeout(() => {
                             progressBar.style.width = '100%';
-                            
-                            // After progress bar completes, submit the form
-                            setTimeout(() => {
-                                console.log('Submitting registration form');
-                                registerForm.submit();
-                            }, 1800);
+                            setTimeout(() => { registerForm.submit(); }, 1800);
                         }, 200);
                     }, 50);
                 }, 300);

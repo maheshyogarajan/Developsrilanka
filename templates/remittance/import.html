@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+
+{% block title %}Import Bank Statement - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 720px;">
+  <div class="row mb-4">
+    <div class="col">
+      <span class="eyebrow">Foreign Income · Sri Lanka</span>
+      <h1 class="h2 mb-2">Import a bank statement</h1>
+      <p class="text-secondary mb-0">
+        Upload your SL bank statement (PDF text export or CSV). The agent reads every
+        credit, identifies which look like inward foreign remittances, and gives you
+        a row-by-row review screen. You confirm; the ledger fills itself.
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data" novalidate>
+        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+
+        <div class="mb-3">
+          <label for="statement" class="form-label fw-semibold">Bank statement file</label>
+          <input type="file" name="statement" id="statement" class="form-control"
+                 accept=".pdf,.csv,.tsv" required>
+          <div class="form-text">
+            PDF (text-export from your bank's portal) or CSV. Max 8 MB.
+            Scanned image-only PDFs aren't supported yet — use the CSV export instead.
+            Account numbers and running balances are redacted before classification.
+          </div>
+        </div>
+
+        {% if duplicate_hash %}
+        <div class="mb-3 p-3 border rounded" style="background: var(--color-warning-50, #FFF8E5);">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="allow_duplicate" id="allow_duplicate" value="1">
+            <label class="form-check-label" for="allow_duplicate">
+              I understand this is the same file I already uploaded. Import again anyway.
+            </label>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="{{ url_for('remittance.dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Upload &amp; parse</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h4 class="h6 mb-2 text-uppercase text-secondary">What happens next</h4>
+      <ol class="mb-0 ps-3">
+        <li class="mb-2">We extract every credit from the statement (no debits).</li>
+        <li class="mb-2">We classify each one as "looks like a foreign remittance" or not, with a reason.</li>
+        <li class="mb-2">You see them all on a review screen. Tick the ones to keep. Edit any field.</li>
+        <li>One click creates the remittance ledger entries.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+{% endblock %}

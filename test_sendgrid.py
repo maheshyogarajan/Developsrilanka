@@ -20,7 +20,7 @@ def test_sendgrid_connection():
     
     # Create test message with the same format used in organization_routes.py
     message = Mail(
-        from_email=('noreply@developsrilanka.com', 'Test Organization via DevelopSriLanka'),
+        from_email=('noreply@developsrilanka.com', 'Test Organization via FIESTA'),
         to_emails='test@example.com',
         subject='SendGrid Test Email with Organization Format',
         html_content='<p>This is a test email to check SendGrid API with organization format.</p>'

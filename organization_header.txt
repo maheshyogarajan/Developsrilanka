@@ -19,8 +19,8 @@
                             <p class="mb-0">Tax Reg: {{ organization.tax_registration_number }}</p>
                         {% endif %}
                     {% else %}
-                        <h3 class="fw-bold">{{ invoice.sender_company or "Develop Sri Lanka" }}</h3>
-                        <p>{{ invoice.sender_name or "Financial Management Platform" }}</p>
+                        <h3 class="fw-bold">{{ invoice.sender_company or "FIESTA" }}</h3>
+                        <p>{{ invoice.sender_name or "Bookkeeping and Audit-Defence Platform" }}</p>
                         {% if invoice.sender_address %}
                             <p class="mb-0">{{ invoice.sender_address|replace('\n', '<br>')|safe }}</p>
                         {% endif %}

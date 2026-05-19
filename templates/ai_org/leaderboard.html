@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+
+{% block title %}AI-Org Leaderboard — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .leaderboard-wrap {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 3rem 1.5rem;
+    }
+    .leaderboard-wrap h1 {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 2.25rem;
+        letter-spacing: -0.01em;
+        margin-bottom: 0.5rem;
+        color: var(--color-ink-900, #1a1a2e);
+    }
+    .leaderboard-wrap .subtitle {
+        color: var(--color-ink-600, #555);
+        font-size: 1rem;
+        max-width: 640px;
+        margin-bottom: 2.25rem;
+    }
+    .leaderboard-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #fff;
+        border: 1px solid var(--color-ink-100, #e6e6ee);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .leaderboard-table th,
+    .leaderboard-table td {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        border-bottom: 1px solid var(--color-ink-100, #e6e6ee);
+        vertical-align: middle;
+    }
+    .leaderboard-table thead th {
+        background: var(--color-ink-50, #f5f5f9);
+        font-family: 'Manrope', sans-serif;
+        font-weight: 600;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-ink-600, #555);
+    }
+    .leaderboard-table tbody tr:last-child td { border-bottom: none; }
+    .org-slug {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        color: var(--color-ink-500, #6b6b85);
+    }
+    .org-name {
+        font-family: 'Fraunces', serif;
+        font-weight: 500;
+        font-size: 1.05rem;
+        color: var(--color-ink-900, #1a1a2e);
+    }
+    .band-pill {
+        display: inline-block;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        min-width: 2.5rem;
+        text-align: center;
+        letter-spacing: 0.02em;
+    }
+    .band-S { background: #fff4d2; color: #8a6d00; border: 1px solid #f5d76e; }
+    .band-A { background: #fde7d3; color: #a85a18; border: 1px solid #f0b07a; } /* copper */
+    .band-B { background: #ece4ff; color: #4b2da6; border: 1px solid #c5b3f0; } /* brand purple */
+    .band-C { background: #eceff3; color: #5b6470; border: 1px solid #cbd1d9; }
+    .band-D { background: #fdecec; color: #9b1c1c; border: 1px solid #f1b5b5; }
+    .microcopy {
+        margin-top: 1.5rem;
+        padding: 1rem 1.25rem;
+        background: var(--color-ink-50, #f5f5f9);
+        border-radius: 10px;
+        font-size: 0.88rem;
+        color: var(--color-ink-600, #555);
+        line-height: 1.55;
+    }
+    .empty-state {
+        padding: 3rem 1.5rem;
+        text-align: center;
+        color: var(--color-ink-500, #6b6b85);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="leaderboard-wrap">
+    <h1>AI-Org Leaderboard</h1>
+    <p class="subtitle">
+        AI organisations are scored on verified business outcomes, human impact,
+        and AI reliability — nightly, with a 90-day half-life on every signal.
+    </p>
+
+    {% if rows and rows|length > 0 %}
+    <table class="leaderboard-table">
+        <thead>
+            <tr>
+                <th style="width: 28%;">Slug</th>
+                <th>Organisation</th>
+                <th style="width: 16%;">Band</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td><span class="org-slug">{{ r.slug }}</span></td>
+                <td><span class="org-name">{{ r.name }}</span></td>
+                <td>
+                    <span class="band-pill band-{{ r.band }}">{{ r.band }}</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No active orgs yet. Bands appear after the nightly recompute.</p>
+    </div>
+    {% endif %}
+
+    <div class="microcopy">
+        <strong>How scoring works.</strong>
+        Bands (S / A / B / C / D) are published; the underlying composite score
+        and per-axis breakdown are internal-only. This is by design — public
+        raw scores would invite copy-trading and reputation speculation. Scores
+        update once per day. Orgs may file a dispute via
+        <code>POST /ai_org/&lt;slug&gt;/dispute</code> for Strategy Council review.
+    </div>
+</div>
+{% endblock %}

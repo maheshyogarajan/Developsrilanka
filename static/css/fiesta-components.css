@@ -1,0 +1,1284 @@
+/*
+ * FIESTA Component Layer
+ * ---------------------------------------------------------------------------
+ * Consumes tokens from fiesta-tokens.css. Layers ON TOP of Bootstrap 5.3
+ * (which is loaded first in layout.html) — selectively overrides to give the
+ * app a refined editorial-fintech feel without ripping Bootstrap out.
+ *
+ * Rule of thumb: anything that already works in Bootstrap stays. We refine
+ * type, spacing, color, surface treatment, and add a few FIESTA-only classes.
+ */
+
+/* ===========================================================================
+ * 1. RESET + BASE
+ * ======================================================================== */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* keep Bootstrap container behavior; just tame max-width */
+.container {
+  max-width: var(--container-wide);
+}
+.container-narrow { max-width: var(--container-narrow); margin-inline: auto; }
+.container-readable { max-width: var(--container-readable); margin-inline: auto; }
+
+/* ===========================================================================
+ * 2. TYPOGRAPHY
+ * ======================================================================== */
+
+h1, .h1, h2, .h2, h3, .h3, h4, .h4 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-900);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--line-height-tight);
+  margin-block: 0 var(--space-4);
+}
+
+h1, .h1 {
+  font-size: var(--font-size-3xl);
+  font-variation-settings: 'opsz' 96, 'SOFT' 30;
+}
+h2, .h2 {
+  font-size: var(--font-size-2xl);
+  font-variation-settings: 'opsz' 48, 'SOFT' 25;
+}
+h3, .h3 {
+  font-size: var(--font-size-xl);
+  font-variation-settings: 'opsz' 24;
+}
+h4, .h4 {
+  font-size: var(--font-size-lg);
+  font-variation-settings: 'opsz' 18;
+}
+h5, .h5, h6, .h6 {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
+  color: var(--color-ink-700);
+  letter-spacing: var(--tracking-tight);
+  margin-block: 0 var(--space-3);
+}
+
+.display-4 {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 4.5vw + 1rem, var(--font-size-5xl));
+  font-weight: var(--font-weight-semibold);
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tighter);
+  color: var(--color-ink-900);
+}
+.display-5 {
+  font-family: var(--font-display);
+  font-size: clamp(1.875rem, 3vw + 1rem, var(--font-size-4xl));
+  font-weight: var(--font-weight-semibold);
+  font-variation-settings: 'opsz' 96, 'SOFT' 40;
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+p {
+  margin-block: 0 var(--space-4);
+  color: var(--color-text-primary);
+}
+p.lead, .lead {
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
+.text-muted { color: var(--color-text-muted) !important; }
+.text-primary { color: var(--color-brand) !important; }
+.text-secondary { color: var(--color-text-secondary) !important; }
+
+/* Eyebrow / overline labels — small caps for section openers */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-accent-700);
+  margin-block: 0 var(--space-3);
+}
+
+/* Numeric / monetary values — use mono for clean tabular alignment */
+.num,
+.tabular,
+td.text-end,
+th.text-end,
+.money {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+.num-mono,
+.invoice-number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--color-brand-700);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--easing-standard);
+}
+a:hover {
+  color: var(--color-brand-900);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  opacity: 1;
+  margin-block: var(--space-6);
+}
+
+::selection {
+  background: var(--color-accent-100);
+  color: var(--color-ink-900);
+}
+
+/* ===========================================================================
+ * 3. BUTTONS — primary / secondary / ghost / destructive
+ * ======================================================================== */
+
+.btn {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--tracking-tight);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 1.125rem;
+  border-width: 1px;
+  border-style: solid;
+  transition:
+    background-color var(--duration-base) var(--easing-standard),
+    border-color var(--duration-base) var(--easing-standard),
+    color var(--duration-base) var(--easing-standard),
+    box-shadow var(--duration-base) var(--easing-standard),
+    transform var(--duration-fast) var(--easing-standard);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-lg {
+  padding: 0.875rem 1.5rem;
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-md);
+}
+.btn-sm {
+  padding: 0.4rem 0.75rem;
+  font-size: var(--font-size-xs);
+}
+
+/* Primary — solid brand, no gradient, deliberate */
+.btn-primary {
+  background-color: var(--color-brand-600);
+  border-color: var(--color-brand-600);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-xs);
+}
+.btn-primary:hover {
+  background-color: var(--color-brand-700);
+  border-color: var(--color-brand-700);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+.btn-primary:active,
+.btn-primary:focus,
+.btn-primary.active {
+  background-color: var(--color-brand-900);
+  border-color: var(--color-brand-900);
+  color: var(--color-text-inverse);
+}
+
+/* Secondary — ghost on cream, becomes solid ink on hover */
+.btn-secondary,
+.btn-outline-secondary {
+  background-color: transparent;
+  border-color: var(--color-border-strong);
+  color: var(--color-ink-700);
+  box-shadow: none;
+}
+.btn-secondary:hover,
+.btn-outline-secondary:hover {
+  background-color: var(--color-ink-900);
+  border-color: var(--color-ink-900);
+  color: var(--color-text-inverse);
+  transform: translateY(-1px);
+}
+
+/* Outline primary */
+.btn-outline-primary {
+  background-color: transparent;
+  border-color: var(--color-brand-600);
+  color: var(--color-brand-700);
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary.active {
+  background-color: var(--color-brand-600);
+  border-color: var(--color-brand-600);
+  color: var(--color-text-inverse);
+}
+
+/* Accent — for "festive" affirmative CTAs (Try Demo, Sign Up Now) */
+.btn-accent {
+  background-color: var(--color-accent-600);
+  border-color: var(--color-accent-600);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-xs);
+}
+.btn-accent:hover {
+  background-color: var(--color-accent-700);
+  border-color: var(--color-accent-700);
+  color: var(--color-text-inverse);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Success / warning / danger keep their semantic feel but get the FIESTA refinement */
+.btn-success {
+  background-color: var(--color-success-600);
+  border-color: var(--color-success-600);
+  color: var(--color-text-inverse);
+}
+.btn-success:hover {
+  background-color: var(--color-success-700);
+  border-color: var(--color-success-700);
+  color: var(--color-text-inverse);
+}
+.btn-outline-success {
+  background-color: transparent;
+  border-color: var(--color-success-600);
+  color: var(--color-success-700);
+}
+.btn-outline-success:hover {
+  background-color: var(--color-success-600);
+  border-color: var(--color-success-600);
+  color: var(--color-text-inverse);
+}
+.btn-warning,
+.btn-outline-warning:hover {
+  background-color: var(--color-warning-600);
+  border-color: var(--color-warning-600);
+  color: var(--color-text-inverse);
+}
+.btn-outline-warning {
+  background-color: transparent;
+  border-color: var(--color-warning-600);
+  color: var(--color-warning-700);
+}
+.btn-danger,
+.btn-outline-danger:hover {
+  background-color: var(--color-danger-600);
+  border-color: var(--color-danger-600);
+  color: var(--color-text-inverse);
+}
+.btn-outline-danger {
+  background-color: transparent;
+  border-color: var(--color-danger-600);
+  color: var(--color-danger-700);
+}
+.btn-info,
+.btn-outline-info:hover {
+  background-color: var(--color-info-600);
+  border-color: var(--color-info-600);
+  color: var(--color-text-inverse);
+}
+.btn-outline-info {
+  background-color: transparent;
+  border-color: var(--color-info-600);
+  color: var(--color-info-700);
+}
+
+/* Ghost (purely text + icon, no border) — useful in toolbars */
+.btn-ghost {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--color-ink-700);
+}
+.btn-ghost:hover {
+  background-color: var(--color-ink-100);
+  border-color: transparent;
+  color: var(--color-ink-900);
+}
+
+/* Light button (Bootstrap btn-light) sits on dark CTA backgrounds */
+.btn-light {
+  background-color: var(--color-white);
+  border-color: var(--color-white);
+  color: var(--color-brand-700);
+}
+.btn-light:hover {
+  background-color: var(--color-cream-100);
+  border-color: var(--color-cream-100);
+  color: var(--color-brand-900);
+}
+.btn-outline-light {
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.6);
+  color: var(--color-white);
+}
+.btn-outline-light:hover {
+  background-color: var(--color-white);
+  border-color: var(--color-white);
+  color: var(--color-brand-700);
+}
+
+/* ===========================================================================
+ * 4. FORMS — inputs, labels, selects, textareas
+ * ======================================================================== */
+
+.form-label,
+label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-700);
+  margin-bottom: var(--space-2);
+  letter-spacing: var(--tracking-tight);
+}
+
+.form-control,
+.form-select,
+input[type="text"]:not(.no-fiesta),
+input[type="email"]:not(.no-fiesta),
+input[type="password"]:not(.no-fiesta),
+input[type="number"]:not(.no-fiesta),
+input[type="search"]:not(.no-fiesta),
+input[type="tel"]:not(.no-fiesta),
+input[type="url"]:not(.no-fiesta),
+input[type="date"]:not(.no-fiesta),
+textarea {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 0.875rem;
+  line-height: var(--line-height-snug);
+  transition:
+    border-color var(--duration-base) var(--easing-standard),
+    box-shadow var(--duration-base) var(--easing-standard);
+  box-shadow: none;
+}
+
+.form-control:hover,
+.form-select:hover {
+  border-color: var(--color-border-strong);
+}
+
+.form-control:focus,
+.form-select:focus,
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-brand-600);
+  box-shadow: var(--shadow-focus);
+  background-color: var(--color-surface-raised);
+}
+
+.form-control::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.form-control.is-invalid,
+.was-validated .form-control:invalid {
+  border-color: var(--color-danger-600);
+  background-image: none;
+  padding-right: 0.875rem;
+}
+.form-control.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.18);
+}
+
+.invalid-feedback {
+  color: var(--color-danger-700);
+  font-size: var(--font-size-sm);
+}
+
+.form-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* Form input groups */
+.input-group .form-control,
+.input-group .form-select {
+  border-radius: var(--radius-md);
+}
+
+/* Disabled */
+.form-control:disabled,
+.form-select:disabled {
+  background-color: var(--color-ink-100);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* ===========================================================================
+ * 5. CARDS — refined surface, never floaty
+ * ======================================================================== */
+
+.card {
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--duration-base) var(--easing-standard);
+}
+
+.card.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+.card.shadow,
+.card.shadow-lg {
+  box-shadow: var(--shadow-md);
+}
+
+.card.border-0 {
+  border: 1px solid transparent;
+}
+
+.card-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-5);
+  font-weight: var(--font-weight-semibold);
+}
+.card-header.bg-transparent {
+  background-color: transparent;
+}
+
+.card-body {
+  padding: var(--space-5);
+}
+
+.card-footer {
+  background-color: transparent;
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-5);
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-900);
+  margin-block: 0 var(--space-2);
+}
+
+/* Subtle elevation on hover for actionable cards */
+.hover-card,
+.card.hover-card {
+  transition:
+    transform var(--duration-base) var(--easing-standard),
+    box-shadow var(--duration-base) var(--easing-standard),
+    border-color var(--duration-base) var(--easing-standard);
+}
+.hover-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-border-strong);
+}
+
+/* "Stat card" pattern — large number + label */
+.stat-card {
+  padding: var(--space-5);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.stat-card__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-block: 0 var(--space-2);
+}
+.stat-card__value {
+  font-family: var(--font-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-900);
+  line-height: var(--line-height-tight);
+  margin-block: 0 var(--space-1);
+}
+.stat-card__delta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+.stat-card__delta--up { color: var(--color-success-700); }
+.stat-card__delta--down { color: var(--color-danger-700); }
+
+/* ===========================================================================
+ * 6. TABLES — readable, audit-ready
+ * ======================================================================== */
+
+.table {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  margin-bottom: 0;
+  border-color: var(--color-border);
+}
+
+.table > :not(caption) > * > * {
+  padding: var(--space-3) var(--space-4);
+  border-bottom-color: var(--color-border);
+}
+
+.table thead th {
+  background-color: var(--color-ink-50);
+  color: var(--color-ink-700);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border-strong);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table.table-light thead th,
+.table thead.table-light th {
+  background-color: var(--color-ink-50);
+}
+
+.table tbody tr {
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+
+.table-hover > tbody > tr:hover {
+  background-color: var(--color-brand-50);
+}
+
+.table tbody td {
+  vertical-align: middle;
+  color: var(--color-text-primary);
+}
+
+.table tbody td.text-muted,
+.table tbody td .text-muted {
+  color: var(--color-text-muted);
+}
+
+/* Numeric / money columns right-align + tabular */
+.table th.text-end,
+.table td.text-end,
+.table th.num,
+.table td.num,
+.table .money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sticky header on long lists */
+.table-sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background-color: var(--color-ink-50);
+}
+
+/* Responsive table wrapper */
+.table-responsive {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-raised);
+  overflow-x: auto;
+}
+.card > .table-responsive,
+.card > .card-body > .table-responsive,
+.card-body.p-0 > .table-responsive {
+  border: none;
+  border-radius: 0;
+}
+
+/* ===========================================================================
+ * 7. BADGES — semantic pills, not overstated
+ * ======================================================================== */
+
+.badge {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-tight);
+  padding: 0.3em 0.6em;
+  border-radius: var(--radius-sm);
+  line-height: 1.2;
+}
+
+.badge.bg-primary {
+  background-color: var(--color-brand-100) !important;
+  color: var(--color-brand-700) !important;
+}
+.badge.bg-success {
+  background-color: var(--color-success-100) !important;
+  color: var(--color-success-700) !important;
+}
+.badge.bg-warning {
+  background-color: var(--color-warning-100) !important;
+  color: var(--color-warning-700) !important;
+}
+.badge.bg-danger {
+  background-color: var(--color-danger-100) !important;
+  color: var(--color-danger-700) !important;
+}
+.badge.bg-info {
+  background-color: var(--color-info-100) !important;
+  color: var(--color-info-700) !important;
+}
+.badge.bg-secondary {
+  background-color: var(--color-ink-100) !important;
+  color: var(--color-ink-700) !important;
+}
+
+/* Rounded-pill — keep but soften */
+.badge.rounded-pill {
+  border-radius: var(--radius-full);
+  padding: 0.4em 0.85em;
+}
+
+/* ===========================================================================
+ * 8. ALERTS
+ * ======================================================================== */
+
+.alert {
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  box-shadow: none;
+  position: relative;
+}
+.alert-info {
+  background-color: var(--color-info-100);
+  border-color: rgba(44, 123, 192, 0.2);
+  color: var(--color-info-700);
+}
+.alert-success {
+  background-color: var(--color-success-100);
+  border-color: rgba(42, 132, 96, 0.2);
+  color: var(--color-success-700);
+}
+.alert-warning {
+  background-color: var(--color-warning-100);
+  border-color: rgba(185, 121, 26, 0.2);
+  color: var(--color-warning-700);
+}
+.alert-danger {
+  background-color: var(--color-danger-100);
+  border-color: rgba(192, 57, 43, 0.2);
+  color: var(--color-danger-700);
+}
+
+/* ===========================================================================
+ * 9. NAVBAR / SIDEBAR REFINEMENTS — applies on top of layout.html
+ * ======================================================================== */
+
+.sidebar {
+  background-color: var(--color-surface-raised);
+  box-shadow: 1px 0 0 var(--color-border);
+  font-family: var(--font-sans);
+}
+
+.sidebar-brand {
+  color: var(--color-ink-900);
+}
+.sidebar-brand .brand-text {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-ink-900);
+  margin-left: var(--space-2);
+}
+
+.menu-link {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-tight);
+  padding: 0.55rem 1.25rem;
+  border-left-width: 3px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  margin-right: var(--space-3);
+}
+.menu-link:hover {
+  background-color: var(--color-brand-50);
+  color: var(--color-brand-700);
+}
+.menu-link.active {
+  background-color: var(--color-brand-100);
+  color: var(--color-brand-900);
+  border-left-color: var(--color-brand-600);
+  font-weight: var(--font-weight-semibold);
+}
+
+.menu-icon {
+  font-size: 1.05rem;
+}
+
+.submenu-link {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+}
+.submenu-link:hover,
+.submenu-link.active {
+  color: var(--color-brand-700);
+  background-color: var(--color-brand-50);
+}
+.submenu-link.active {
+  font-weight: var(--font-weight-semibold);
+}
+
+.main-header {
+  background-color: var(--color-surface-raised);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: none;
+  padding: var(--space-4) var(--space-6);
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-900);
+  letter-spacing: var(--tracking-tight);
+}
+
+.main-content {
+  padding: var(--space-6);
+  background-color: var(--color-surface);
+}
+
+.footer {
+  background-color: transparent;
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ===========================================================================
+ * 10. HERO — for home.html
+ * ======================================================================== */
+
+.fiesta-hero {
+  position: relative;
+  background-color: var(--color-surface);
+  overflow: hidden;
+  padding-block: var(--space-16) var(--space-12);
+}
+
+/* Decorative geometric — single tasteful element, never two */
+.fiesta-hero::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle at 30% 30%, var(--color-brand-100) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+.fiesta-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -200px;
+  left: -200px;
+  width: 560px;
+  height: 560px;
+  background: radial-gradient(circle at 60% 60%, var(--color-accent-50) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.fiesta-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.fiesta-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.4rem 0.85rem;
+  background-color: var(--color-accent-50);
+  border: 1px solid var(--color-accent-100);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-accent-700);
+  margin-bottom: var(--space-5);
+}
+
+.fiesta-hero__title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 4vw + 1rem, 4rem);
+  font-weight: var(--font-weight-semibold);
+  font-variation-settings: 'opsz' 144, 'SOFT' 70;
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tighter);
+  color: var(--color-ink-900);
+  margin-block: 0 var(--space-5);
+}
+.fiesta-hero__title em {
+  font-style: italic;
+  color: var(--color-brand-700);
+  font-variation-settings: 'opsz' 144, 'SOFT' 100;
+}
+
+.fiesta-hero__subtitle {
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-secondary);
+  max-width: 38rem;
+  margin-block: 0 var(--space-6);
+}
+
+.fiesta-hero__cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.fiesta-hero__visual {
+  position: relative;
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-xl);
+}
+
+/* ===========================================================================
+ * 11. FEATURE CARDS / ICON STYLE — for home.html
+ * ======================================================================== */
+
+.fiesta-feature {
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  transition: all var(--duration-base) var(--easing-standard);
+  height: 100%;
+}
+.fiesta-feature:hover {
+  border-color: var(--color-border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.fiesta-feature__icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-brand-100);
+  color: var(--color-brand-700);
+  font-size: 1.25rem;
+  margin-block: 0 var(--space-4);
+}
+.fiesta-feature__icon--accent {
+  background-color: var(--color-accent-100);
+  color: var(--color-accent-700);
+}
+.fiesta-feature__icon--success {
+  background-color: var(--color-success-100);
+  color: var(--color-success-700);
+}
+.fiesta-feature__icon--info {
+  background-color: var(--color-info-100);
+  color: var(--color-info-700);
+}
+
+.fiesta-feature__title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-900);
+  margin-block: 0 var(--space-2);
+}
+.fiesta-feature__body {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-secondary);
+}
+
+/* Override existing .feature-icon in home.html (Bootstrap bg-primary etc.) */
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.feature-icon.bg-primary {
+  background-color: var(--color-brand-100) !important;
+  color: var(--color-brand-700) !important;
+  background-image: none !important;
+}
+.feature-icon.bg-success {
+  background-color: var(--color-success-100) !important;
+  color: var(--color-success-700) !important;
+  background-image: none !important;
+}
+.feature-icon.bg-info {
+  background-color: var(--color-info-100) !important;
+  color: var(--color-info-700) !important;
+  background-image: none !important;
+}
+.feature-icon i,
+.feature-icon .fas,
+.feature-icon .bi {
+  color: inherit !important;
+}
+
+/* ===========================================================================
+ * 12. AUTH CARDS — login / register
+ * ======================================================================== */
+
+.fiesta-auth {
+  min-height: calc(100vh - 60px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  background:
+    radial-gradient(circle at 0% 0%, var(--color-brand-50) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, var(--color-accent-50) 0%, transparent 50%),
+    var(--color-surface);
+}
+
+.login-card,
+.register-card {
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg) !important;
+  background-color: var(--color-surface-raised);
+  max-width: 28rem;
+  width: 100%;
+  margin-inline: auto;
+}
+.login-card .card-body,
+.register-card .card-body {
+  padding: var(--space-8);
+}
+
+@media (max-width: 576px) {
+  .login-card .card-body,
+  .register-card .card-body {
+    padding: var(--space-6);
+  }
+}
+
+/* ===========================================================================
+ * 13. EMPTY STATES
+ * ======================================================================== */
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-12) var(--space-6);
+  background-color: var(--color-surface-raised);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-xl);
+}
+.empty-state__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--space-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--color-brand-50);
+  color: var(--color-brand-600);
+  font-size: 1.75rem;
+}
+.empty-state__title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-900);
+  margin-block: 0 var(--space-2);
+}
+.empty-state__body {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 32rem;
+  margin: 0 auto var(--space-5);
+  line-height: var(--line-height-relaxed);
+}
+
+/* ===========================================================================
+ * 14. SECTION DIVIDERS / RHYTHM
+ * ======================================================================== */
+
+.section {
+  padding-block: var(--space-16);
+}
+.section--tight { padding-block: var(--space-8); }
+.section--loose { padding-block: var(--space-20); }
+
+.section--surface { background-color: var(--color-surface-elevated); }
+.section--brand {
+  background-color: var(--color-ink-900);
+  color: var(--color-text-inverse);
+}
+.section--brand h1, .section--brand h2, .section--brand h3 {
+  color: var(--color-text-inverse);
+}
+
+/* bg-primary fallback (home.html final CTA still uses bg-primary) */
+.bg-primary {
+  background-color: var(--color-ink-900) !important;
+  background-image: none !important;
+}
+.bg-primary h2,
+.bg-primary p,
+.bg-primary .lead {
+  color: var(--color-text-inverse) !important;
+}
+
+.bg-light {
+  background-color: var(--color-surface-elevated) !important;
+}
+
+/* ===========================================================================
+ * 15. DROPDOWN MENU — header user menu
+ * ======================================================================== */
+
+.dropdown-menu {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+.dropdown-item {
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  color: var(--color-text-primary);
+}
+.dropdown-item:hover {
+  background-color: var(--color-brand-50);
+  color: var(--color-brand-900);
+}
+.dropdown-item.text-danger:hover {
+  background-color: var(--color-danger-100);
+  color: var(--color-danger-700);
+}
+
+/* ===========================================================================
+ * 16. MODAL REFINEMENTS
+ * ======================================================================== */
+
+.modal-content {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+}
+.modal-header {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-5);
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-semibold);
+}
+.modal-body { padding: var(--space-5); }
+.modal-footer {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-5);
+}
+
+/* ===========================================================================
+ * 17. LOADING / SPINNER
+ * ======================================================================== */
+
+.spinner-border {
+  border-width: 2px;
+  color: var(--color-brand-600);
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-ink-100) 0%,
+    var(--color-ink-50) 50%,
+    var(--color-ink-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===========================================================================
+ * 18a. SCAN / UPLOAD card — override legacy custom.css
+ * ======================================================================== */
+
+.upload-card {
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+}
+
+.upload-area {
+  background-color: var(--color-cream-50);
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4);
+  transition: all var(--duration-base) var(--easing-standard);
+  cursor: pointer;
+}
+
+.upload-area:hover,
+.upload-area.dragover {
+  background-color: var(--color-brand-50);
+  border-color: var(--color-brand-600);
+}
+
+.upload-icon,
+.camera-icon {
+  color: var(--color-brand-600);
+}
+
+.upload-text {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-2);
+}
+.breadcrumb-item a {
+  color: var(--color-text-muted);
+}
+.breadcrumb-item.active {
+  color: var(--color-ink-700);
+  font-weight: var(--font-weight-medium);
+}
+.breadcrumb-item + .breadcrumb-item::before {
+  content: "/";
+  color: var(--color-ink-300);
+}
+
+/* ===========================================================================
+ * 18. UTILITIES
+ * ======================================================================== */
+
+.text-accent { color: var(--color-accent-700) !important; }
+.bg-accent-soft { background-color: var(--color-accent-50) !important; }
+.bg-brand-soft { background-color: var(--color-brand-50) !important; }
+.border-fiesta { border: 1px solid var(--color-border) !important; }
+.radius-lg { border-radius: var(--radius-lg) !important; }
+.radius-xl { border-radius: var(--radius-xl) !important; }
+
+.divider {
+  height: 1px;
+  background-color: var(--color-border);
+  border: 0;
+  margin-block: var(--space-6);
+}
+
+/* Truncate utility */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Focus ring on any keyboard-interactive surface */
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ===========================================================================
+ * 19. MOBILE — make the navbar, tables and forms behave at < 576px
+ * ======================================================================== */
+
+@media (max-width: 992px) {
+  .main-header { padding: var(--space-3) var(--space-4); }
+  .main-content { padding: var(--space-4); }
+}
+
+@media (max-width: 576px) {
+  h1, .h1 { font-size: var(--font-size-2xl); }
+  h2, .h2 { font-size: var(--font-size-xl); }
+  .display-4 { font-size: 2.25rem; }
+  .display-5 { font-size: 1.875rem; }
+  .card-body { padding: var(--space-4); }
+  .table > :not(caption) > * > * { padding: var(--space-2) var(--space-3); }
+  .fiesta-hero { padding-block: var(--space-10) var(--space-8); }
+}
+
+/* ===========================================================================
+ * 20. PRINT
+ * ======================================================================== */
+
+@media print {
+  .sidebar, .mobile-header, .footer, .btn { display: none !important; }
+  .content { margin-left: 0 !important; }
+  body { background: white; color: black; }
+  .card { box-shadow: none; border: 1px solid #ccc; }
+}

@@ -19,7 +19,7 @@ def test_invitation_email():
     
     # Test data
     organization_name = "Personal Finances"  # Use a real organization name
-    sender_name = "DevelopSriLanka"
+    sender_name = "FIESTA"
     sender_email = "noreply@developsrilanka.com"
     recipient = "test@example.com"
     
@@ -27,7 +27,7 @@ def test_invitation_email():
     message = Mail(
         from_email=sender_email,  # Just use plain email address
         to_emails=recipient,
-        subject="Invitation to join Personal Finances on DevelopSriLanka",
+        subject="Invitation to join Personal Finances on FIESTA",
         html_content="<p>This is a test of the organization invitation email.</p>"
     )
     

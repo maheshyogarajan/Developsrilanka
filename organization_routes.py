@@ -863,7 +863,7 @@ def send_invitation_email(invitation):
         app_url = request.host_url.rstrip('/')
         
         # Create the subject for email
-        subject = f"Invitation to join {organization.name} on DevelopSriLanka"
+        subject = f"Invitation to join {organization.name} on FIESTA"
         
         # Log the email attempt
         logger.info(f"Sending organization invitation email to: {invitation.email}")
@@ -892,11 +892,11 @@ def send_invitation_email(invitation):
         # Get sender email from config or use a default
         # Use noreply@developsrilanka.com as the default sender for better deliverability
         # This address is more likely to be verified in the SendGrid account
-        from_email = current_app.config.get('MAIL_DEFAULT_SENDER', ('DevelopSriLanka', 'noreply@developsrilanka.com'))
+        from_email = current_app.config.get('MAIL_DEFAULT_SENDER', ('FIESTA', 'noreply@developsrilanka.com'))
         if isinstance(from_email, tuple):
             sender_name, sender_email = from_email
         else:
-            sender_name = 'DevelopSriLanka'
+            sender_name = 'FIESTA'
             sender_email = from_email
             
         # Use the verified sender email address from SendGrid account

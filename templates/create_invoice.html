@@ -1,18 +1,19 @@
 {% extends "layout.html" %}
 
-{% block title %}Create Invoice - Develop Sri Lanka{% endblock %}
+{% block title %}Create Invoice - FIESTA{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
+    <div class="row mb-5">
         <div class="col">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('invoices') }}">Invoices</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Create Invoice</li>
+                    <li class="breadcrumb-item active" aria-current="page">Create</li>
                 </ol>
             </nav>
-            <h2 class="mb-3"><i class="fas fa-plus-circle me-2"></i>Create New Invoice</h2>
+            <h1 class="h2 mb-2">New Invoice</h1>
+            <p class="text-secondary mb-0">Send a clean, branded invoice. Track it from sent to paid.</p>
         </div>
     </div>
 

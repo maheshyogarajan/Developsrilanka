@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}Invoice #{{ invoice.invoice_number }} - Develop Sri Lanka{% endblock %}
+{% block title %}Invoice #{{ invoice.invoice_number }} - FIESTA{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -12,11 +12,11 @@
                     <li class="breadcrumb-item active" aria-current="page">Invoice #{{ invoice.invoice_number }}</li>
                 </ol>
             </nav>
-            <div class="d-flex justify-content-between align-items-center">
-                <h2 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Invoice #{{ invoice.invoice_number }}</h2>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <h1 class="h2 mb-0">Invoice <span class="num-mono">#{{ invoice.invoice_number }}</span></h1>
                 <div class="btn-group">
                     <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-1"></i> Back to Invoices
+                        <i class="fas fa-arrow-left"></i> Back to Invoices
                     </a>
                     {% if invoice.status == 'draft' %}
                         <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-outline-primary">
@@ -84,8 +84,8 @@
                             <p class="mb-0">Tax Reg: {{ organization.tax_registration_number }}</p>
                         {% endif %}
                     {% else %}
-                        <h3 class="fw-bold">{{ invoice.sender_company or "Develop Sri Lanka" }}</h3>
-                        <p>{{ invoice.sender_name or "Financial Management Platform" }}</p>
+                        <h3 class="fw-bold">{{ invoice.sender_company or (current_user.name if current_user.is_authenticated else '') }}</h3>
+                        {% if invoice.sender_name %}<p>{{ invoice.sender_name }}</p>{% endif %}
                         {% if invoice.sender_address %}
                             <p class="mb-0">{{ invoice.sender_address|replace('\n', '<br>')|safe }}</p>
                         {% endif %}
@@ -437,14 +437,17 @@
                     <button type="submit" class="btn btn-danger">Delete Invoice</button>
                 </form>
             </div>
-        <!-- Footer with Develop Sri Lanka reference -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-body text-center text-muted">
-                <p class="small mb-0">
-                    Powered by <a href="https://developsrilanka.com" target="_blank">Develop Sri Lanka</a> - Financial Management Platform
-                </p>
-            </div>
         </div>
+    </div>
+</div>
+
+<!-- Footer with FIESTA reference -->
+<div class="container">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body text-center text-muted">
+            <p class="small mb-0">
+                Powered by <a href="https://developsrilanka.com" target="_blank">FIESTA</a> &mdash; Bookkeeping and Audit-Defence Platform
+            </p>
         </div>
     </div>
 </div>

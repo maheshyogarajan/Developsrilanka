@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+
+{% block title %}Copilot answer - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 820px;">
+  <div class="row mb-4">
+    <div class="col">
+      <span class="eyebrow">Support · Copilot answer</span>
+      <h1 class="h3 mb-2">Here's what we found</h1>
+      <p class="text-secondary mb-0">
+        Ticket #{{ ticket_id }} ·
+        Confidence
+        {% if confidence >= 0.9 %}
+          <span class="badge bg-success">{{ "%.0f"|format(confidence * 100) }}%</span>
+        {% elif confidence >= 0.7 %}
+          <span class="badge bg-warning text-dark">{{ "%.0f"|format(confidence * 100) }}%</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ "%.0f"|format(confidence * 100) }}%</span>
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <div style="white-space: pre-wrap; line-height: 1.55;">{{ answer }}</div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <strong>Sources cited</strong>
+      <small class="text-muted">
+        — every claim above is grounded in one of these. No source = no claim.
+      </small>
+    </div>
+    <ul class="list-group list-group-flush">
+      {% if citations %}
+        {% for c in citations %}
+          <li class="list-group-item">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+              <div>
+                <span class="badge bg-info text-dark me-2 text-uppercase">{{ c.kind }}</span>
+                {% if c.kind == 'kb' and c.source_url %}
+                  <a href="{{ c.source_url }}" target="_blank" rel="noopener noreferrer" title="{{ c.source_url }}">
+                    {{ c.label }}
+                  </a>
+                {% else %}
+                  {{ c.label }}
+                {% endif %}
+                <code class="ms-2 text-muted small">{{ c.id }}</code>
+              </div>
+              {% if c.last_verified %}
+                <small class="text-muted" title="When we last reviewed this source against IRD / CBSL">
+                  verified {{ c.last_verified }}
+                </small>
+              {% endif %}
+            </div>
+            {% if c.summary %}
+              <div class="small text-muted mt-1">{{ c.summary }}</div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      {% else %}
+        <li class="list-group-item text-muted">
+          No sources cited — this shouldn't happen. Please report ticket #{{ ticket_id }}.
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="card mb-5">
+    <div class="card-header">
+      <strong>Was this helpful?</strong>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('support.csat', ticket_id=ticket_id) }}" class="d-flex align-items-center gap-2">
+        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+        <span class="text-secondary me-2">Rate this answer:</span>
+        {% for n in [1, 2, 3, 4, 5] %}
+          <button type="submit" name="rating" value="{{ n }}" class="btn btn-outline-primary btn-sm"
+                  title="{{ n }} of 5">
+            {{ n }}
+          </button>
+        {% endfor %}
+        <span class="text-muted small ms-3">1 = unhelpful · 5 = perfect</span>
+      </form>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-5">
+    <a href="{{ url_for('support.ask') }}" class="btn btn-outline-secondary">Ask another</a>
+    <span class="text-muted small">
+      If this answer is wrong, reply with rating 1 and we'll review.
+    </span>
+  </div>
+</div>
+{% endblock %}

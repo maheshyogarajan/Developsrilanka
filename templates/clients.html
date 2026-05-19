@@ -1,13 +1,16 @@
 {% extends "layout.html" %}
 
-{% block title %}Client Management - Develop Sri Lanka{% endblock %}
+{% block title %}Client Management - FIESTA{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
+    <div class="row mb-5">
         <div class="col">
-            <h2 class="mb-3"><i class="fas fa-users me-2"></i>Client Management</h2>
-            <p class="text-muted">Manage your business clients for invoicing and payment tracking.</p>
+            <span class="eyebrow">Cash In</span>
+            <h1 class="h2 mb-2">Clients</h1>
+            <p class="text-secondary mb-0">
+                Who you invoice. Keep their contacts, tax numbers, and history in one place.
+            </p>
         </div>
     </div>
 
@@ -163,14 +166,17 @@
                     </table>
                 </div>
             {% else %}
-                <div class="text-center p-5">
-                    <div class="mb-3">
-                        <i class="fas fa-users fa-3x text-muted"></i>
+                <div class="empty-state" style="margin: var(--space-4); border: none;">
+                    <div class="empty-state__icon">
+                        <i class="fas fa-users"></i>
                     </div>
-                    <h5>No Clients Yet</h5>
-                    <p class="text-muted mb-3">Add your first client to get started with invoicing.</p>
+                    <h3 class="empty-state__title">No clients yet.</h3>
+                    <p class="empty-state__body">
+                        Add your first client and FIESTA will remember their name, address, currency,
+                        and tax registration the next time you invoice them.
+                    </p>
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createClientModal">
-                        <i class="fas fa-plus me-1"></i> Add New Client
+                        <i class="fas fa-plus"></i> Add your first client
                     </button>
                 </div>
             {% endif %}

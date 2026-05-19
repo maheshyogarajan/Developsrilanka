@@ -1,0 +1,50 @@
+# Version control
+.git/
+.gitignore
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local config and secrets
+.env*
+*.env
+.local/
+.config/
+
+# Replit-specific
+replit_agent/
+.replit
+replit.nix
+
+# Uploaded files (production → S3, not image)
+static/uploads/
+attached_assets/
+
+# Logs
+logs/
+*.log
+
+# Temp / scratch
+tmp_fix/
+celery.db
+celery-results.db
+cookies.txt
+
+# Node (just in case)
+node_modules/
+
+# Test artifacts
+test_output.txt
+*.bak
+
+# Build/deploy scripts output
+bin/*.log

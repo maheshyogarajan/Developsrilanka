@@ -20,7 +20,7 @@ def test_sendgrid_organization_format():
     
     # Simulate organization invitation
     sender_email = 'noreply@developsrilanka.com'
-    sender_name = 'DevelopSriLanka'
+    sender_name = 'FIESTA'
     organization_name = 'Test Organization'
     
     # Create message with the FIXED format
