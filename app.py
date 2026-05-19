@@ -385,6 +385,69 @@ def preview():
     """Render the receipt preview page without login requirement."""
     return render_template('preview.html')
 
+
+@app.route('/tax-preview', methods=['GET'])
+def fiesta_tax_preview_page():
+    """FIESTA Tax Math Breakdown — S0 landing component (Risk A mitigation).
+
+    Renders the pre-paywall tax preview: bracket-by-bracket breakdown of what a
+    foreign-income earner will owe with vs without FIESTA's documented deductions.
+    No login required (this IS the conversion page).
+
+    Backs onto fiesta.tax.quick_preview for the live-calc JSON endpoint.
+    Council THE_PATH_20260520 Risk A: defuse "Rs 2,500 saving Rs 540K = scam radar"
+    by showing transparent bracket math + IRA citations inline.
+    """
+    # Load worked examples for the carousel
+    examples_path = os.path.join(
+        os.path.dirname(__file__), "static", "data", "worked_examples.json"
+    )
+    worked_examples = []
+    try:
+        with open(examples_path, "r", encoding="utf-8") as fh:
+            worked_examples = json.load(fh).get("examples", [])
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        logging.warning(f"worked_examples.json not loadable: {exc}")
+    return render_template(
+        'components/tax_math_breakdown.html',
+        worked_examples=worked_examples,
+    )
+
+
+@csrf.exempt
+@app.route('/preview/calc', methods=['POST'])
+def fiesta_tax_preview_calc():
+    """JSON live-calc endpoint for the Tax Math Breakdown component.
+
+    Accepts JSON: {gross_income, currency, income_source, sp_fee, rental, senior, year}
+    Returns the quick_preview() dict (JSON-safe).
+    CSRF-exempt — this is a public preview surface called from JS.
+    """
+    try:
+        from fiesta.tax import quick_preview, PreviewError
+    except ImportError as exc:
+        return jsonify({"error": f"tax preview module unavailable: {exc}"}), 500
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = quick_preview(
+            gross_income=payload.get("gross_income", 0),
+            currency=payload.get("currency", "LKR"),
+            income_source=payload.get("income_source", "foreign"),
+            sp_fee=payload.get("sp_fee", 0),
+            rental=payload.get("rental", 0),
+            senior=bool(payload.get("senior", False)),
+            year=payload.get("year", "25_26"),
+        )
+    except PreviewError as exc:
+        return jsonify({"error": str(exc), "kind": "input_error"}), 400
+    except Exception as exc:
+        logging.exception("tax preview calc failed")
+        return jsonify({"error": "internal preview error", "detail": str(exc)}), 500
+
+    return jsonify(result)
+
+
 @app.route('/tax-doc/scan', methods=['GET', 'POST'])
 @login_required
 def lanka_tax_doc_scan():
