@@ -1,0 +1,82 @@
+{#
+  Paywall upsell modal - X1.
+
+  Drop-in via:
+    {% include "paywall/upsell_modal.html" with context %}
+
+  Triggers via JS:
+    <button type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#paywallUpsellModal"
+            data-screen-id="S6"
+            data-action="generate_service_agreement"
+            data-return-to="/screens/S6">
+      Continue
+    </button>
+
+  The modal preserves context (no full-page redirect) and routes the user to
+  /pricing/x1 with the right return_to + screen_id. Mobile-friendly (Bootstrap
+  modal degrades to a full-screen sheet on small viewports).
+#}
+<div class="modal fade" id="paywallUpsellModal" tabindex="-1"
+     aria-labelledby="paywallUpsellModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header border-0 pb-0">
+        <span class="badge bg-success">Unlock once - whole tax year</span>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body text-center pt-2">
+        <h2 class="h4 mb-2">Unlock Service Agreement generation</h2>
+        <div class="display-6 fw-bold text-primary mb-1">Rs 2,500</div>
+        <p class="text-muted small mb-4">
+          One-time payment. Refundable within 14 days.
+        </p>
+
+        <ul class="list-unstyled text-start mx-auto" style="max-width: 24rem;">
+          <li class="mb-2"><span class="text-success me-2">&#10003;</span>Audit-defensible documents</li>
+          <li class="mb-2"><span class="text-success me-2">&#10003;</span>&sect;195 compliance built in</li>
+          <li class="mb-2"><span class="text-success me-2">&#10003;</span>Tax bill + IRD submission pack</li>
+          <li class="mb-2"><span class="text-success me-2">&#10003;</span>Refundable 14 days</li>
+        </ul>
+      </div>
+
+      <div class="modal-footer border-0 flex-column">
+        <form method="GET" action="/pricing/x1" class="w-100" id="paywallUpsellForm">
+          <input type="hidden" name="return_to" id="paywallReturnTo" value=""/>
+          <input type="hidden" name="screen_id" id="paywallScreenId" value=""/>
+          <button type="submit" class="btn btn-primary btn-lg w-100">
+            Continue to checkout &rarr;
+          </button>
+        </form>
+        <button type="button" class="btn btn-link text-muted btn-sm mt-2"
+                data-bs-dismiss="modal">
+          Not now
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Bootstrap event - lift data-* attributes from the trigger button into the
+  // modal's hidden form fields so the post-checkout return preserves context.
+  (function () {
+    var modal = document.getElementById('paywallUpsellModal');
+    if (!modal) return;
+    modal.addEventListener('show.bs.modal', function (event) {
+      var trigger = event.relatedTarget;
+      if (!trigger) return;
+      var rt = trigger.getAttribute('data-return-to') || window.location.pathname;
+      var sid = trigger.getAttribute('data-screen-id') || '';
+      var rtField = document.getElementById('paywallReturnTo');
+      var sidField = document.getElementById('paywallScreenId');
+      if (rtField) rtField.value = rt;
+      if (sidField) sidField.value = sid;
+    });
+  })();
+</script>

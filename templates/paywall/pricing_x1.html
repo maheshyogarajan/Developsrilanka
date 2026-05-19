@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+
+{% block title %}Unlock Self-File - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  {# Flash messages (Stripe checkout errors, missing-config warnings, etc.) #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if screen_id %}
+    <div class="alert alert-info" role="alert">
+      <strong>One step away.</strong> The screen you were on (<code>{{ screen_id }}</code>)
+      generates Service Agreements - that's where Self-File starts. Unlock once
+      below and you're set for the whole tax year.
+    </div>
+  {% endif %}
+
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4 p-md-5">
+
+          <div class="text-center mb-4">
+            <span class="badge bg-success mb-2">One-time payment · Refundable 14 days</span>
+            <h1 class="h3 mb-1">{{ product.name }}</h1>
+            <p class="text-muted">{{ product.tagline }}</p>
+          </div>
+
+          <div class="text-center mb-4">
+            <div class="display-5 fw-bold">{{ product.price_display }}</div>
+            <div class="text-muted small">{{ product.scope }}</div>
+          </div>
+
+          <ul class="list-unstyled mb-4">
+            {% for feature in product.features %}
+              <li class="mb-2"><span class="text-success me-2">&#10003;</span>{{ feature }}</li>
+            {% endfor %}
+          </ul>
+
+          {% if authenticated %}
+            <form method="POST" action="{{ url_for('paywall.checkout') }}">
+              {% if csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              {% endif %}
+              {% if return_to %}
+                <input type="hidden" name="return_to" value="{{ return_to }}"/>
+              {% endif %}
+              {% if screen_id %}
+                <input type="hidden" name="screen_id" value="{{ screen_id }}"/>
+              {% endif %}
+              <button type="submit" class="btn btn-primary btn-lg w-100">
+                {{ product.cta }}
+              </button>
+            </form>
+          {% else %}
+            <a href="{{ url_for('login', next=request.full_path) if 'login' in (request.url_rule.endpoint if request.url_rule else '') else '/login' }}"
+               class="btn btn-primary btn-lg w-100">
+              Log in to continue
+            </a>
+          {% endif %}
+
+          <p class="text-center text-muted small mt-3 mb-0">
+            14-day refund window. Cancel anytime within 14 days for a full refund.
+          </p>
+
+        </div>
+      </div>
+
+      <div class="text-center mt-4">
+        <p class="text-muted small">
+          <strong>What's free?</strong> Estimator, profile, earnings, and deductions
+          education are all free. Self-File starts when you commit to claiming
+          deductions - that's where we generate the audit-defensible documents.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
