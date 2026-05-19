@@ -385,6 +385,56 @@ def preview():
     """Render the receipt preview page without login requirement."""
     return render_template('preview.html')
 
+@app.route('/tax-doc/scan', methods=['GET', 'POST'])
+@login_required
+def lanka_tax_doc_scan():
+    """Lanka.tax doc_lens UI — upload a T10/Bank Interest WHT document and see structured extraction.
+
+    Backs onto fiesta.delivery_ops.doc_lens.validate_doc (Wave 2b v2, council #2 §1 port of
+    DataSciLT/doclens-v1 + Commaut2.0/dev + LTAiCore). Gracefully degrades when GEMINI_API_KEY
+    is missing (regex fallback) or Tesseract is missing (text-PDF only).
+    """
+    from fiesta.delivery_ops.doc_lens import validate_doc, DocType
+    import tempfile
+
+    result = None
+    error = None
+    doc_types = ["T10", "BANK_INTEREST_WHT", "BALANCE_CONFIRMATION", "ASSETS_LIABILITIES", "EMPLOYER_LETTER"]
+    gemini_configured = bool(os.environ.get("GEMINI_API_KEY"))
+
+    if request.method == 'POST':
+        uploaded = request.files.get('document')
+        expected_doc_type = request.form.get('doc_type') or None
+        if not uploaded or uploaded.filename == '':
+            error = "No file uploaded. Please choose a PDF and try again."
+        else:
+            suffix = os.path.splitext(uploaded.filename)[1] or '.pdf'
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                uploaded.save(tmp.name)
+                tmp_path = tmp.name
+            try:
+                result = validate_doc(
+                    client_id=str(current_user.id),
+                    doc_path=tmp_path,
+                    expected_doc_type=expected_doc_type,
+                )
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+    return render_template(
+        'tax_doc_scan.html',
+        result=result,
+        error=error,
+        doc_types=doc_types,
+        gemini_configured=gemini_configured,
+    )
+
+
 @app.route('/scan')
 @login_required
 def index():
