@@ -395,6 +395,14 @@ try:
 except Exception as e:
     logger.error(f"FIESTA S7 property load failed: {e}")
 
+# FIESTA S12 — Your tax bill (outcome + audit trail) — 2026-05-20
+try:
+    from fiesta.tax_bill.routes import register_blueprint as register_tax_bill
+    register_tax_bill(app)
+    logger.info("FIESTA S12 tax-bill screen registered at /tax-bill")
+except Exception as e:
+    logger.error(f"FIESTA S12 tax-bill load failed: {e}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
