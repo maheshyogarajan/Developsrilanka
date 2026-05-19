@@ -100,22 +100,9 @@ class TestTrialWindow:
 # Section 2: Decorator behavior
 # =========================================================================== #
 
-# Dummy view we'll attach the decorator to via a one-off blueprint registered
-# inside each test. Avoids polluting the global app with test-only routes.
-@pytest.fixture
-def gated_view_path(app):
-    """Register a one-off /test/paywall/S6 view gated at self_file. Returns
-    the URL path. Idempotent."""
-    path = "/_test/paywall/S6"
-    if not any(rule.rule == path for rule in app.url_map.iter_rules()):
-        from flask import jsonify
-
-        @app.route(path, methods=["GET"], endpoint="_test_paywall_S6")
-        @paywall_required(min_tier=TIER_SELF_FILE, screen_id="S6",
-                          action="test_view")
-        def gated():
-            return jsonify({"ok": True})
-    return path
+# Note: the `gated_view_path` fixture is defined session-scoped in
+# tests/paywall/conftest.py so the test route is registered BEFORE Flask
+# handles its first request (Flask blocks late route registration).
 
 
 class TestDecoratorFreeUserHitsPaywall:

@@ -97,10 +97,26 @@ def user_b(db_session):
 
 @pytest.fixture(scope="session")
 def app(_base_app):
-    """Wrap the base app — register the paywall blueprint defensively."""
+    """Wrap the base app — register the paywall blueprint defensively, AND
+    add the test-only gated view BEFORE Flask handles its first request
+    (Flask blocks late route registration via _check_setup_finished)."""
     from fiesta.paywall import register_routes as register_paywall
     if "paywall" not in _base_app.blueprints:
         register_paywall(_base_app)
+
+    # Register the test-only gated view eagerly so it's present before
+    # any test triggers the first request.
+    test_path = "/_test/paywall/S6"
+    if not any(rule.rule == test_path for rule in _base_app.url_map.iter_rules()):
+        from fiesta.paywall import paywall_required, TIER_SELF_FILE
+        from flask import jsonify
+
+        @_base_app.route(test_path, methods=["GET"], endpoint="_test_paywall_S6")
+        @paywall_required(min_tier=TIER_SELF_FILE, screen_id="S6",
+                          action="test_view")
+        def gated_test_view():
+            return jsonify({"ok": True})
+
     return _base_app
 
 
@@ -113,6 +129,26 @@ def _paywall_models_registered(app):
     with app.app_context():
         db.create_all()
     yield
+
+
+@pytest.fixture(scope="session")
+def gated_view_path(app):
+    """Register a one-off /_test/paywall/S6 view gated at self_file. SESSION-scoped
+    so the route is added BEFORE Flask handles any requests (post-first-request
+    route registration is blocked by Flask).
+
+    Returns the URL path. Idempotent.
+    """
+    from fiesta.paywall import paywall_required, TIER_SELF_FILE
+    from flask import jsonify
+    path = "/_test/paywall/S6"
+    if not any(rule.rule == path for rule in app.url_map.iter_rules()):
+        @app.route(path, methods=["GET"], endpoint="_test_paywall_S6")
+        @paywall_required(min_tier=TIER_SELF_FILE, screen_id="S6",
+                          action="test_view")
+        def gated():
+            return jsonify({"ok": True})
+    return path
 
 
 @pytest.fixture
