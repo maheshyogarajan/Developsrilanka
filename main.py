@@ -332,12 +332,28 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
 
+# Wave 1 — S2 Signup (2026-05-20)
+# FIESTA-branded zero-friction signup at /signup, with ToS/Privacy gate.
+# Lives alongside the existing /register flow in app.py.
+try:
+    from fiesta.signup import register_routes as register_signup_routes
+    register_signup_routes(app)
+    logger.info("S2 Signup blueprint registered: /signup, /terms, /privacy")
+except Exception as e:
+    logger.error(f"S2 Signup blueprint load failed: {e}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
 # the Celery worker — runs them, not just `python main.py`.
 with app.app_context():
     db.create_all()
+    # S2 signup additive migration — idempotent, safe to run on every boot.
+    try:
+        from add_tos_privacy_acceptance_to_user import run as _run_tos_migration
+        _run_tos_migration()
+    except Exception as e:
+        logger.error(f"S2 signup migration failed (non-fatal — model has ORM-level columns): {e}")
 
 # Function to start Celery worker in a background thread
 def start_background_worker():
