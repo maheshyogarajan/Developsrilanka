@@ -320,82 +320,90 @@ def test_15_multi_tax_year_no_collision():
 
 
 def _try_import_submission():
-    """Best-effort import of the real Submission model. Returns the class
-    when Flask + DATABASE_URL are configured; otherwise returns a pure-Python
-    stand-in with the same helper surface so the test still validates the
-    lifecycle logic.
+    """Return a pure-Python stand-in with the EXACT same helper surface as
+    the real fiesta.submit.models.Submission class.
 
-    This dual-path is intentional: the Submission helpers (reopen_for_edits,
-    is_locked_for_upstream_edits, can_attest, etc.) are pure-Python methods
-    on a SQLAlchemy model. They must work without any DB connection because
-    they're called from Flask request handlers between session.add and
-    session.commit. The standalone stand-in mirrors the EXACT same field set
-    so a regression in the helper logic would fail on either path.
+    Why a stand-in rather than the real SQLAlchemy model?
+    -----------------------------------------------------
+    The Submission helpers (reopen_for_edits, is_locked_for_upstream_edits,
+    can_attest, etc.) are pure-Python methods on a SQLAlchemy model. They
+    must work without any DB connection because they're called from Flask
+    request handlers between session.add and session.commit.
+
+    Earlier versions of these tests tried two strategies that both broke:
+
+      (a) `Submission.__new__(Submission)` to skip __init__ — leaves
+          `_sa_instance_state` unset, so the first attribute write raises
+          `AttributeError: 'Submission' object has no attribute
+          '_sa_instance_state'` once any prior test in the run has caused
+          SQLAlchemy to instrument the class.
+
+      (b) Plain `Submission()` — invokes SQLAlchemy's default __init__
+          which eagerly calls `configure_mappers()`. With the integrated
+          v1 build, that resolves every string-named relationship across
+          every mapped class in the registry. FiestaProfile has
+          `user = db.relationship("User", ...)`, and if `User` hasn't
+          been imported into the same MetaData yet (a normal mid-suite
+          state), mapper configuration explodes globally and breaks the
+          remaining 29 tests in the run.
+
+    The stand-in side-steps both problems. The helper logic is what these
+    tests actually want to verify; the SQLAlchemy plumbing is incidental.
+    The stand-in must be kept manually in sync with the real model's
+    helper methods — if you change those methods in
+    fiesta/submit/models.py, mirror the change here.
     """
-    try:
-        from fiesta.submit.models import Submission
+    class _SubmissionStandIn:
+        status = "preparing"
+        attestation_text = None
+        attestation_signature = None
+        attestation_signed_at = None
+        ird_export_generated_at = None
+        ird_export_zip_path = None
+        ird_export_zip_sha256 = None
+        customer_filed_at = None
+        customer_filed_ack_number = None
+        customer_acknowledged_warnings_json = "[]"
 
-        return Submission
-    except Exception:
-        # Build a stand-in that copies the helper methods from the model
-        # source. We use exec on the method source to avoid SQLAlchemy import
-        # bleed; the methods are pure-Python and self-contained.
-        import json as _json
+        def is_locked_for_upstream_edits(self):
+            return self.status in {
+                "attested",
+                "export-generated",
+                "customer-filed-on-ird",
+            }
 
-        class _SubmissionStandIn:
-            status = "preparing"
-            attestation_text = None
-            attestation_signature = None
-            attestation_signed_at = None
-            ird_export_generated_at = None
-            ird_export_zip_path = None
-            ird_export_zip_sha256 = None
-            customer_filed_at = None
-            customer_filed_ack_number = None
-            customer_acknowledged_warnings_json = "[]"
+        def can_attest(self):
+            return self.status in {
+                "final-gate-pending",
+                "awaiting-attestation",
+            }
 
-            def is_locked_for_upstream_edits(self):
-                return self.status in {
-                    "attested",
-                    "export-generated",
-                    "customer-filed-on-ird",
-                }
+        def can_export(self):
+            return self.status in {"attested", "export-generated"}
 
-            def can_attest(self):
-                return self.status in {
-                    "final-gate-pending",
-                    "awaiting-attestation",
-                }
+        def can_mark_filed(self):
+            return self.status in {
+                "export-generated",
+                "customer-filed-on-ird",
+            }
 
-            def can_export(self):
-                return self.status in {"attested", "export-generated"}
+        def reopen_for_edits(self):
+            self.status = "preparing"
+            self.attestation_text = None
+            self.attestation_signature = None
+            self.attestation_signed_at = None
+            self.ird_export_generated_at = None
+            self.ird_export_zip_path = None
+            self.ird_export_zip_sha256 = None
 
-            def can_mark_filed(self):
-                return self.status in {
-                    "export-generated",
-                    "customer-filed-on-ird",
-                }
-
-            def reopen_for_edits(self):
-                self.status = "preparing"
-                self.attestation_text = None
-                self.attestation_signature = None
-                self.attestation_signed_at = None
-                self.ird_export_generated_at = None
-                self.ird_export_zip_path = None
-                self.ird_export_zip_sha256 = None
-
-        return _SubmissionStandIn
+    return _SubmissionStandIn
 
 
 def test_16_reopen_clears_attestation_and_export():
     """reopen_for_edits() clears attestation + export, status -> preparing."""
     Submission = _try_import_submission()
-    # NOTE: When the real SQLAlchemy-mapped Submission is returned, use the
-    # default constructor so SQLAlchemy's `_sa_instance_state` is initialised.
-    # Earlier versions used `__new__` to skip __init__, but that bypasses
-    # SQLAlchemy's instrumentation and crashes on the first attribute set
-    # once any prior test has loaded the mapper (cross-suite pollution).
+    # _try_import_submission() returns a pure-Python stand-in (see its
+    # docstring for why we don't use the real SQLAlchemy-mapped class).
     sub = Submission()
     sub.status = "attested"
     sub.attestation_text = "I, Anuk..."
@@ -421,8 +429,7 @@ def test_16_reopen_clears_attestation_and_export():
 def test_17_lifecycle_helpers_match_status():
     """is_locked_for_upstream_edits / can_attest / can_export semantics."""
     Submission = _try_import_submission()
-    # See test_16 note: SQLAlchemy mapped class must go through __init__ so
-    # _sa_instance_state is wired up before we touch instance attributes.
+    # Stand-in instance (see _try_import_submission docstring).
     sub = Submission()
 
     sub.status = "preparing"
