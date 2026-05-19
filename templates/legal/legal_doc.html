@@ -1,0 +1,146 @@
+{% extends 'empty_layout.html' %}
+
+{% block title %}{{ title }} — FIESTA{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --legal-bg:     #f7f5f0;
+    --legal-ink:    #1a1d27;
+    --legal-soft:   #4a4f5c;
+    --legal-brand:  #c1442d;
+    --legal-border: #e3ddd0;
+    --legal-warn-bg: #fdf6e1;
+    --legal-warn-fg: #5e4710;
+    --legal-warn-bd: #ecd58b;
+  }
+
+  body {
+    background: var(--legal-bg);
+    color: var(--legal-ink);
+    font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0;
+  }
+
+  .legal-wrap {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+
+  .legal-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .legal-back {
+    color: var(--legal-brand);
+    text-decoration: none;
+    font-size: 0.875rem;
+  }
+  .legal-back:hover { text-decoration: underline; }
+
+  .legal-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: -0.01em;
+    margin: 0.75rem 0 0.25rem;
+  }
+
+  .legal-meta {
+    font-size: 0.85rem;
+    color: var(--legal-soft);
+    margin: 0;
+  }
+
+  .draft-banner {
+    background: var(--legal-warn-bg);
+    border: 1px solid var(--legal-warn-bd);
+    color: var(--legal-warn-fg);
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    margin: 1.25rem 0 1.5rem;
+  }
+
+  .legal-body {
+    background: #fff;
+    padding: 2rem 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--legal-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+
+  .legal-body h1, .legal-body h2, .legal-body h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--legal-ink);
+  }
+  .legal-body h1 { font-size: 1.65rem; margin-top: 2rem; }
+  .legal-body h2 { font-size: 1.3rem;  margin-top: 1.75rem; }
+  .legal-body h3 { font-size: 1.05rem; margin-top: 1.5rem; }
+  .legal-body p, .legal-body li { color: var(--legal-ink); }
+  .legal-body a  { color: var(--legal-brand); }
+  .legal-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .legal-body th, .legal-body td {
+    border: 1px solid var(--legal-border);
+    padding: 0.5rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .legal-body th { background: #faf7f0; }
+  .legal-body code {
+    background: #f1ede4;
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.875em;
+  }
+
+  .legal-foot {
+    margin-top: 2rem;
+    font-size: 0.875rem;
+    color: var(--legal-soft);
+  }
+  .legal-foot a { color: var(--legal-brand); }
+</style>
+
+<div class="legal-wrap">
+  <div class="legal-header">
+    <a href="javascript:history.back()" class="legal-back">&larr; Back</a>
+    <h1 class="legal-title">{{ title }}</h1>
+    <p class="legal-meta">Version {{ version }}</p>
+  </div>
+
+  {% if is_draft %}
+  <div class="draft-banner">
+    <strong>DRAFT {{ version }}</strong> — pending Lanka.tax legal review (returns by {{ legal_review_return_date }}).
+    This text is what you'll be bound by if you accept it today; counsel review may tighten wording but won't expand
+    rights we ask for. Have feedback? Email <a href="mailto:{{ feedback_email }}">{{ feedback_email }}</a>.
+  </div>
+  {% endif %}
+
+  <article class="legal-body">
+    {{ body_html | safe }}
+  </article>
+
+  <p class="legal-foot">
+    Questions or concerns? Email <a href="mailto:{{ feedback_email }}">{{ feedback_email }}</a>.
+    See also the companion document linked below.
+  </p>
+  <p class="legal-foot">
+    {% if title == 'Terms of Service' %}
+      <a href="{{ url_for('signup.privacy_policy') }}">Privacy Policy &rarr;</a>
+    {% else %}
+      <a href="{{ url_for('signup.terms_of_service') }}">Terms of Service &rarr;</a>
+    {% endif %}
+  </p>
+</div>
+{% endblock %}

@@ -341,7 +341,17 @@ class User(UserMixin, db.Model):
     # Persona: 'sl_foreign_income' routes to the Remittance Ledger; NULL = legacy/default flows.
     # Added Wave A 2026-05-16 per FIESTA_USEFULNESS_REVIEW.md council synthesis.
     persona = db.Column(db.String(50), nullable=True)
-    
+
+    # S2 signup (Wave 1, 2026-05-20): the version of ToS / Privacy the user
+    # accepted at signup. Persisted so a) we can prove acceptance later, b) we
+    # can re-prompt for re-acceptance when a future version materially changes
+    # rights. NULL = legacy users (pre-S2 `/register` route) or skipped checkbox.
+    # Format: free-text "vMAJOR.MINOR" or "vMAJOR.MINOR-draft" until counsel review.
+    tos_accepted_version = db.Column(db.String(32), nullable=True)
+    tos_accepted_at = db.Column(db.DateTime, nullable=True)
+    privacy_accepted_version = db.Column(db.String(32), nullable=True)
+    privacy_accepted_at = db.Column(db.DateTime, nullable=True)
+
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
     access_expiration_date = db.Column(db.DateTime, nullable=True)
