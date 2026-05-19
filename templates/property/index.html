@@ -1,0 +1,187 @@
+{% extends 'layout.html' %}
+
+{% block title %}Properties — Home-office rent · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .s7-page {
+    --card-radius: 14px;
+    --ink-strong: var(--color-ink-900, #0f1115);
+    --ink-soft: var(--color-ink-700, #4b525c);
+    --ink-mute: var(--color-ink-500, #6e7682);
+    --line: var(--color-ink-100, #e6e8ec);
+    --accent: var(--color-accent-700, #7c3aed);
+    --accent-soft: var(--color-accent-50, #f3efff);
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    padding: 1rem 1rem 4rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .s7-header { display:flex; flex-direction:column; gap:0.4rem; margin-bottom:1.5rem; }
+  .s7-title {
+    font-family: 'Fraunces', serif; font-weight:600;
+    font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);
+    color: var(--ink-strong); letter-spacing:-0.01em; line-height:1.15; margin:0;
+  }
+  .s7-sub { color: var(--ink-soft); font-size:1rem; max-width:62ch; line-height:1.55; }
+
+  .s7-grid {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  }
+  .s7-card {
+    background: white; border: 1px solid var(--line);
+    border-radius: var(--card-radius);
+    padding: 1.1rem 1.15rem 1rem;
+    display: flex; flex-direction: column; gap: 0.6rem;
+    transition: box-shadow .15s ease;
+  }
+  .s7-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.06); }
+  .s7-card h3 {
+    margin:0; font-family:'Fraunces', serif; font-weight:600;
+    font-size:1.1rem; color: var(--ink-strong);
+  }
+  .s7-card .addr { color: var(--ink-soft); font-size:.95rem; line-height:1.45; }
+  .s7-card .meta { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .s7-pill {
+    background: var(--accent-soft); color: var(--accent);
+    padding: .15rem .55rem; border-radius: 999px;
+    font-size: .8rem; font-weight: 600;
+  }
+
+  .s7-sqft-bar { display:flex; align-items:center; gap:.5rem; margin-top:.2rem; }
+  .s7-sqft-track {
+    flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden;
+  }
+  .s7-sqft-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .s7-sqft-label { font-size: .8rem; color: var(--ink-mute); }
+
+  .s7-card-add {
+    border: 1.5px dashed var(--accent); background: transparent;
+    color: var(--accent); text-align: center;
+    display: flex; flex-direction: column; gap: .5rem; justify-content:center;
+    min-height: 170px; cursor: pointer;
+  }
+  .s7-card-add:hover { background: var(--accent-soft); }
+
+  .s7-add-form {
+    display: none; padding: 1.25rem; border: 1px solid var(--line);
+    border-radius: var(--card-radius); background: white; margin-top: 1.5rem;
+  }
+  .s7-add-form.is-open { display: block; }
+  .s7-form-grid {
+    display: grid; gap: .75rem 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  .s7-form-grid label {
+    display:flex; flex-direction:column; gap:.25rem;
+    font-size:.9rem; color: var(--ink-soft);
+  }
+  .s7-form-grid input, .s7-form-grid select {
+    padding:.5rem .65rem; border:1px solid var(--line);
+    border-radius: 8px; font-size:.95rem;
+  }
+  .s7-form-actions { display:flex; gap:.6rem; margin-top: 1rem; }
+  .s7-btn-primary {
+    background: var(--accent); color: white; border: 0;
+    padding: .55rem 1.1rem; border-radius: 8px; font-weight: 600; cursor:pointer;
+  }
+  .s7-btn-ghost {
+    background: transparent; color: var(--ink-soft); border:1px solid var(--line);
+    padding: .55rem 1.1rem; border-radius:8px; cursor:pointer;
+  }
+
+  @media (max-width: 540px) {
+    .s7-page { padding: 1rem .75rem 3rem; }
+    .s7-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s7-page">
+  <div class="s7-header">
+    <h1 class="s7-title">Properties</h1>
+    <p class="s7-sub">
+      Capture the property you live and work in. We'll calculate the
+      home-office portion of your rent — that's deductible against your
+      business income under Inland Revenue Act §6.
+    </p>
+  </div>
+
+  <div class="s7-grid">
+    {% for p in properties %}
+    <a class="s7-card" href="{{ url_for('fiesta_property.detail', property_id=p.id) }}" style="text-decoration:none; color:inherit;">
+      <h3>{{ p.address_line1 }}</h3>
+      <div class="addr">
+        {% if p.address_line2 %}{{ p.address_line2 }}<br>{% endif %}
+        {{ p.city }}{% if p.postcode %} {{ p.postcode }}{% endif %}
+      </div>
+      <div class="meta">
+        <span class="s7-pill">{{ p.property_type }}</span>
+        <span class="s7-pill">{{ p.customer_status }}</span>
+        {% if p.purpose %}<span class="s7-pill">{{ p.purpose }}</span>{% endif %}
+      </div>
+      {% if p.total_sqft and p.home_office_sqft is not none %}
+      <div class="s7-sqft-bar">
+        <div class="s7-sqft-track">
+          <div class="s7-sqft-fill" style="width: {{ p.home_office_percentage or 0 }}%;"></div>
+        </div>
+        <span class="s7-sqft-label">{{ p.home_office_percentage or 0 }}% home-office</span>
+      </div>
+      <div class="s7-sqft-label">
+        {{ p.home_office_sqft }} of {{ p.total_sqft }} sqft
+      </div>
+      {% endif %}
+    </a>
+    {% endfor %}
+
+    <button type="button" class="s7-card s7-card-add" onclick="document.getElementById('s7-add-form').classList.toggle('is-open');">
+      <span style="font-size:2rem; line-height:1;">+</span>
+      <span>Add a property</span>
+    </button>
+  </div>
+
+  <form id="s7-add-form" class="s7-add-form" method="POST" action="{{ url_for('fiesta_property.create') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h3 style="margin-top:0;">New property</h3>
+    <div class="s7-form-grid">
+      <label>Address line 1<input name="address_line1" required></label>
+      <label>Address line 2<input name="address_line2"></label>
+      <label>City<input name="city" required></label>
+      <label>Postcode<input name="postcode"></label>
+      <label>Type
+        <select name="property_type">
+          <option value="apartment">Apartment</option>
+          <option value="house">House</option>
+          <option value="villa">Villa</option>
+          <option value="condo">Condo</option>
+          <option value="annex">Annex</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Purpose
+        <select name="purpose">
+          <option value="mixed">Mixed (home + office)</option>
+          <option value="residence">Residence only</option>
+          <option value="business">Business only</option>
+        </select>
+      </label>
+      <label>Your status
+        <select name="customer_status">
+          <option value="tenant">Tenant (I rent)</option>
+          <option value="owner-occupant">Owner-occupant (I own + live here)</option>
+          <option value="owner-rented-out">Owner — rented out to someone else</option>
+        </select>
+      </label>
+      <label>Total sqft<input name="total_sqft" type="number" min="0" inputmode="numeric"></label>
+      <label>Home-office sqft<input name="home_office_sqft" type="number" min="0" inputmode="numeric"></label>
+    </div>
+    <div class="s7-form-actions">
+      <button type="submit" class="s7-btn-primary">Save property</button>
+      <button type="button" class="s7-btn-ghost" onclick="document.getElementById('s7-add-form').classList.remove('is-open');">Cancel</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

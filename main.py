@@ -386,6 +386,15 @@ try:
 except Exception as e:
     logger.error(f"FIESTA S5 deductions load failed: {e}")
 
+# Wave 3 S7 — Property Owner (2026-05-20)
+try:
+    from fiesta.property import models as fiesta_property_models  # noqa: F401
+    from fiesta.property import routes as fiesta_property_routes
+    fiesta_property_routes.register_blueprint(app)
+    logger.info("FIESTA S7 property screen registered at /property")
+except Exception as e:
+    logger.error(f"FIESTA S7 property load failed: {e}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,

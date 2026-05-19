@@ -1,0 +1,97 @@
+{% extends 'layout.html' %}
+
+{% block title %}Agreement preview · {{ property.address_line1 }} · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .s7p-page { max-width: 820px; margin: 0 auto; padding: 1rem 1rem 4rem;
+    --line: var(--color-ink-100, #e6e8ec);
+    --ink: var(--color-ink-900, #0f1115);
+    --soft: var(--color-ink-700, #4b525c);
+    --mute: var(--color-ink-500, #6e7682);
+    --accent: var(--color-accent-700, #7c3aed);
+  }
+  .s7p-title { font-family:'Fraunces', serif; font-weight:600;
+    font-size: clamp(1.4rem, 2vw + 1rem, 2.1rem); margin: 0 0 .25rem; }
+  .s7p-sub { color: var(--soft); margin-bottom: 1.5rem; }
+  .s7p-doc {
+    background: white; border: 1px solid var(--line); border-radius: 14px;
+    padding: 2rem; font-family: 'Fraunces', serif; line-height: 1.55;
+    color: var(--ink);
+  }
+  .s7p-doc h2 { margin: 0 0 1rem; font-size: 1.4rem; }
+  .s7p-doc dl { display: grid; grid-template-columns: 200px 1fr;
+    gap: .35rem 1rem; font-family: 'Manrope', sans-serif; font-size: .95rem; }
+  .s7p-doc dt { color: var(--mute); }
+  .s7p-doc dd { color: var(--ink); margin: 0; }
+  .s7p-doc .compliance {
+    margin-top: 1.5rem; padding: 1rem;
+    background: var(--accent-soft, #f3efff); border-left: 4px solid var(--accent);
+    border-radius: 8px; font-family: 'Manrope', sans-serif; font-size: .9rem;
+    line-height: 1.5; color: var(--soft);
+  }
+  .s7p-watermark {
+    text-align: center; color: var(--mute); font-size: .85rem;
+    margin: 1rem 0; letter-spacing: .15em; text-transform: uppercase;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s7p-page">
+  <a href="{{ url_for('fiesta_property.detail', property_id=property.id) }}"
+     style="color: var(--accent); text-decoration:none;">
+    &larr; {{ property.address_line1 }}
+  </a>
+  <h1 class="s7p-title">Rental agreement preview</h1>
+  <p class="s7p-sub">
+    This is what we'll generate as the full S9 PDF. Review the terms before
+    we render the final document for signing.
+  </p>
+
+  <div class="s7p-watermark">— Draft preview —</div>
+
+  <div class="s7p-doc">
+    <h2>{{ preview.title }}</h2>
+
+    <h3 style="font-size:1.05rem; margin-top:1rem;">Parties</h3>
+    <dl>
+      <dt>Landlord</dt><dd>{{ preview.parties.landlord }} ({{ preview.parties.landlord_nic or 'NIC pending' }})</dd>
+      <dt>Tenant</dt><dd>{{ preview.parties.tenant }} ({{ preview.parties.tenant_nic or 'NIC pending' }})</dd>
+    </dl>
+
+    <h3 style="font-size:1.05rem; margin-top:1.5rem;">Property</h3>
+    <dl>
+      <dt>Address</dt><dd>{{ preview.property.address }}</dd>
+      <dt>Type</dt><dd>{{ preview.property.type }}</dd>
+      {% if preview.property.total_sqft %}
+      <dt>Total area</dt><dd>{{ preview.property.total_sqft }} sqft</dd>
+      {% endif %}
+      {% if preview.property.home_office_sqft %}
+      <dt>Home-office area</dt><dd>{{ preview.property.home_office_sqft }} sqft ({{ preview.property.home_office_percentage }}%)</dd>
+      {% endif %}
+    </dl>
+
+    <h3 style="font-size:1.05rem; margin-top:1.5rem;">Terms</h3>
+    <dl>
+      <dt>Term</dt><dd>{{ preview.terms.start_date }} to {{ preview.terms.end_date }}</dd>
+      <dt>Monthly rent</dt><dd>LKR {{ preview.terms.monthly_rent_lkr }}</dd>
+      {% if preview.terms.home_office_portion_lkr %}
+      <dt>Home-office portion</dt><dd>LKR {{ preview.terms.home_office_portion_lkr }} (deductible under IRA §6)</dd>
+      {% endif %}
+      {% if preview.terms.deposit_paid %}
+      <dt>Deposit</dt><dd>LKR {{ preview.terms.deposit_paid }}</dd>
+      {% endif %}
+      <dt>Payment</dt><dd>{{ preview.terms.payment_method }} / {{ preview.terms.payment_frequency }}</dd>
+    </dl>
+
+    <div class="compliance">
+      <strong>Compliance notes</strong><br>
+      {{ preview.compliance_note }}<br><br>
+      {{ preview.ira_section_6 }}
+    </div>
+  </div>
+
+  <div class="s7p-watermark">— End of preview —</div>
+</div>
+{% endblock %}

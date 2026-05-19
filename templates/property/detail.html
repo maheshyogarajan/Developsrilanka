@@ -1,0 +1,143 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ property.address_line1 }} · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .s7d-page { max-width: 980px; margin: 0 auto; padding: 1rem 1rem 4rem;
+    --line: var(--color-ink-100, #e6e8ec);
+    --ink: var(--color-ink-900, #0f1115);
+    --soft: var(--color-ink-700, #4b525c);
+    --mute: var(--color-ink-500, #6e7682);
+    --accent: var(--color-accent-700, #7c3aed);
+    --accent-soft: var(--color-accent-50, #f3efff);
+  }
+  .s7d-title { font-family:'Fraunces', serif; font-weight:600;
+    font-size: clamp(1.5rem, 2vw + 1rem, 2.2rem); margin: 0 0 .25rem; color: var(--ink); }
+  .s7d-sub { color: var(--soft); margin: 0 0 1.5rem; }
+
+  .s7d-section { border: 1px solid var(--line); border-radius: 14px;
+    padding: 1.25rem; background: white; margin-bottom: 1.25rem; }
+  .s7d-section h2 { margin: 0 0 .75rem; font-family:'Fraunces', serif;
+    font-weight: 600; font-size: 1.2rem; color: var(--ink); }
+
+  .s7d-grid { display: grid; gap: .5rem 1rem;
+    grid-template-columns: 200px 1fr;
+    font-size: .95rem; }
+  .s7d-grid dt { color: var(--mute); }
+  .s7d-grid dd { color: var(--ink); margin: 0; }
+
+  .s7d-allocation { display: flex; gap: 1rem; align-items: center; }
+  .s7d-pie {
+    width: 86px; height: 86px; border-radius: 50%;
+    background: conic-gradient(var(--accent) 0deg var(--pct-deg, 0deg),
+                               var(--line) var(--pct-deg, 0deg) 360deg);
+    display: grid; place-items: center;
+    font-weight: 600; color: var(--ink); font-size: 1rem;
+  }
+  .s7d-pie::after {
+    content: var(--pct-text, "0%");
+    background: white;
+    width: 60px; height: 60px; border-radius: 50%;
+    display: grid; place-items: center; font-family:'JetBrains Mono', monospace;
+  }
+  .s7d-allocation .alloc-text { color: var(--soft); }
+
+  .s7d-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+  .btn-primary { background: var(--accent); color: white; border: 0;
+    padding: .55rem 1.1rem; border-radius: 8px; font-weight: 600;
+    text-decoration: none; cursor: pointer; }
+  .btn-ghost { background: white; color: var(--soft); border:1px solid var(--line);
+    padding: .55rem 1.1rem; border-radius:8px; text-decoration:none; }
+
+  .s7d-empty { color: var(--mute); font-style: italic; }
+
+  @media (max-width: 640px) {
+    .s7d-grid { grid-template-columns: 1fr; }
+    .s7d-grid dt { font-weight: 600; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s7d-page">
+  <a href="{{ url_for('fiesta_property.index') }}" style="color: var(--accent); text-decoration:none;">
+    &larr; All properties
+  </a>
+  <h1 class="s7d-title">{{ property.address_line1 }}</h1>
+  <p class="s7d-sub">
+    {% if property.address_line2 %}{{ property.address_line2 }} · {% endif %}
+    {{ property.city }}{% if property.postcode %} {{ property.postcode }}{% endif %}
+  </p>
+
+  <section class="s7d-section">
+    <h2>Property</h2>
+    <dl class="s7d-grid">
+      <dt>Type</dt><dd>{{ property.property_type }}</dd>
+      <dt>Purpose</dt><dd>{{ property.purpose }}</dd>
+      <dt>Your status</dt><dd>{{ property.customer_status }}</dd>
+      <dt>Total sqft</dt><dd>{{ property.total_sqft or '—' }}</dd>
+      <dt>Home-office sqft</dt><dd>{{ property.home_office_sqft or '—' }}</dd>
+    </dl>
+
+    {% if property.home_office_percentage is not none %}
+    <div class="s7d-allocation" style="margin-top:1rem;
+         --pct-deg: {{ (property.home_office_percentage or 0) * 3.6 }}deg;
+         --pct-text: '{{ property.home_office_percentage or 0 }}%';">
+      <div class="s7d-pie"></div>
+      <div class="alloc-text">
+        <strong>{{ property.home_office_percentage }}%</strong> of this property
+        is used as home office.<br>
+        We'll apply this share to your rent when calculating the deductible portion.
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="s7d-section">
+    <h2>Landlord</h2>
+    {% if landlord %}
+    <dl class="s7d-grid">
+      <dt>Name</dt><dd>{{ landlord.full_name }}</dd>
+      <dt>Filing as</dt><dd><strong>{{ landlord.relationship_to_customer }}</strong></dd>
+      {% if landlord.nic %}<dt>NIC</dt><dd>{{ landlord.nic }}</dd>{% endif %}
+      {% if landlord.tin %}<dt>TIN</dt><dd>{{ landlord.tin }}</dd>{% endif %}
+      {% if landlord.bank_name or landlord.bank_account_number %}
+      <dt>Payee bank</dt>
+      <dd>{{ landlord.bank_name or '' }} {{ landlord.bank_account_number or '' }}</dd>
+      {% endif %}
+    </dl>
+    <div class="s7d-actions">
+      <a href="{{ url_for('fiesta_property.landlord_detail', property_id=property.id) }}" class="btn-ghost">Edit landlord</a>
+    </div>
+    {% else %}
+    <p class="s7d-empty">No landlord on file yet.</p>
+    <div class="s7d-actions">
+      <a href="{{ url_for('fiesta_property.landlord_detail', property_id=property.id) }}" class="btn-primary">Add landlord</a>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="s7d-section">
+    <h2>Rental agreement</h2>
+    {% if rental %}
+    <dl class="s7d-grid">
+      <dt>Term</dt><dd>{{ rental.start_date }} → {{ rental.end_date }}</dd>
+      <dt>Monthly rent</dt><dd>LKR {{ rental.monthly_rent_lkr }}</dd>
+      <dt>Home-office portion</dt><dd>LKR {{ rental.home_office_portion_lkr or '—' }}</dd>
+      <dt>Payment</dt><dd>{{ rental.payment_method }} / {{ rental.payment_frequency }}</dd>
+      <dt>Document</dt><dd>{{ rental.document_status }}</dd>
+    </dl>
+    <div class="s7d-actions">
+      <a href="{{ url_for('fiesta_property.rental_detail', property_id=property.id) }}" class="btn-ghost">Edit rental</a>
+      <a href="{{ url_for('fiesta_property.rental_preview', property_id=property.id) }}" class="btn-primary">Preview agreement</a>
+    </div>
+    {% else %}
+    <p class="s7d-empty">No rental agreement on file yet.</p>
+    <div class="s7d-actions">
+      <a href="{{ url_for('fiesta_property.rental_detail', property_id=property.id) }}" class="btn-primary">Add rental agreement</a>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
