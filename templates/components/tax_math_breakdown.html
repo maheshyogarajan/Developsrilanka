@@ -1,0 +1,725 @@
+{% extends 'preview_layout.html' %}
+
+{% block title %}See your tax savings — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-components.css') }}">
+<style>
+    /* ---------- LAYOUT ---------- */
+    body {
+        background: var(--color-cream-100, #FAF7F2);
+        color: var(--color-ink-700, #2A3247);
+        font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+        min-height: 100vh;
+        padding-top: 0;
+    }
+
+    .tax-hero {
+        background: linear-gradient(135deg,
+            var(--color-ink-900, #0F1729) 0%,
+            var(--color-brand-700, #3F2BAA) 100%);
+        color: white;
+        padding: 3rem 1.25rem 2rem;
+        text-align: center;
+    }
+    .tax-hero h1 {
+        font-family: 'Fraunces', Georgia, serif;
+        font-weight: 600;
+        font-size: clamp(1.75rem, 4vw, 2.75rem);
+        margin: 0 0 0.5rem;
+        letter-spacing: -0.01em;
+    }
+    .tax-hero p.lede {
+        font-size: 1.05rem;
+        opacity: 0.85;
+        max-width: 640px;
+        margin: 0 auto;
+    }
+    .tax-hero .pill {
+        display: inline-block;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 999px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+
+    .calc-wrap {
+        max-width: 880px;
+        margin: -2rem auto 3rem;
+        padding: 0 1rem;
+    }
+
+    .calc-card {
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(15, 23, 41, 0.10);
+        padding: 1.75rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (min-width: 768px) {
+        .calc-card { padding: 2.25rem; }
+    }
+    .calc-card h2 {
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 1.4rem;
+        color: var(--color-ink-900, #0F1729);
+        margin: 0 0 1rem;
+        font-weight: 600;
+    }
+    .calc-card .section-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-ink-400, #8089A0);
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    /* ---------- INPUTS ---------- */
+    .input-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    @media (min-width: 600px) {
+        .input-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+    }
+    .input-field label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--color-ink-700, #2A3247);
+        margin-bottom: 0.4rem;
+    }
+    .input-field .tooltip-icon {
+        display: inline-block;
+        width: 14px; height: 14px;
+        background: var(--color-ink-200, #D9DEE8);
+        color: var(--color-ink-700, #2A3247);
+        border-radius: 50%;
+        text-align: center;
+        font-size: 10px;
+        line-height: 14px;
+        cursor: help;
+        margin-left: 0.25rem;
+    }
+    .input-field input, .input-field select {
+        width: 100%;
+        padding: 0.7rem 0.85rem;
+        border: 1.5px solid var(--color-ink-200, #D9DEE8);
+        border-radius: 8px;
+        font-size: 1rem;
+        font-family: 'JetBrains Mono', monospace;
+        background: white;
+        color: var(--color-ink-900, #0F1729);
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .input-field input:focus, .input-field select:focus {
+        outline: none;
+        border-color: var(--color-brand-600, #5B3FE4);
+        box-shadow: 0 0 0 3px rgba(91, 63, 228, 0.12);
+    }
+    .input-field select {
+        font-family: 'Manrope', sans-serif;
+    }
+    .input-field .hint {
+        font-size: 0.75rem;
+        color: var(--color-ink-400, #8089A0);
+        margin-top: 0.3rem;
+    }
+    .currency-toggle {
+        display: inline-flex;
+        gap: 0.4rem;
+    }
+    .currency-toggle button {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1.5px solid var(--color-ink-200, #D9DEE8);
+        background: white;
+        cursor: pointer;
+        color: var(--color-ink-500, #5A6275);
+    }
+    .currency-toggle button.active {
+        background: var(--color-ink-900, #0F1729);
+        color: white;
+        border-color: var(--color-ink-900, #0F1729);
+    }
+    .year-locked {
+        background: var(--color-ink-50, #F6F7FB);
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: var(--color-ink-500, #5A6275);
+    }
+    .year-locked .year-pill {
+        font-weight: 700;
+        color: var(--color-ink-900, #0F1729);
+    }
+    .year-locked .next-year {
+        opacity: 0.4;
+        margin-left: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    /* ---------- BRACKET TABLE ---------- */
+    .bracket-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.75rem 0 1.25rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+    }
+    .bracket-table th, .bracket-table td {
+        text-align: right;
+        padding: 0.6rem 0.5rem;
+        border-bottom: 1px solid var(--color-ink-100, #ECEFF5);
+    }
+    .bracket-table th:first-child, .bracket-table td:first-child {
+        text-align: left;
+    }
+    .bracket-table th {
+        font-family: 'Manrope', sans-serif;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: var(--color-ink-400, #8089A0);
+    }
+    .bracket-table tr.active td {
+        background: var(--color-brand-50, #F6F2FE);
+        font-weight: 600;
+        color: var(--color-ink-900, #0F1729);
+    }
+    .bracket-table tr.total td {
+        border-top: 2px solid var(--color-ink-700, #2A3247);
+        border-bottom: none;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--color-ink-900, #0F1729);
+        padding-top: 0.75rem;
+    }
+
+    /* ---------- COMPARE ---------- */
+    .compare {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        margin: 1rem 0;
+    }
+    @media (min-width: 720px) {
+        .compare { grid-template-columns: 1fr 1fr; gap: 1rem; }
+    }
+    .compare-card {
+        padding: 1.25rem;
+        border-radius: 10px;
+        position: relative;
+    }
+    .compare-card.naive {
+        background: rgba(216, 96, 60, 0.06);
+        border: 1.5px solid rgba(216, 96, 60, 0.2);
+    }
+    .compare-card.fiesta {
+        background: rgba(42, 132, 96, 0.07);
+        border: 1.5px solid rgba(42, 132, 96, 0.28);
+    }
+    .compare-card h3 {
+        font-family: 'Manrope', sans-serif;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0 0 0.4rem;
+        color: var(--color-ink-500, #5A6275);
+    }
+    .compare-card .figure {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-ink-900, #0F1729);
+        margin: 0.25rem 0;
+    }
+    .compare-card.naive .figure {
+        color: var(--color-accent-700, #92551F);
+    }
+    .compare-card.fiesta .figure {
+        color: var(--color-success-700, #1F6B4A);
+    }
+    .compare-card .sub {
+        font-size: 0.85rem;
+        color: var(--color-ink-500, #5A6275);
+    }
+
+    .saving-banner {
+        background: linear-gradient(90deg,
+            var(--color-success-100, #DDF1E6) 0%,
+            var(--color-accent-100, #F8E9DA) 100%);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin: 1rem 0 0.5rem;
+        text-align: center;
+    }
+    .saving-banner .figure {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-success-700, #1F6B4A);
+    }
+    .saving-banner .label {
+        font-size: 0.9rem;
+        color: var(--color-ink-700, #2A3247);
+    }
+
+    /* ---------- DETAILS / DISCLOSURES ---------- */
+    details {
+        margin: 0.75rem 0;
+        border-radius: 8px;
+        background: var(--color-ink-50, #F6F7FB);
+        padding: 0.85rem 1rem;
+    }
+    details summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--color-ink-900, #0F1729);
+        list-style: none;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+        content: "+";
+        display: inline-block;
+        margin-right: 0.5rem;
+        font-weight: 700;
+        color: var(--color-brand-600, #5B3FE4);
+    }
+    details[open] summary::before { content: "−"; }
+    details p {
+        margin-top: 0.6rem;
+        line-height: 1.55;
+        font-size: 0.92rem;
+        color: var(--color-ink-700, #2A3247);
+    }
+
+    /* ---------- IRA citations ---------- */
+    .ira-block {
+        font-size: 0.78rem;
+        color: var(--color-ink-500, #5A6275);
+        line-height: 1.55;
+        background: var(--color-ink-50, #F6F7FB);
+        padding: 0.85rem 1rem;
+        border-radius: 8px;
+        border-left: 3px solid var(--color-brand-500, #7E57C2);
+        margin: 0.5rem 0 0.75rem;
+    }
+    .ira-block .ira-cite {
+        font-weight: 600;
+        color: var(--color-ink-700, #2A3247);
+    }
+    .ira-block a {
+        color: var(--color-brand-600, #5B3FE4);
+        text-decoration: none;
+    }
+    .ira-block a:hover { text-decoration: underline; }
+
+    /* ---------- WORKED EXAMPLES ---------- */
+    .worked-examples {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    @media (min-width: 720px) {
+        .worked-examples {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    .worked-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.25rem;
+        border: 1px solid var(--color-ink-100, #ECEFF5);
+        position: relative;
+    }
+    .worked-card .badge {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.75rem;
+        font-size: 0.65rem;
+        background: var(--color-ink-100, #ECEFF5);
+        color: var(--color-ink-500, #5A6275);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        letter-spacing: 0.03em;
+    }
+    .worked-card h4 {
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 1.05rem;
+        margin: 0 0 0.4rem;
+        padding-right: 5rem;
+        color: var(--color-ink-900, #0F1729);
+    }
+    .worked-card .persona {
+        font-size: 0.85rem;
+        color: var(--color-ink-500, #5A6275);
+        margin-bottom: 0.85rem;
+    }
+    .worked-card .math {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        line-height: 1.7;
+    }
+    .worked-card .math .row { display: flex; justify-content: space-between; }
+    .worked-card .math .row.saving {
+        font-weight: 700;
+        color: var(--color-success-700, #1F6B4A);
+        border-top: 1px solid var(--color-ink-100, #ECEFF5);
+        padding-top: 0.4rem;
+        margin-top: 0.4rem;
+    }
+
+    /* ---------- CTA ---------- */
+    .cta-strip {
+        text-align: center;
+        padding: 1.5rem 1rem;
+    }
+    .cta-strip .cta-btn {
+        display: inline-block;
+        background: var(--color-brand-600, #5B3FE4);
+        color: white;
+        padding: 1rem 2.25rem;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 1.05rem;
+        box-shadow: 0 8px 24px rgba(91, 63, 228, 0.3);
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .cta-strip .cta-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(91, 63, 228, 0.4);
+        color: white;
+    }
+    .cta-strip .micro {
+        font-size: 0.8rem;
+        color: var(--color-ink-500, #5A6275);
+        margin-top: 0.75rem;
+    }
+
+    .preview-flag {
+        font-size: 0.72rem;
+        color: var(--color-accent-700, #92551F);
+        background: var(--color-accent-50, #FCF4EA);
+        padding: 0.45rem 0.7rem;
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+        border-left: 3px solid var(--color-accent-600, #C77B3E);
+    }
+
+    .currency-line {
+        font-size: 0.85rem;
+        color: var(--color-ink-500, #5A6275);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ---------- MOBILE TWEAKS ---------- */
+    @media (max-width: 480px) {
+        .tax-hero { padding: 2rem 1rem 1.5rem; }
+        .calc-card { padding: 1.25rem; }
+        .bracket-table th, .bracket-table td { padding: 0.5rem 0.25rem; font-size: 0.78rem; }
+        .compare-card .figure { font-size: 1.4rem; }
+        .saving-banner .figure { font-size: 1.5rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tax-hero">
+    <span class="pill">FIESTA · Tax Preview</span>
+    <h1>See what you'd actually owe.</h1>
+    <p class="lede">
+        Enter your income. We walk through every Sri Lankan tax bracket
+        in front of you — then show you what the same return looks like
+        with FIESTA documenting your legitimate deductions.
+    </p>
+</div>
+
+<div class="calc-wrap">
+
+    <!-- A: INPUT STRIP -->
+    <div class="calc-card" id="card-inputs">
+        <div class="section-label">Step 1 · Tell us about your income</div>
+        <h2>Your inputs</h2>
+
+        <div class="input-grid">
+            <div class="input-field">
+                <label for="gross-income">
+                    Annual gross income
+                </label>
+                <input type="text" id="gross-income" inputmode="decimal"
+                       placeholder="e.g. 80000" autocomplete="off" value="" />
+                <div class="hint">
+                    <span id="currency-line" class="currency-line">In USD. Toggle currency below.</span>
+                </div>
+            </div>
+
+            <div class="input-field">
+                <label for="currency">Currency</label>
+                <div class="currency-toggle" id="currency-toggle">
+                    <button type="button" data-cur="LKR">LKR</button>
+                    <button type="button" data-cur="USD" class="active">USD</button>
+                    <button type="button" data-cur="EUR">EUR</button>
+                    <button type="button" data-cur="GBP">GBP</button>
+                    <button type="button" data-cur="AUD">AUD</button>
+                </div>
+                <input type="hidden" id="currency" value="USD" />
+                <div class="hint">Converted to LKR using CBSL indicative mid-rate.</div>
+            </div>
+
+            <div class="input-field">
+                <label for="income-source">Income source</label>
+                <select id="income-source">
+                    <option value="foreign" selected>Foreign client (self-employed)</option>
+                    <option value="mix">Mix — foreign + Sri Lankan</option>
+                    <option value="employment">Employment (single SL employer)</option>
+                </select>
+                <div class="hint">Drives which deductions FIESTA can typically help document.</div>
+            </div>
+
+            <div class="input-field">
+                <label for="year">Tax year</label>
+                <div class="year-locked">
+                    <span class="year-pill">2025/26</span>
+                    <span class="next-year">2026/27 coming</span>
+                </div>
+                <input type="hidden" id="year" value="25_26" />
+                <div class="hint">Year of assessment that ends 31 March 2026.</div>
+            </div>
+
+            <div class="input-field">
+                <label for="sp-fee">
+                    Service Provider fees (optional)
+                    <span class="tooltip-icon" title="Fees you pay to subcontractors — illustrators, accountants, virtual assistants. Annual total.">i</span>
+                </label>
+                <input type="text" id="sp-fee" inputmode="decimal" placeholder="0" value="0" />
+                <div class="hint">Annual total in your chosen currency.</div>
+            </div>
+
+            <div class="input-field">
+                <label for="rental">
+                    Home-office rental (optional)
+                    <span class="tooltip-icon" title="Monthly rent for the space you work from. We assume 50% of it qualifies as home-office. You'll attach proof at filing time.">i</span>
+                </label>
+                <input type="text" id="rental" inputmode="decimal" placeholder="0" value="0" />
+                <div class="hint">Monthly amount. We annualise + apply 50% home-office portion.</div>
+            </div>
+
+            <div class="input-field" style="grid-column: 1 / -1;">
+                <label>
+                    <input type="checkbox" id="senior" />
+                    I am 60+ (eligible for senior-citizen relief Rs 500K)
+                </label>
+                <div class="hint">IRA §51 — extra Rs 500K relief on top of the standard Rs 1.8M.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- B: LIVE BRACKET BREAKDOWN -->
+    <div class="calc-card" id="card-breakdown">
+        <div class="section-label">Step 2 · Bracket-by-bracket math</div>
+        <h2>How the IRD would compute your tax</h2>
+
+        <div class="preview-flag">
+            PREVIEW — estimated from your inputs. Actual filed tax depends on your full data.
+        </div>
+
+        <div id="breakdown-status">
+            <p style="color: var(--color-ink-400);">Enter your income above to see the bracket walk.</p>
+        </div>
+
+        <div id="breakdown-body" style="display:none;">
+            <p>
+                After applying personal relief of <strong id="b-relief">Rs 0</strong>
+                <span id="b-senior-extra"></span>,
+                your <strong>taxable income is <span id="b-taxable">Rs 0</span></strong>
+                — walked through the slabs:
+            </p>
+
+            <table class="bracket-table">
+                <thead>
+                    <tr>
+                        <th>Band</th>
+                        <th>Rate</th>
+                        <th>Income in band</th>
+                        <th>Tax</th>
+                    </tr>
+                </thead>
+                <tbody id="brackets-tbody">
+                </tbody>
+                <tfoot>
+                    <tr class="total">
+                        <td colspan="3">Total tax payable (if filed without deductions)</td>
+                        <td id="b-naive-total">Rs 0</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <p class="hint">
+                Effective rate: <strong><span id="b-eff-naive">0</span>%</strong>.
+                Marginal rate (highest band you hit): <strong><span id="b-marginal">0</span>%</strong>.
+            </p>
+        </div>
+    </div>
+
+    <!-- C: WITHOUT vs WITH FIESTA -->
+    <div class="calc-card" id="card-compare">
+        <div class="section-label">Step 3 · What FIESTA changes</div>
+        <h2>Without FIESTA  vs  With FIESTA</h2>
+
+        <div class="compare">
+            <div class="compare-card naive">
+                <h3>If you file alone</h3>
+                <div class="figure" id="cmp-naive">Rs 0</div>
+                <div class="sub">Statutory relief only. No documented deductions.</div>
+            </div>
+            <div class="compare-card fiesta">
+                <h3>With FIESTA documenting your deductions</h3>
+                <div class="figure" id="cmp-fiesta">Rs 0</div>
+                <div class="sub">Rs <span id="cmp-deductions">0</span> in defensible deductions
+                    (<span id="cmp-deduction-pct">0</span>% of gross), backed by FIESTA-generated agreements + receipts.</div>
+            </div>
+        </div>
+
+        <div class="saving-banner">
+            <div class="label">Your projected saving</div>
+            <div class="figure" id="b-saving">Rs 0</div>
+            <div class="label" id="b-saving-pct">— at <span>0</span>% of the tax you'd otherwise pay</div>
+        </div>
+    </div>
+
+    <!-- D: IRA CITATIONS + SCAM RADAR -->
+    <div class="calc-card" id="card-citations">
+        <div class="section-label">Step 4 · The legal basis</div>
+        <h2>Every number above is grounded in the Inland Revenue Act</h2>
+
+        <div class="ira-block">
+            Calculations based on:
+            <a href="https://www.ird.gov.lk" target="_blank" rel="noopener">Inland Revenue Act No. 24 of 2017</a>,
+            consolidated to 31 March 2025.
+            <ul style="margin: 0.5rem 0 0; padding-left: 1.2rem;">
+                <li><span class="ira-cite">First Schedule, Part I</span> — Progressive PIT slabs (the 5 bands shown above)</li>
+                <li><span class="ira-cite">First Schedule, Part I</span> — Personal relief Rs 1.8M (Inland Revenue (Amendment) Act 2025)</li>
+                <li><span class="ira-cite">§51</span> — Senior-citizen extra relief Rs 500K (resident individuals aged 60+)</li>
+                <li><span class="ira-cite">§6(1)</span> — Deductions wholly, exclusively and necessarily incurred in producing income</li>
+                <li><span class="ira-cite">§13</span> — Foreign income: remittance basis for resident individuals</li>
+                <li><span class="ira-cite">§83</span> — Related-party transactions (FIESTA default-on disclosure)</li>
+            </ul>
+            Math by FIESTA · Defensibility by IRD-trained Lanka.tax counsel.
+        </div>
+
+        <details>
+            <summary>How can you save Rs 540,000 by paying only Rs 2,500?</summary>
+            <p>
+                Because most foreign-income earners in Sri Lanka don't claim the deductions
+                they're legally entitled to. The Inland Revenue Act §6(1) allows you to deduct
+                expenses "wholly, exclusively and necessarily incurred" in producing your
+                income — but you need documentation to defend each claim in an audit.
+            </p>
+            <p>
+                FIESTA generates that documentation: Service Agreements for your foreign
+                clients, Rental Agreements with audit-defensible home-office language,
+                Receipt logs with categorisation. We don't reduce your tax — we make sure
+                you claim what you're already legally entitled to under Sri Lankan tax law.
+            </p>
+        </details>
+
+        <details>
+            <summary>Is this legal? Will the IRD challenge it?</summary>
+            <p>
+                Yes, it's legal. Every deduction FIESTA helps you claim is grounded in
+                a specific section of the Inland Revenue Act — we cite the section for
+                every claim and we attach the supporting document. No grey areas, no
+                aggressive interpretations.
+            </p>
+            <p>
+                FIESTA gives you the structure most foreign-income earners can't access
+                without paying Rs 50,000+ for individual tax counsel. The same evidence
+                an Rs 50,000 accountant would prepare for a single audit-defence engagement —
+                we generate it before the audit, for everyone.
+            </p>
+        </details>
+
+        <details>
+            <summary>Why "Rs 2,500"?</summary>
+            <p>
+                Rs 2,500 is the entry fee for FIESTA Self-File v1 (refundable within 14 days
+                if you're not saving more than that on tax). You generate your own documents
+                from FIESTA-provided templates, file your own return on the IRD eService
+                portal. We don't file for you in this tier — we equip you to file correctly.
+            </p>
+            <p>
+                Backed by Lanka.tax — Sri Lanka's largest specialist personal-tax practice,
+                serving foreign-income earners since 2018.
+            </p>
+        </details>
+    </div>
+
+    <!-- E: WORKED EXAMPLES -->
+    {% if worked_examples %}
+    <div class="calc-card">
+        <div class="section-label">Real customers (anonymised)</div>
+        <h2>What the math looks like for people like you</h2>
+
+        <div class="worked-examples">
+            {% for ex in worked_examples %}
+            <div class="worked-card">
+                <span class="badge">{{ ex.anonymisation_badge }}</span>
+                <h4>{{ ex.id.split('_')[0]|title }} {{ ex.id.split('_')[1]|upper }}.</h4>
+                <div class="persona">{{ ex.persona_short }}</div>
+                <div class="math">
+                    <div class="row">
+                        <span>Gross income</span>
+                        <span>{{ ex.currency }} {{ '{:,}'.format(ex.gross_income_foreign) }}</span>
+                    </div>
+                    <div class="row">
+                        <span>If filed alone</span>
+                        <span>Rs {{ '{:,}'.format(ex.pre_fiesta_tax_lkr) }}</span>
+                    </div>
+                    <div class="row">
+                        <span>With FIESTA</span>
+                        <span>Rs {{ '{:,}'.format(ex.fiesta_tax_lkr) }}</span>
+                    </div>
+                    <div class="row saving">
+                        <span>Saving</span>
+                        <span>Rs {{ '{:,}'.format(ex.saving_lkr) }}</span>
+                    </div>
+                </div>
+                <p style="font-size: 0.78rem; color: var(--color-ink-400); margin-top: 0.6rem;">
+                    IRA: {{ ex.ira_sections|join(', ') }}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+        <p class="hint" style="margin-top: 0.75rem; text-align: center;">
+            Numbers from Lanka.tax 2024/25 sample (n=78 foreign-income filers).
+            Names + NICs removed. Your individual case may save more or less.
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- F: CTA -->
+    <div class="cta-strip">
+        <a href="/signup" class="cta-btn">See if you save — Sign up (Rs 2,500)</a>
+        <div class="micro">14-day refund · No card-on-file lock-in · Backed by Lanka.tax</div>
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/tax_preview.js') }}"></script>
+
+{% endblock %}

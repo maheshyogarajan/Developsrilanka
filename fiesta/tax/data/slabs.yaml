@@ -1,6 +1,7 @@
 # Sri Lanka Personal Income Tax — version-pinned slab tables
 #
 # Single source of truth for all FIESTA tax bracket arithmetic.
+# Used by both the authoritative engine AND the S0 preview module.
 # Gazette update = edit this file. No code touch. No magic numbers in Python.
 #
 # Provenance:

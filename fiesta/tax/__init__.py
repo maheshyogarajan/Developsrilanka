@@ -1,11 +1,11 @@
-"""fiesta.tax — Sri Lanka Personal Income Tax engine (Phase 1).
+"""fiesta.tax — Sri Lanka Personal Income Tax engine + preview.
 
 Public surface:
-  - compute_tax_25_26(income, deductions=None, senior_citizen=False)
-        -> TaxComputation
-  - compute_tax(income, deductions, year, senior_citizen=False)
-        -> TaxComputation
-  - Income, Deductions, TaxComputation, TaxYear  (types)
+  - compute_tax_25_26(income, deductions=None, senior_citizen=False) -> TaxComputation
+  - compute_tax(income, deductions, year, senior_citizen=False) -> TaxComputation
+  - quick_preview(...) -> dict  (S0 lightweight preview for landing)
+  - Income, Deductions, TaxComputation, TaxYear, Reliefs (types)
+  - PreviewError (ValueError subclass for known input failures)
 
 Scope (Phase 1, this ship):
   - Core PIT for 25/26 + 24/25 (24/25 used for regression against SF flow)
@@ -13,6 +13,8 @@ Scope (Phase 1, this ship):
     senior-citizen extra relief
   - Per-band audit trail, marginal + effective rates
   - JS parity bundle for browser-side preview (see _js_parity)
+  - S0 quick_preview: bracket-by-bracket estimate from a few inputs to
+    defuse the "Rs 2,500 saving Rs 540,000 = scam" risk before paywall.
 
 Out of scope (deferred to Phase 2-4):
   - Foreign-income FX conversion (Phase 2 — fiesta/tax/fx.py)
@@ -22,10 +24,6 @@ Out of scope (deferred to Phase 2-4):
   - Amendments + penalties (Phase 4 — fiesta/tax/penalties.py)
 
 Provenance:
-  - G.1.4 proposal:
-      working files/strategic/council/persistent/fiesta/blocker_G.1.4_proposal.md
-  - Council THE_PATH 2026-05-20:
-      working files/strategic/council/persistent/fiesta/THE_PATH_20260520.md
   - 24/25 slabs verbatim from SF Scr_Tax_Computation_for_PRM lines 912-922.
   - 25/26 slabs unanimous in council brief tax_math_anchors.
 """
@@ -33,6 +31,7 @@ Provenance:
 from __future__ import annotations
 
 from .engine import compute_tax, compute_tax_25_26
+from .preview import PreviewError, quick_preview
 from .types import (
     Deductions,
     Income,
@@ -44,6 +43,8 @@ from .types import (
 __all__ = [
     "compute_tax",
     "compute_tax_25_26",
+    "quick_preview",
+    "PreviewError",
     "Income",
     "Deductions",
     "Reliefs",
