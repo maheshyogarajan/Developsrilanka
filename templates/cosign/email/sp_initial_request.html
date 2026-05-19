@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 600px; margin: 30px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.55;">
+
+<p>Hi {{ sp_name }},</p>
+
+<p>
+  <strong>{{ customer_name }}</strong> works with you and is getting their
+  tax documentation in order for Sri Lanka's 2025/26 financial year.
+</p>
+
+<p>
+  As part of that, they've prepared a short Service Agreement covering
+  the work you do for them. It's just to document the existing
+  relationship -- nothing in it creates new tax exposure, fees, or
+  obligations for you.
+</p>
+
+<p>
+  <strong>What we'd like you to do:</strong>
+  Open the link below, review the PDF, and -- if everything matches your
+  understanding -- type your full name to sign. The whole thing takes
+  about 30 seconds.
+</p>
+
+<p style="margin: 30px 0;">
+  <a href="{{ signing_link }}"
+     style="display: inline-block; padding: 12px 22px; background: #2a4d8f; color: #fff; text-decoration: none; border-radius: 4px;">
+    Review and sign the agreement
+  </a>
+</p>
+
+<p>
+  If anything in the PDF doesn't match what you actually do, click the
+  "I have concerns" tab on that page and a Lanka.tax specialist will
+  contact you to sort it out.
+</p>
+
+<p>
+  Reference: <code>{{ agreement_reference }}</code><br>
+  This link is unique to you and expires in 30 days.
+</p>
+
+<p>
+  Thanks for taking 30 seconds out of your day,<br>
+  {{ customer_name }}{% if customer_email %} ({{ customer_email }}){% endif %}
+</p>
+
+<p style="margin-top: 50px; color: #999; font-size: 0.85rem;">
+  Sent via FIESTA on behalf of {{ customer_name }}. Reply directly to
+  reach {{ customer_name }}; for technical questions about the
+  signing process, contact <a href="mailto:support@lanka.tax">support@lanka.tax</a>.
+</p>
+
+</body></html>

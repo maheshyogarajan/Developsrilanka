@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 600px; margin: 30px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.55;">
+
+<p>Hi {{ sp_name }},</p>
+
+<p>
+  Just a gentle nudge -- {{ customer_name }} sent you a short Service
+  Agreement to sign a few days ago, and we haven't seen it open yet.
+</p>
+
+<p>
+  It's the kind of thing that's easy to lose under other emails, so
+  here's the link again. Should take about 30 seconds when you can
+  spare a moment:
+</p>
+
+<p style="margin: 28px 0;">
+  <a href="{{ signing_link }}"
+     style="display: inline-block; padding: 11px 20px; background: #2a4d8f; color: #fff; text-decoration: none; border-radius: 4px;">
+    Open the agreement
+  </a>
+</p>
+
+<p>
+  No rush -- happy to wait. If something about the agreement doesn't
+  look right, there's an "I have concerns" tab on that page that goes
+  straight to Lanka.tax support.
+</p>
+
+<p>
+  Reference: <code>{{ agreement_reference }}</code>
+</p>
+
+<p>
+  Thanks,<br>
+  {{ customer_name }}
+</p>
+
+<p style="margin-top: 40px; color: #999; font-size: 0.85rem;">
+  Sent via FIESTA on behalf of {{ customer_name }}. Reply to reach
+  them directly.
+</p>
+
+</body></html>

@@ -1,0 +1,327 @@
+{% extends "layout.html" %}
+{% block title %}Co-sign with your Service Provider - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 880px;">
+
+  <h1 class="h2 mb-3" style="font-family: 'Fraunces', serif;">
+    Get your Service Agreement co-signed
+  </h1>
+
+  <p class="text-muted">
+    Reference: <code>{{ agreement.reference_id }}</code> &middot;
+    Generated {{ agreement.generated_at.strftime('%Y-%m-%d %H:%M UTC') if agreement.generated_at else 'recently' }}
+  </p>
+
+  <!-- Status pill ------------------------------------------------------- -->
+  <div id="cosign-status-pill" class="alert d-flex align-items-center
+    {% if workflow.status == 'drafted' %}alert-secondary
+    {% elif workflow.status in ('sent_to_sp', 'sp_viewed') %}alert-info
+    {% elif workflow.status == 'sp_signed' %}alert-warning
+    {% elif workflow.status == 'complete' %}alert-success
+    {% elif workflow.status == 'abandoned' %}alert-light
+    {% else %}alert-secondary{% endif %}"
+    role="status">
+    <strong class="me-2">Status:</strong>
+    <span id="cosign-status-text">
+      {% if workflow.status == 'drafted' %}Ready to send -- the agreement PDF is generated, waiting for you to send it.
+      {% elif workflow.status == 'sent_to_sp' %}Sent to your Service Provider at {{ workflow.sp_email }}. Waiting for them to view.
+      {% elif workflow.status == 'sp_viewed' %}Your Service Provider has opened the signing page. Waiting for their signature.
+      {% elif workflow.status == 'sp_signed' %}Your Service Provider has signed. It's your turn to countersign below.
+      {% elif workflow.status == 'customer_countersigned' or workflow.status == 'complete' %}Complete -- both parties have signed.
+      {% elif workflow.status == 'abandoned' %}You're handling this offline. We've stopped tracking it.
+      {% else %}{{ workflow.status }}{% endif %}
+    </span>
+  </div>
+
+  {# ------------------------------------------------------------------- #}
+  {# STEP 1: SEND TO SP -- shown when status is drafted                  #}
+  {# ------------------------------------------------------------------- #}
+  {% if workflow.status == 'drafted' %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <h2 class="h5">
+        <span class="badge bg-primary me-1">1</span>
+        Send the agreement to your Service Provider
+      </h2>
+      <p class="text-muted small">
+        Two paths -- pick whichever fits how you usually work with them.
+      </p>
+
+      <ul class="nav nav-tabs mb-3" id="sendModeTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="fiesta-tab" data-bs-toggle="tab"
+                  data-bs-target="#fiesta-mode" type="button" role="tab">
+            Send via FIESTA (we email + track)
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="offline-tab" data-bs-toggle="tab"
+                  data-bs-target="#offline-mode" type="button" role="tab">
+            I'll handle it offline
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- FIESTA-sent mode -->
+        <div class="tab-pane fade show active" id="fiesta-mode" role="tabpanel">
+          <form method="post"
+                action="{{ url_for('fiesta_cosign.send_to_sp', agreement_id=agreement.id) }}"
+                class="row g-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="mode" value="fiesta">
+
+            <div class="col-md-6">
+              <label for="sp_email" class="form-label">Service Provider email</label>
+              <input type="email" class="form-control" id="sp_email" name="sp_email"
+                     value="{{ sp_prefilled_email }}" required>
+            </div>
+            <div class="col-md-6">
+              <label for="sp_name" class="form-label">Service Provider name (optional)</label>
+              <input type="text" class="form-control" id="sp_name" name="sp_name"
+                     value="{{ sp_prefilled_name }}">
+            </div>
+
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary">
+                Send agreement to Service Provider
+              </button>
+              <small class="text-muted ms-2">
+                We'll email the PDF + a signing link. You can track their progress here.
+              </small>
+            </div>
+          </form>
+        </div>
+
+        <!-- Offline mode -->
+        <div class="tab-pane fade" id="offline-mode" role="tabpanel">
+          <form method="post"
+                action="{{ url_for('fiesta_cosign.send_to_sp', agreement_id=agreement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="mode" value="offline">
+            <p class="small text-muted">
+              No problem -- download the PDF and send it however you usually
+              communicate with your Service Provider. We'll mark this as
+              "handled offline" and stop tracking it.
+            </p>
+            <button type="submit" class="btn btn-outline-secondary">
+              Mark as offline-handled (and download PDF)
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# STEP 1 helper: what to tell your SP #}
+  <div class="card mb-3">
+    <div class="card-body">
+      <details>
+        <summary class="h6 mb-0" style="cursor: pointer;">
+          What to tell your Service Provider (sample script)
+        </summary>
+        <div class="mt-3 small">
+          <p><strong>3 things they should know:</strong></p>
+          <ol>
+            <li><strong>This is a confirmation, not a new obligation.</strong>
+                You're documenting work you already do. Signing doesn't change
+                their tax exposure or create new liability.</li>
+            <li><strong>Signing takes ~30 seconds.</strong>
+                They click the link, review the PDF, and type their name. No
+                paperwork, no fees.</li>
+            <li><strong>Why you need it.</strong>
+                Sri Lankan tax law allows expense deductions only when the
+                relationship is documented. This is your audit-defence file.</li>
+          </ol>
+
+          <p class="mt-3"><strong>Sample message you can copy + paste:</strong></p>
+          <div class="bg-light p-3 rounded" style="font-family: monospace; font-size: 0.85em;">
+Hi <em>[their name]</em>,<br><br>
+
+I'm getting my tax documentation in order for FY 2025/26. As part of that,
+I've prepared a short Service Agreement covering the work you do for me.
+You'll get an email from FIESTA shortly with the PDF + a 30-second
+sign-by-typing link.<br><br>
+
+It's just to confirm what we already do -- doesn't change anything between us,
+just helps me document it properly for the IRD. If you have any questions,
+reply to this email and I'll explain.<br><br>
+
+Thanks!
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ------------------------------------------------------------------- #}
+  {# STEP 2: THEY REVIEW AND SIGN -- shown when status is sent / viewed   #}
+  {# ------------------------------------------------------------------- #}
+  {% if workflow.status in ('sent_to_sp', 'sp_viewed') %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <h2 class="h5">
+        <span class="badge bg-primary me-1">2</span>
+        Your Service Provider reviews and signs
+      </h2>
+      <p>
+        We've emailed <strong>{{ workflow.sp_email }}</strong>
+        with the PDF + a signing link. Expected turnaround: 1-2 business days.
+      </p>
+
+      <details class="mb-3">
+        <summary class="small" style="cursor: pointer;">What your Service Provider sees</summary>
+        <div class="mt-2 small text-muted">
+          <ul>
+            <li>A clean, FIESTA-light-branded page (we don't push FIESTA on your SP)</li>
+            <li>Embedded PDF viewer + download option</li>
+            <li>A "What is this?" explainer (§6 IRA-anchored, no scary jargon)</li>
+            <li>Sign options: type their full name (most common), or print + scan back</li>
+            <li>An "I have concerns" link that routes to Lanka.tax support@</li>
+          </ul>
+        </div>
+      </details>
+
+      <p class="small text-muted mb-3">
+        Sent {{ workflow.customer_email_sent_at.strftime('%Y-%m-%d %H:%M UTC') if workflow.customer_email_sent_at else 'recently' }}.
+        {% if workflow.sp_email_clicked_at %}
+          Clicked {{ workflow.sp_email_clicked_at.strftime('%Y-%m-%d %H:%M UTC') }}.
+        {% endif %}
+        Reminder count: {{ workflow.reminder_count or 0 }}.
+      </p>
+
+      <form method="post"
+            action="{{ url_for('fiesta_cosign.remind_sp', agreement_id=agreement.id) }}"
+            class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-primary btn-sm">
+          Send another reminder
+        </button>
+      </form>
+
+      <form method="post"
+            action="{{ url_for('fiesta_cosign.abandon', agreement_id=agreement.id) }}"
+            class="d-inline ms-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+          I'll handle this offline -- stop tracking
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ------------------------------------------------------------------- #}
+  {# STEP 3: COUNTERSIGN -- shown when status is sp_signed                #}
+  {# ------------------------------------------------------------------- #}
+  {% if workflow.status == 'sp_signed' %}
+  <div class="card mb-3 border-success">
+    <div class="card-body">
+      <h2 class="h5 text-success">
+        <span class="badge bg-success me-1">3</span>
+        Your Service Provider signed -- time to countersign
+      </h2>
+      <p>
+        <strong>{{ workflow.sp_name or workflow.sp_email }}</strong>
+        signed on
+        {{ workflow.sp_signed_at.strftime('%Y-%m-%d %H:%M UTC') if workflow.sp_signed_at else '(unknown)' }}
+        as <em>{{ workflow.sp_typed_name or '(no typed name)' }}</em>
+        via {{ workflow.sp_signing_method }}.
+      </p>
+
+      <form method="post"
+            action="{{ url_for('fiesta_cosign.countersign', agreement_id=agreement.id) }}"
+            class="row g-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-md-8">
+          <label for="typed_name" class="form-label">Type your full name to countersign</label>
+          <input type="text" class="form-control" id="typed_name" name="typed_name" required>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button type="submit" class="btn btn-success">Countersign + finalise</button>
+        </div>
+      </form>
+      <p class="small text-muted mt-2">
+        Typing your full name in this box is an electronic signature
+        compliant with Sri Lanka's Electronic Transactions Act
+        No. 19 of 2006. We record your name, IP address, and timestamp.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ------------------------------------------------------------------- #}
+  {# COMPLETE STATE                                                      #}
+  {# ------------------------------------------------------------------- #}
+  {% if workflow.status == 'complete' %}
+  <div class="card mb-3 border-success">
+    <div class="card-body">
+      <h2 class="h5 text-success">Agreement complete</h2>
+      <ul class="list-unstyled mb-0 small">
+        <li><strong>SP signed:</strong>
+          {{ workflow.sp_signed_at.strftime('%Y-%m-%d %H:%M UTC') if workflow.sp_signed_at else '(n/a)' }}
+          (as {{ workflow.sp_typed_name }})</li>
+        <li><strong>You countersigned:</strong>
+          {{ workflow.customer_countersigned_at.strftime('%Y-%m-%d %H:%M UTC') if workflow.customer_countersigned_at else '(n/a)' }}
+          (as {{ workflow.customer_typed_name }})</li>
+        <li><strong>Completed:</strong>
+          {{ workflow.completed_at.strftime('%Y-%m-%d %H:%M UTC') if workflow.completed_at else '(n/a)' }}</li>
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ------------------------------------------------------------------- #}
+  {# ABANDONED STATE                                                     #}
+  {# ------------------------------------------------------------------- #}
+  {% if workflow.status == 'abandoned' %}
+  <div class="alert alert-secondary">
+    <strong>Handled offline.</strong> We've stopped tracking this co-sign
+    workflow. The PDF is still available if you need it.
+  </div>
+  {% endif %}
+
+  {# ------------------------------------------------------------------- #}
+  {# Download bar -- always available                                    #}
+  {# ------------------------------------------------------------------- #}
+  <div class="card mb-3">
+    <div class="card-body">
+      <a class="btn btn-outline-secondary btn-sm"
+         href="{{ url_for('fiesta_agreements_service.download_pdf',
+                          sp_id=agreement.service_provider_id,
+                          gen_id=agreement.id) }}">
+        Download PDF
+      </a>
+      <span class="text-muted small ms-2">
+        SHA-256: <code>{{ agreement.pdf_sha256[:12] }}...</code>
+      </span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Light-touch status poller. Hits /cosign/<id>/status every 30s when the
+// workflow is in-progress; refreshes the page if the server-side status
+// has changed.
+(function() {
+  const initialStatus = "{{ workflow.status }}";
+  const inProgressStates = ["sent_to_sp", "sp_viewed", "sp_signed"];
+  if (!inProgressStates.includes(initialStatus)) return;
+
+  const url = "{{ url_for('fiesta_cosign.status_json', agreement_id=agreement.id) }}";
+  setInterval(async () => {
+    try {
+      const r = await fetch(url, {credentials: "same-origin"});
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j.status && j.status !== initialStatus) {
+        window.location.reload();
+      }
+    } catch (e) { /* swallow */ }
+  }, 30000);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thank you for signing</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      max-width: 640px;
+      margin: 60px auto;
+      padding: 0 22px;
+      color: #1a1a1a;
+      line-height: 1.55;
+    }
+    .panel.success {
+      background: #effff2;
+      border: 1px solid #b7e9be;
+      padding: 22px;
+      border-radius: 6px;
+    }
+    .small { color: #555; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="panel success">
+    <h1 style="margin-top: 0;">Thank you {% if workflow.sp_typed_name %} -- signed as {{ workflow.sp_typed_name }}{% endif %}</h1>
+    <p>
+      We've recorded your signature. The customer who prepared this
+      agreement will now countersign on their side. Both of you will have
+      a copy of the fully-signed PDF when that's done.
+    </p>
+    <p class="small">
+      Signed at {{ workflow.sp_signed_at.strftime('%Y-%m-%d %H:%M UTC') if workflow.sp_signed_at else '(just now)' }}
+      via {{ workflow.sp_signing_method or 'electronic signature' }}.
+      This page link is now single-use and won't accept further signatures.
+    </p>
+  </div>
+  <p class="small" style="margin-top: 40px; color: #999;">
+    Powered by FIESTA.
+  </p>
+</body></html>
