@@ -1,0 +1,47 @@
+{# fiesta/templates/components/gate_warning.html
+   Yellow-warning panel. Rendered by gate_banner.html when warnings are present
+   but no blocks. Customer CAN proceed; the panel is informational + offers
+   per-warning "Acknowledge" actions wired to fiesta.compliance.override.
+
+   Usage: included transitively via gate_banner.html. Direct include also
+   supported for screens that want to show a standalone warning surface
+   (e.g. on a settings page).
+
+   Expected context vars:
+       gate_result : dict (see gate_banner.html).
+       screen_id   : str.
+#}
+<div class="gate-banner gate-banner-yellow"
+     data-screen-id="{{ screen_id }}"
+     role="status"
+     aria-live="polite">
+  <div class="gate-banner-icon" aria-hidden="true">&#x26A0;</div>
+  <div class="gate-banner-body">
+    <h3 class="gate-banner-title">Heads up &mdash; here's what we noticed</h3>
+    <ul class="gate-banner-list">
+      {% for warning in gate_result.warnings %}
+        <li data-rule-id="{{ warning.rule_id }}">
+          <strong>{{ warning.message }}</strong>
+          <div class="gate-banner-help">
+            <span class="gate-banner-cite">{{ warning.ira_section }}</span>
+            &mdash; {{ warning.recommendation }}
+          </div>
+          {# Per-warning acknowledge button -- wired client-side to POST to
+             /api/compliance/override with severity=yellow. The server returns
+             OverrideOutcome JSON; on accepted=True the UI marks the item done. #}
+          <button type="button"
+                  class="gate-banner-ack-btn"
+                  data-rule-id="{{ warning.rule_id }}"
+                  data-severity="yellow">
+            Acknowledge &amp; continue
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if gate_result.recommendations %}
+      <p class="gate-banner-recommendation">
+        {{ gate_result.recommendations|join("  ") }}
+      </p>
+    {% endif %}
+  </div>
+</div>
