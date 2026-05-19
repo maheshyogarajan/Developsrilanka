@@ -1,0 +1,82 @@
+# fiesta/compliance/market_rates_table.yaml
+#
+# FIESTA market-rate table v0.1
+#
+# Placeholder monthly market rates (LKR) for 10 service types commonly used
+# in Service Agreements between FIESTA customers and SL-based service
+# providers. Used by related_party.market_rate_band() to flag arrangements
+# where the declared monthly fee is > 2x median (ABOVE_MARKET_RATE) or
+# < 0.5x median (BELOW_MARKET_RATE).
+#
+# Source: FIESTA market-rate table v0.1 — replace with industry survey
+#         data Wave 4 v1.1. The current numbers are CEO-OS placeholder
+#         estimates anchored to public 2025-26 SL freelance / agency
+#         rate cards (e.g. fiverr.lk, upwork hourly bills converted to
+#         monthly retainer at 80 hrs/mo, SL Chamber of Commerce member-
+#         firm directories). They are NOT calibrated against IRD data
+#         and MUST be re-baselined before FIESTA goes GA.
+#
+# Schema:
+#   <service_type_key>:
+#     median_monthly_lkr: number  # LKR / month for full-time-equivalent engagement
+#     source_note: str            # how the placeholder was anchored
+#     last_calibrated: ISO-date   # for staleness audits
+#
+# Keys are casefold-normalised before lookup -- match against
+# service_provider["service_type"] (also casefolded by the helper).
+
+version: "0.1"
+last_table_review: "2026-05-20"
+calibration_status: "placeholder"   # placeholder | survey_v1 | survey_v2
+review_cadence_days: 90
+
+rates:
+  software dev:
+    median_monthly_lkr: 250000
+    source_note: "Mid-level SL software engineer FTE retainer; converted from USD 800/mo Upwork median"
+    last_calibrated: "2026-05-20"
+
+  accounting:
+    median_monthly_lkr: 60000
+    source_note: "SL chartered-accountant freelance bookkeeping + monthly accounts; SLIA member directory range"
+    last_calibrated: "2026-05-20"
+
+  legal:
+    median_monthly_lkr: 90000
+    source_note: "Junior-to-mid SL attorney monthly retainer (basic corporate advisory); BASL fee scale"
+    last_calibrated: "2026-05-20"
+
+  marketing:
+    median_monthly_lkr: 120000
+    source_note: "Digital marketing freelancer / small agency monthly retainer; 2025 SLIM member rates"
+    last_calibrated: "2026-05-20"
+
+  design:
+    median_monthly_lkr: 100000
+    source_note: "Mid-level UI/UX or brand designer monthly retainer; fiverr.lk + Behance SL portfolio anchor"
+    last_calibrated: "2026-05-20"
+
+  content writing:
+    median_monthly_lkr: 60000
+    source_note: "Freelance content writer monthly retainer (8-12 pieces/mo); upwork SL median"
+    last_calibrated: "2026-05-20"
+
+  virtual assistant:
+    median_monthly_lkr: 50000
+    source_note: "Part-time virtual assistant monthly retainer; SLITAD + Onlyplans SL anchor"
+    last_calibrated: "2026-05-20"
+
+  consulting:
+    median_monthly_lkr: 180000
+    source_note: "Independent management consultant monthly retainer; CEO-OS estimate from 2025 SL firm rate cards"
+    last_calibrated: "2026-05-20"
+
+  project management:
+    median_monthly_lkr: 140000
+    source_note: "Mid-level certified PM (PMP / PRINCE2) monthly retainer; PMI SL chapter member rates"
+    last_calibrated: "2026-05-20"
+
+  data entry:
+    median_monthly_lkr: 35000
+    source_note: "Full-time data entry operator monthly cost; SL Department of Labour wage survey 2025"
+    last_calibrated: "2026-05-20"
