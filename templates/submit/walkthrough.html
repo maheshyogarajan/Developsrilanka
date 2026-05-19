@@ -1,0 +1,192 @@
+{% extends 'empty_layout.html' %}
+
+{% block title %}IRD filing walkthrough -- FIESTA{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --s14-bg:           #f7f5f0;
+    --s14-ink:          #1a1d27;
+    --s14-ink-soft:     #4a4f5c;
+    --s14-brand:        #c1442d;
+    --s14-brand-soft:   #f4e7e2;
+    --s14-surface:      #ffffff;
+    --s14-border:       #e3ddd0;
+  }
+  body {
+    background: var(--s14-bg);
+    color: var(--s14-ink);
+    font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+  }
+  .wt-wrap {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+  .wt-brand {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    margin: 0 0 0.5rem;
+  }
+  .wt-h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 2rem;
+    line-height: 1.15;
+    margin: 1.5rem 0 0.5rem;
+  }
+  .wt-tag { color: var(--s14-ink-soft); margin: 0 0 2rem; }
+  .wt-cta-row { margin: 0 0 2rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+  .wt-btn {
+    display: inline-block;
+    padding: 0.7rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+  }
+  .wt-btn--primary { background: var(--s14-brand); color: white; }
+  .wt-btn--ghost { background: transparent; border-color: var(--s14-border); color: var(--s14-ink); }
+
+  .wt-step {
+    background: var(--s14-surface);
+    border: 1px solid var(--s14-border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .wt-step h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.2rem;
+    margin: 0 0 0.5rem;
+  }
+  .wt-step h2 .wt-num {
+    display: inline-block;
+    background: var(--s14-brand-soft);
+    color: var(--s14-brand);
+    border-radius: 9999px;
+    padding: 0.05rem 0.6rem;
+    font-size: 0.85rem;
+    margin-right: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .wt-img-wrap {
+    background: var(--s14-bg);
+    border: 1px dashed var(--s14-border);
+    border-radius: 8px;
+    margin: 0.75rem 0 1rem;
+    padding: 0;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wt-img-wrap img { max-width: 100%; max-height: 100%; display: block; }
+  .wt-img-placeholder {
+    color: var(--s14-ink-soft);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 2rem;
+  }
+  .wt-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  @media (max-width: 600px) { .wt-meta { grid-template-columns: 1fr; } }
+  .wt-meta dt { font-weight: 600; font-size: 0.85rem; margin: 0; }
+  .wt-meta dd { font-size: 0.92rem; color: var(--s14-ink-soft); margin: 0; }
+  .wt-meta .wt-fiesta { color: var(--s14-brand); }
+
+  .wt-filed-form {
+    background: var(--s14-surface);
+    border: 1px solid var(--s14-border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+  }
+</style>
+
+<div class="wt-wrap">
+
+  <h1 class="wt-brand">FIESTA</h1>
+  <h2 class="wt-h1">Filing on IRD eService -- step by step</h2>
+  <p class="wt-tag">
+    Twelve screens between you and "done." Open the FIESTA pack in one tab,
+    IRD eService in another, and follow along.
+  </p>
+
+  <div class="wt-cta-row">
+    <a class="wt-btn wt-btn--primary"
+       href="https://eservices.ird.gov.lk" target="_blank" rel="noopener">
+      Open IRD eService in new tab
+    </a>
+    <a class="wt-btn wt-btn--ghost"
+       href="{{ url_for('fiesta_submit.get_export', tax_year=tax_year) }}">
+      Download FIESTA pack ZIP
+    </a>
+    <a class="wt-btn wt-btn--ghost"
+       href="{{ url_for('fiesta_submit.show_submit', tax_year=tax_year) }}">
+      Back to /submit
+    </a>
+  </div>
+
+  {% for step in steps %}
+    <div class="wt-step" id="step-{{ step.step }}">
+      <h2><span class="wt-num">{{ step.step }}</span>{{ step.title }}</h2>
+      <div class="wt-img-wrap">
+        <img src="{{ url_for('static', filename='submit/ird_walkthrough/' + step.image_filename) }}"
+             alt="IRD step {{ step.step }} screenshot"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div class="wt-img-placeholder" style="display:none;">
+          [Screenshot pending capture]<br>
+          <code>{{ step.image_filename }}</code>
+        </div>
+      </div>
+      <dl class="wt-meta">
+        <div>
+          <dt>What you do here</dt>
+          <dd>{{ step.what_customer_does }}</dd>
+        </div>
+        <div>
+          <dt>What can go wrong</dt>
+          <dd>{{ step.what_can_go_wrong }}</dd>
+        </div>
+        <div>
+          <dt class="wt-fiesta">How FIESTA helps</dt>
+          <dd>{{ step.how_fiesta_helps }}</dd>
+        </div>
+        <div>
+          <dt>IR Act citation</dt>
+          <dd>{{ step.ira_citation }}</dd>
+        </div>
+      </dl>
+    </div>
+  {% endfor %}
+
+  <div class="wt-filed-form">
+    <h2 style="font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 1.25rem; margin: 0 0 0.5rem;">
+      Done filing?
+    </h2>
+    <p style="color: var(--s14-ink-soft); margin: 0 0 1rem;">
+      Mark this submission filed and (when you have it) upload the IRD
+      acknowledgment PDF on the next screen.
+    </p>
+    <form method="post" action="{{ url_for('fiesta_submit.post_mark_filed') }}">
+      <input type="hidden" name="tax_year" value="{{ tax_year }}">
+      <button type="submit" class="wt-btn wt-btn--primary">I'm done -- I've filed</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

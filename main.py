@@ -332,6 +332,14 @@ try:
 except Exception as e:
     logger.error(f'AI-Org Delivery Ops Command load failed: {e}')
 
+# FIESTA Wave 3 Week 5 — S14 Submit (final gate + IRD-ready export pack)
+try:
+    from fiesta.submit.routes import register_routes as register_submit
+    register_submit(app)
+    logger.info('FIESTA S14 Submit registered at /submit')
+except Exception as e:
+    logger.error(f'FIESTA S14 Submit load failed: {e}')
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
