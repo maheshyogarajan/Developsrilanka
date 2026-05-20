@@ -433,6 +433,14 @@ try:
 except Exception as e:
     logger.error(f'FIESTA S14 Submit load failed: {e}')
 
+# FIESTA Wave 6 — S15 Admin Users list (admin-gated, /admin/fie/users)
+try:
+    from fiesta.admin import register_routes as register_fiesta_admin
+    register_fiesta_admin(app)
+    logger.info('FIESTA S15 Admin Users registered at /admin/fie/users')
+except Exception as e:
+    logger.error(f'FIESTA S15 Admin Users load failed: {e}')
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
