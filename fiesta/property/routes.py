@@ -72,6 +72,17 @@ except ImportError:  # pragma: no cover
     current_user = None  # type: ignore
 
 try:
+    from fiesta.paywall.gate import paywall_required
+    _HAS_PAYWALL = True
+except ImportError:  # pragma: no cover
+    _HAS_PAYWALL = False
+
+    def paywall_required(*args, **kwargs):  # type: ignore
+        def deco(fn):
+            return fn
+        return deco
+
+try:
     from app import db
     _HAS_DB = True
 except Exception:  # pragma: no cover
@@ -190,6 +201,7 @@ def _own_property_or_404(property_id: int):
 @property_bp.route("", methods=["GET"])
 @property_bp.route("/", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="index")
 def index():
     """List the current user's properties + 'add new' card."""
     if not _HAS_DB:
@@ -218,6 +230,7 @@ def index():
 @property_bp.route("", methods=["POST"])
 @property_bp.route("/", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="create")
 def create():
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -290,6 +303,7 @@ def create():
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="detail")
 def detail(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -324,6 +338,7 @@ def detail(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>", methods=["PUT", "POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="update")
 def update(property_id: int):
     """Edit property. POST supported because HTML forms can't PUT natively."""
     if not _HAS_DB:
@@ -396,6 +411,7 @@ def update(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/landlord", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="landlord_detail")
 def landlord_detail(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -432,6 +448,7 @@ def landlord_detail(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/landlord", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="landlord_save")
 def landlord_save(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -535,6 +552,7 @@ def landlord_save(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/rental", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="rental_detail")
 def rental_detail(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -569,6 +587,7 @@ def rental_detail(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/rental", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="rental_save")
 def rental_save(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -666,6 +685,7 @@ def rental_save(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/rental/preview", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="rental_preview")
 def rental_preview(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -749,6 +769,7 @@ def rental_preview(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/sanity-check", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="sanity_check")
 def sanity_check(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
@@ -794,6 +815,7 @@ def sanity_check(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/prefill-prior-year", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="prefill_prior_year")
 def prefill_prior_year(property_id: int):
     """Copy prior year's RentalAgreement → current year (advances start_date)."""
     if not _HAS_DB:

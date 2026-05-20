@@ -60,6 +60,17 @@ except ImportError:  # pragma: no cover
         return fn
     current_user = None  # type: ignore
 
+try:
+    from fiesta.paywall.gate import paywall_required
+    _HAS_PAYWALL = True
+except ImportError:  # pragma: no cover
+    _HAS_PAYWALL = False
+
+    def paywall_required(*args, **kwargs):  # type: ignore
+        def deco(fn):
+            return fn
+        return deco
+
 from .aggregator import (
     normalise_tax_year_to_s4_format,
     normalise_tax_year_to_s5_format,
@@ -186,6 +197,7 @@ _DEFAULT_TAX_YEAR_S4 = "2025-26"
 @bp.route("/", methods=["GET"])
 @bp.route("", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S12", action="index_redirect")
 def index_redirect():
     """Redirect /tax-bill -> /tax-bill/<current_ty>."""
     return redirect(url_for("fiesta_tax_bill.show_tax_bill",
@@ -194,6 +206,7 @@ def index_redirect():
 
 @bp.route("/<tax_year>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S12", action="show_tax_bill")
 def show_tax_bill(tax_year: str):
     """Render the S12 outcome screen."""
     user_id = _current_user_id()
@@ -221,6 +234,7 @@ def show_tax_bill(tax_year: str):
 
 @bp.route("/<tax_year>/breakdown", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S12", action="breakdown_json")
 def breakdown_json(tax_year: str):
     """JSON dump of the full computation -- powers the audit-pack PDF + tests."""
     user_id = _current_user_id()
@@ -248,6 +262,7 @@ def breakdown_json(tax_year: str):
 
 @bp.route("/<tax_year>/export", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S12", action="export_audit_pack")
 def export_audit_pack(tax_year: str):
     """Generate + stream the audit-pack PDF."""
     user_id = _current_user_id()
@@ -291,6 +306,7 @@ def export_audit_pack(tax_year: str):
 
 @bp.route("/<tax_year>/finalize", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S12", action="finalize")
 def finalize(tax_year: str):
     """Lock the bill -- gate must pass first."""
     user_id = _current_user_id()

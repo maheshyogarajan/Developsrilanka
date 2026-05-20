@@ -56,6 +56,14 @@ except Exception:  # pragma: no cover -- import-time tolerance
     def login_required(f):  # type: ignore[no-redef]
         return f
 
+try:
+    from fiesta.paywall.gate import paywall_required  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover -- import-time tolerance
+    def paywall_required(*a, **kw):  # type: ignore[no-redef]
+        def deco(f):
+            return f
+        return deco
+
 
 from fiesta.agreements.models import (
     Party,
@@ -166,6 +174,7 @@ def _build_input(form: Any, *, user_id: int, user_name: str) -> RentalAgreementI
 
 @bp.route("/<int:property_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S9", action="preview")
 def preview(property_id: int) -> Any:
     """Preview/edit form for a Rental Agreement against a given property."""
     user_id = getattr(current_user, "id", None)
@@ -178,6 +187,7 @@ def preview(property_id: int) -> Any:
 
 @bp.route("/<int:property_id>/generate", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S9", action="generate")
 def generate(property_id: int) -> Any:
     """Render the PDF + persist a RentalAgreementGenerated row."""
     user_id = getattr(current_user, "id", 0)
@@ -264,6 +274,7 @@ def generate(property_id: int) -> Any:
 
 @bp.route("/<int:property_id>/pdf/<int:gen_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S9", action="download")
 def download(property_id: int, gen_id: int) -> Any:
     """Serve the persisted PDF for download."""
     try:
@@ -291,6 +302,7 @@ def download(property_id: int, gen_id: int) -> Any:
 
 @bp.route("/<int:property_id>/history", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S9", action="history")
 def history(property_id: int) -> Any:
     """List prior renders for the given property."""
     try:

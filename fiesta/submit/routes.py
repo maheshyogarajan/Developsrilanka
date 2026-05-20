@@ -58,6 +58,8 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from fiesta.paywall.gate import paywall_required
+
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +260,7 @@ def _current_tax_year() -> str:
 @bp.route("", methods=["GET"])
 @bp.route("/", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="show_submit")
 def show_submit():
     """Render the final-gate review + attestation entry form."""
     from fiesta.submit.attestation import build_attestation_text
@@ -329,6 +332,7 @@ def show_submit():
 
 @bp.route("/attest", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="post_attest")
 def post_attest():
     """Customer signs the attestation."""
     from fiesta.submit.attestation import (
@@ -440,6 +444,7 @@ def post_attest():
 
 @bp.route("/export", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="get_export")
 def get_export():
     """Generate (or re-fetch) the IRD-ready ZIP and serve it."""
     from fiesta.submit.export import build_export_zip
@@ -529,6 +534,7 @@ def get_export():
 
 @bp.route("/walkthrough", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="get_walkthrough")
 def get_walkthrough():
     """Render the IRD walkthrough page (12 steps + annotations)."""
     from fiesta.submit.final_gate import run_final_gate
@@ -602,6 +608,7 @@ def _walkthrough_step_data() -> list[dict[str, Any]]:
 
 @bp.route("/mark-filed", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="post_mark_filed")
 def post_mark_filed():
     """Customer self-reports filing on IRD."""
     from fiesta.submit.final_gate import run_final_gate
@@ -651,6 +658,7 @@ def post_mark_filed():
 
 @bp.route("/upload-confirmation", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="post_upload_confirmation")
 def post_upload_confirmation():
     """Customer uploads the IRD acknowledgment PDF."""
     from fiesta.submit.models import IrdConfirmationReceipt
@@ -737,6 +745,7 @@ def post_upload_confirmation():
 
 @bp.route("/<int:submission_id>/status", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="get_status")
 def get_status(submission_id: int):
     """Return JSON status for a Submission. User must own it."""
     from fiesta.submit.models import Submission
@@ -786,6 +795,7 @@ def get_status(submission_id: int):
 
 @bp.route("/reopen", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S14", action="post_reopen")
 def post_reopen():
     """Customer reopens a locked submission for edits."""
     from app import db

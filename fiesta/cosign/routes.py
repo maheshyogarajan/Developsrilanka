@@ -53,6 +53,8 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from fiesta.paywall.gate import paywall_required
+
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("fiesta_cosign", __name__, url_prefix="/cosign")
@@ -145,6 +147,7 @@ def _send_sp_email(workflow, agreement, kind: str = "initial") -> tuple[bool, st
 
 @bp.route("/<int:agreement_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="walkthrough")
 def walkthrough(agreement_id: int):
     """Main co-sign walkthrough screen. Post-S8 generation, pre-send."""
     agreement = _ownership_or_404(agreement_id)
@@ -177,6 +180,7 @@ def walkthrough(agreement_id: int):
 
 @bp.route("/<int:agreement_id>/send-to-sp", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="send_to_sp")
 def send_to_sp(agreement_id: int):
     """Send the agreement PDF + signing link to the SP via SendGrid.
 
@@ -261,6 +265,7 @@ def send_to_sp(agreement_id: int):
 
 @bp.route("/<int:agreement_id>/status", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="status_json")
 def status_json(agreement_id: int):
     """Tracking-status JSON for AJAX polling from the walkthrough page."""
     from fiesta.cosign.models import CosignWorkflow
@@ -315,6 +320,7 @@ def status_json(agreement_id: int):
 
 @bp.route("/<int:agreement_id>/remind-sp", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="remind_sp")
 def remind_sp(agreement_id: int):
     """Customer manually triggers another reminder to the SP."""
     from fiesta.cosign.models import CosignWorkflow, CosignReminder
@@ -364,6 +370,7 @@ def remind_sp(agreement_id: int):
 
 @bp.route("/<int:agreement_id>/abandon", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="abandon")
 def abandon(agreement_id: int):
     """Customer marks the workflow as 'I did this offline, stop tracking'."""
     from fiesta.cosign.models import CosignWorkflow, COSIGN_STATUS_ABANDONED
@@ -400,6 +407,7 @@ def abandon(agreement_id: int):
 
 @bp.route("/<int:agreement_id>/countersign", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="countersign")
 def countersign(agreement_id: int):
     """Customer countersigns after the SP has signed. Transitions to complete."""
     from fiesta.cosign.models import (
