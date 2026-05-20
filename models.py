@@ -352,6 +352,12 @@ class User(UserMixin, db.Model):
     privacy_accepted_version = db.Column(db.String(32), nullable=True)
     privacy_accepted_at = db.Column(db.DateTime, nullable=True)
 
+    # S1 triage (Wave 1, 2026-05-20): persists the 3 post-signup fact-find
+    # answers. Shape: {earning_source, earning_vehicle[], filing_history,
+    # completed_at}. Nullable so legacy users + mid-flow signups don't break.
+    # Column added by add_triage_answers_to_user.py (idempotent).
+    triage_answers = db.Column(db.JSON, nullable=True)
+
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
     access_expiration_date = db.Column(db.DateTime, nullable=True)

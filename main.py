@@ -391,6 +391,16 @@ try:
 except Exception as e:
     logger.error(f"S2 Signup blueprint load failed: {e}")
 
+# Wave 1 — S1 Triage (2026-05-20)
+# 3 neutral post-signup fact-finds at /fie/triage; answers persist to
+# User.triage_answers (JSON column added by add_triage_answers_to_user.py).
+try:
+    from fiesta.triage import register_routes as register_triage_routes
+    register_triage_routes(app)
+    logger.info("S1 Triage blueprint registered: /fie/triage")
+except Exception as e:
+    logger.error(f"S1 Triage blueprint load failed: {e}")
+
 # Wave 3 S3 — Progressive customer profile (2026-05-20)
 try:
     from fiesta.profile.routes import register_blueprint as register_fiesta_profile
@@ -453,6 +463,12 @@ with app.app_context():
         _run_tos_migration()
     except Exception as e:
         logger.error(f"S2 signup migration failed (non-fatal — model has ORM-level columns): {e}")
+    # S1 triage additive migration — idempotent, safe to run on every boot.
+    try:
+        from add_triage_answers_to_user import run as _run_triage_migration
+        _run_triage_migration()
+    except Exception as e:
+        logger.error(f"S1 triage migration failed (non-fatal — model has ORM-level column): {e}")
 
     # Wave 6 admin surface — additive columns for S15+ (is_admin, stripe_customer_id).
     # Idempotent. Safe to re-run on every boot.
