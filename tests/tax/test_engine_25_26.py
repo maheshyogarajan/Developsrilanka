@@ -225,23 +225,32 @@ def test_case_B3_25_26_rs_4_8m_income() -> None:
 def test_case_B4_25_26_aakash_foreign_income() -> None:
     """Case B4: Aakash worked example — Rs 7.2M foreign income, 25/26.
 
-    Hand calc: 7,200,000 - 1,800,000 = 5,400,000 taxable
-        1,000,000 @ 6%  = 60,000
-        500K      @ 18% = 90,000
-        500K      @ 24% = 120,000
-        500K      @ 30% = 150,000
-        2,900,000 @ 36% = 1,044,000
-        Total           = 1,464,000
+    DUAL-TRACK calculation (CEO directive 2026-05-20):
+      gross = 7,200,000 (100% foreign)
+      relief = 1,800,000
+      taxable = 5,400,000
 
-    Source: FIESTA brief worked_example block (Aakash Wijesinghe, mock).
+      Step 1: first taxable band Rs 1M @ 6% = 60,000
+      Step 2: remaining = 4,400,000
+      Step 3: foreign_share = 1.0 (all foreign)
+              foreign_taxable_above = 4,400,000
+              local_taxable_above = 0
+      Step 4: foreign 4,400,000 @ 15% = 660,000
+      Step 5: local bands all empty
+      Total           = 720,000
+
+    Effective rate: 720,000 / 7,200,000 = 0.10 (10%)
+    Marginal rate: 15% (foreign cap is the highest active rate).
+
+    Source: CEO directive 2026-05-20 dual-track algorithm.
     """
     inc = Income(foreign_lkr=_D(7_200_000))
     r = compute_tax_25_26(inc)
     assert r.taxable_income_lkr == _D(5_400_000)
-    assert r.gross_tax_lkr == _D(1_464_000)
-    assert r.marginal_rate == Decimal("0.36")
-    # Effective rate sanity: 1,464,000 / 7,200,000 = 0.20333...
-    assert r.effective_rate.quantize(Decimal("0.0001")) == Decimal("0.2033")
+    assert r.gross_tax_lkr == _D(720_000)
+    assert r.marginal_rate == Decimal("0.15")
+    # Effective rate sanity: 720,000 / 7,200,000 = 0.10
+    assert r.effective_rate.quantize(Decimal("0.0001")) == Decimal("0.1000")
 
 
 def test_case_B5_25_26_rs_1_8m_at_relief_threshold() -> None:
@@ -337,18 +346,28 @@ def test_case_B10_25_26_multi_source_with_solar() -> None:
     """Case B10: Multi-source income, 25/26. Rs 2.4M employment + Rs 1.8M
     foreign + Rs 600K rental, Rs 500K solar (uncapped: <600K).
 
-    Hand calc:
+    DUAL-TRACK calculation (CEO directive 2026-05-20):
       gross = 2,400,000 + 1,800,000 + 600,000 = 4,800,000
+        foreign_gross = 1,800,000
+        local_gross = 2,400,000 + 600,000 = 3,000,000
       relief = 1,800,000 + 500,000 (solar uncapped) = 2,300,000
       taxable = 4,800,000 - 2,300,000 = 2,500,000
-        1,000,000 @ 6%  = 60,000
-        500K      @ 18% = 90,000
-        500K      @ 24% = 120,000
-        500K      @ 30% = 150,000
-        Total           = 420,000
+
+      Step 1: first taxable band Rs 1M @ 6% = 60,000
+      Step 2: remaining = 1,500,000
+      Step 3: foreign_share = 1.8M / 4.8M = 0.375
+              foreign_taxable_above = 1,500,000 × 0.375 = 562,500
+              local_taxable_above = 1,500,000 × 0.625 = 937,500
+      Step 4: foreign 562,500 @ 15% = 84,375
+      Step 5: local progressive walk on 937,500:
+              500K @ 18% = 90,000
+              437,500 @ 24% = 105,000
+              (30% and 36% bands empty)
+              local total = 195,000
+      Total           = 60,000 + 84,375 + 195,000 = 339,375
 
     Tests aggregation across income components + uncapped solar (<600K stays
-    intact).
+    intact) + pro-rata source split above first band.
     """
     inc = Income(
         employment_lkr=_D(2_400_000),
@@ -361,7 +380,120 @@ def test_case_B10_25_26_multi_source_with_solar() -> None:
     assert r.relief_applied.solar_relief_applied_lkr == _D(500_000)
     assert r.relief_applied.total() == _D(2_300_000)
     assert r.taxable_income_lkr == _D(2_500_000)
-    assert r.gross_tax_lkr == _D(420_000)
+    assert r.gross_tax_lkr == _D(339_375)
+
+
+# ----------------------------------------------------------------------
+# ORACLE B+ — CEO worked-example fixtures for the 25/26 dual-track algorithm
+# (added 2026-05-20). These are the canonical anchors against which the
+# new dual-track engine must reproduce cent-for-cent.
+# ----------------------------------------------------------------------
+
+
+def test_case_B11_25_26_usd80k_all_foreign_no_deductions() -> None:
+    """B11: USD 80K all-foreign developer, no deductions, 25/26.
+
+    Source: CEO directive 2026-05-20 IST worked example.
+      USD 80K * Rs 300/USD = Rs 24,000,000 gross (100% foreign)
+      Deductions: 0
+      Personal relief: 1,800,000
+      Taxable: 24M - 1.8M = 22,200,000
+
+      Step 1: first taxable band Rs 1M @ 6% = 60,000
+      Step 2: remaining = 21,200,000 (all foreign)
+      Step 4: 21,200,000 × 15% = 3,180,000
+      Total = 3,240,000
+
+    Effective rate: 3,240,000 / 24,000,000 = 0.135 (13.5%)
+    """
+    inc = Income(foreign_lkr=_D(24_000_000))  # USD 80K @ Rs 300
+    r = compute_tax_25_26(inc)
+    assert r.taxable_income_lkr == _D(22_200_000)
+    assert r.gross_tax_lkr == _D(3_240_000)
+    assert r.marginal_rate == Decimal("0.15")
+    # Effective rate sanity
+    assert r.effective_rate.quantize(Decimal("0.0001")) == Decimal("0.1350")
+
+
+def test_case_B12_25_26_usd80k_all_foreign_with_5m_deductions() -> None:
+    """B12: USD 80K all-foreign developer, Rs 5M deductions, 25/26.
+
+    Source: CEO directive 2026-05-20 IST worked example.
+      USD 80K * Rs 300/USD = Rs 24,000,000 gross (100% foreign)
+      Deductions: Rs 5,000,000 (home office + sub-contractor + equipment +
+        travel + professional, routed through expenditure_relief)
+      Personal relief: 1,800,000
+      Taxable: 24M - 1.8M - 5M = 17,200,000
+
+      Step 1: first taxable band Rs 1M @ 6% = 60,000
+      Step 2: remaining = 16,200,000 (all foreign)
+      Step 4: 16,200,000 × 15% = 2,430,000
+      Total = 2,490,000
+
+    Saving vs B11 (no deductions): 3,240,000 - 2,490,000 = 750,000.
+    This reconciles with the brief's Rs 540K anchor (anchor assumed smaller
+    income or fewer deductions; the CEO directive recalibrates).
+    """
+    inc = Income(foreign_lkr=_D(24_000_000))
+    ded = Deductions(expenditure_relief_lkr=_D(5_000_000))
+    r = compute_tax_25_26(inc, ded)
+    # Total relief: 1.8M + 5M expenditure = 6.8M
+    assert r.relief_applied.total() == _D(6_800_000)
+    assert r.taxable_income_lkr == _D(17_200_000)
+    assert r.gross_tax_lkr == _D(2_490_000)
+    assert r.marginal_rate == Decimal("0.15")
+
+
+def test_case_B13_25_26_50_50_foreign_local_mix_no_deductions() -> None:
+    """B13: Rs 12M income, 50% foreign + 50% local, no deductions, 25/26.
+
+    Source: CEO directive 2026-05-20 IST worked example (split test).
+      foreign_lkr = 6,000,000
+      employment_lkr = 6,000,000  (local-sourced)
+      gross = 12,000,000
+      Personal relief: 1,800,000
+      Taxable: 12M - 1.8M = 10,200,000
+
+      Step 1: first taxable band Rs 1M @ 6% = 60,000
+      Step 2: remaining = 9,200,000
+      Step 3: foreign_share = 6M / 12M = 0.5
+              foreign_taxable_above = 9,200,000 × 0.5 = 4,600,000
+              local_taxable_above = 4,600,000
+      Step 4: foreign 4,600,000 @ 15% = 690,000
+      Step 5: local progressive walk on 4,600,000:
+              500K @ 18% = 90,000
+              500K @ 24% = 120,000
+              500K @ 30% = 150,000
+              3,100,000 @ 36% = 1,116,000
+              local total = 1,476,000
+      Total = 60,000 + 690,000 + 1,476,000 = 2,226,000
+
+    Tests the pro-rata source split mid-band.
+    """
+    inc = Income(
+        foreign_lkr=_D(6_000_000),
+        employment_lkr=_D(6_000_000),
+    )
+    r = compute_tax_25_26(inc)
+    assert r.gross_income_lkr == _D(12_000_000)
+    assert r.taxable_income_lkr == _D(10_200_000)
+    assert r.gross_tax_lkr == _D(2_226_000)
+    # The highest active band is the local 36% band (because some local
+    # income falls in it). Marginal rate is 36%.
+    assert r.marginal_rate == Decimal("0.36")
+
+
+def test_dual_track_conservative_default_treats_zero_income_split_as_local() -> None:
+    """B-default: If foreign + local are both zero (degenerate, e.g. only
+    deductions on the books), the engine must NOT crash. Output is all-zero
+    tax. Cross-check: the algorithm's conservative-default branch fires
+    when total_source_gross == 0; treats remaining as 0/local (no division
+    by zero).
+    """
+    inc = Income()  # all zero
+    r = compute_tax_25_26(inc)
+    assert r.gross_tax_lkr == _D(0)
+    assert r.taxable_income_lkr == _D(0)
 
 
 # ----------------------------------------------------------------------
@@ -414,20 +546,24 @@ def test_edge_at_first_band_boundary() -> None:
 def test_edge_senior_citizen_with_foreign_income() -> None:
     """Edge: Senior (60+) with Rs 5M foreign income, 25/26.
 
-    Relief: 1,800,000 + 500,000 = 2,300,000
-    Taxable: 5,000,000 - 2,300,000 = 2,700,000
-        1,000,000 @ 6%  = 60,000
-        500K      @ 18% = 90,000
-        500K      @ 24% = 120,000
-        500K      @ 30% = 150,000
-        200K      @ 36% = 72,000
-        Total           = 492,000
+    DUAL-TRACK calculation (CEO directive 2026-05-20):
+      gross = 5,000,000 (100% foreign)
+      Relief: 1,800,000 + 500,000 = 2,300,000
+      Taxable: 5,000,000 - 2,300,000 = 2,700,000
+
+      Step 1: first taxable band Rs 1M @ 6% = 60,000
+      Step 2: remaining = 1,700,000
+      Step 3: foreign_share = 1.0
+              foreign_taxable_above = 1,700,000
+      Step 4: foreign 1,700,000 @ 15% = 255,000
+      Step 5: local bands all empty
+      Total           = 315,000
     """
     inc = Income(foreign_lkr=_D(5_000_000))
     r = compute_tax_25_26(inc, senior_citizen=True)
     assert r.relief_applied.senior_citizen_extra_lkr == _D(500_000)
     assert r.taxable_income_lkr == _D(2_700_000)
-    assert r.gross_tax_lkr == _D(492_000)
+    assert r.gross_tax_lkr == _D(315_000)
 
 
 def test_edge_multi_bracket_with_full_deductions() -> None:
@@ -469,24 +605,40 @@ def test_audit_trail_constant_shape_24_25_has_6_bands() -> None:
     assert len(r.by_band) == 6
 
 
-def test_audit_trail_constant_shape_25_26_has_5_bands() -> None:
-    """25/26 has 5 brackets; by_band must always be length 5."""
+def test_audit_trail_constant_shape_25_26_has_6_bands() -> None:
+    """25/26 is dual-track: by_band always has 6 entries.
+
+    Shape: [first_band, foreign_band, local_band_18, local_band_24,
+    local_band_30, local_band_36]. Constant regardless of income source so
+    the UI can render a deterministic table.
+    """
     inc = Income(employment_lkr=_D(50_000))
     r = compute_tax_25_26(inc)
-    assert len(r.by_band) == 5
+    assert len(r.by_band) == 6
+    # Track labels (audit trail contract).
+    tracks = [b.track for b in r.by_band]
+    assert tracks == ["first", "foreign", "local", "local", "local", "local"]
 
 
 def test_to_dict_serialises_round_trippable() -> None:
-    """to_dict() returns JSON-friendly types (no Decimal, no None for upper)."""
+    """to_dict() returns JSON-friendly types (no Decimal, no None for upper).
+
+    Aakash 7.2M all-foreign under dual-track:
+      gross_tax = 720,000 (60K first band + 660K foreign cap)
+    """
     inc = Income(foreign_lkr=_D(7_200_000))
     r = compute_tax_25_26(inc)
     d = r.to_dict()
     assert d["tax_year"] == "25_26"
-    assert d["gross_tax_lkr"] == "1464000.00"
+    assert d["gross_tax_lkr"] == "720000.00"
     assert isinstance(d["by_band"], list)
-    assert len(d["by_band"]) == 5
+    assert len(d["by_band"]) == 6
     # Top band has band_upper_lkr=None (None preserved as None for JS)
     assert d["by_band"][-1]["band_upper_lkr"] is None
+    # Track labels are surfaced in the serialised audit trail.
+    assert d["by_band"][0]["track"] == "first"
+    assert d["by_band"][1]["track"] == "foreign"
+    assert all(b["track"] == "local" for b in d["by_band"][2:])
 
 
 def test_income_validation_rejects_negative() -> None:

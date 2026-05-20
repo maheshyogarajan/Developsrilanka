@@ -27,6 +27,7 @@ from decimal import Decimal
 
 from .brackets import (
     compute_bracket_tax,
+    compute_bracket_tax_dual_track,
     get_slabs,
     marginal_rate as compute_marginal_rate,
     sum_bracket_tax,
@@ -38,6 +39,7 @@ from .types import (
     Income,
     TaxComputation,
     TaxYear,
+    TaxYearStructure,
 )
 
 
@@ -70,7 +72,19 @@ def compute_tax(
 
     reliefs = compute_reliefs(deductions, slabs, senior_citizen=senior_citizen)
     taxable = apply_relief(gross, reliefs)
-    by_band: list[BracketResult] = compute_bracket_tax(taxable, slabs)
+
+    # Dispatch on structure. Dual-track requires the foreign vs local gross
+    # split so we can apply the 15% cap to foreign and the progressive bands
+    # to local (CEO directive 2026-05-20).
+    if slabs.structure == TaxYearStructure.DUAL_TRACK:
+        by_band: list[BracketResult] = compute_bracket_tax_dual_track(
+            taxable_income=taxable,
+            foreign_gross=income.foreign_gross(),
+            local_gross=income.local_gross(),
+            slabs=slabs,
+        )
+    else:
+        by_band = compute_bracket_tax(taxable, slabs)
     gross_tax = sum_bracket_tax(by_band)
 
     # net_tax_due: for Phase 1, equal to gross_tax. Phase 2/3 will subtract

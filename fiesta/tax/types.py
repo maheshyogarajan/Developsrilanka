@@ -69,15 +69,87 @@ class Bracket(BaseModel):
         raise TypeError(f"Cannot coerce {type(v).__name__} to Decimal rate")
 
 
+class TaxYearStructure(str, Enum):
+    """How a tax year's bracket structure is shaped.
+
+    - SINGLE_TRACK: one progressive bracket walk applied to all taxable income
+      regardless of source (used in 24/25 and earlier).
+    - DUAL_TRACK: first Rs N of taxable income at one rate (shared across
+      sources), then split above-first-band by source — foreign at a flat cap
+      rate, local at a progressive bracket walk (used in 25/26 onwards per
+      CEO directive 2026-05-20).
+    """
+
+    SINGLE_TRACK = "single_track"
+    DUAL_TRACK = "dual_track"
+
+
+class FirstTaxableBand(BaseModel):
+    """First taxable band for dual-track years (Rs N of taxable income @ rate).
+
+    Cycles ONCE across both foreign + local income. Once filled, remaining
+    taxable income is split by source.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    up_to: NonNegativeInt = Field(..., description="Top of first band in LKR (inclusive).")
+    rate: Decimal = Field(..., ge=Decimal("0"), le=Decimal("1"))
+
+    @field_validator("rate", mode="before")
+    @classmethod
+    def _coerce_rate(cls, v: object) -> Decimal:
+        if isinstance(v, Decimal):
+            return v
+        if isinstance(v, (int, float)):
+            return Decimal(str(v))
+        if isinstance(v, str):
+            return Decimal(v)
+        raise TypeError(f"Cannot coerce {type(v).__name__} to Decimal rate")
+
+
+class ForeignFlatCap(BaseModel):
+    """Foreign-sourced income above first band: flat-rate cap (dual-track only)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    flat_rate: Decimal = Field(..., ge=Decimal("0"), le=Decimal("1"))
+
+    @field_validator("flat_rate", mode="before")
+    @classmethod
+    def _coerce_rate(cls, v: object) -> Decimal:
+        if isinstance(v, Decimal):
+            return v
+        if isinstance(v, (int, float)):
+            return Decimal(str(v))
+        if isinstance(v, str):
+            return Decimal(v)
+        raise TypeError(f"Cannot coerce {type(v).__name__} to Decimal rate")
+
+
 class TaxYearSlabs(BaseModel):
-    """Shape of one tax-year entry in slabs.yaml."""
+    """Shape of one tax-year entry in slabs.yaml.
+
+    Supports both single-track (24/25) and dual-track (25/26+) structures.
+    Loader populates exactly one of:
+      - `brackets` (single-track), OR
+      - `first_taxable_band` + `foreign_above_first_band` + `local_above_first_band_brackets` (dual-track)
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     year: TaxYear
+    structure: TaxYearStructure = TaxYearStructure.SINGLE_TRACK
     personal_relief_lkr: NonNegativeInt
     senior_citizen_extra_relief_lkr: NonNegativeInt = 0
-    brackets: tuple[Bracket, ...]
+
+    # Single-track only (24/25):
+    brackets: tuple[Bracket, ...] = ()
+
+    # Dual-track only (25/26+):
+    first_taxable_band: Optional[FirstTaxableBand] = None
+    foreign_above_first_band: Optional[ForeignFlatCap] = None
+    local_above_first_band_brackets: tuple[Bracket, ...] = ()
 
 
 class Income(BaseModel):
@@ -139,6 +211,31 @@ class Income(BaseModel):
             self.employment_lkr
             + self.business_lkr
             + self.foreign_lkr
+            + self.rental_lkr
+            + self.fd_interest_lkr
+            + self.investment_lkr
+            + self.other_lkr
+        )
+
+    def foreign_gross(self) -> Decimal:
+        """Foreign-sourced gross income (drives 15% cap in 25/26 dual-track).
+
+        Currently only `foreign_lkr` is foreign-sourced. Employment, business,
+        rental, FD interest, investment, and "other" are treated as local
+        unless the caller routes them explicitly via this field.
+        """
+        return self.foreign_lkr
+
+    def local_gross(self) -> Decimal:
+        """Local-sourced gross income (all components except foreign_lkr).
+
+        Conservative default: anything not explicitly tagged `foreign_lkr` is
+        local. This protects against accidentally applying the 15% cap to
+        local-sourced income (higher rates apply to local in 25/26).
+        """
+        return (
+            self.employment_lkr
+            + self.business_lkr
             + self.rental_lkr
             + self.fd_interest_lkr
             + self.investment_lkr
@@ -215,6 +312,9 @@ class BracketResult:
     `income_in_band`: slice of taxable income that falls in this band.
     `rate`: marginal rate.
     `tax_in_band`: income_in_band * rate (Decimal).
+    `track`: optional audit label for dual-track years ("first", "foreign", or
+       "local"). None for single-track years. Lets the UI render the shared
+       first band + the foreign cap + the local progressive bands distinctly.
     """
 
     band_lower: Decimal
@@ -222,6 +322,7 @@ class BracketResult:
     income_in_band: Decimal
     rate: Decimal
     tax_in_band: Decimal
+    track: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -266,6 +367,7 @@ class TaxComputation:
                     "income_in_band_lkr": str(b.income_in_band),
                     "rate": str(b.rate),
                     "tax_in_band_lkr": str(b.tax_in_band),
+                    "track": b.track,
                 }
                 for b in self.by_band
             ],
@@ -278,7 +380,10 @@ class TaxComputation:
 
 __all__ = [
     "TaxYear",
+    "TaxYearStructure",
     "Bracket",
+    "FirstTaxableBand",
+    "ForeignFlatCap",
     "TaxYearSlabs",
     "Income",
     "Deductions",

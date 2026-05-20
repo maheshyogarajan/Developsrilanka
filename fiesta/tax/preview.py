@@ -181,8 +181,20 @@ def _round_lkr(d: Decimal) -> Decimal:
     return d.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
+def _rate_pct_display(rate: Decimal) -> str:
+    """Display rate as integer % when possible (e.g. "6%", "30%", "36%")."""
+    rate_pct = rate * Decimal("100")
+    if rate_pct == rate_pct.to_integral_value():
+        return f"{int(rate_pct)}%"
+    return f"{rate_pct.normalize()}%"
+
+
 def _walk_brackets(taxable_income: Decimal, brackets: list[dict]) -> list[dict]:
-    """Walk slabs band-by-band. Returns one entry per band (constant shape)."""
+    """Walk SINGLE-TRACK slabs band-by-band. Returns one entry per band.
+
+    Used for legacy single-track years (24/25). For 25/26 dual-track, see
+    `_walk_dual_track`.
+    """
     results: list[dict] = []
     remaining = taxable_income
     prev_upper = Decimal("0")
@@ -204,25 +216,123 @@ def _walk_brackets(taxable_income: Decimal, brackets: list[dict]) -> list[dict]:
 
         tax_in_band = income_in_band * rate
 
-        # Display rate as integer % when possible (e.g. "6%", "30%", "36%").
-        rate_pct = rate * Decimal("100")
-        if rate_pct == rate_pct.to_integral_value():
-            rate_pct_display = f"{int(rate_pct)}%"
-        else:
-            rate_pct_display = f"{rate_pct.normalize()}%"
-
         results.append({
             "band_lower_lkr": str(_round_lkr(band_lower)),
             "band_upper_lkr": str(_round_lkr(band_upper)) if band_upper is not None else None,
             "income_in_band_lkr": str(_round_lkr(income_in_band)),
             "rate": str(rate),
-            "rate_pct_display": rate_pct_display,
+            "rate_pct_display": _rate_pct_display(rate),
             "tax_in_band_lkr": str(_round_lkr(tax_in_band)),
+            "track": None,
         })
 
         remaining -= income_in_band
         if up_to is not None:
             prev_upper = Decimal(str(up_to))
+
+    return results
+
+
+# Income-source -> foreign-share mapping for the S0 preview.
+# The preview accepts a coarse income_source ('employment'/'foreign'/'mix')
+# because the landing form is a slider, not a per-stream input form. The
+# server engine (compute_tax_25_26) takes the granular Income() shape.
+PREVIEW_FOREIGN_SHARE: dict[str, Decimal] = {
+    "employment": Decimal("0"),   # all local — employment salary is local
+    "foreign":    Decimal("1"),   # all foreign — cap at 15% above first band
+    "mix":        Decimal("0.5"), # blended 50/50 split (UI hint, not a promise)
+}
+
+
+def _walk_dual_track(
+    taxable_income: Decimal,
+    year_slabs: dict,
+    foreign_share: Decimal,
+) -> list[dict]:
+    """Walk DUAL-TRACK slabs (25/26+). Returns the full per-band audit trail.
+
+    Output shape (constant): [first_band, foreign_band, *local_bands].
+    For 25/26 that's 6 entries (1 first + 1 foreign + 4 local).
+
+    Args:
+        taxable_income: post-relief, post-deduction taxable income (LKR Decimal).
+        year_slabs: the year block from slabs.yaml (dual-track shape).
+        foreign_share: Decimal in [0, 1] — share of remaining (above-first-band)
+            taxable income that is foreign-sourced.
+
+    Returns:
+        list[dict] — JSON-serialisable band entries.
+    """
+    first_band = year_slabs["first_taxable_band"]
+    foreign_cap = year_slabs["foreign_above_first_band"]
+    local_brackets = year_slabs.get("local_above_first_band", {}).get("brackets", [])
+
+    first_top = Decimal(str(first_band["up_to"]))
+    first_rate = Decimal(str(first_band["rate"]))
+    foreign_rate = Decimal(str(foreign_cap["flat_rate"]))
+
+    # Step 1: first taxable band (shared).
+    first_filled = min(max(taxable_income, Decimal("0")), first_top)
+    first_tax = first_filled * first_rate
+
+    results: list[dict] = [{
+        "band_lower_lkr": str(_round_lkr(Decimal("0"))),
+        "band_upper_lkr": str(_round_lkr(first_top)),
+        "income_in_band_lkr": str(_round_lkr(first_filled)),
+        "rate": str(first_rate),
+        "rate_pct_display": _rate_pct_display(first_rate),
+        "tax_in_band_lkr": str(_round_lkr(first_tax)),
+        "track": "first",
+    }]
+
+    # Step 2: split above-first-band by source.
+    remaining = max(taxable_income - first_filled, Decimal("0"))
+    foreign_above = remaining * foreign_share
+    local_above = remaining - foreign_above
+
+    # Step 3: foreign band.
+    foreign_tax = foreign_above * foreign_rate
+    results.append({
+        "band_lower_lkr": str(_round_lkr(first_top)),
+        "band_upper_lkr": None,  # foreign cap is open-ended
+        "income_in_band_lkr": str(_round_lkr(foreign_above)),
+        "rate": str(foreign_rate),
+        "rate_pct_display": _rate_pct_display(foreign_rate),
+        "tax_in_band_lkr": str(_round_lkr(foreign_tax)),
+        "track": "foreign",
+    })
+
+    # Step 4: local progressive bands.
+    local_remaining = local_above
+    prev_rel = Decimal("0")
+    for bracket in local_brackets:
+        up_to = bracket.get("up_to")
+        rate = Decimal(str(bracket.get("rate", "0")))
+        band_lower_abs = first_top + prev_rel
+        if up_to is None:
+            band_upper_abs: Decimal | None = None
+            income_in_band = max(local_remaining, Decimal("0"))
+        else:
+            band_top_rel = Decimal(str(up_to))
+            band_upper_abs = first_top + band_top_rel
+            band_width = band_top_rel - prev_rel
+            income_in_band = min(max(local_remaining, Decimal("0")), band_width)
+
+        tax_in_band = income_in_band * rate
+
+        results.append({
+            "band_lower_lkr": str(_round_lkr(band_lower_abs)),
+            "band_upper_lkr": str(_round_lkr(band_upper_abs)) if band_upper_abs is not None else None,
+            "income_in_band_lkr": str(_round_lkr(income_in_band)),
+            "rate": str(rate),
+            "rate_pct_display": _rate_pct_display(rate),
+            "tax_in_band_lkr": str(_round_lkr(tax_in_band)),
+            "track": "local",
+        })
+
+        local_remaining -= income_in_band
+        if up_to is not None:
+            prev_rel = Decimal(str(up_to))
 
     return results
 
@@ -307,10 +417,19 @@ def quick_preview(
     senior_relief = Decimal(str(slabs.get("senior_citizen_extra_relief_lkr", 0))) if senior else Decimal("0")
     relief_total = personal_relief + senior_relief
 
+    # ---- DUAL-TRACK vs SINGLE-TRACK DISPATCH -----------------------------
+    structure = slabs.get("structure", "single_track")
+    is_dual = (structure == "dual_track")
+    foreign_share = PREVIEW_FOREIGN_SHARE[income_source] if is_dual else Decimal("0")
+
+    def _walk(taxable: Decimal) -> list[dict]:
+        if is_dual:
+            return _walk_dual_track(taxable, slabs, foreign_share)
+        return _walk_brackets(taxable, slabs.get("brackets", []))
+
     # ---- NAIVE TAX (no FIESTA-claimed deductions, only statutory relief) -
     taxable_naive = max(gross_lkr - relief_total, Decimal("0"))
-    brackets = slabs.get("brackets", [])
-    bracket_breakdown_naive = _walk_brackets(taxable_naive, brackets)
+    bracket_breakdown_naive = _walk(taxable_naive)
     naive_tax = sum(
         (Decimal(b["tax_in_band_lkr"]) for b in bracket_breakdown_naive),
         Decimal("0"),
@@ -332,7 +451,7 @@ def quick_preview(
         fiesta_deductions = cap
 
     taxable_fiesta = max(gross_lkr - relief_total - fiesta_deductions, Decimal("0"))
-    bracket_breakdown_fiesta = _walk_brackets(taxable_fiesta, brackets)
+    bracket_breakdown_fiesta = _walk(taxable_fiesta)
     fiesta_tax = sum(
         (Decimal(b["tax_in_band_lkr"]) for b in bracket_breakdown_fiesta),
         Decimal("0"),

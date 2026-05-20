@@ -146,13 +146,24 @@ def test_negative_sp_fee_rejected():
 
 
 def test_very_high_income_1b_lkr():
-    """1 billion LKR income — must still compute, top band hit hard."""
+    """1 billion LKR income — must still compute under dual-track 25/26.
+
+    Default income_source='foreign' → all above-first-band goes to the
+    foreign 15% cap band. Naive tax = 1M @ 6% + (1B - 1.8M relief - 1M) @ 15%
+    = 60,000 + 998,200,000 × 0.15... actually 1B - 1.8M = 998.2M taxable;
+    first band 1M @ 6% = 60K; remaining 997.2M @ 15% = 149,580,000;
+    total = 149,640,000. The 36% local bands are EMPTY for all-foreign.
+    """
     r = quick_preview(gross_income=1_000_000_000, currency="LKR")
-    # Most of the income falls in the open-ended 36% band
-    top_band = r["bracket_breakdown_naive"][-1]
-    assert top_band["band_upper_lkr"] is None
-    assert Decimal(top_band["income_in_band_lkr"]) > Decimal("900000000")
-    assert Decimal(r["naive_tax_lkr"]) > Decimal("350000000")
+    # The foreign band (track='foreign') absorbs everything above the first band.
+    foreign_band = next(
+        b for b in r["bracket_breakdown_naive"] if b.get("track") == "foreign"
+    )
+    assert foreign_band["band_upper_lkr"] is None  # foreign cap is open-ended
+    assert Decimal(foreign_band["income_in_band_lkr"]) > Decimal("900000000")
+    # 1M @ 6% + 997.2M @ 15% ≈ 149.64M
+    assert Decimal(r["naive_tax_lkr"]) > Decimal("140000000")
+    assert Decimal(r["naive_tax_lkr"]) < Decimal("160000000")
     # FIESTA cap (30% of gross) limits deduction inflation at high income
     assert Decimal(r["fiesta_deductions_lkr"]) <= Decimal("1000000000") * Decimal("0.30")
 
@@ -234,11 +245,17 @@ def test_output_contract_all_fields_present():
 
 
 def test_bracket_breakdown_shape_constant():
-    """Bracket breakdown always has same N entries (one per band in slabs.yaml)."""
+    """Bracket breakdown always has same N entries — 25/26 dual-track has 6.
+
+    Shape: [first, foreign, local_18, local_24, local_30, local_36].
+    """
     r_low = quick_preview(gross_income=2000000, currency="LKR")
     r_high = quick_preview(gross_income=50000000, currency="LKR")
     assert len(r_low["bracket_breakdown_naive"]) == len(r_high["bracket_breakdown_naive"])
-    assert len(r_low["bracket_breakdown_naive"]) == 5  # 25/26 has 5 bands
+    assert len(r_low["bracket_breakdown_naive"]) == 6  # 25/26 dual-track: 1+1+4
+    # Track labels (audit trail contract)
+    tracks = [b.get("track") for b in r_low["bracket_breakdown_naive"]]
+    assert tracks == ["first", "foreign", "local", "local", "local", "local"]
 
 
 def test_saving_never_negative():
@@ -327,3 +344,66 @@ def test_fx_rates_are_decimal():
     for cur, rate in FX_FALLBACK_LKR_PER_UNIT.items():
         assert isinstance(rate, Decimal), f"{cur} rate is {type(rate)}, must be Decimal"
         assert rate > 0, f"{cur} rate must be positive"
+
+
+# ---------------------------------------------------------------------------
+# Dual-track 25/26 — CEO directive 2026-05-20 cases
+# ---------------------------------------------------------------------------
+
+def test_preview_dual_track_employment_only_no_15pct_cap():
+    """Employment-source preview must NOT trigger the 15% foreign cap.
+
+    Income Rs 24M employment, naive tax:
+      taxable = 24M - 1.8M = 22.2M
+      first 1M @ 6% = 60K
+      remaining 21.2M all LOCAL → progressive 18/24/30/36
+        500K @ 18% = 90K
+        500K @ 24% = 120K
+        500K @ 30% = 150K
+        19.7M @ 36% = 7,092K
+      Total = 60K + 90K + 120K + 150K + 7,092K = 7,512K
+    """
+    r = quick_preview(
+        gross_income=24_000_000, currency="LKR", income_source="employment",
+    )
+    # naive = 7,512,000
+    assert Decimal(r["naive_tax_lkr"]) == Decimal("7512000")
+    # foreign band must be empty (employment income_source -> 0% foreign share)
+    foreign_band = next(b for b in r["bracket_breakdown_naive"] if b.get("track") == "foreign")
+    assert Decimal(foreign_band["income_in_band_lkr"]) == Decimal("0")
+
+
+def test_preview_dual_track_foreign_only_uses_15pct_cap():
+    """All-foreign Rs 24M (matches B11): naive tax = 3.24M (foreign cap).
+
+    DUAL-TRACK calculation:
+      taxable = 24M - 1.8M = 22.2M
+      first 1M @ 6% = 60K
+      remaining 21.2M @ 15% (foreign cap) = 3,180K
+      Total = 3,240K
+    """
+    r = quick_preview(
+        gross_income=24_000_000, currency="LKR", income_source="foreign",
+    )
+    assert Decimal(r["naive_tax_lkr"]) == Decimal("3240000")
+    foreign_band = next(b for b in r["bracket_breakdown_naive"] if b.get("track") == "foreign")
+    assert Decimal(foreign_band["income_in_band_lkr"]) == Decimal("21200000")
+    assert Decimal(foreign_band["tax_in_band_lkr"]) == Decimal("3180000")
+
+
+def test_preview_dual_track_mix_splits_50_50():
+    """income_source=mix → 50/50 split above first band.
+
+    Rs 12M income, mix:
+      taxable = 12M - 1.8M = 10.2M
+      first 1M @ 6% = 60K
+      remaining 9.2M split:
+        foreign 4.6M @ 15% = 690K
+        local 4.6M progressive: 500K@18 + 500K@24 + 500K@30 + 3.1M@36
+                              = 90 + 120 + 150 + 1116 = 1,476K
+      Total = 60 + 690 + 1476 = 2,226K
+    """
+    r = quick_preview(
+        gross_income=12_000_000, currency="LKR", income_source="mix",
+    )
+    assert Decimal(r["naive_tax_lkr"]) == Decimal("2226000")
