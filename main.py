@@ -446,6 +446,17 @@ with app.app_context():
     except Exception as e:
         logger.error(f"S2 signup migration failed (non-fatal — model has ORM-level columns): {e}")
 
+    # Wave 6 admin surface — additive columns for S15+ (is_admin, stripe_customer_id).
+    # Idempotent. Safe to re-run on every boot.
+    try:
+        from add_admin_and_stripe_columns_to_user import run as _run_admin_migration
+        _run_admin_migration()
+    except Exception as e:
+        logger.error(
+            f"Wave 6 admin migration failed (non-fatal — decorator + ORM gracefully "
+            f"degrade): {e}"
+        )
+
 # Function to start Celery worker in a background thread
 def start_background_worker():
     try:
