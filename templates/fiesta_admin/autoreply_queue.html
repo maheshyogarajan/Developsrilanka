@@ -1,0 +1,211 @@
+{# S17 — Admin Autoreply Queue (Wave 6, 2026-05-21).
+
+   Renders the pending autoreply drafts queue with per-draft gate badges.
+   Approve & Send is disabled if any badge is red; Reject is always
+   available. Cohort circuit breaker toggle + pipeline status card.
+
+   View handler: fiesta.admin.autoreply_routes.queue_index
+   Decorator:    fiesta.auth.decorators.admin_required
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIESTA Admin — Autoreply Queue (S17)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f5f7fa; }
+        .page-shell { max-width: 1400px; margin: 24px auto; padding: 0 16px; }
+        .top-strip { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .card-block { background: #ffffff; border-radius: 8px; padding: 16px;
+                       box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .badge-green  { background: #d1fae5; color: #065f46; }
+        .badge-amber  { background: #fef3c7; color: #92400e; }
+        .badge-red    { background: #fee2e2; color: #991b1b; }
+        .badge-status { font-size: 11px; padding: 4px 8px; border-radius: 12px; font-weight: 600; text-transform: uppercase; }
+        .draft-card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px;
+                       box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .draft-card .meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 8px; }
+        .draft-card pre { background: #f9fafb; border: 1px solid #e5e7eb; padding: 10px;
+                           border-radius: 6px; font-size: 12px; max-height: 160px; overflow: auto; }
+        .draft-card .actions { margin-top: 10px; display: flex; gap: 8px; }
+        .subtle { color: #6b7280; font-size: 12px; }
+        .cb-bar-open    { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; padding: 10px 14px; }
+        .cb-bar-closed  { background: #d1fae5; color: #065f46; border-left: 4px solid #10b981; padding: 10px 14px; }
+    </style>
+</head>
+<body>
+<div class="page-shell">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Autoreply Queue <span class="subtle">S17</span></h1>
+        <a class="btn btn-sm btn-outline-secondary" href="/admin/fie/users">
+            <i class="fas fa-users"></i> Users (S15)
+        </a>
+    </div>
+
+    {# Cohort Circuit Breaker bar + toggle form #}
+    {% set cb_class = 'cb-bar-open' if cb_state.state == 'open' else 'cb-bar-closed' %}
+    <div class="card-block mb-3 {{ cb_class }}">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <strong>Cohort Circuit Breaker</strong>:
+                <span class="text-uppercase">{{ cb_state.state }}</span>
+                {% if cb_state.set_by %}
+                    <span class="subtle">— set by {{ cb_state.set_by }} at {{ cb_state.set_at }}</span>
+                {% endif %}
+                {% if cb_state.reason %}
+                    <div class="subtle mt-1">Reason: {{ cb_state.reason }}</div>
+                {% endif %}
+                {% if not cb_state.available %}
+                    <div class="subtle mt-1"><em>Supabase unavailable — treating CB as open (fail-closed).</em></div>
+                {% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('fiesta_admin_autoreply.toggle_cohort_cb') }}" class="d-flex gap-2 align-items-end">
+                <div>
+                    <label class="subtle d-block">New state</label>
+                    <select name="state" class="form-select form-select-sm">
+                        <option value="closed" {% if cb_state.state == 'closed' %}selected{% endif %}>closed</option>
+                        <option value="open"   {% if cb_state.state == 'open'   %}selected{% endif %}>open</option>
+                    </select>
+                </div>
+                <div style="min-width: 220px;">
+                    <label class="subtle d-block">Reason (required)</label>
+                    <input type="text" name="reason" class="form-control form-control-sm" maxlength="500" required>
+                </div>
+                <button class="btn btn-sm btn-primary" type="submit">Set</button>
+            </form>
+        </div>
+    </div>
+
+    {# Top strip: queue summary + pipeline card + fetch_error (if any) #}
+    <div class="top-strip">
+        <div class="card-block">
+            <div class="subtle">Pending drafts on this page</div>
+            <div class="display-6">{{ rows | length }}</div>
+            <div class="subtle">Page {{ page }} · {{ per_page }} per page</div>
+        </div>
+        <div class="card-block">
+            <div class="subtle">Send pipeline</div>
+            <div><strong>{{ pipeline_card.name }}</strong></div>
+            <div>
+                {% if pipeline_card.ready %}
+                    <span class="badge-status badge-green">READY</span>
+                {% else %}
+                    <span class="badge-status badge-red">NOT READY</span>
+                {% endif %}
+            </div>
+            <div class="subtle mt-1">{{ pipeline_card.note }}</div>
+        </div>
+        <div class="card-block">
+            <div class="subtle">Supabase</div>
+            <div>
+                {% if pipeline_card.supabase_reachable %}
+                    <span class="badge-status badge-green">REACHABLE</span>
+                {% else %}
+                    <span class="badge-status badge-red">UNREACHABLE</span>
+                {% endif %}
+            </div>
+            {% if fetch_error %}
+                <div class="subtle text-danger mt-1">{{ fetch_error }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Flash messages #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="mb-3">
+                {% for cat, msg in messages %}
+                    {% set alert_cls = 'alert-success' if cat == 'success' else
+                                       'alert-danger' if cat == 'error' else
+                                       'alert-warning' if cat == 'warning' else 'alert-info' %}
+                    <div class="alert {{ alert_cls }} py-2 px-3 mb-2">{{ msg }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {# Per-draft cards #}
+    {% if not rows %}
+        <div class="card-block text-center py-5">
+            <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+            <div class="text-muted">No pending drafts. The classifier has nothing queued right now.</div>
+        </div>
+    {% else %}
+        {% for entry in rows %}
+            {% set r = entry.row %}
+            {% set b = entry.badges %}
+            <div class="draft-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-bold">{{ r.target_description or '(no description)' }}</div>
+                        <div class="subtle">
+                            queue_id: <code>{{ r.id }}</code>
+                            · priority: {{ r.priority }}
+                            · created: {{ r.created_at }}
+                            {% if r.sf_record_id %} · case: <code>{{ r.sf_record_id }}</code>{% endif %}
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% for k, badge in b.items() %}
+                            <span class="badge-status badge-{{ badge.state }}" title="{{ badge.note }}">
+                                {{ badge.label }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# Draft body preview — clipped to ~12 lines via max-height in CSS. #}
+                {% set sf_value = r.sf_value if r.sf_value is mapping else {} %}
+                {% if sf_value.subject %}
+                    <div class="mt-2"><strong>Subject:</strong> {{ sf_value.subject }}</div>
+                {% endif %}
+                {% if sf_value.body %}
+                    <pre class="mt-2">{{ sf_value.body }}</pre>
+                {% else %}
+                    <div class="subtle mt-2"><em>Draft body unavailable in queue payload — render at send time.</em></div>
+                {% endif %}
+
+                <div class="actions">
+                    <form method="POST" action="{{ url_for('fiesta_admin_autoreply.approve', approval_queue_id=r.id) }}">
+                        <button class="btn btn-sm btn-success" type="submit"
+                                {% if entry.send_blocked %}disabled title="A red badge blocks Approve. Resolve gates or use Reject."{% endif %}>
+                            <i class="fas fa-paper-plane"></i> Approve &amp; Send
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('fiesta_admin_autoreply.reject', approval_queue_id=r.id) }}" class="d-flex gap-2">
+                        <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reject reason (optional)" maxlength="500" style="min-width: 280px;">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">
+                            <i class="fas fa-ban"></i> Reject
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+
+        {# Simple pagination — only forward/back; we don't have a TOTAL count
+           from the COUNT() in this lean implementation. #}
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            {% if page > 1 %}
+                <a class="btn btn-sm btn-outline-secondary"
+                    href="{{ url_for('fiesta_admin_autoreply.queue_index', page=page-1, per_page=per_page) }}">
+                    <i class="fas fa-arrow-left"></i> Previous
+                </a>
+            {% else %}
+                <span></span>
+            {% endif %}
+            {% if rows | length >= per_page %}
+                <a class="btn btn-sm btn-outline-secondary"
+                    href="{{ url_for('fiesta_admin_autoreply.queue_index', page=page+1, per_page=per_page) }}">
+                    Next <i class="fas fa-arrow-right"></i>
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+
+</div>
+</body>
+</html>
