@@ -1,0 +1,262 @@
+{% extends 'empty_layout.html' %}
+
+{% block title %}A few quick things — FIESTA{% endblock %}
+
+{% block content %}
+<style>
+  /* S1 triage — FIESTA-branded, neutral, no priming language. */
+
+  :root {
+    --t-bg:           #f7f5f0;
+    --t-ink:          #1a1d27;
+    --t-ink-soft:     #4a4f5c;
+    --t-brand:        #c1442d;
+    --t-brand-soft:   #f4e7e2;
+    --t-surface:      #ffffff;
+    --t-border:       #e3ddd0;
+    --t-border-strong:#bdb4a1;
+  }
+
+  body {
+    background: var(--t-bg);
+    color: var(--t-ink);
+    font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  .triage-wrap {
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+
+  @media (min-width: 768px) {
+    .triage-wrap { padding-top: 4rem; }
+  }
+
+  .triage-progress {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 1.75rem;
+    align-items: center;
+  }
+  .triage-progress .step {
+    flex: 1;
+    height: 0.35rem;
+    background: var(--t-border);
+    border-radius: 999px;
+    transition: background 250ms ease;
+  }
+  .triage-progress .step.done,
+  .triage-progress .step.current {
+    background: var(--t-brand);
+  }
+  .triage-progress .label {
+    font-size: 0.82rem;
+    color: var(--t-ink-soft);
+    margin-left: 0.6rem;
+    white-space: nowrap;
+  }
+
+  h1.triage-prompt {
+    font-family: 'Fraunces', 'Source Serif Pro', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.65rem;
+    margin: 0 0 0.4rem;
+    line-height: 1.25;
+  }
+  p.triage-subtext {
+    color: var(--t-ink-soft);
+    margin: 0 0 1.75rem;
+    font-size: 0.98rem;
+  }
+
+  .triage-option {
+    display: block;
+    width: 100%;
+    background: var(--t-surface);
+    border: 1px solid var(--t-border);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 0.65rem;
+    cursor: pointer;
+    transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+    text-align: left;
+  }
+  .triage-option:hover {
+    border-color: var(--t-border-strong);
+  }
+  .triage-option input { display: none; }
+  .triage-option .opt-label {
+    font-weight: 600;
+    font-size: 1rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .triage-option .opt-label::before {
+    content: '';
+    display: inline-block;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--t-border-strong);
+    background: var(--t-surface);
+    flex-shrink: 0;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+  .triage-option[data-kind="multi"] .opt-label::before {
+    border-radius: 4px;
+  }
+  .triage-option.selected {
+    border-color: var(--t-brand);
+    background: var(--t-brand-soft);
+    box-shadow: 0 0 0 1px var(--t-brand) inset;
+  }
+  .triage-option.selected .opt-label::before {
+    background: var(--t-brand);
+    border-color: var(--t-brand);
+    box-shadow: inset 0 0 0 3px var(--t-brand-soft);
+  }
+  .triage-option .opt-hint {
+    color: var(--t-ink-soft);
+    margin: 0.3rem 0 0 1.7rem;
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+
+  .triage-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+  .triage-actions button[type="submit"] {
+    background: var(--t-ink);
+    color: var(--t-surface);
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.98rem;
+    cursor: pointer;
+    transition: background 150ms ease, transform 80ms ease;
+  }
+  .triage-actions button[type="submit"]:hover {
+    background: #000;
+  }
+  .triage-actions button[type="submit"]:active {
+    transform: translateY(1px);
+  }
+  .triage-actions button[type="submit"][disabled] {
+    background: var(--t-border-strong);
+    cursor: not-allowed;
+  }
+
+  .triage-flash {
+    background: #fbe9e4;
+    border: 1px solid #e9b4a6;
+    color: #7a2a1a;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.92rem;
+  }
+</style>
+
+<div class="triage-wrap">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="triage-flash">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="triage-progress" aria-label="Step {{ position }} of {{ total }}">
+    {% for i in range(1, total + 1) %}
+      <div class="step {% if i < position %}done{% elif i == position %}current{% endif %}"></div>
+    {% endfor %}
+    <span class="label">{{ position }} of {{ total }}</span>
+  </div>
+
+  <h1 class="triage-prompt">{{ question.prompt }}</h1>
+  {% if question.subtext %}
+    <p class="triage-subtext">{{ question.subtext }}</p>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_triage.triage_submit') }}" id="triage-form"
+        data-kind="{{ question.kind }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="question_id" value="{{ question_id }}">
+    {% if next_url %}
+      <input type="hidden" name="next" value="{{ next_url }}">
+    {% endif %}
+
+    {% set picked = already_picked or ([] if question.kind == 'multi' else '') %}
+    {% for opt in question.options %}
+      {% set is_selected = (opt.id in picked) if question.kind == 'multi' else (opt.id == picked) %}
+      <label class="triage-option {% if is_selected %}selected{% endif %}"
+             data-kind="{{ question.kind }}"
+             data-opt-id="{{ opt.id }}">
+        {% if question.kind == 'multi' %}
+          <input type="checkbox" name="answer_{{ question_id }}" value="{{ opt.id }}"
+                 {% if is_selected %}checked{% endif %}>
+        {% else %}
+          <input type="radio" name="answer_{{ question_id }}" value="{{ opt.id }}"
+                 {% if is_selected %}checked{% endif %}>
+        {% endif %}
+        <div class="opt-label">{{ opt.label }}</div>
+        {% if opt.hint %}
+          <div class="opt-hint">{{ opt.hint }}</div>
+        {% endif %}
+      </label>
+    {% endfor %}
+
+    <div class="triage-actions">
+      <button type="submit" id="triage-continue">
+        {% if position == total %}Finish{% else %}Continue{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    var form = document.getElementById('triage-form');
+    if (!form) return;
+    var kind = form.getAttribute('data-kind');
+
+    // Click on the label card toggles the input (and visual state).
+    form.querySelectorAll('.triage-option').forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        // Don't double-fire if the user clicked the input itself.
+        if (e.target.tagName === 'INPUT') return;
+        var input = card.querySelector('input');
+        if (!input) return;
+        if (kind === 'multi') {
+          input.checked = !input.checked;
+        } else {
+          // Radio: select this one, deselect siblings.
+          form.querySelectorAll('input[type="radio"]').forEach(function (i) { i.checked = false; });
+          input.checked = true;
+        }
+        // Refresh visual state on all options.
+        form.querySelectorAll('.triage-option').forEach(function (c) {
+          var i = c.querySelector('input');
+          if (i && i.checked) {
+            c.classList.add('selected');
+          } else {
+            c.classList.remove('selected');
+          }
+        });
+      });
+    });
+  })();
+</script>
+{% endblock %}
