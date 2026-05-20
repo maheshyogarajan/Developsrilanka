@@ -452,12 +452,21 @@ except Exception as e:
     logger.error(f'FIESTA S14 Submit load failed: {e}')
 
 # FIESTA Wave 6 — S15 Admin Users list (admin-gated, /admin/fie/users)
+#                + S17 Admin Autoreply Queue (/admin/fie/autoreply)
 try:
     from fiesta.admin import register_routes as register_fiesta_admin
     register_fiesta_admin(app)
-    logger.info('FIESTA S15 Admin Users registered at /admin/fie/users')
+    logger.info('FIESTA S15+S17 Admin (Users + Autoreply Queue) registered at /admin/fie/*')
 except Exception as e:
-    logger.error(f'FIESTA S15 Admin Users load failed: {e}')
+    logger.error(f'FIESTA S15+S17 Admin load failed: {e}')
+
+# FIESTA Wave 6 — X4 Consultant booking (/consultant/book)
+try:
+    from fiesta.consultant import register_routes as register_consultant
+    register_consultant(app)
+    logger.info('FIESTA X4 Consultant booking registered at /consultant/book')
+except Exception as e:
+    logger.error(f'FIESTA X4 Consultant booking load failed: {e}')
 
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
