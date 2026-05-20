@@ -433,6 +433,14 @@ try:
 except Exception as e:
     logger.error(f'FIESTA S14 Submit load failed: {e}')
 
+# FIESTA Wave 6 — S15 Admin Users list (admin-gated, /admin/fie/users)
+try:
+    from fiesta.admin import register_routes as register_fiesta_admin
+    register_fiesta_admin(app)
+    logger.info('FIESTA S15 Admin Users registered at /admin/fie/users')
+except Exception as e:
+    logger.error(f'FIESTA S15 Admin Users load failed: {e}')
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
@@ -445,6 +453,17 @@ with app.app_context():
         _run_tos_migration()
     except Exception as e:
         logger.error(f"S2 signup migration failed (non-fatal — model has ORM-level columns): {e}")
+
+    # Wave 6 admin surface — additive columns for S15+ (is_admin, stripe_customer_id).
+    # Idempotent. Safe to re-run on every boot.
+    try:
+        from add_admin_and_stripe_columns_to_user import run as _run_admin_migration
+        _run_admin_migration()
+    except Exception as e:
+        logger.error(
+            f"Wave 6 admin migration failed (non-fatal — decorator + ORM gracefully "
+            f"degrade): {e}"
+        )
 
 # Function to start Celery worker in a background thread
 def start_background_worker():
