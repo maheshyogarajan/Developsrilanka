@@ -1,0 +1,394 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}PCSE Markov Inspector - Admin - FIESTA{% endblock %}
+
+{% block head_extra %}
+<style>
+  .pcse-state-graph { width: 100%; height: auto; max-height: 78vh; background: #fff; border-radius: 8px; }
+  .pcse-card { background: #fff; border: 1px solid #e9ecef; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .pcse-engine-pill { display: inline-block; padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+  .pcse-engine-running { background: #d1e7dd; color: #0a3622; }
+  .pcse-engine-paused  { background: #fff3cd; color: #664d03; }
+  .pcse-engine-halted  { background: #f8d7da; color: #58151c; }
+  .pcse-engine-unknown { background: #e2e3e5; color: #41464b; }
+  .pcse-error { background:#fff4f4; border:1px solid #f5c2c7; color:#842029; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size: 13px;}
+  .pcse-table td, .pcse-table th { font-size: 13px; }
+  .pcse-decision-row { border-left: 4px solid #ccc; }
+  .pcse-action-buttons .btn { min-width: 110px; }
+  .pcse-halt-confirm { max-width: 280px; }
+  .nav-pills .nav-link.active { background-color: #0d6efd; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0 text-gray-800">PCSE Markov Inspector</h1>
+    <div class="text-muted small">
+      Generated at <code>{{ payload.generated_at }}</code>
+      &middot;
+      <button id="pcseRefreshBtn" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-sync-alt me-1"></i>Refresh
+      </button>
+    </div>
+  </div>
+
+  {% if payload.errors %}
+    {% for err in payload.errors %}
+      <div class="pcse-error">
+        <strong>{{ err.section }}:</strong> {{ err.error }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Engine state strip -->
+  <div class="pcse-card d-flex align-items-center justify-content-between flex-wrap">
+    <div>
+      <span class="text-muted small">Engine state:</span>
+      {% set _es = payload.engine_state.state %}
+      <span id="pcseEngineStatePill"
+            class="pcse-engine-pill pcse-engine-{{ _es if _es in ['running','paused','halted'] else 'unknown' }}">
+        {{ _es }}
+      </span>
+      {% if payload.engine_state.changed_at %}
+        <span class="text-muted ms-3 small">
+          since <code>{{ payload.engine_state.changed_at }}</code>
+          by <code>{{ payload.engine_state.changed_by }}</code>
+        </span>
+      {% endif %}
+      {% if payload.engine_state.reason %}
+        <span class="text-muted ms-2 small">({{ payload.engine_state.reason }})</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tab nav -->
+  <ul class="nav nav-pills mb-3" id="pcseTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-state-graph-btn"
+              data-bs-toggle="pill" data-bs-target="#tab-state-graph"
+              type="button" role="tab">State graph</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-buckets-btn"
+              data-bs-toggle="pill" data-bs-target="#tab-buckets"
+              type="button" role="tab">Active buckets</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-decisions-btn"
+              data-bs-toggle="pill" data-bs-target="#tab-decisions"
+              type="button" role="tab">Recent decisions</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-control-btn"
+              data-bs-toggle="pill" data-bs-target="#tab-control"
+              type="button" role="tab">Engine control</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="pcseTabsContent">
+
+    <!-- TAB 1 -->
+    <div class="tab-pane fade show active" id="tab-state-graph" role="tabpanel">
+      <div class="pcse-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">38-state Markov diagram</h5>
+          <div class="text-muted small">
+            <span class="badge bg-primary me-1">solid</span> v1 admissible (S00-S14)
+            <span class="badge bg-secondary ms-2 me-1" style="opacity:.6">dashed</span> v2+ (S15-S37)
+          </div>
+        </div>
+        <div id="pcseStateGraphContainer">{{ payload.svg | safe }}</div>
+      </div>
+
+      <div class="pcse-card">
+        <h6 class="mb-3">Per-state client counts</h6>
+        <div class="table-responsive">
+          <table class="table table-sm pcse-table mb-0">
+            <thead>
+              <tr>
+                <th>State</th><th>Label</th><th class="text-end">Clients</th>
+              </tr>
+            </thead>
+            <tbody id="pcseStateDistTbody">
+              {% for s in v1_states %}
+                <tr>
+                  <td><code>{{ s }}</code></td>
+                  <td>{{ state_labels.get(s, s) }}</td>
+                  <td class="text-end">{{ payload.state_distribution.get(s, 0) }}</td>
+                </tr>
+              {% endfor %}
+              {% for s in v2_states %}
+                {% set _n = payload.state_distribution.get(s, 0) %}
+                {% if _n > 0 %}
+                  <tr class="text-muted">
+                    <td><code>{{ s }}</code></td>
+                    <td><em>{{ state_labels.get(s, s) }}</em></td>
+                    <td class="text-end">{{ _n }}</td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2 -->
+    <div class="tab-pane fade" id="tab-buckets" role="tabpanel">
+      <div class="pcse-card">
+        <form class="row gx-2 gy-2 align-items-end" id="pcseBucketsFilterForm">
+          <div class="col-auto">
+            <label class="form-label small mb-1">Filter by state</label>
+            <select name="state" class="form-select form-select-sm">
+              <option value="">(all)</option>
+              {% for s in v1_states %}
+                <option value="{{ s }}" {% if state_filter == s %}selected{% endif %}>
+                  {{ s }} - {{ state_labels.get(s, s) }}
+                </option>
+              {% endfor %}
+              {% for s in v2_states %}
+                <option value="{{ s }}" {% if state_filter == s %}selected{% endif %}>
+                  {{ s }} (v2)
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+          </div>
+          <div class="col-auto text-muted small">
+            Rows shown: <span id="pcseBucketsCount">{{ payload.active_buckets | length }}</span>
+            (sorted by EV desc)
+          </div>
+        </form>
+      </div>
+
+      <div class="pcse-card">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover pcse-table mb-0" id="pcseBucketsTable">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Tax year</th>
+                <th>State</th>
+                <th class="text-end">Days in state</th>
+                <th class="text-end">EV (LKR)</th>
+                <th>Action (F-code)</th>
+                <th>Status</th>
+                <th>Bucket</th>
+                <th>Stop-loss</th>
+              </tr>
+            </thead>
+            <tbody id="pcseBucketsTbody">
+              {% for r in payload.active_buckets %}
+                <tr>
+                  <td><code>{{ r.client_id }}</code></td>
+                  <td>{{ r.tax_year_id }}</td>
+                  <td><span class="badge bg-light text-dark">{{ r.current_state }}</span></td>
+                  <td class="text-end">{{ r.days_in_state }}</td>
+                  <td class="text-end">
+                    {% if r.ev_lkr is not none %}
+                      {{ '%0.0f' % r.ev_lkr }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ r.proposed_action or '-' }}</td>
+                  <td>{{ r.eligibility_status }}</td>
+                  <td>{{ r.bucket_id or '-' }}</td>
+                  <td>
+                    {% if r.stop_loss_flag %}
+                      <span class="badge bg-danger">BLACKOUT</span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="9" class="text-center text-muted">No active buckets.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3 -->
+    <div class="tab-pane fade" id="tab-decisions" role="tabpanel">
+      <div class="pcse-card">
+        <h6 class="mb-3">Last {{ payload.recent_decisions | length }} decisions</h6>
+        <div class="table-responsive">
+          <table class="table table-sm pcse-table" id="pcseDecisionsTable">
+            <thead>
+              <tr>
+                <th>Decided at</th>
+                <th>Run UUID</th>
+                <th>Client</th>
+                <th>Decision</th>
+                <th>Action (F-code)</th>
+                <th class="text-end">EV (LKR)</th>
+                <th>Rationale</th>
+                <th>Surface</th>
+                <th>Tenant</th>
+              </tr>
+            </thead>
+            <tbody id="pcseDecisionsTbody">
+              {% for d in payload.recent_decisions %}
+                <tr class="pcse-decision-row" style="border-left-color: var(--bs-{{ d.color }}, #ccc);">
+                  <td><small>{{ d.decided_at }}</small></td>
+                  <td><code class="small">{{ d.run_uuid }}</code></td>
+                  <td><code>{{ d.client_id or '-' }}</code></td>
+                  <td><span class="badge bg-{{ d.color }}">{{ d.decision }}</span></td>
+                  <td>{{ d.action_code or '-' }}</td>
+                  <td class="text-end">
+                    {% if d.ev_lkr is not none %}{{ '%0.0f' % d.ev_lkr }}{% else %}-{% endif %}
+                  </td>
+                  <td><small>{{ d.rationale }}</small></td>
+                  <td>{{ d.execution_surface or '-' }}</td>
+                  <td>{{ d.tenant or '-' }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="9" class="text-center text-muted">No decisions yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4 -->
+    <div class="tab-pane fade" id="tab-control" role="tabpanel">
+      <div class="pcse-card">
+        <h5 class="mb-3">Engine control</h5>
+        <p class="text-muted small mb-3">
+          Pause stops new orchestrator runs from being dispatched. Resume clears the pause.
+          Halt is an emergency stop: it pauses + writes a stop-loss row (trigger_code=<code>R_MANUAL</code>).
+          Halt requires you to type <code>{{ halt_confirm_text }}</code> in the confirmation field below
+          (Tier-2 confirmation).
+        </p>
+
+        <div id="pcseControlResult" class="mb-3" style="display:none"></div>
+
+        <div class="pcse-action-buttons d-flex flex-wrap gap-3 align-items-end">
+          <button class="btn btn-warning" id="pcsePauseBtn" type="button">
+            <i class="fas fa-pause me-1"></i> Pause
+          </button>
+          <button class="btn btn-success" id="pcseResumeBtn" type="button">
+            <i class="fas fa-play me-1"></i> Resume
+          </button>
+          <div class="d-flex flex-column">
+            <label class="form-label small mb-1" for="pcseHaltConfirm">
+              Type <code>{{ halt_confirm_text }}</code> to enable halt
+            </label>
+            <div class="d-flex gap-2 align-items-center">
+              <input id="pcseHaltConfirm" type="text" autocomplete="off"
+                     class="form-control form-control-sm pcse-halt-confirm"
+                     placeholder="{{ halt_confirm_text }}">
+              <button class="btn btn-danger" id="pcseHaltBtn" type="button" disabled>
+                <i class="fas fa-stop me-1"></i> Halt
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-content -->
+
+</div>
+
+<script>
+(function(){
+  const HALT_TEXT = {{ halt_confirm_text | tojson }};
+
+  function setEnginePill(state) {
+    const pill = document.getElementById('pcseEngineStatePill');
+    if (!pill) return;
+    pill.classList.remove('pcse-engine-running','pcse-engine-paused','pcse-engine-halted','pcse-engine-unknown');
+    pill.classList.add('pcse-engine-' + ((['running','paused','halted'].indexOf(state) >= 0) ? state : 'unknown'));
+    pill.textContent = state;
+  }
+
+  function postJson(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body || {}),
+    }).then(r => r.json().then(j => ({status: r.status, json: j})));
+  }
+
+  function showResult(ok, msg) {
+    const el = document.getElementById('pcseControlResult');
+    if (!el) return;
+    el.style.display = 'block';
+    el.className = ok ? 'alert alert-success' : 'alert alert-danger';
+    el.textContent = msg;
+  }
+
+  // Pause
+  const pauseBtn = document.getElementById('pcsePauseBtn');
+  if (pauseBtn) pauseBtn.addEventListener('click', function(){
+    postJson('/admin/pcse/control/pause', {reason: 'ceo_pause_via_admin_ui'})
+      .then(({status, json}) => {
+        if (json.ok) {
+          setEnginePill(json.engine_state.state);
+          showResult(true, 'Engine paused.');
+        } else {
+          showResult(false, 'Pause failed: ' + (json.error || 'unknown error'));
+        }
+      })
+      .catch(e => showResult(false, 'Pause failed: ' + e));
+  });
+
+  // Resume
+  const resumeBtn = document.getElementById('pcseResumeBtn');
+  if (resumeBtn) resumeBtn.addEventListener('click', function(){
+    postJson('/admin/pcse/control/resume', {reason: 'ceo_resume_via_admin_ui'})
+      .then(({status, json}) => {
+        if (json.ok) {
+          setEnginePill(json.engine_state.state);
+          showResult(true, 'Engine resumed.');
+        } else {
+          showResult(false, 'Resume failed: ' + (json.error || 'unknown error'));
+        }
+      })
+      .catch(e => showResult(false, 'Resume failed: ' + e));
+  });
+
+  // Halt — only enabled when the confirmation matches
+  const haltInput = document.getElementById('pcseHaltConfirm');
+  const haltBtn = document.getElementById('pcseHaltBtn');
+  function syncHaltEnabled() {
+    if (!haltInput || !haltBtn) return;
+    haltBtn.disabled = (haltInput.value !== HALT_TEXT);
+  }
+  if (haltInput) haltInput.addEventListener('input', syncHaltEnabled);
+  if (haltBtn) haltBtn.addEventListener('click', function(){
+    if (haltInput.value !== HALT_TEXT) return;
+    if (!window.confirm('Halt the PCSE engine? This stops all in-flight execution.')) return;
+    postJson('/admin/pcse/control/halt', {
+      confirm_text: haltInput.value,
+      reason: 'manual_halt_via_admin_ui',
+    }).then(({status, json}) => {
+      if (json.ok) {
+        setEnginePill(json.engine_state.state);
+        showResult(true, 'Engine halted. Stop-loss row written.');
+        haltInput.value = '';
+        syncHaltEnabled();
+      } else {
+        showResult(false, 'Halt failed: ' + (json.error || ('HTTP ' + status)));
+      }
+    }).catch(e => showResult(false, 'Halt failed: ' + e));
+  });
+
+  // Refresh
+  const refreshBtn = document.getElementById('pcseRefreshBtn');
+  if (refreshBtn) refreshBtn.addEventListener('click', function(){
+    window.location.reload();
+  });
+})();
+</script>
+{% endblock %}

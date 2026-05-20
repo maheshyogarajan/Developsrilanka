@@ -61,6 +61,14 @@ except Exception as e:
 
 # Note: Admin routes v2 has been consolidated into admin_routes.py
 
+# S16 — PCSE Markov Inspector routes (/admin/pcse). Kept in its own module
+# so it can ship independently of the parallel admin-middleware refactor.
+try:
+    import pcse_inspector_routes  # noqa: F401
+    logger.info("PCSE inspector routes loaded successfully (S16)")
+except Exception as e:
+    logger.error(f"Error loading PCSE inspector routes: {str(e)}")
+
 # Import invoice management routes
 try:
     import invoice_routes
