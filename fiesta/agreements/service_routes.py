@@ -59,6 +59,8 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from fiesta.paywall.gate import paywall_required
+
 logger = logging.getLogger(__name__)
 
 
@@ -408,6 +410,7 @@ def _sanitise_for_json(d: dict[str, Any]) -> dict[str, Any]:
 
 @bp.route("/<sp_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S8", action="preview")
 def preview(sp_id: str):
     """Preview / parameter-input screen for the Service Agreement."""
     from fiesta.compliance import gate_check  # late import
@@ -437,6 +440,7 @@ def preview(sp_id: str):
 
 @bp.route("/<sp_id>/generate", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S8", action="generate")
 def generate(sp_id: str):
     """Generate a Service Agreement PDF and persist a ServiceAgreement row."""
     from fiesta.compliance import gate_check  # late import
@@ -509,6 +513,7 @@ def generate(sp_id: str):
 
 @bp.route("/<sp_id>/pdf/<int:gen_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S8", action="download_pdf")
 def download_pdf(sp_id: str, gen_id: int):
     """Stream the previously generated PDF."""
     from fiesta.agreements.models import ServiceAgreement  # late import
@@ -536,6 +541,7 @@ def download_pdf(sp_id: str, gen_id: int):
 
 @bp.route("/<sp_id>/history", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S8", action="history")
 def history(sp_id: str):
     """List prior generations for this user + service-provider."""
     from fiesta.agreements.models import ServiceAgreement  # late import
@@ -553,6 +559,7 @@ def history(sp_id: str):
 
 @bp.route("/<sp_id>/preview/<int:gen_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S8", action="html_preview")
 def html_preview(sp_id: str, gen_id: int):
     """JSON view of the disclosure snapshot for a generated agreement."""
     from fiesta.agreements.models import ServiceAgreement  # late import

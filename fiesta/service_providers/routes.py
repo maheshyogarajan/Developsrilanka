@@ -90,6 +90,17 @@ except ImportError:  # pragma: no cover
     current_user = None  # type: ignore
 
 try:
+    from fiesta.paywall.gate import paywall_required
+    _HAS_PAYWALL = True
+except ImportError:  # pragma: no cover
+    _HAS_PAYWALL = False
+
+    def paywall_required(*args, **kwargs):  # type: ignore
+        def deco(fn):
+            return fn
+        return deco
+
+try:
     from app import db
     _HAS_DB = True
 except Exception:  # pragma: no cover
@@ -227,6 +238,7 @@ def _compute_total_paid_ytd(user_id: int, sp_id: int) -> Decimal:
 # ---------------------------------------------------------------------------
 @service_providers_bp.route("", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="index")
 def index():
     """List view — cards for every active SP, with the §195 banner per-card."""
     user_id = _current_user_id()
@@ -267,6 +279,7 @@ def index():
 
 @service_providers_bp.route("", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="create")
 def create():
     """Add a new SP and run §195 inline."""
     user_id = _current_user_id()
@@ -335,6 +348,7 @@ def create():
 
 @service_providers_bp.route("/<int:sp_id>", methods=["GET"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="show")
 def show(sp_id: int):
     """Single SP detail."""
     user_id = _current_user_id()
@@ -365,6 +379,7 @@ def show(sp_id: int):
 
 @service_providers_bp.route("/<int:sp_id>", methods=["PUT", "POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="update")
 def update(sp_id: int):
     """Edit. PUT for AJAX, POST for HTML form submit.
 
@@ -428,6 +443,7 @@ def update(sp_id: int):
 
 @service_providers_bp.route("/<int:sp_id>", methods=["DELETE"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="archive")
 def archive(sp_id: int):
     """Soft-archive (never hard-delete — audit-trail retention)."""
     user_id = _current_user_id()
@@ -446,6 +462,7 @@ def archive(sp_id: int):
 
 @service_providers_bp.route("/<int:sp_id>/re-detect", methods=["POST"])
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="re_detect")
 def re_detect(sp_id: int):
     """Re-run §195 detection (e.g. after the customer adds bank info)."""
     user_id = _current_user_id()
@@ -473,6 +490,7 @@ def re_detect(sp_id: int):
     "/related-party-signals/<int:sp_id>", methods=["GET"]
 )
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="signals_json")
 def signals_json(sp_id: int):
     """JSON: full §195 reasoning trace for audit-defensibility surface."""
     user_id = _current_user_id()
@@ -508,6 +526,7 @@ def signals_json(sp_id: int):
     "/<int:sp_id>/override-disclosure", methods=["POST"]
 )
 @login_required
+@paywall_required(min_tier="self_file", screen_id="S6", action="override_disclosure")
 def override_disclosure(sp_id: int):
     """Customer overrides the default-on disclosure flag.
 
