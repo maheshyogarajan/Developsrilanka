@@ -372,13 +372,41 @@ def db_recovery():
 
 @app.route('/')
 def home():
-    """Render the homepage with welcome message and features."""
-    # Hard-coded statistics for dashboard
-    receipt_stats = {
-        'total': '112,000+',
-        'active_invoices': '2,400+'
-    }
-    return render_template('home.html', stats=receipt_stats)
+    """X8a — public-flow landing.
+
+    Anonymous: render the S0 estimator landing (v4-demo narrative).
+    Authenticated: redirect to /scan (which then handles persona reroute to
+    /remittance/dashboard for sl_foreign_income, or stays on the scan page).
+
+    Legacy bookkeeping home is preserved at templates/home_bookkeeping_legacy.html
+    in case a rollback is needed.
+    """
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    # FX rate the calculator uses for USD->LKR; mirror fiesta.tax.preview FX_FALLBACK.
+    try:
+        from fiesta.tax.preview import FX_FALLBACK_LKR_PER_UNIT
+        fx_rate_lkr_per_usd = int(FX_FALLBACK_LKR_PER_UNIT.get("USD", 302))
+    except Exception:
+        fx_rate_lkr_per_usd = 302
+
+    # Wave 1 EVENT SPINE: landing_viewed (X8a funnel)
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'landing_viewed',
+            user_id=None,
+            payload={'fx_rate_lkr_per_usd': fx_rate_lkr_per_usd},
+            source='route:home',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (landing_viewed) failed: {_ev_err}")
+
+    return render_template(
+        'fiesta_public/s0_landing.html',
+        fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
+    )
 
 @app.route('/preview')
 def preview():
@@ -445,7 +473,66 @@ def fiesta_tax_preview_calc():
         logging.exception("tax preview calc failed")
         return jsonify({"error": "internal preview error", "detail": str(exc)}), 500
 
+    # X8a funnel: estimator_run — one event per server-side preview call.
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'estimator_run',
+            user_id=getattr(current_user, 'id', None) if current_user.is_authenticated else None,
+            payload={
+                'gross_income_lkr': result.get('gross_income_lkr'),
+                'income_source': result.get('income_source'),
+                'naive_tax_lkr': result.get('naive_tax_lkr'),
+                'fiesta_tax_lkr': result.get('fiesta_tax_lkr'),
+                'saving_lkr': result.get('saving_lkr'),
+            },
+            source='route:fiesta_tax_preview_calc',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (estimator_run) failed: {_ev_err}")
+
     return jsonify(result)
+
+
+# X8a — public-flow event shim. Allows the S0 landing JS to emit
+# client-side funnel events (estimator_input_changed) without exposing the
+# full event spine. Whitelist of allowed event types prevents arbitrary
+# event names from being injected.
+_PUBLIC_EVENT_WHITELIST = frozenset([
+    'estimator_input_changed',
+    'estimator_run',  # also allow client-side echo for resilience
+    'landing_viewed',
+    'signup_page_viewed',
+])
+
+
+@csrf.exempt
+@app.route('/api/event/public', methods=['POST'])
+def public_event_shim():
+    """Best-effort public event emitter. Returns 204 on success or whitelist
+    miss; never returns a 5xx that would surface in console for users.
+    """
+    payload = request.get_json(silent=True) or {}
+    event_type = (payload.get('event_type') or '').strip()
+    inner_payload = payload.get('payload') or {}
+
+    if event_type not in _PUBLIC_EVENT_WHITELIST:
+        return ('', 204)
+    if not isinstance(inner_payload, dict):
+        inner_payload = {'raw': str(inner_payload)[:200]}
+
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            event_type,
+            user_id=getattr(current_user, 'id', None) if current_user.is_authenticated else None,
+            payload=inner_payload,
+            source='route:public_event_shim',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"public_event_shim emit failed: {_ev_err}")
+
+    return ('', 204)
 
 
 @app.route('/tax-doc/scan', methods=['GET', 'POST'])
@@ -2525,8 +2612,55 @@ def register():
         session['invitation_token'] = invitation_token
         flash("Please complete registration to accept the invitation.", "info")
         logging.info(f"Registration page accessed with invitation token: {invitation_token}")
-    
+
+    # X8a funnel: signup_page_viewed
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'signup_page_viewed',
+            user_id=None,
+            payload={'has_invitation': bool(invitation_token), 'via': request.path},
+            source='route:register',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (signup_page_viewed) failed: {_ev_err}")
+
     return render_template('register.html')
+
+
+@app.route('/signup')
+def signup():
+    """X8a — /signup alias to /register.
+
+    The v4 demo + PLAN_X8 reference the signup screen as /signup. Anonymous
+    visitors arriving at /fie/triage are redirected here, preserving the
+    `next` parameter so the user lands on the intended destination after
+    completing signup + email verification.
+    """
+    # Preserve invitation token handling for parity with /register
+    invitation_token = request.args.get('invitation')
+    if invitation_token:
+        session['invitation_token'] = invitation_token
+        flash("Please complete registration to accept the invitation.", "info")
+
+    next_target = request.args.get('next')
+    if next_target and (not next_target.startswith('/') or next_target.startswith('//')):
+        # Open-redirect guard — only relative paths allowed.
+        next_target = None
+
+    # X8a funnel: signup_page_viewed (via /signup alias)
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'signup_page_viewed',
+            user_id=None,
+            payload={'has_invitation': bool(invitation_token), 'via': '/signup', 'next': next_target},
+            source='route:signup',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (signup_page_viewed) failed: {_ev_err}")
+
+    return render_template('register.html', signup_next=next_target)
 
 @app.route('/verify-email/<token>')
 def verify_email(token):
@@ -2579,10 +2713,13 @@ def verify_email(token):
             except Exception as _ev_err:
                 logging.debug(f"Event emit (email_verified) failed: {_ev_err}")
 
-            # Log the user in and redirect to onboarding wizard
+            # Log the user in. X8a: post-verify destination is /fie/triage
+            # (the S1 neutral fact-find), not the legacy onboarding wizard.
+            # onboarding_wizard remains accessible at /onboarding for users
+            # who still need the business-org setup step.
             login_user(user)
-            flash('Your email has been verified! Please complete your account setup.', 'success')
-            return redirect(url_for('onboarding_wizard'))
+            flash('Your email has been verified! A few quick facts to get you set up.', 'success')
+            return redirect(url_for('fiesta_triage.triage_form'))
                 
         except SignatureExpired:
             flash('The verification link has expired. Please request a new one.', 'warning')
@@ -2660,8 +2797,11 @@ def onboarding_wizard():
             db.session.commit()
             
             logging.info(f"User {current_user.id} completed onboarding with business: {business_name}")
-            flash(f'Welcome! Your business "{business_name}" has been set up. You\'re ready to start tracking expenses!', 'success')
-            return redirect(url_for('index'))
+            flash(f'Welcome! Your business "{business_name}" has been set up. A few quick facts to get you set up.', 'success')
+            # X8a: post-onboarding destination is /fie/triage (S1), not the
+            # legacy /scan dashboard. Triage answers drive downstream FIESTA
+            # screens (S5 chips, S7 property gate, persona reroute).
+            return redirect(url_for('fiesta_triage.triage_form'))
             
         except Exception as e:
             db.session.rollback()

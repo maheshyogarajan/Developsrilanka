@@ -163,9 +163,18 @@ def _emit_event(event: str, **payload: Any) -> None:
 
 
 @bp.route("/triage", methods=["GET"], strict_slashes=False)
-@login_required
 def triage_form():
-    """Render the current triage question."""
+    """Render the current triage question.
+
+    X8a — anonymous users are redirected to /signup (NOT /login) with
+    ?next=/fie/triage preserved. This honours the v4-demo S2 narrative
+    where signup is the funnel surface for unauthenticated visitors. The
+    legacy @login_required would have 302'd to /login.
+    """
+    if not current_user.is_authenticated:
+        from flask import url_for as _url_for
+        return redirect(_url_for("signup", next="/fie/triage"))
+
     # If the user has already completed triage, don't loop them. Bounce to ?next
     # or the dashboard.
     persisted = getattr(current_user, "triage_answers", None) or {}
@@ -194,6 +203,21 @@ def triage_form():
         question_id=current_qid,
         position=progress_idx,
     )
+
+    # X8a funnel: triage_started fires when the user first lands on Q1.
+    # Use a session flag so refreshes don't double-fire.
+    if progress_idx == 1 and not session.get("triage_started_emitted"):
+        try:
+            from events import emit as _emit_spine
+            _emit_spine(
+                "triage_started",
+                user_id=current_user.id,
+                payload={"first_question_id": current_qid},
+                source="route:triage_form",
+            )
+            session["triage_started_emitted"] = True
+        except Exception as _exc:
+            log.debug(f"triage_started emit failed: {_exc}")
 
     return render_template(
         "triage/index.html",
@@ -293,6 +317,25 @@ def triage_submit():
             earning_vehicle_count=len(final.get("earning_vehicle") or []),
             filing_history=final.get("filing_history"),
         )
+
+        # X8a funnel: canonical spine emit (the local _emit_event above only
+        # writes to the analytics logger; the spine event is what powers the
+        # public-flow funnel dashboard).
+        try:
+            from events import emit as _emit_spine
+            _emit_spine(
+                "triage_completed",
+                user_id=current_user.id,
+                payload={
+                    "earning_source": final.get("earning_source"),
+                    "earning_vehicle_count": len(final.get("earning_vehicle") or []),
+                    "filing_history": final.get("filing_history"),
+                },
+                source="route:triage_submit",
+            )
+            session.pop("triage_started_emitted", None)
+        except Exception as _exc:
+            log.debug(f"triage_completed spine emit failed: {_exc}")
 
         return redirect(_post_complete_redirect())
 
