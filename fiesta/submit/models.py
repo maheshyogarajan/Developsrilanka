@@ -137,6 +137,15 @@ class Submission(db.Model):
     # Useful for replay / dispute resolution; not authoritative.
     gate_snapshot_json = db.Column(db.Text, nullable=False, default="{}")
 
+    # Auto-File recovery columns (v1.0 — see fiesta.submit.autofile_recovery).
+    # Migration: add_autofile_recovery_columns_to_submissions.py
+    autofile_attempt_count = db.Column(
+        db.Integer, nullable=False, default=0,
+    )
+    autofile_next_retry_at = db.Column(db.DateTime, nullable=True)
+    autofile_last_attempted_at = db.Column(db.DateTime, nullable=True)
+    autofile_last_error = db.Column(db.String(500), nullable=True)
+
     # Relationship to confirmation receipts (customer uploads them later).
     receipts = db.relationship(
         "IrdConfirmationReceipt",

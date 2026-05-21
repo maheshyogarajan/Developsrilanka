@@ -59,6 +59,89 @@ def _purge_test_artifacts(db_session, user_id):
 
 
 # --------------------------------------------------------------------------- #
+# Stripe webhook delivery check (v1.0 — Gemini R1 Q6.2)
+# --------------------------------------------------------------------------- #
+
+def test_check_stripe_webhook_delivery_quiet_window(app):
+    """Below STRIPE_WEBHOOK_MIN_EVENTS, the check stays healthy with
+    a 'quiet' message — we don't page on tiny samples."""
+    from ops_sentinel import check_stripe_webhook_delivery, STRIPE_WEBHOOK_MIN_EVENTS
+    from fiesta.paywall.models import StripeEvent, register_models
+
+    with app.app_context():
+        register_models()
+        from app import db
+        StripeEvent.query.filter(
+            StripeEvent.stripe_event_id.like("evt_pytest_quiet_%")
+        ).delete(synchronize_session=False)
+        db.session.commit()
+
+        for i in range(STRIPE_WEBHOOK_MIN_EVENTS - 1):
+            db.session.add(StripeEvent(
+                stripe_event_id=f"evt_pytest_quiet_{i}",
+                event_type="checkout.session.completed",
+                handled=True,
+            ))
+        db.session.commit()
+
+        result = check_stripe_webhook_delivery()
+        assert result["healthy"] is True
+        assert "quiet" in (result.get("message") or "").lower()
+
+        StripeEvent.query.filter(
+            StripeEvent.stripe_event_id.like("evt_pytest_quiet_%")
+        ).delete(synchronize_session=False)
+        db.session.commit()
+
+
+def test_check_stripe_webhook_delivery_alerts_on_failure_streak(app):
+    """80% failure rate must fail the check + message must name a webhook
+    endpoint so the operator knows where to look."""
+    from ops_sentinel import check_stripe_webhook_delivery
+    from fiesta.paywall.models import StripeEvent, register_models
+
+    with app.app_context():
+        register_models()
+        from app import db
+        StripeEvent.query.filter(
+            StripeEvent.stripe_event_id.like("evt_pytest_fail_%")
+        ).delete(synchronize_session=False)
+        db.session.commit()
+
+        for i in range(8):
+            db.session.add(StripeEvent(
+                stripe_event_id=f"evt_pytest_fail_{i}",
+                event_type="checkout.session.completed",
+                handled=False,
+                handler_error="simulated handler crash for ops_sentinel test",
+            ))
+        for i in range(2):
+            db.session.add(StripeEvent(
+                stripe_event_id=f"evt_pytest_fail_ok_{i}",
+                event_type="checkout.session.completed",
+                handled=True,
+            ))
+        db.session.commit()
+
+        result = check_stripe_webhook_delivery()
+        assert result["healthy"] is False
+        msg = result.get("message") or ""
+        assert "/webhooks/stripe/paywall" in msg or "consultant" in msg, (
+            f"Alert message should name a webhook endpoint; got: {msg}"
+        )
+
+        StripeEvent.query.filter(
+            StripeEvent.stripe_event_id.like("evt_pytest_fail_%")
+        ).delete(synchronize_session=False)
+        db.session.commit()
+
+
+def test_stripe_webhook_check_registered_in_HEALTH_CHECKS():
+    from ops_sentinel import HEALTH_CHECKS
+    assert "stripe_webhook_delivery" in HEALTH_CHECKS
+
+
+# --------------------------------------------------------------------------- #
 # 1. run_all_checks() returns a dict with the expected shape
 # --------------------------------------------------------------------------- #
 
