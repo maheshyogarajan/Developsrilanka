@@ -480,6 +480,13 @@ with app.app_context():
         _run_tos_migration()
     except Exception as e:
         logger.error(f"S2 signup migration failed (non-fatal — model has ORM-level columns): {e}")
+    # v1.0 Auto-File recovery additive migration — idempotent, safe on every boot.
+    try:
+        from add_autofile_recovery_columns_to_submissions import run as _run_autofile_recovery_migration
+        _run_autofile_recovery_migration()
+    except Exception as e:
+        logger.error(f"Auto-File recovery migration failed (non-fatal — model has ORM-level columns): {e}")
+
     # S1 triage additive migration — idempotent, safe to run on every boot.
     try:
         from add_triage_answers_to_user import run as _run_triage_migration

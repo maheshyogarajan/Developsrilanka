@@ -94,6 +94,15 @@ GEMINI_DAILY_COST_USD_CEILING = Decimal("10.00")
 # regression — Lanka.tax staff un-marked something). 1+ is unusual.
 FALSE_READY_ALERT_THRESHOLD = 1
 
+# Stripe webhook delivery health (v1.0 — Gemini R1 Q6.2 finding).
+# Healthy if the last STRIPE_WEBHOOK_WINDOW events have failure rate
+# <= STRIPE_WEBHOOK_FAILURE_RATE. The window must contain at least
+# STRIPE_WEBHOOK_MIN_EVENTS events before the check fires — otherwise the
+# first webhook failure on a fresh install would page on a 1/1 sample.
+STRIPE_WEBHOOK_WINDOW = 20            # last 20 events considered
+STRIPE_WEBHOOK_MIN_EVENTS = 5         # below this the check stays "healthy: unknown"
+STRIPE_WEBHOOK_FAILURE_RATE = 0.50    # > 50% failure in window = alert
+
 # Gemini price table — USD per 1M tokens (input, output). From Google AI pricing
 # page captured 2026-05-17. Pricing changes; refresh quarterly. Keys are
 # matched by prefix (case-insensitive) — "gemini-2.5-flash-preview" matches
@@ -466,6 +475,75 @@ def check_false_ready_spike() -> Dict[str, Any]:
         }
 
 
+def check_stripe_webhook_delivery() -> Dict[str, Any]:
+    """Healthy if the last STRIPE_WEBHOOK_WINDOW Stripe events processed have
+    failure rate <= STRIPE_WEBHOOK_FAILURE_RATE.
+
+    Reads `paywall_stripe_event` (the idempotency tombstone shared by the X1
+    paywall and the X4 consultant booking webhooks). A row with handled=False
+    AND handler_error set is a delivery failure FIESTA saw — Stripe accepted
+    the signature but our handler crashed / returned an error.
+
+    Quiet windows: if fewer than STRIPE_WEBHOOK_MIN_EVENTS rows exist in the
+    window, returns healthy with value=None and message='quiet'. This avoids
+    paging on a single early failure when traffic is low.
+
+    Origin: v1.0 plan + Gemini R1 Q6.2. Closes the previously-unmonitored
+    blind spot where Stripe webhooks could be dropping without anyone
+    noticing until paid customers complained.
+    """
+    try:
+        from fiesta.paywall.models import StripeEvent, register_models
+        register_models()
+        if StripeEvent is None:
+            return {
+                "healthy": True,
+                "value": None,
+                "threshold": f"<= {STRIPE_WEBHOOK_FAILURE_RATE:.0%}",
+                "message": "Stripe webhook check skipped — paywall models not registered.",
+            }
+        from app import db
+        from sqlalchemy import text as _sql_text
+
+        # Last N events (any handled state). Most-recent first.
+        rows = (
+            StripeEvent.query
+            .order_by(StripeEvent.received_at.desc())
+            .limit(STRIPE_WEBHOOK_WINDOW)
+            .all()
+        )
+        total = len(rows)
+        if total < STRIPE_WEBHOOK_MIN_EVENTS:
+            return {
+                "healthy": True,
+                "value": total,
+                "threshold": f"<= {STRIPE_WEBHOOK_FAILURE_RATE:.0%} once >={STRIPE_WEBHOOK_MIN_EVENTS} events",
+                "message": f"Stripe webhook quiet: {total} events in window (min {STRIPE_WEBHOOK_MIN_EVENTS} to evaluate).",
+            }
+        failed = sum(1 for r in rows if not bool(r.handled) and r.handler_error)
+        rate = failed / total
+        healthy = rate <= STRIPE_WEBHOOK_FAILURE_RATE
+        return {
+            "healthy": healthy,
+            "value": f"{failed}/{total} failed ({rate:.0%})",
+            "threshold": f"<= {STRIPE_WEBHOOK_FAILURE_RATE:.0%}",
+            "message": (
+                f"Stripe webhook delivery ok — {failed}/{total} events failed ({rate:.0%})"
+                if healthy
+                else f"Stripe webhook FAILURE STREAK: {failed}/{total} events in window failed "
+                     f"({rate:.0%}) — exceeded {STRIPE_WEBHOOK_FAILURE_RATE:.0%} threshold. "
+                     f"Check /webhooks/stripe/paywall + /webhooks/stripe/consultant handler logs."
+            ),
+        }
+    except Exception as exc:
+        return {
+            "healthy": False,
+            "value": None,
+            "threshold": f"<= {STRIPE_WEBHOOK_FAILURE_RATE:.0%}",
+            "message": f"Stripe webhook delivery check failed: {exc}",
+        }
+
+
 # --------------------------------------------------------------------------- #
 # HEALTH_CHECKS registry
 # --------------------------------------------------------------------------- #
@@ -476,12 +554,13 @@ def check_false_ready_spike() -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 HEALTH_CHECKS: Dict[str, Callable[[], Dict[str, Any]]] = {
-    "cbsl_scraper_fresh":   check_cbsl_scraper_fresh,
-    "fly_healthz":          check_fly_healthz,
-    "neon_connection":      check_neon_connection,
-    "celery_queue_depth":   check_celery_queue_depth,
-    "gemini_cost_24h":      check_gemini_cost_24h,
-    "false_ready_spike":    check_false_ready_spike,
+    "cbsl_scraper_fresh":        check_cbsl_scraper_fresh,
+    "fly_healthz":               check_fly_healthz,
+    "neon_connection":           check_neon_connection,
+    "celery_queue_depth":        check_celery_queue_depth,
+    "gemini_cost_24h":           check_gemini_cost_24h,
+    "false_ready_spike":         check_false_ready_spike,
+    "stripe_webhook_delivery":   check_stripe_webhook_delivery,
 }
 
 
