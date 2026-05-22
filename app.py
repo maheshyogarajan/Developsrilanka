@@ -152,6 +152,38 @@ def inject_csrf_token():
     from template_utils import get_csrf_token
     return dict(csrf_token=get_csrf_token)
 
+
+# X9 F-Platform-1: expose the persona-aware FIESTA layout template + savings counter
+# context so authenticated FIESTA-persona screens can `{% extends layout_template %}`
+# and pick up `hub_projected_savings_lkr` / `current_sl_tax_year` automatically.
+@app.context_processor
+def inject_fiesta_hub_context():
+    """Make the FIESTA hub shell available to every template.
+
+    `layout_template` is set in `check_authentication` (before_request); we expose
+    it here so templates can do `{% extends layout_template %}`.
+
+    `current_sl_tax_year` is a callable so templates can compute the active YA
+    when they need a default. We resolve it through the paywall.models entrypoint
+    that the rest of the FIESTA stack already trusts.
+    """
+    from flask import g
+
+    layout_template = getattr(g, 'layout_template', 'layout.html')
+
+    def _current_sl_tax_year():
+        try:
+            from fiesta.paywall.models import current_sl_tax_year as _csl
+            return _csl()
+        except Exception:
+            return '2025/26'
+
+    return dict(
+        layout_template=layout_template,
+        current_sl_tax_year=_current_sl_tax_year,
+        is_fiesta_persona=getattr(g, 'is_fiesta_persona', False),
+    )
+
 # Setup OAuth
 oauth = OAuth(app)
 
@@ -3966,6 +3998,16 @@ def check_authentication():
             g.default_organization = None
     else:
         g.default_organization = None
+
+    # X9 F-Platform-1: pick the layout shell based on persona. FIESTA personas
+    # (sl_foreign_income) get the editorial paper/forest/clay hub shell; legacy
+    # bookkeeping personas keep layout.html. Templates do `{% extends layout_template %}`
+    # to flip without duplicating the auth/title/footer plumbing.
+    g.is_fiesta_persona = (
+        current_user.is_authenticated
+        and getattr(current_user, 'persona', None) == 'sl_foreign_income'
+    )
+    g.layout_template = 'layout_fiesta.html' if g.is_fiesta_persona else 'layout.html'
             
     # Paths that require authentication
     protected_paths = [
