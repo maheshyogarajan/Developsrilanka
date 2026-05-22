@@ -272,10 +272,28 @@ def new():
         flash("Remittance entry saved.", "success")
         return redirect(url_for("remittance.detail", entry_id=entry.id))
 
+    # D5: pre-load today's CBSL rate for the default currency (USD) so the form
+    # can populate the rate field on page load without a JS round-trip.
+    # The JS auto-fill (below) will supersede this on currency/date change.
+    _initial_rate = None
+    _initial_rate_source = None
+    try:
+        from tasks.cbsl_rate_fetch import get_cbsl_rate as _get_cbsl
+        _fx = _get_cbsl(COMMON_CURRENCIES[0], date.today())  # USD
+        if _fx is None:
+            _fx = fx_get_rate(COMMON_CURRENCIES[0], date.today())
+        if _fx is not None:
+            _initial_rate = str(_fx.value)
+            _initial_rate_source = _fx.label_for_ui
+    except Exception as _pre_err:
+        log.debug("new() pre-load cbsl rate failed: %s", _pre_err)
+
     return render_template(
         "remittance/new.html",
         common_currencies=COMMON_CURRENCIES,
         today=date.today().isoformat(),
+        initial_cbsl_rate=_initial_rate,
+        initial_cbsl_rate_source=_initial_rate_source,
     )
 
 
@@ -546,6 +564,70 @@ def import_confirm(import_id):
     log.info("Import %s confirmed: user=%s created=%d skipped_ambiguous=%d",
              import_id, current_user.id, created, skipped_ambiguous)
     return redirect(url_for("remittance.dashboard"))
+
+
+# --------------------------------------------------------------------------- #
+# D5 / F-Feature-3.7 — CBSL auto-rate JSON endpoint
+# --------------------------------------------------------------------------- #
+
+@remittance_bp.route("/api/cbsl-rate")
+@login_required
+def cbsl_rate_api():
+    """Return the cached CBSL middle rate for a currency + date.
+
+    GET /remittance/api/cbsl-rate?currency=USD&date=2026-05-22
+
+    Response (JSON):
+        {
+          "found":    true,
+          "value":    "324.7184",          # Decimal string, LKR per 1 unit foreign
+          "source":   "cbsl_cached",       # cbsl | cbsl_cached | ecb_proxy | manual
+          "is_ird_defensible": true,
+          "rate_date": "2026-05-22",       # may differ from requested date on non-trading days
+          "label":    "Verified CBSL rate (cached)"
+        }
+    or:
+        { "found": false }
+    """
+    from flask import jsonify
+    from tasks.cbsl_rate_fetch import get_cbsl_rate
+
+    currency = (request.args.get("currency") or "").strip().upper()[:3]
+    date_str = (request.args.get("date") or "").strip()
+
+    if not currency or currency == "LKR":
+        return jsonify({"found": False}), 200
+
+    if date_str:
+        try:
+            from datetime import datetime as _dt
+            req_date = _dt.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "invalid date format, expected YYYY-MM-DD"}), 400
+    else:
+        req_date = date.today()
+
+    fx = get_cbsl_rate(currency, req_date)
+
+    if fx is None:
+        # Fallback: try the full tiered path (live CBSL fetch or ecb_proxy).
+        try:
+            fx = fx_get_rate(currency, req_date)
+        except Exception as exc:
+            log.warning("cbsl_rate_api: fx_get_rate raised: %s", exc)
+            fx = None
+
+    if fx is None:
+        return jsonify({"found": False}), 200
+
+    return jsonify({
+        "found": True,
+        "value": str(fx.value),
+        "source": fx.source,
+        "is_ird_defensible": fx.is_ird_defensible,
+        "rate_date": fx.rate_date.isoformat(),
+        "label": fx.label_for_ui,
+    }), 200
 
 
 def register_routes(app):

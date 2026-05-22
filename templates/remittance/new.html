@@ -73,20 +73,22 @@
         <h4 class="h5 mb-1">CBSL middle rate</h4>
         <p class="text-secondary small mb-3">
           IRD uses the Central Bank of Sri Lanka middle rate on the remittance date, NOT
-          your bank's conversion rate. Wave A captures this manually; an automatic CBSL
-          lookup ships in the next release.
+          your bank's conversion rate. The rate auto-fills from CBSL data when you pick a
+          date — you can edit it if needed.
         </p>
         <div class="row g-3">
           <div class="col-md-4">
             <label for="cbsl_rate" class="form-label">CBSL middle rate</label>
             <input type="number" step="0.0001" min="0" name="cbsl_rate" id="cbsl_rate"
-                   class="form-control">
-            <div class="form-text">LKR per 1 unit of foreign currency.</div>
+                   class="form-control"
+                   value="{{ initial_cbsl_rate or '' }}">
+            <div class="form-text" id="cbsl_rate_hint">LKR per 1 unit of foreign currency.</div>
           </div>
           <div class="col-md-8">
             <label for="cbsl_rate_source" class="form-label">Source of rate (optional)</label>
             <input type="text" name="cbsl_rate_source" id="cbsl_rate_source" class="form-control"
-                   placeholder="e.g. cbsl.gov.lk/rates/2025-09-12">
+                   placeholder="e.g. cbsl.gov.lk/rates/2025-09-12"
+                   value="{{ initial_cbsl_rate_source or '' }}">
           </div>
         </div>
       </div>
@@ -215,6 +217,118 @@
   amountInput.addEventListener('input', schedule);
   cbslInput.addEventListener('input', schedule);
   cbslInput.addEventListener('change', schedule);
+
+  // D5 / F-Feature-3.7: if the page loaded with a server-pre-filled rate,
+  // trigger the projection immediately so the user sees a saving estimate
+  // as soon as they type an amount (rate is already there).
+  if (cbslInput.value && parseFloat(cbslInput.value) > 0) {
+    amountInput.addEventListener('input', schedule, { once: false });
+  }
+})();
+
+// D5 / F-Feature-3.7 — CBSL auto-fill on date/currency change
+(function () {
+  'use strict';
+
+  var dateInput     = document.getElementById('remittance_date');
+  var ccySelect     = document.getElementById('foreign_currency');
+  var cbslInput     = document.getElementById('cbsl_rate');
+  var sourceInput   = document.getElementById('cbsl_rate_source');
+  var hintEl        = document.getElementById('cbsl_rate_hint');
+  var _fetchDebounce = null;
+
+  function setHint(msg, isError) {
+    if (!hintEl) return;
+    hintEl.textContent = msg || 'LKR per 1 unit of foreign currency.';
+    hintEl.style.color = isError ? '#dc3545' : '';
+  }
+
+  function autoFillRate() {
+    var d   = dateInput  ? dateInput.value  : '';
+    var ccy = ccySelect  ? ccySelect.value  : 'USD';
+    if (!d || !ccy || ccy === 'LKR') return;
+
+    setHint('Looking up CBSL rate…');
+
+    fetch('/remittance/api/cbsl-rate?currency=' + encodeURIComponent(ccy) + '&date=' + encodeURIComponent(d), {
+      credentials: 'same-origin'
+    })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+    .then(function (data) {
+      if (data && data.found) {
+        // Only auto-fill if the user hasn't manually typed a value.
+        // If they've already typed something, respect their input.
+        var currentVal = cbslInput ? parseFloat(cbslInput.value) : 0;
+        var autoVal    = parseFloat(data.value);
+        if (!currentVal || currentVal <= 0 || cbslInput.dataset.autofilled === '1') {
+          if (cbslInput) {
+            cbslInput.value = autoVal.toFixed(4);
+            cbslInput.dataset.autofilled = '1';
+            // Fire input event so A6 live-projection picks it up immediately.
+            cbslInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          if (sourceInput && !sourceInput.dataset.manualSource) {
+            sourceInput.value = data.label || 'CBSL';
+          }
+          var rateNote = data.is_ird_defensible
+            ? 'IRD-defensible CBSL rate'
+            : 'Proxy rate — confirm with CBSL before filing';
+          if (data.rate_date && data.rate_date !== d) {
+            rateNote += ' (nearest trading day: ' + data.rate_date + ')';
+          }
+          setHint(rateNote);
+        } else {
+          setHint('LKR per 1 unit of foreign currency. (CBSL: ' + autoVal.toFixed(4) + ')');
+        }
+      } else {
+        setHint('No CBSL rate available for this date — enter manually.');
+      }
+    })
+    .catch(function (err) {
+      if (console && console.warn) console.warn('cbsl auto-fill failed', err);
+      setHint('LKR per 1 unit of foreign currency.');
+    });
+  }
+
+  function scheduleAutoFill() {
+    if (_fetchDebounce) clearTimeout(_fetchDebounce);
+    _fetchDebounce = setTimeout(autoFillRate, 300);
+  }
+
+  // Mark source field as manually edited so auto-fill won't overwrite it.
+  if (sourceInput) {
+    sourceInput.addEventListener('input', function () {
+      if (sourceInput.value.trim()) sourceInput.dataset.manualSource = '1';
+      else delete sourceInput.dataset.manualSource;
+    });
+  }
+
+  // Mark cbsl_rate as manually edited so auto-fill won't overwrite manual entry.
+  if (cbslInput) {
+    cbslInput.addEventListener('input', function () {
+      if (this.dataset.autofilled !== '1') {
+        // User typed something themselves — don't auto-overwrite on next trigger.
+        this.dataset.autofilled = '0';
+      } else {
+        this.dataset.autofilled = '0';
+      }
+    });
+  }
+
+  if (dateInput) dateInput.addEventListener('change', scheduleAutoFill);
+  if (ccySelect) ccySelect.addEventListener('change', scheduleAutoFill);
+
+  // On page load: if cbsl_rate is empty AND the date + currency are already set
+  // (e.g. server pre-populated today's date but no cached rate was available),
+  // trigger auto-fill. If the server already pre-filled the rate (initial_cbsl_rate),
+  // skip the fetch to avoid a redundant round-trip.
+  (function () {
+    var preFilledByServer = {{ 'true' if initial_cbsl_rate else 'false' }};
+    if (!preFilledByServer) {
+      var cur = cbslInput ? parseFloat(cbslInput.value) : 0;
+      if (!cur || cur <= 0) scheduleAutoFill();
+    }
+  }());
 })();
 </script>
 {% endblock %}

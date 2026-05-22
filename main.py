@@ -399,6 +399,16 @@ try:
 except Exception as e:
     logger.error(f"S2 Signup blueprint load failed: {e}")
 
+# E2 F1.8 — Legal pages (2026-05-22)
+# /legal/tos and /legal/privacy rendered in the FIESTA hub shell.
+# Placeholder content; counsel review async and non-blocking.
+try:
+    from fiesta.legal import register_routes as register_legal_routes
+    register_legal_routes(app)
+    logger.info("Legal blueprint registered: /legal/tos, /legal/privacy")
+except Exception as e:
+    logger.error(f"Legal blueprint load failed: {e}")
+
 # Wave 1 — S1 Triage (2026-05-20)
 # 3 neutral post-signup fact-finds at /fie/triage; answers persist to
 # User.triage_answers (JSON column added by add_triage_answers_to_user.py).

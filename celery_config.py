@@ -91,6 +91,8 @@ app = Celery(
         # every task was silently erroring.
         # ─────────────────────────────────────────────────────────────
         'worker_heartbeat',
+        # D5 / F-Feature-3.7 — CBSL daily rate pre-fetch
+        'tasks.cbsl_rate_fetch',
     ]
 )
 
@@ -174,6 +176,17 @@ app.conf.beat_schedule.update({
     'worker-heartbeat-30min': {
         'task': 'worker_heartbeat.check_and_alert',
         'schedule': crontab(minute='*/30'),
+    },
+})
+
+# D5 / F-Feature-3.7 — CBSL daily rate pre-fetch
+# Runs at 07:30 UTC = ~13:00 SL, after CBSL publishes same-day rates.
+# Populates cbsl_rates table so /remittance/new can auto-fill the rate field.
+# Task wraps itself in app_context (see fetch_today_task in tasks/cbsl_rate_fetch.py).
+app.conf.beat_schedule.update({
+    'cbsl-rate-daily-prefetch': {
+        'task': 'tasks.cbsl_rate_fetch.fetch_today_task',
+        'schedule': crontab(hour=7, minute=30),  # 07:30 UTC daily
     },
 })
 

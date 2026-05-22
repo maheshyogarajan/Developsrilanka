@@ -1,0 +1,298 @@
+{% extends layout_template %}
+
+{% block title %}Terms of Service — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* ---- Legal page — scoped design tokens (E2 F1.8) ----- */
+  :root {
+    --legal-bg:      #f7f5f0;
+    --legal-ink:     #1a1d27;
+    --legal-soft:    #4a4f5c;
+    --legal-brand:   #c1442d;
+    --legal-border:  #e3ddd0;
+    --legal-warn-bg: #fdf6e1;
+    --legal-warn-fg: #5e4710;
+    --legal-warn-bd: #ecd58b;
+  }
+
+  .legal-wrap {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 5rem;
+  }
+
+  .legal-header { margin-bottom: 1.5rem; }
+
+  .legal-back {
+    color: var(--legal-brand);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+  .legal-back:hover { text-decoration: underline; }
+
+  .legal-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: -0.01em;
+    margin: 0.75rem 0 0.2rem;
+    color: var(--legal-ink);
+  }
+
+  .legal-meta {
+    font-size: 0.85rem;
+    color: var(--legal-soft);
+    margin: 0;
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+
+  .draft-banner {
+    background: var(--legal-warn-bg);
+    border: 1px solid var(--legal-warn-bd);
+    color: var(--legal-warn-fg);
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-family: 'Manrope', system-ui, sans-serif;
+    margin: 1.25rem 0 1.5rem;
+    line-height: 1.55;
+  }
+  .draft-banner strong { font-weight: 700; }
+  .draft-banner a { color: var(--legal-warn-fg); font-weight: 600; }
+
+  .legal-body {
+    background: #fff;
+    padding: 2rem 1.75rem;
+    border-radius: 12px;
+    border: 1px solid var(--legal-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--legal-ink);
+  }
+
+  .legal-body h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.2rem;
+    letter-spacing: -0.005em;
+    color: var(--legal-ink);
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  .legal-body h2:first-child { margin-top: 0; }
+
+  .legal-body p { margin-bottom: 0.85rem; }
+  .legal-body ul { padding-left: 1.4rem; margin-bottom: 0.85rem; }
+  .legal-body li { margin-bottom: 0.3rem; }
+  .legal-body a { color: var(--legal-brand); }
+  .legal-body a:hover { text-decoration: underline; }
+  .legal-body strong { font-weight: 700; }
+
+  .legal-divider {
+    border: none;
+    border-top: 1px solid var(--legal-border);
+    margin: 1.5rem 0;
+  }
+
+  .legal-foot {
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--legal-soft);
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+  .legal-foot a { color: var(--legal-brand); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="legal-wrap">
+  <div class="legal-header">
+    <a href="javascript:history.back()" class="legal-back">&larr; Back</a>
+    <h1 class="legal-title">Terms of Service</h1>
+    <p class="legal-meta">
+      Last updated: 2026-05-22 &middot; Version {{ tos_version }}
+    </p>
+  </div>
+
+  {% if is_draft %}
+  <div class="draft-banner">
+    <strong>Working draft &mdash; pending Lanka.tax legal counsel review.</strong>
+    These terms are a working draft ({{ tos_version }}). Counsel review is in progress (est. return
+    {{ legal_review_return_date }}). Substantive changes will be communicated by email before taking
+    effect. If you have questions, email
+    <a href="mailto:{{ feedback_email }}">{{ feedback_email }}</a>.
+  </div>
+  {% endif %}
+
+  <article class="legal-body">
+
+    <h2>1. Who we are and what this is</h2>
+    <p>
+      FIESTA is a software platform operated by Lanka.tax (Private) Limited, a company incorporated
+      in Sri Lanka. We help you organise your foreign-income records, generate tax documents, and
+      (optionally) submit your annual return to the Sri Lankan Inland Revenue Department
+      (the &ldquo;Platform&rdquo;).
+    </p>
+    <p>
+      These Terms of Service (&ldquo;Terms&rdquo;) form the agreement between you (the
+      &ldquo;Customer&rdquo;, &ldquo;you&rdquo;) and us (Lanka.tax (Private) Limited,
+      &ldquo;we&rdquo;, &ldquo;us&rdquo;) when you use the Platform. By creating an account or
+      paying for a subscription, you accept these Terms in full. If you do not accept them, do
+      not use the Platform.
+    </p>
+    <p>
+      The Terms reference our
+      <a href="{{ url_for('legal.privacy') }}">Privacy Policy</a>, which is a separate document
+      explaining how we collect, store, share, and retain your personal data.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>2. Acceptance of Terms</h2>
+    <p>
+      By creating an account you confirm that you are at least 18 years old, legally capable of
+      entering into this agreement under Sri Lankan law, and that the information you provide
+      reflects real transactions. You are solely responsible for the contents of any tax return you
+      file — FIESTA assists you; the declaration is yours.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>3. Service Description</h2>
+    <p>
+      FIESTA helps Sri Lankan taxpayers calculate, generate documents for, and prepare to file
+      income tax. Specifically, the Platform lets you record foreign-income receipts, document
+      expenses, generate service and rental agreements, maintain an invoice cadence, and produce a
+      year-end filing pack. If you elect Auto-File, the Platform can submit your return to the IRD
+      portal on your behalf after your explicit per-submission confirmation.
+    </p>
+    <p>
+      <strong>Not legal or tax advice.</strong> Nothing in the Platform constitutes personalised
+      legal, tax, or accounting advice. The Platform applies general rules to your data. Consult a
+      licensed Sri Lankan tax practitioner where you need individualised advice.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>4. User Accounts</h2>
+    <p>
+      You are responsible for keeping your login credentials confidential and for all activity
+      under your account. Notify us immediately at the address in §12 if you suspect unauthorised
+      access. You may not use the Platform to process another person&rsquo;s tax data without
+      their explicit consent.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>5. Acceptable Use</h2>
+    <p>
+      You agree not to use the Platform to fabricate transactions, backdate documents, scrape at
+      scale, attempt to reverse-engineer the service, or upload content that is illegal, infringing,
+      or malicious. Doing so may result in account termination and may constitute a criminal offence
+      under Sri Lankan law.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>6. Subscription and Payment</h2>
+    <p>
+      Free first filing: accounts created before 2026-09-01 may complete their first tax-year filing
+      at no charge. Thereafter, pricing is per the
+      <a href="/pricing/x1">Pricing page</a>.
+      Payments are processed by Stripe; we do not store your card details.
+    </p>
+    <p>
+      <strong>Refunds.</strong> If you have not generated any tax-related document and have not
+      submitted a return through Auto-File, you may request a full refund within 14 days of
+      payment. After that window, or after document generation or submission, fees are
+      non-refundable because the work has been performed.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>7. Privacy</h2>
+    <p>
+      Our collection, storage, and sharing of your personal data is governed by our
+      <a href="{{ url_for('legal.privacy') }}">Privacy Policy</a>. By accepting these Terms, you
+      also acknowledge the Privacy Policy.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>8. Disclaimers</h2>
+    <p>
+      FIESTA provides calculation assistance, not a guarantee of tax outcome. Compliance scores,
+      savings projections, and &ldquo;expected refund / tax owed&rdquo; figures are estimates based
+      on your inputs and current tax rates. Final tax liability is determined by the Commissioner-
+      General of Inland Revenue. <strong>Consult a qualified tax practitioner before filing.</strong>
+    </p>
+    <p>
+      The Platform is provided &ldquo;AS IS&rdquo; and &ldquo;AS AVAILABLE&rdquo;. We make no
+      warranties, express or implied, regarding fitness for a particular purpose, uninterrupted
+      availability, or absence of errors.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>9. Limitation of Liability</h2>
+    <p>
+      To the maximum extent permitted by Sri Lankan law, our aggregate liability for any claim
+      relating to the Platform is capped at the fees you paid to us in the 12 months preceding
+      the claim. We are not liable for indirect, consequential, or punitive damages, including
+      lost profits, regulatory penalties imposed on you, or third-party claims arising from your
+      tax return. This cap does not apply to liability that cannot be excluded under Sri Lankan
+      law (e.g. fraud or gross negligence).
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>10. Termination</h2>
+    <p>
+      You may cancel your account at any time from account settings. We may terminate your account
+      on 30 days&rsquo; notice if you breach these Terms materially; no notice is given in cases of
+      fraud or court order. On termination by either side, your data is retained per the retention
+      schedule in the Privacy Policy §9.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>11. Governing Law</h2>
+    <p>
+      These Terms are governed by the laws of Sri Lanka. Disputes are subject to the exclusive
+      jurisdiction of the courts of Colombo, Sri Lanka. Before filing a court claim, you agree to
+      give us 30 days&rsquo; written notice at the address in §12 so we can attempt resolution
+      directly.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>12. Changes to Terms</h2>
+    <p>
+      We will notify you of material changes at least 14 days in advance by email and in-app
+      banner. Minor clarifications take effect on publication. Continued use after a change is your
+      acceptance of the updated Terms.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>13. Contact</h2>
+    <p>
+      Lanka.tax (Private) Limited<br>
+      Email: <a href="mailto:legal@lanka.tax">legal@lanka.tax</a>
+      <em>(provisioning pending)</em><br>
+      Data Protection Officer: Mahesh Yogarajan, CEO <em>(interim)</em>
+    </p>
+
+  </article>
+
+  <p class="legal-foot">
+    Questions? Email <a href="mailto:{{ feedback_email }}">{{ feedback_email }}</a>.
+    &nbsp;&middot;&nbsp;
+    <a href="{{ url_for('legal.privacy') }}">Privacy Policy &rarr;</a>
+  </p>
+</div>
+{% endblock %}
