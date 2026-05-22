@@ -96,17 +96,26 @@ logging.info(f"Mail configuration: Server={app.config['MAIL_SERVER']}, Port={app
 logging.info(f"Mail username configured: {'Yes' if app.config['MAIL_USERNAME'] else 'No'}")
 logging.info(f"Mail password configured: {'Yes' if app.config['MAIL_PASSWORD'] else 'No'}")
 
-# Production error handlers
+# Production error handlers — X9 F-Platform-6 unified family.
+# All three render templates/error.html, which now extends layout_template
+# (FIESTA shell for sl_foreign_income personas, legacy bookkeeping otherwise)
+# and ships a persona-aware "Go Home" CTA.
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('error.html', 
-                           error_code=404, 
+    return render_template('error.html',
+                           error_code=404,
                            error_message="The page you're looking for doesn't exist."), 404
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('error.html',
+                           error_code=403,
+                           error_message="You don't have access to this page. If you think this is wrong, contact us at tax@lanka.tax."), 403
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    return render_template('error.html', 
-                           error_code=500, 
+    return render_template('error.html',
+                           error_code=500,
                            error_message="Something went wrong on our end. We're working to fix it."), 500
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 
@@ -166,6 +175,14 @@ def inject_fiesta_hub_context():
     `current_sl_tax_year` is a callable so templates can compute the active YA
     when they need a default. We resolve it through the paywall.models entrypoint
     that the rest of the FIESTA stack already trusts.
+
+    X9 F-Platform-5 + F-Platform-4: ALSO expose the authenticated user's
+    personalised numbers — average monthly remittance (for the hub slider
+    pre-fill) and projected tax savings (for the persistent counter pill).
+    Both are computed once per request from RemittanceEntry / IncomeEntry
+    rather than fetched via JS on every page load — simpler, no extra
+    roundtrip, no cache invalidation, and the counter is correct the moment
+    the user logs a new remittance.
     """
     from flask import g
 
@@ -178,10 +195,98 @@ def inject_fiesta_hub_context():
         except Exception:
             return '2025/26'
 
+    hub_avg_monthly_usd = 0
+    hub_projected_savings_lkr = 0
+    hub_next_step = None
+    hub_funnel_state = "anon"
+
+    if (
+        current_user.is_authenticated
+        and getattr(current_user, 'persona', None) == 'sl_foreign_income'
+    ):
+        try:
+            from decimal import Decimal
+            from remittance_models import RemittanceEntry
+            tax_year_ya = _current_sl_tax_year()
+            remits = (
+                RemittanceEntry.query
+                .filter(RemittanceEntry.user_id == current_user.id)
+                .filter(RemittanceEntry.tax_year.in_([
+                    tax_year_ya,
+                    tax_year_ya.replace('/', '-') if '/' in tax_year_ya else tax_year_ya,
+                ]))
+                .all()
+            )
+            # Average USD-equivalent monthly remittance for slider pre-fill.
+            # Use the simple foreign_amount when currency is USD; for other
+            # currencies fall back to a 302 LKR/USD divisor on lkr_amount_cbsl.
+            if remits:
+                usd_sum = Decimal('0')
+                count = 0
+                for r in remits:
+                    cur = (r.foreign_currency or '').upper()
+                    if cur == 'USD' and r.foreign_amount:
+                        usd_sum += Decimal(str(r.foreign_amount))
+                        count += 1
+                    elif r.lkr_amount_cbsl:
+                        usd_sum += Decimal(str(r.lkr_amount_cbsl)) / Decimal('302')
+                        count += 1
+                if count > 0:
+                    months = max(count, 1)
+                    hub_avg_monthly_usd = int(usd_sum / months)
+        except Exception as exc:
+            logging.debug(f"hub_avg_monthly_usd compute failed: {exc}")
+
+        try:
+            from fiesta.earnings.to_tax import income_summary_for_tax_year
+            tax_year_s4 = _current_sl_tax_year().replace('/', '-') if '/' in _current_sl_tax_year() else _current_sl_tax_year()
+            summary = income_summary_for_tax_year(current_user.id, tax_year_s4)
+            total_lkr = float(summary.get('total_lkr') or 0)
+            # FIESTA's documented-deductions saving is ~22% of qualifying
+            # income at the 15% foreign flat-rate band (per worked examples).
+            # Use total_lkr * 0.22 * 0.15 as a conservative projection until
+            # the user actually claims deductions on S5.
+            hub_projected_savings_lkr = int(total_lkr * 0.033)
+        except Exception as exc:
+            logging.debug(f"hub_projected_savings_lkr compute failed: {exc}")
+
+        # Next-step recommender state — drives the F-Platform-4 hub card.
+        try:
+            from remittance_models import RemittanceEntry as _RE
+            has_remit = _RE.query.filter_by(user_id=current_user.id).first() is not None
+        except Exception:
+            has_remit = False
+
+        if not has_remit:
+            hub_funnel_state = "no_remittances"
+            hub_next_step = {
+                "label": "Log your first inward remittance",
+                "href": "/remittance/new",
+                "rationale": "Every IRD-defensible deduction starts with logging the remittance at CBSL middle rate.",
+            }
+        elif hub_projected_savings_lkr == 0:
+            hub_funnel_state = "ready_to_deduct"
+            hub_next_step = {
+                "label": "Claim deductions on S5",
+                "href": "/reduce-tax/",
+                "rationale": "Tick the categories that apply — your tax bill drops in real time.",
+            }
+        else:
+            hub_funnel_state = "ready_for_bill"
+            hub_next_step = {
+                "label": "See your tax bill",
+                "href": f"/tax-bill/{_current_sl_tax_year().replace('/', '-')}",
+                "rationale": "Bracket-by-bracket walk through what you owe with your documented deductions.",
+            }
+
     return dict(
         layout_template=layout_template,
         current_sl_tax_year=_current_sl_tax_year,
         is_fiesta_persona=getattr(g, 'is_fiesta_persona', False),
+        hub_avg_monthly_usd=hub_avg_monthly_usd,
+        hub_projected_savings_lkr=hub_projected_savings_lkr,
+        hub_next_step=hub_next_step,
+        hub_funnel_state=hub_funnel_state,
     )
 
 # Setup OAuth
@@ -413,21 +518,26 @@ def home():
     Legacy bookkeeping home is preserved at templates/home_bookkeeping_legacy.html
     in case a rollback is needed.
     """
-    if current_user.is_authenticated:
-        # X9 F-Platform-3: persona reroute fires BEFORE the bounce through /scan, so
-        # sl_foreign_income users land directly on /remittance/dashboard and never
-        # hit the org-check loop in index(). Stepping stone toward F-Platform-4 (full
-        # FIESTA hub at /).
-        if getattr(current_user, 'persona', None) == 'sl_foreign_income':
-            return redirect(url_for('remittance.dashboard'))
-        return redirect(url_for('index'))
-
     # FX rate the calculator uses for USD->LKR; mirror fiesta.tax.preview FX_FALLBACK.
     try:
         from fiesta.tax.preview import FX_FALLBACK_LKR_PER_UNIT
         fx_rate_lkr_per_usd = int(FX_FALLBACK_LKR_PER_UNIT.get("USD", 302))
     except Exception:
         fx_rate_lkr_per_usd = 302
+
+    if current_user.is_authenticated:
+        # X9 F-Platform-4: `/` becomes the FIESTA hub for authenticated
+        # sl_foreign_income personas — same hero, same calculator, same chips,
+        # but pre-filled with their real data + a next-step recommender card.
+        # Two-Doors-One-House: anon S0 and authed hub are the same house, just
+        # personalised behind the door. Non-FIESTA personas keep the legacy
+        # /scan bookkeeping path.
+        if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+            return render_template(
+                'fiesta_public/hub.html',
+                fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
+            )
+        return redirect(url_for('index'))
 
     # Wave 1 EVENT SPINE: landing_viewed (X8a funnel)
     try:

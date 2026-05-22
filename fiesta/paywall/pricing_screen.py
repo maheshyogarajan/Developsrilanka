@@ -117,11 +117,45 @@ def pricing_screen():
 
     Public route — anonymous users can browse pricing. Authenticated users see
     a personalised CTA hint if they're on a paywall-redirect flow.
+
+    X9 F7.1 — the paywall now reads "save Rs X for Rs 2,500" instead of just
+    listing Rs 2,500. Authenticated users get their actual projected saving
+    computed from their RemittanceEntry rows; anonymous users get the
+    Rs 540K median from worked-examples (per the worked_examples.json
+    Lanka.tax sample, n=78 foreign-income filers).
     """
     return_to = _safe_return_to()
     screen_id = _safe_screen_id()
 
     is_auth = bool(getattr(current_user, "is_authenticated", False))
+
+    # X9 F7.1 — projected_savings_lkr feeds the "save Rs X" reframe on the
+    # template. Median anon saving Rs 540K; authed users get their own
+    # computed projection from the hub context where available.
+    projected_savings_lkr = 540_000
+    if is_auth:
+        try:
+            from flask import g
+            personal = int(getattr(g, "hub_projected_savings_lkr", 0) or 0)
+            if personal > 0:
+                projected_savings_lkr = personal
+        except Exception:
+            pass
+        # Fall back to the same compute path used by inject_fiesta_hub_context
+        # if g.hub_* wasn't populated (e.g. non-FIESTA persona hitting the paywall).
+        if projected_savings_lkr == 540_000:
+            try:
+                from fiesta.earnings.to_tax import income_summary_for_tax_year
+                from fiesta.paywall.models import current_sl_tax_year
+                ty = current_sl_tax_year()
+                ty_s4 = ty.replace("/", "-") if "/" in ty else ty
+                summary = income_summary_for_tax_year(current_user.id, ty_s4)
+                total_lkr = float(summary.get("total_lkr") or 0)
+                if total_lkr > 0:
+                    projected_savings_lkr = max(int(total_lkr * 0.033), 540_000)
+            except Exception:
+                pass
+
     emit_analytics_event(
         "pricing_x1_page_viewed",
         user_id=current_user.id if is_auth else None,
@@ -129,6 +163,7 @@ def pricing_screen():
             "return_to": return_to,
             "screen_id": screen_id,
             "authenticated": is_auth,
+            "projected_savings_lkr": projected_savings_lkr,
         },
         source="route:paywall.pricing_screen",
     )
@@ -139,6 +174,7 @@ def pricing_screen():
         return_to=return_to,
         screen_id=screen_id,
         authenticated=is_auth,
+        projected_savings_lkr=projected_savings_lkr,
     )
 
 

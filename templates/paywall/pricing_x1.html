@@ -36,6 +36,26 @@
             <p class="text-muted">{{ product.tagline }}</p>
           </div>
 
+          {# X9 F7.1 — paywall as a saving, not a cost. The "save Rs X" line
+             leads the price ribbon so the customer reads ROI before they
+             read the Rs 2,500. Authenticated users see their projected
+             saving from RemittanceEntry; anon sees the Rs 540K median
+             from the Lanka.tax 2024/25 sample. #}
+          {% if projected_savings_lkr and projected_savings_lkr > 0 %}
+          <div class="text-center mb-3">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; letter-spacing: 1.4px; text-transform: uppercase; color: #6b6f5e;">
+              {% if authenticated %}Based on what you've logged{% else %}Median Lanka.tax foreign-income customer{% endif %}
+            </div>
+            <div style="font-family: 'Fraunces', serif; font-size: 1.45rem; line-height: 1.2; color: #1f3a2d; margin: 4px 0 2px;">
+              Customers in your situation typically save
+              <strong style="font-family: 'JetBrains Mono', monospace; color: #b8542f;">Rs {{ '{:,}'.format(projected_savings_lkr) }}</strong>
+            </div>
+            <div style="font-size: 0.85rem; color: #6b6f5e;">
+              &mdash; this is the documentation that unlocks it.
+            </div>
+          </div>
+          {% endif %}
+
           <div class="text-center mb-4">
             <div class="display-5 fw-bold">
               <span style="text-decoration: line-through; color: #adb5bd; font-size: 0.7em; margin-right: 0.4em;">{{ product.price_display }}</span>

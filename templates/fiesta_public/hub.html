@@ -1,0 +1,273 @@
+{% extends layout_template %}
+
+{% block title %}Your FIESTA hub &mdash; Cut your tax bill{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* X9 F-Platform-4 — authenticated hub.
+     Same paper/forest/clay language as the X8a S0 landing, but personalised:
+     slider pre-fills with the user's average monthly remittance, counter
+     shows their real saving, next-step card routes them to whatever's next
+     in the funnel. Lives INSIDE .fiesta-hub .canvas-inner so the topbar +
+     sidebar + counter pill are already on the page. */
+  .hub-page {
+    color: var(--ink, #1a1f17);
+    font-family: var(--body, 'Manrope', sans-serif);
+    line-height: 1.55;
+  }
+  .hub-page .eyebrow {
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--clay, #b8542f); margin-bottom: 6px;
+  }
+  .hub-page h1.display {
+    font-family: var(--display, 'Fraunces', serif);
+    font-weight: 600; font-size: 44px; line-height: 1.08;
+    color: var(--forest, #1f3a2d); margin: 6px 0 14px; letter-spacing: -0.5px;
+  }
+  .hub-page h1.display em {
+    font-style: italic; color: var(--clay, #b8542f); font-weight: 600;
+  }
+  .hub-page p.sub {
+    font-size: 16px; color: var(--ink-soft, #3a3f33);
+    max-width: 720px; margin: 0 0 26px;
+  }
+
+  .hub-page .next-step-card {
+    background: var(--forest, #1f3a2d); color: var(--paper-hi, #fbf6eb);
+    border-radius: 22px;
+    padding: 24px 28px; margin-bottom: 28px;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    box-shadow: 0 18px 40px -22px rgba(20,35,24,0.28);
+  }
+  .hub-page .next-step-card .ns-eyebrow {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--sage, #a8b89a);
+    margin-bottom: 6px;
+  }
+  .hub-page .next-step-card .ns-label {
+    font-family: var(--display); font-style: italic; font-size: 22px;
+    color: var(--paper-hi); margin: 0 0 6px;
+  }
+  .hub-page .next-step-card .ns-rationale {
+    font-size: 13.5px; color: var(--sage); margin: 0;
+  }
+  .hub-page .next-step-card .ns-cta {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--clay, #b8542f); color: var(--paper-hi);
+    padding: 12px 22px; border-radius: 8px;
+    font-family: var(--body); font-weight: 600; font-size: 14.5px;
+    text-decoration: none; box-shadow: 0 1px 0 var(--paper-edge, #d8cab4);
+  }
+  .hub-page .next-step-card .ns-cta:hover { background: var(--clay-deep, #8e3f22); color: var(--paper-hi); }
+  @media (max-width: 720px) {
+    .hub-page .next-step-card .ns-cta { margin-left: 0; }
+  }
+
+  /* Slider row — mirrors S0 calc visually so the curb-side experience
+     continues unchanged. */
+  .hub-page .slider-row {
+    display: grid; grid-template-columns: 1fr 220px; gap: 22px; align-items: center;
+    background: var(--paper-deep, #ece2d2); padding: 22px;
+    border-radius: 14px; border: 1px solid var(--paper-edge, #d8cab4);
+    margin-bottom: 22px;
+  }
+  .hub-page .slider-label {
+    font-family: var(--display); font-style: italic; font-size: 18px;
+    color: var(--forest);
+  }
+  .hub-page .slider-val {
+    font-family: var(--mono); font-size: 26px; font-weight: 700;
+    color: var(--clay); text-align: right;
+  }
+  .hub-page input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%; appearance: none; -webkit-appearance: none;
+    height: 6px; background: var(--paper-edge); border-radius: 3px;
+  }
+  .hub-page input[type=range]::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--clay); border: 3px solid var(--paper-hi); cursor: pointer;
+    box-shadow: 0 2px 6px rgba(184,84,47,0.4);
+  }
+
+  .hub-page .big-counter {
+    background: var(--forest); color: var(--paper-hi);
+    border-radius: 22px; padding: 28px;
+    margin-bottom: 22px; text-align: center;
+    box-shadow: 0 18px 40px -22px rgba(20,35,24,0.28);
+  }
+  .hub-page .big-counter .lead {
+    font-family: var(--mono); font-size: 12px; color: var(--sage);
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  .hub-page .big-counter .num {
+    font-family: var(--mono); font-size: 64px; font-weight: 700;
+    color: var(--clay-soft, #d68866); letter-spacing: -2px; margin: 8px 0;
+  }
+  .hub-page .big-counter .delta {
+    font-family: var(--mono); font-size: 13px; color: var(--paper-hi);
+  }
+  .hub-page .big-counter .delta b { color: var(--mustard, #c69a3e); }
+  .hub-page .big-counter .savings {
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px dashed var(--moss, #4a6b4a);
+    font-family: var(--mono); font-size: 12px; color: var(--sage);
+  }
+  .hub-page .big-counter .savings b { color: var(--mustard); font-size: 14px; }
+
+  .hub-page .cta-row {
+    display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap;
+  }
+  .hub-page .cta-row .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--clay); color: var(--paper-hi); border: 0;
+    padding: 14px 24px; font-family: var(--body); font-weight: 600;
+    border-radius: 8px; font-size: 15px; letter-spacing: 0.2px;
+    text-decoration: none;
+  }
+  .hub-page .cta-row .btn:hover { background: var(--clay-deep); color: var(--paper-hi); }
+  .hub-page .cta-row .btn.ghost {
+    background: transparent; color: var(--clay); padding: 12px 18px;
+    border: 1px solid var(--paper-edge);
+  }
+  .hub-page .cta-row .btn.ghost:hover { background: var(--paper-deep); color: var(--clay-deep); }
+
+  @media (max-width: 640px) {
+    .hub-page h1.display { font-size: 32px; }
+    .hub-page .big-counter .num { font-size: 44px; }
+    .hub-page .slider-row { grid-template-columns: 1fr; }
+    .hub-page .slider-val { text-align: left; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hub-page">
+
+  <div class="eyebrow">Welcome back &middot; Year of Assessment {{ current_sl_tax_year() }}</div>
+  <h1 class="display">Cut your tax bill. <em>Keep the records clean.</em></h1>
+  <p class="sub">
+    Same hero, same calculator &mdash; now pre-filled with what you've
+    actually logged. Move the slider, claim deductions, watch the bracket
+    math drop in real time. Each tick is documentation the IRD recognises
+    under <abbr title="Inland Revenue Act §6(1)">§6(1) IRA</abbr>.
+  </p>
+
+  {# Next-step recommender — drives the customer forward in the funnel. #}
+  {% if hub_next_step %}
+  <div class="next-step-card">
+    <div>
+      <div class="ns-eyebrow">Next step &middot; {{ hub_funnel_state|replace('_', ' ') }}</div>
+      <div class="ns-label">{{ hub_next_step.label }}</div>
+      <p class="ns-rationale">{{ hub_next_step.rationale }}</p>
+    </div>
+    <a class="ns-cta" href="{{ hub_next_step.href }}">{{ hub_next_step.label }} &rarr;</a>
+  </div>
+  {% endif %}
+
+  {# Personalised slider — pre-fills with the user's average monthly USD
+     remittance. If they have no remittances logged yet, defaults to $1,000
+     (same starting point as the anon S0 landing). #}
+  <div class="slider-row" role="group" aria-label="Monthly foreign income slider">
+    <div class="slider-label">Monthly foreign income (USD)</div>
+    <div class="slider-val"><span id="incomeUsd">${{ '{:,}'.format(hub_avg_monthly_usd or 1000) }}</span> / mo</div>
+    <input type="range"
+           id="incomeSlider"
+           name="monthly_usd"
+           min="200" max="10000" step="50"
+           value="{{ hub_avg_monthly_usd or 1000 }}"
+           aria-label="Monthly foreign income in US dollars">
+  </div>
+
+  <div class="big-counter" aria-live="polite">
+    <div class="lead">Projected tax owed &mdash; {{ current_sl_tax_year() }}</div>
+    <div class="num" id="taxOwed">Rs &mdash;</div>
+    <div class="delta">
+      Annual income (LKR): <b id="annualLkr">Rs &mdash;</b>
+      &middot; CBSL rate Rs {{ fx_rate_lkr_per_usd or 302 }}/USD
+    </div>
+    <div class="savings">
+      With documented deductions &rarr; <b id="taxOwedNet">Rs &mdash;</b>
+      &middot; Saved: <b id="taxSaved">Rs &mdash;/yr</b>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <a class="btn" href="/remittance/dashboard">Open your Remittance Ledger</a>
+    <a class="btn ghost" href="/reduce-tax/">Claim more deductions</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{# Reuse the X8a S0 calc JS so the slider + chips behaviour is identical
+   between the anon landing and the authed hub. The script wires #incomeSlider,
+   #taxOwed, #taxOwedNet, #taxSaved, #annualLkr — every element is named the
+   same as the S0 landing. Chips are absent on the hub (deduction claims live
+   on S5), so the chips selector finds nothing and the calc runs against
+   gross income only. CSRF token is captured from the <meta> in
+   layout_fiesta.html's <head>. #}
+<script>
+(function () {
+  'use strict';
+  var FX_LKR_PER_USD = {{ fx_rate_lkr_per_usd or 302 }};
+  var slider = document.getElementById('incomeSlider');
+  var usdLabel = document.getElementById('incomeUsd');
+  var lkrLabel = document.getElementById('annualLkr');
+  var taxOwed = document.getElementById('taxOwed');
+  var taxOwedNet = document.getElementById('taxOwedNet');
+  var taxSaved = document.getElementById('taxSaved');
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+  if (!slider) return;
+
+  function fmtLKR(n) {
+    if (n === null || n === undefined || isNaN(n)) return 'Rs —';
+    return 'Rs ' + Math.round(Number(n)).toLocaleString('en-US');
+  }
+  function fmtUSD(n) { return '$' + Number(n).toLocaleString('en-US'); }
+
+  function paintLocal() {
+    var monthlyUsd = Number(slider.value);
+    var annualLkr = monthlyUsd * 12 * FX_LKR_PER_USD;
+    usdLabel.textContent = fmtUSD(monthlyUsd);
+    lkrLabel.textContent = fmtLKR(annualLkr);
+    return annualLkr;
+  }
+  function applyCalc(d) {
+    if (!d) return;
+    taxOwed.textContent = fmtLKR(d.naive_tax_lkr);
+    taxOwedNet.textContent = fmtLKR(d.fiesta_tax_lkr);
+    taxSaved.textContent = fmtLKR(d.saving_lkr) + '/yr';
+  }
+  var debounceTimer = null;
+  function runCalc() {
+    var annualLkr = paintLocal();
+    var headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    fetch('/preview/calc', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        gross_income: annualLkr, currency: 'LKR', income_source: 'foreign',
+        sp_fee: 0, rental: 0, senior: false, year: '25_26'
+      })
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(applyCalc)
+      .catch(function () { /* silent on the hub; counter pill is the source of truth */ });
+  }
+  slider.addEventListener('input', function () {
+    paintLocal();
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(runCalc, 220);
+  });
+  paintLocal();
+  runCalc();
+})();
+</script>
+{% endblock %}
