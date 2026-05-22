@@ -315,6 +315,34 @@ def _sanitise_for_json(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@bp.route("", methods=["GET"], strict_slashes=False)
+@bp.route("/", methods=["GET"], strict_slashes=False)
+@login_required
+def index():
+    """HOTFIX 2026-05-22 — Bare-prefix landing for /agreements/service.
+
+    Sidebar nav links to /agreements/service (no sp_id). Per-record preview
+    routes require an id, so the bare prefix used to 404. Behaviour:
+      - 0 service providers: flash + redirect to /service-providers (add one)
+      - 1 SP:                redirect straight to that SP's preview
+      - >1 SPs:              redirect to /service-providers listing (each
+                             card already has a "Generate agreement" button
+                             per B5)
+    """
+    from fiesta.service_providers.models import ServiceProvider  # type: ignore[import-not-found]
+    user_id = getattr(current_user, "id", None)
+    sps = ServiceProvider.query.filter_by(user_id=user_id).all()
+    if not sps:
+        flash(
+            "Add a service provider first — then we'll generate the agreement.",
+            "info",
+        )
+        return redirect("/service-providers")
+    if len(sps) == 1:
+        return redirect(url_for("fiesta_agreements_service.preview", sp_id=sps[0].id))
+    return redirect("/service-providers")
+
+
 @bp.route("/<sp_id>", methods=["GET"])
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S8", action="preview")

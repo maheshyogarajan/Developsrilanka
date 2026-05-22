@@ -172,6 +172,33 @@ def _build_input(form: Any, *, user_id: int, user_name: str) -> RentalAgreementI
 # --------------------------------------------------------------------------- #
 
 
+@bp.route("", methods=["GET"], strict_slashes=False)
+@bp.route("/", methods=["GET"], strict_slashes=False)
+@login_required
+def index() -> Any:
+    """HOTFIX 2026-05-22 — Bare-prefix landing for /agreements/rental.
+
+    Sidebar nav links to /agreements/rental (no property_id). Per-record
+    preview routes require an id, so the bare prefix used to 404. Behaviour:
+      - 0 properties: flash + redirect to /property (where user adds one)
+      - 1 property:   redirect straight to that property's preview
+      - >1 properties: redirect to /property listing (each card already has
+                       a "Generate rental agreement" button per B6)
+    """
+    from fiesta.property.models import Property  # type: ignore[import-not-found]
+    user_id = getattr(current_user, "id", None)
+    properties = Property.query.filter_by(user_id=user_id).all()
+    if not properties:
+        flash(
+            "Add the property you live and work in first, then we'll generate the rental agreement.",
+            "info",
+        )
+        return redirect("/property")
+    if len(properties) == 1:
+        return redirect(url_for("fiesta_agreements_rental.preview", property_id=properties[0].id))
+    return redirect("/property")
+
+
 @bp.route("/<int:property_id>", methods=["GET"])
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S9", action="preview")
