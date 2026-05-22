@@ -382,6 +382,12 @@ def home():
     in case a rollback is needed.
     """
     if current_user.is_authenticated:
+        # X9 F-Platform-3: persona reroute fires BEFORE the bounce through /scan, so
+        # sl_foreign_income users land directly on /remittance/dashboard and never
+        # hit the org-check loop in index(). Stepping stone toward F-Platform-4 (full
+        # FIESTA hub at /).
+        if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+            return redirect(url_for('remittance.dashboard'))
         return redirect(url_for('index'))
 
     # FX rate the calculator uses for USD->LKR; mirror fiesta.tax.preview FX_FALLBACK.
@@ -594,6 +600,13 @@ def index():
         flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
         return redirect(url_for('verify_email_reminder'))
 
+    # X9 F-Platform-3: persona reroute fires BEFORE the onboarding + org checks.
+    # sl_foreign_income users don't need a business org, so the previous ordering
+    # caused /scan -> /onboarding -> / -> /scan loops. The Remittance Ledger is
+    # their hub; everything else flows from there.
+    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        return redirect(url_for('remittance.dashboard'))
+
     # Check if onboarding is completed (admins bypass this check)
     if hasattr(current_user, 'onboarding_completed') and not current_user.onboarding_completed and current_user.role != 'admin':
         flash('Please complete your account setup before using the app.', 'info')
@@ -604,11 +617,6 @@ def index():
         # Redirect to onboarding wizard if no organizations exist
         flash("Please complete your account setup before scanning receipts.", "warning")
         return redirect(url_for('onboarding_wizard'))
-
-    # Persona reroute (Wave A 2026-05-16): SL foreign-income earners land on the Remittance
-    # Ledger, not the generic receipt-scan page. Reversible per-user via profile settings.
-    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
-        return redirect(url_for('remittance.dashboard'))
 
     return render_template('index.html')
 
