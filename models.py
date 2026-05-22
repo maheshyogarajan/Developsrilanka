@@ -358,6 +358,13 @@ class User(UserMixin, db.Model):
     # Column added by add_triage_answers_to_user.py (idempotent).
     triage_answers = db.Column(db.JSON, nullable=True)
 
+    # C8 F8.7 — Real last-login timestamp.
+    # Added by migrations/add_last_login_at.py (idempotent ALTER TABLE).
+    # Set on every successful login_user() call in app.py (email_login,
+    # verify_email, Google OAuth, Facebook OAuth handlers).
+    # Backfill from events table (auth_login event) is part of the migration.
+    last_login_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
     access_expiration_date = db.Column(db.DateTime, nullable=True)
@@ -387,10 +394,49 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user has global admin role."""
         return self.role == 'admin'
-    
+
     def has_role(self, role):
         """Check if user has a specific global role."""
         return self.role == role
+
+    def promote_to_admin(self, *, granted_by=None, reason=None):
+        """Promote this user to global admin.
+
+        X9 F8.1: the walkthrough seed script did `u.is_admin = spec["admin"]`,
+        which silently failed because `is_admin` is a METHOD on this model, not
+        a column. Setting it sets a transient attribute, the role column stays
+        at 'user', and `is_admin()` returns False for the "admin" seed user.
+        Use this helper instead — it writes to `role` and logs the change.
+
+        `granted_by` is the User performing the action (None for system seeds).
+        """
+        previous = self.role
+        self.role = 'admin'
+        try:
+            import logging
+            logging.info(
+                "admin_role_granted user_id=%s email=%s previous_role=%s granted_by=%s reason=%s",
+                self.id, self.email, previous,
+                getattr(granted_by, 'id', None), reason,
+            )
+        except Exception:
+            pass
+        return self
+
+    def demote_from_admin(self, *, revoked_by=None, reason=None):
+        """Revoke global admin role and drop the user back to 'user'."""
+        previous = self.role
+        self.role = 'user'
+        try:
+            import logging
+            logging.info(
+                "admin_role_revoked user_id=%s email=%s previous_role=%s revoked_by=%s reason=%s",
+                self.id, self.email, previous,
+                getattr(revoked_by, 'id', None), reason,
+            )
+        except Exception:
+            pass
+        return self
     
     def get_default_organization(self):
         """Get the user's default organization."""
@@ -1387,3 +1433,113 @@ class WorkerHeartbeat(db.Model):
     @classmethod
     def has_live_worker(cls, max_age_seconds: int = 60) -> bool:
         return bool(cls.alive_workers(max_age_seconds=max_age_seconds))
+
+
+# ---------------------------------------------------------------------------
+# C9 F8.8 — SystemSetting: DB-persisted operator settings.
+#
+# Replaces the module-global dicts in admin_routes.py (tax_settings,
+# general_settings) with rows that survive pod restarts.
+#
+# Key design choices:
+#   * `key` is the primary key — simple key/value store, not relational.
+#   * `value` is TEXT and JSON-encoded by convention (store strings,
+#     numbers, booleans, and lists all as JSON so the type is self-
+#     describing and round-trips cleanly).
+#   * `updated_by_user_id` is a nullable integer FK — nullable so that
+#     seed rows written by the migration script have no user attached.
+#   * `updated_at` defaults to utcnow and is updated on every set().
+#
+# Consumer migration note: module-global dicts in admin_routes.py
+# (tax_settings, general_settings) still exist for backward compatibility.
+# New code should read via SystemSetting.get(...); existing consumers of
+# those dicts should migrate to SystemSetting.get(...) over time.
+#
+# Table created by migrations/add_system_setting.py (idempotent CREATE
+# TABLE IF NOT EXISTS). Seed defaults are written by the same migration.
+# ---------------------------------------------------------------------------
+class SystemSetting(db.Model):
+    """Operator-editable key/value settings persisted to the database.
+
+    Values are stored as JSON text so complex types (lists, dicts) round-trip
+    cleanly. Simple scalars (str, int, float, bool) are also stored as JSON.
+
+    Usage::
+
+        # Read (returns None if key missing):
+        val = SystemSetting.get('lkr_business_tax_rate', default=36.0)
+
+        # Write:
+        SystemSetting.set('lkr_business_tax_rate', 36.0, user_id=current_user.id)
+    """
+    __tablename__ = 'system_setting'
+
+    key = db.Column(db.String(128), primary_key=True, nullable=False)
+    value = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    # NULL for seed rows written by migration (no authenticated user).
+    updated_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    # Relationship back to the user who last updated this setting (optional).
+    updated_by = db.relationship('User', foreign_keys=[updated_by_user_id])
+
+    @classmethod
+    def get(cls, key: str, default=None):
+        """Fetch and JSON-decode a setting by key.
+
+        Returns `default` when the key does not exist or the value is NULL.
+        """
+        import json as _json
+        row = cls.query.get(key)
+        if row is None or row.value is None:
+            return default
+        try:
+            return _json.loads(row.value)
+        except Exception:
+            # Corrupt value — return it as a raw string rather than raising.
+            return row.value
+
+    @classmethod
+    def set(cls, key: str, value, user_id=None):
+        """JSON-encode and upsert a setting.
+
+        Creates the row if it doesn't exist; updates it otherwise.
+        Commits the session.
+        """
+        import json as _json
+        try:
+            encoded = _json.dumps(value)
+        except (TypeError, ValueError):
+            encoded = str(value)
+
+        row = cls.query.get(key)
+        if row is None:
+            row = cls(key=key, value=encoded, updated_at=datetime.utcnow(),
+                      updated_by_user_id=user_id)
+            db.session.add(row)
+        else:
+            row.value = encoded
+            row.updated_at = datetime.utcnow()
+            row.updated_by_user_id = user_id
+        db.session.commit()
+        return row
+
+    @classmethod
+    def all_settings(cls) -> dict:
+        """Return all settings as a plain dict {key: decoded_value}."""
+        import json as _json
+        result = {}
+        for row in cls.query.order_by(cls.key).all():
+            try:
+                result[row.key] = _json.loads(row.value) if row.value is not None else None
+            except Exception:
+                result[row.key] = row.value
+        return result
+
+    def __repr__(self):
+        return f"<SystemSetting key={self.key!r} updated_at={self.updated_at}>"

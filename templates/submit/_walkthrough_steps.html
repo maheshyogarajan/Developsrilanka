@@ -1,0 +1,218 @@
+{#
+  templates/submit/_walkthrough_steps.html
+  B16 F6.8 — IRD walkthrough preview partial.
+
+  Context expected (provided by show_submit via _load_walkthrough_steps()):
+    walkthrough_steps  -- list of step dicts with keys:
+      step_number       int (1-12)
+      title             str
+      what_customer_does str
+      what_can_go_wrong  str
+      how_fiesta_helps   str
+      ira_citation       str (may be empty)
+      screenshot_url     str (may be empty — no image rendered when absent)
+
+  Pre-attestation: the preview is read-only. Step controls ("Mark step
+  complete") are disabled until the customer signs the attestation.
+
+  B21 (future): once annotations.yaml is committed, _load_walkthrough_steps()
+  returns real content and this partial renders without changes.
+#}
+
+<style>
+  /* Scoped to .s14-steps so this partial does not leak beyond submit context. */
+  .s14-steps {
+    border: 1px solid var(--s14-border, #e3ddd0);
+    border-radius: 12px;
+    overflow: hidden;
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+  .s14-steps__header {
+    background: var(--s14-brand-soft, #f4e7e2);
+    border-bottom: 1px solid var(--s14-border, #e3ddd0);
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .s14-steps__header h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--s14-brand, #c1442d);
+  }
+  .s14-steps__header .s14-steps__read-only-note {
+    font-size: 0.8rem;
+    color: var(--s14-ink-soft, #4a4f5c);
+    font-style: italic;
+  }
+  .s14-step-item {
+    border-bottom: 1px solid var(--s14-border, #e3ddd0);
+    padding: 1rem 1.25rem;
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+    gap: 0.75rem 1rem;
+    align-items: start;
+  }
+  .s14-step-item:last-child { border-bottom: none; }
+  .s14-step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--s14-border, #e3ddd0);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--s14-ink-soft, #4a4f5c);
+    flex-shrink: 0;
+  }
+  .s14-step-body {}
+  .s14-step-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--s14-ink, #1a1d27);
+    margin: 0 0 0.35rem;
+  }
+  .s14-step-screenshot {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--s14-border, #e3ddd0);
+    margin-bottom: 0.5rem;
+  }
+  .s14-step-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.5rem 1rem;
+    margin-top: 0.4rem;
+  }
+  .s14-step-meta__item {}
+  .s14-step-meta__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--s14-ink-soft, #4a4f5c);
+    margin-bottom: 0.15rem;
+  }
+  .s14-step-meta__value {
+    font-size: 0.875rem;
+    color: var(--s14-ink, #1a1d27);
+    line-height: 1.4;
+  }
+  .s14-step-meta__value--pending {
+    color: var(--s14-ink-soft, #4a4f5c);
+    font-style: italic;
+  }
+  .s14-step-meta__ira {
+    font-size: 0.75rem;
+    color: var(--s14-brand, #c1442d);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .s14-step-disabled-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--s14-ink-soft, #4a4f5c);
+    border: 1px solid var(--s14-border, #e3ddd0);
+    border-radius: 6px;
+    padding: 0.3rem 0.65rem;
+    margin-top: 0.5rem;
+    cursor: not-allowed;
+    opacity: 0.75;
+  }
+  @media (max-width: 600px) {
+    .s14-step-item { grid-template-columns: 1.75rem 1fr; gap: 0.5rem; padding: 0.85rem 0.9rem; }
+    .s14-step-meta { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="s14-steps">
+  <div class="s14-steps__header">
+    <h3>IRD e-services walkthrough — 12 steps</h3>
+    {% if submission and submission.attestation_signed_at %}
+      <span class="s14-steps__read-only-note">Attestation signed — steps are interactive below.</span>
+    {% else %}
+      <span class="s14-steps__read-only-note">Sign first to mark steps complete.</span>
+    {% endif %}
+  </div>
+
+  {% if walkthrough_steps %}
+    {% for step in walkthrough_steps %}
+      <div class="s14-step-item">
+        <div class="s14-step-num">{{ step.step_number }}</div>
+        <div class="s14-step-body">
+          <div class="s14-step-title">{{ step.title }}</div>
+
+          {# Screenshot — only render if a non-empty URL is provided. #}
+          {% if step.screenshot_url %}
+            <img class="s14-step-screenshot"
+                 src="{{ url_for('static', filename=step.screenshot_url) }}"
+                 alt="IRD portal — step {{ step.step_number }}: {{ step.title }}"
+                 loading="lazy"
+                 onerror="this.style.display='none'">
+          {% endif %}
+
+          <div class="s14-step-meta">
+            <div class="s14-step-meta__item">
+              <div class="s14-step-meta__label">What you do</div>
+              {% if step.what_customer_does and step.what_customer_does != '(annotation pending)' %}
+                <div class="s14-step-meta__value">{{ step.what_customer_does }}</div>
+              {% else %}
+                <div class="s14-step-meta__value s14-step-meta__value--pending">FIESTA team is documenting this step</div>
+              {% endif %}
+            </div>
+
+            <div class="s14-step-meta__item">
+              <div class="s14-step-meta__label">Watch out for</div>
+              {% if step.what_can_go_wrong and step.what_can_go_wrong != '(annotation pending)' %}
+                <div class="s14-step-meta__value">{{ step.what_can_go_wrong }}</div>
+              {% else %}
+                <div class="s14-step-meta__value s14-step-meta__value--pending">Annotation pending — we're capturing this from the live IRD portal</div>
+              {% endif %}
+            </div>
+
+            <div class="s14-step-meta__item">
+              <div class="s14-step-meta__label">How FIESTA helps</div>
+              {% if step.how_fiesta_helps and step.how_fiesta_helps != '(annotation pending)' %}
+                <div class="s14-step-meta__value">{{ step.how_fiesta_helps }}</div>
+              {% else %}
+                <div class="s14-step-meta__value s14-step-meta__value--pending">Annotation pending</div>
+              {% endif %}
+            </div>
+
+            {% if step.ira_citation %}
+              <div class="s14-step-meta__item">
+                <div class="s14-step-meta__label">IRA reference</div>
+                <div class="s14-step-meta__value s14-step-meta__ira">{{ step.ira_citation }}</div>
+              </div>
+            {% endif %}
+          </div>
+
+          {# Mark step complete — disabled until attestation is signed. #}
+          {% if submission and submission.attestation_signed_at %}
+            <a href="{{ url_for('fiesta_submit.get_walkthrough', tax_year=tax_year) }}"
+               class="s14-btn s14-btn--ghost" style="margin-top: 0.75rem; font-size: 0.85rem; padding: 0.4rem 0.85rem;">
+              Open full walkthrough &rarr;
+            </a>
+          {% else %}
+            <span class="s14-step-disabled-note" aria-disabled="true">
+              &#128274; Sign first to mark steps complete
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div style="padding: 1.5rem 1.25rem; color: var(--s14-ink-soft, #4a4f5c); font-size: 0.95rem;">
+      Walkthrough steps are being prepared. Check back after signing your attestation.
+    </div>
+  {% endif %}
+</div>

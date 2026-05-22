@@ -16,11 +16,7 @@ from flask_login import current_user
 from app import app
 import pcse_inspector
 
-# TODO(integration): once wave6/admin-middleware-s15 ships, replace the local
-# `admin_required` import with whatever it exposes (likely
-# `from middleware.admin import admin_required` or similar). The shape of
-# the decorator is identical, so the route bodies do not need to change.
-from decorators import admin_required  # current canonical implementation
+from fiesta.auth.decorators import admin_required
 
 logger = logging.getLogger(__name__)
 

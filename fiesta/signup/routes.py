@@ -314,34 +314,19 @@ def signup_login_alias():
 
 @signup_bp.route("/terms", methods=["GET"])
 def terms_of_service():
-    """Render the ToS draft. Banner flagged DRAFT until counsel review."""
-    md_path = _LEGAL_DIR / "tos_draft.md"
-    html = _render_markdown(md_path)
-    return render_template(
-        "legal/legal_doc.html",
-        title="Terms of Service",
-        version=TOS_VERSION,
-        is_draft=TOS_IS_DRAFT,
-        legal_review_return_date=LEGAL_REVIEW_RETURN_DATE,
-        feedback_email=FEEDBACK_EMAIL,
-        body_html=html,
-    )
+    """Redirect legacy /terms URL to the canonical /legal/tos page (E2 F1.8).
+
+    The canonical page lives in fiesta.legal and renders in the FIESTA hub
+    shell via layout_template. This 301 keeps old inbound links and any
+    existing url_for('signup.terms_of_service') calls working.
+    """
+    return redirect(url_for("legal.tos"), code=301)
 
 
 @signup_bp.route("/privacy", methods=["GET"])
 def privacy_policy():
-    """Render the Privacy Policy draft."""
-    md_path = _LEGAL_DIR / "privacy_draft.md"
-    html = _render_markdown(md_path)
-    return render_template(
-        "legal/legal_doc.html",
-        title="Privacy Policy",
-        version=PRIVACY_VERSION,
-        is_draft=PRIVACY_IS_DRAFT,
-        legal_review_return_date=LEGAL_REVIEW_RETURN_DATE,
-        feedback_email=FEEDBACK_EMAIL,
-        body_html=html,
-    )
+    """Redirect legacy /privacy URL to the canonical /legal/privacy page (E2 F1.8)."""
+    return redirect(url_for("legal.privacy"), code=301)
 
 
 def _domain_hash(email: str) -> str:

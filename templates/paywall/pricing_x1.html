@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends layout_template %}
 
 {% block title %}Unlock Self-File - FIESTA{% endblock %}
 
@@ -17,11 +17,20 @@
     {% endif %}
   {% endwith %}
 
-  {% if screen_id %}
+  {% if screen_id_copy %}
+    {# A10 F7.2 — context banner: tells the user exactly what they unlock #}
+    <div class="text-center mb-4">
+      <div style="display: inline-block; background: #f0ede4; border: 1px solid #d6cfc0; border-radius: 8px; padding: 10px 20px;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; letter-spacing: 1.2px; text-transform: uppercase; color: #6b6f5e;">Unlock Self-File to</span>
+        <div style="font-family: 'Fraunces', serif; font-size: 1.15rem; color: #1f3a2d; margin-top: 2px;">
+          {{ screen_id_copy }}
+        </div>
+      </div>
+    </div>
+  {% elif screen_id %}
+    {# fallback for unknown screen_ids — keep generic message #}
     <div class="alert alert-info" role="alert">
-      <strong>One step away.</strong> The screen you were on (<code>{{ screen_id }}</code>)
-      generates Service Agreements - that's where Self-File starts. Unlock once
-      below and you're set for the whole tax year.
+      <strong>One step away.</strong> Unlock Self-File below and you're set for the whole tax year.
     </div>
   {% endif %}
 
@@ -31,14 +40,51 @@
         <div class="card-body p-4 p-md-5">
 
           <div class="text-center mb-4">
-            <span class="badge bg-success mb-2">One-time payment · Refundable 14 days</span>
+            <span class="badge bg-success mb-2">Free during launch · Rs 2,500 from 2026-09-01 · Refundable 14 days</span>
             <h1 class="h3 mb-1">{{ product.name }}</h1>
             <p class="text-muted">{{ product.tagline }}</p>
           </div>
 
+          {# X9 F7.1 — paywall as a saving, not a cost. The "save Rs X" line
+             leads the price ribbon so the customer reads ROI before they
+             read the Rs 2,500. Authenticated users see their projected
+             saving from RemittanceEntry; anon sees the Rs 540K median
+             from the Lanka.tax 2024/25 sample. #}
+          {% if projected_savings_lkr and projected_savings_lkr > 0 %}
+          <div class="text-center mb-3">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; letter-spacing: 1.4px; text-transform: uppercase; color: #6b6f5e;">
+              {% if authenticated %}Based on what you've logged{% else %}Median Lanka.tax foreign-income customer{% endif %}
+            </div>
+            <div style="font-family: 'Fraunces', serif; font-size: 1.45rem; line-height: 1.2; color: #1f3a2d; margin: 4px 0 2px;">
+              Customers in your situation typically save
+              <strong style="font-family: 'JetBrains Mono', monospace; color: #b8542f;">Rs {{ '{:,}'.format(projected_savings_lkr) }}</strong>
+            </div>
+            <div style="font-size: 0.85rem; color: #6b6f5e;">
+              &mdash; this is the documentation that unlocks it.
+            </div>
+          </div>
+          {% endif %}
+
           <div class="text-center mb-4">
-            <div class="display-5 fw-bold">{{ product.price_display }}</div>
-            <div class="text-muted small">{{ product.scope }}</div>
+            <div class="display-5 fw-bold">
+              <span style="text-decoration: line-through; color: #adb5bd; font-size: 0.7em; margin-right: 0.4em;">{{ product.price_display }}</span>
+              Free
+            </div>
+            <div class="text-muted small">{{ product.scope }} &middot; Sign up before 2026-09-01 to keep this free first filing</div>
+            {# A11 F7.3 — bracket-math link below price #}
+            <div class="mt-2">
+              {% if authenticated and current_user.projected_gross_income_lkr %}
+                <a href="/tax-preview?gross_income_lkr={{ current_user.projected_gross_income_lkr }}"
+                   class="text-muted small" style="text-decoration: underline; text-underline-offset: 2px;">
+                  See the bracket math behind your saving
+                </a>
+              {% else %}
+                <a href="/tax-preview"
+                   class="text-muted small" style="text-decoration: underline; text-underline-offset: 2px;">
+                  See the bracket math behind your saving
+                </a>
+              {% endif %}
+            </div>
           </div>
 
           <ul class="list-unstyled mb-4">

@@ -4,6 +4,65 @@
 
 {% block additional_styles %}
 <style>
+  /* X9 F1.5 — FIESTA-token scoped styling on .fiesta-auth (mirror of login.html).
+     Token variables consolidated in fiesta-hub-design.css (E5). */
+  .fiesta-auth {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px 20px;
+  }
+  .fiesta-auth .card {
+    background: var(--paper-hi);
+    border: 1px solid var(--paper-edge);
+    border-radius: 14px;
+    box-shadow: 0 18px 40px -22px rgba(20,35,24,0.28);
+    width: 100%;
+    max-width: 480px;
+  }
+  .fiesta-auth .card-body { padding: 36px 32px 28px; }
+  .fiesta-auth h1.h2 {
+    font-family: var(--display); font-weight: 600;
+    color: var(--forest); letter-spacing: -0.3px;
+    font-size: 34px; line-height: 1.1;
+  }
+  .fiesta-auth h1.h2 em {
+    font-style: italic; color: var(--clay); font-weight: 600;
+  }
+  .fiesta-auth .text-secondary { color: var(--ink-soft) !important; }
+  .fiesta-auth .form-label {
+    font-family: var(--body); font-weight: 500;
+    color: var(--ink-soft); font-size: 13.5px;
+  }
+  .fiesta-auth .form-control {
+    background: var(--paper); border: 1px solid var(--paper-edge);
+    border-radius: 8px; padding: 11px 14px;
+    font-family: var(--body); color: var(--ink);
+  }
+  .fiesta-auth .form-control:focus {
+    background: var(--paper-hi); border-color: var(--clay);
+    box-shadow: 0 0 0 3px rgba(184,84,47,0.18);
+  }
+  .fiesta-auth .btn-primary {
+    background: var(--clay); border: 0; color: var(--paper-hi);
+    font-family: var(--body); font-weight: 600;
+    border-radius: 8px; padding: 12px 22px;
+  }
+  .fiesta-auth .btn-primary:hover,
+  .fiesta-auth .btn-primary:focus { background: var(--clay-deep); color: var(--paper-hi); }
+  .fiesta-auth .btn-outline-secondary {
+    background: transparent; border: 1px solid var(--paper-edge);
+    color: var(--clay); font-family: var(--body); font-weight: 500;
+  }
+  .fiesta-auth .btn-outline-secondary:hover {
+    background: var(--paper-deep); border-color: var(--clay); color: var(--clay-deep);
+  }
+  .fiesta-auth .text-muted { color: var(--ink-muted) !important; }
+  .fiesta-auth a { color: var(--clay); text-decoration: none; }
+  .fiesta-auth a:hover { color: var(--clay-deep); text-decoration: underline; }
+
   /* Page-local: overlay + password meter, restyled to FIESTA system */
   .overlay {
     display: none;
@@ -85,14 +144,19 @@
         <a href="{{ url_for('home') }}" aria-label="FIESTA home" class="d-inline-block mb-3">
           {% include '_fiesta_logo.html' %}
         </a>
-        <h1 class="h2 mb-2">Start defending your numbers.</h1>
+        <h1 class="h2 mb-2">Cut your tax bill. <em>Keep the records clean.</em></h1>
         <p class="text-secondary small mb-0">
-          Free during launch &middot; No card required
+          Free during launch &middot; Rs 2,500 from 2026-09-01 &middot; No card required
         </p>
       </div>
 
       <form method="POST" action="{{ url_for('email_login') }}" id="registerForm" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {# A1 F1.6 — carry the `next` param through the form so it survives the
+           POST to /email_login; the handler writes it to session['_signup_next']
+           which is then consumed by verify_email on success. Only same-origin
+           paths (safelist enforced server-side) are accepted. #}
+        <input type="hidden" name="next" value="{{ signup_next or request.args.get('next', '') }}">
 
         <div class="mb-3">
           <label for="email" class="form-label">Email address</label>
@@ -147,7 +211,7 @@
       <div class="text-center">
         <p class="text-muted small mb-1">
           By creating an account, you agree to our
-          <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          <a href="/legal/tos">Terms of Service</a> and <a href="/legal/privacy">Privacy Policy</a>.
         </p>
         <p class="text-muted small mb-0">Powered by FIESTA</p>
       </div>

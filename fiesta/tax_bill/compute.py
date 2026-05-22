@@ -33,6 +33,7 @@ from .aggregator import (
     assemble_tax_inputs,
     canonical_tax_year_enum,
 )
+from .audit_defensibility import score_audit_defensibility as _score_audit_defensibility_v2
 
 logger = logging.getLogger(__name__)
 
@@ -456,7 +457,9 @@ def compute_tax_bill(
         )
 
     # Audit defensibility scoring.
-    score, label, components = _score_audit_defensibility(
+    # B12 F6.4: replaced old "no-problems = full marks" scorer with
+    # evidence-required scorer from fiesta.tax_bill.audit_defensibility.
+    score, label, components = _score_audit_defensibility_v2(
         inputs,
         gross_income=report.gross_income_lkr,
         total_deductions=report.total_deductions_lkr,

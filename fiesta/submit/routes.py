@@ -203,6 +203,48 @@ def _collect_service_agreements(user_id: int) -> list[dict[str, Any]]:
         return []
 
 
+def _collect_rental_agreements(user_id: int, tax_year: str) -> list[dict[str, Any]]:
+    """Pull rental agreement PDFs for the customer + tax year. Best-effort.
+
+    Mirrors _collect_service_agreements but scoped to RentalAgreementGenerated
+    rows so the export ZIP can include S9 PDFs alongside S8 service agreement
+    PDFs.  Uses the latest row per reference_id (multiple renders produce
+    multiple rows; we take the most recent so the ZIP reflects the last-signed
+    version of each agreement).
+
+    Returns a list of dicts with keys:
+        reference_id  -- e.g. "RA-2025-0001"
+        path          -- absolute path to the PDF on disk (may be None/missing)
+    """
+    try:
+        from fiesta.agreements.models import RentalAgreementGenerated  # noqa: WPS433
+
+        rows = (
+            RentalAgreementGenerated.query
+            .filter_by(user_id=user_id, tax_year=tax_year)
+            .order_by(RentalAgreementGenerated.generated_at.desc())
+            .all()
+        )
+        # De-duplicate by reference_id -- keep only the latest row for each.
+        seen: set[str] = set()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            ref = row.reference_id
+            if ref in seen:
+                continue
+            seen.add(ref)
+            out.append(
+                {
+                    "reference_id": ref,
+                    "path": getattr(row, "pdf_path", None),
+                }
+            )
+        return out
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Rental agreements not available (%s)", exc)
+        return []
+
+
 def _collect_tax_data(user_id: int, tax_year: str) -> tuple[float, float, dict[str, Any]]:
     """Best-effort pull of S12 tax-data. Returns (gross, deductions, tax_data dict)."""
     # In v1 we stash S12 figures on the Submission row when the gate first
@@ -252,6 +294,176 @@ def _current_tax_year() -> str:
     if now.month >= 4:
         return f"{now.year}/{now.year + 1}"
     return f"{now.year - 1}/{now.year}"
+
+
+# B16 F6.8 — walkthrough step loader.
+_WALKTHROUGH_FALLBACK: list[dict[str, Any]] = [
+    # 12 generic IRD steps; displayed with "annotation pending" notes
+    # until B19/B21 land annotations.yaml + screenshots.
+    {
+        "step_number": 1,
+        "title": "Login to the IRD e-services portal",
+        "what_customer_does": "Step 1 action — navigate to eservices.ird.gov.lk and click Sign In.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 2,
+        "title": "Enter your TIN, PIN, and captcha",
+        "what_customer_does": "Step 2 action — type your Taxpayer Identification Number and PIN, complete the captcha.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 3,
+        "title": "Land on the post-login dashboard",
+        "what_customer_does": "Step 3 action — confirm you are logged in and see the individual taxpayer dashboard.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 4,
+        "title": "Open Return / Schedule Management",
+        "what_customer_does": "Step 4 action — select the Return / Schedule Management option from the main menu.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 5,
+        "title": "Select the correct assessment year",
+        "what_customer_does": "Step 5 action — pick the right tax year from the drop-down list of open returns.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 6,
+        "title": "Open the return form",
+        "what_customer_does": "Step 6 action — click the return entry for your chosen tax year to open the filing form.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 7,
+        "title": "Verify your pre-filled personal information",
+        "what_customer_does": "Step 7 action — review the personal details section; correct any stale information.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 8,
+        "title": "Declare income from your FIESTA pack",
+        "what_customer_does": "Step 8 action — enter income figures from the FIESTA export pack into the income sources section.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 9,
+        "title": "Enter deductions from your FIESTA pack",
+        "what_customer_does": "Step 9 action — type each deduction amount into the deductions section using the FIESTA pack values.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "§6(1) IRA — qualifying expenditure",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 10,
+        "title": "Cross-check the tax payable summary",
+        "what_customer_does": "Step 10 action — compare the portal's computed tax payable against the FIESTA S12 bill.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 11,
+        "title": "Read the final submission confirmation prompt carefully",
+        "what_customer_does": "Step 11 action — review the last-chance modal before submitting; confirm all figures are correct.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 12,
+        "title": "Save your IRD acknowledgment PDF",
+        "what_customer_does": "Step 12 action — download the acknowledgment PDF from the confirmation page and upload it to FIESTA.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+]
+
+
+def _load_walkthrough_steps() -> list[dict[str, Any]]:
+    """Load the 12 IRD walkthrough steps from annotations.yaml if present.
+
+    Lookup order (B16 spec):
+      1. /app/fiesta_ird_walkthrough/annotations.yaml  (Fly.io /app cwd)
+      2. fiesta_ird_walkthrough/annotations.yaml       (relative to process cwd)
+      3. Inline fallback — 12 generic steps with "(annotation pending)" notes.
+
+    Returns a list of 12 dicts with keys: step_number, title,
+    what_customer_does, what_can_go_wrong, how_fiesta_helps,
+    ira_citation, screenshot_url.
+    """
+    try:
+        import yaml  # pyyaml; available on Fly image
+    except ImportError:
+        logger.debug("pyyaml not installed — using walkthrough fallback list")
+        return _WALKTHROUGH_FALLBACK
+
+    candidates = [
+        Path("/app/fiesta_ird_walkthrough/annotations.yaml"),
+        Path("fiesta_ird_walkthrough/annotations.yaml"),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            try:
+                raw = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+                steps_raw = raw.get("steps") or []
+                if not steps_raw:
+                    logger.debug(
+                        "annotations.yaml at %s has no 'steps' key — using fallback",
+                        candidate,
+                    )
+                    return _WALKTHROUGH_FALLBACK
+                out: list[dict[str, Any]] = []
+                for i, s in enumerate(steps_raw, start=1):
+                    out.append(
+                        {
+                            "step_number": s.get("step_number") or i,
+                            "title": s.get("title") or f"Step {i}",
+                            "what_customer_does": s.get("what_customer_does") or "(annotation pending)",
+                            "what_can_go_wrong": s.get("what_can_go_wrong") or "(annotation pending)",
+                            "how_fiesta_helps": s.get("how_fiesta_helps") or "(annotation pending)",
+                            "ira_citation": s.get("ira_citation") or "",
+                            "screenshot_url": s.get("screenshot_url") or "",
+                        }
+                    )
+                logger.info("Loaded %d walkthrough steps from %s", len(out), candidate)
+                return out
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to parse %s: %s — using fallback", candidate, exc)
+
+    logger.debug("annotations.yaml not found in any search path — using walkthrough fallback")
+    return _WALKTHROUGH_FALLBACK
 
 
 # ---------------------------------------------------------------------------
@@ -307,26 +519,69 @@ def show_submit():
         else tax_data.get("final_tax_payable_lkr") or 0
     )
 
-    attestation_preview = build_attestation_text(
-        full_name=current_user.name or "(your profile name)",
-        nic=getattr(current_user, "nic", "") or "(your NIC)",
-        tax_year=tax_year,
-        final_tax_payable_lkr=final_tax,
-    )
+    # X9 F6.2: block attestation when the user has logged no income AND no
+    # deductions.  A zero-data user cannot meaningfully sign a tax declaration;
+    # we route them back to the Remittance Ledger instead.  This check runs
+    # before F6.3 (identity gate) so the routing card appears even if NIC/name
+    # are also missing -- data is the more fundamental prerequisite.
+    gross_income_lkr: float = customer_data.get("gross_income_lkr") or 0.0
+    total_deductions_lkr: float = customer_data.get("total_deductions_lkr") or 0.0
+    zero_data: bool = (gross_income_lkr == 0.0 and total_deductions_lkr == 0.0)
 
-    # Promote status to awaiting-attestation if gate passes (or only yellow).
-    if not gate.blocks and sub.status == "final-gate-pending":
+    # X9 F6.3: refuse to render the attestation preview when the user's
+    # profile is missing identity fields the attestation depends on. The
+    # previous fallback to "(your NIC)" / "(your profile name)" leaked
+    # placeholder strings into the signed legal text — a user could end
+    # up with an Electronic Transactions Act signature reading
+    # "I, X (NIC (your NIC)) declare...". We refuse to build the preview
+    # AND signal the missing fields so the template can route the user
+    # to /fiesta/profile to complete them.
+    from fiesta.profile.models import FiestaProfile  # local import; avoid circular
+    fiesta_profile = FiestaProfile.query.filter_by(user_id=current_user.id).first()
+    nic_value = ((fiesta_profile.nic if fiesta_profile else "") or "").strip()
+    name_value = (current_user.name or "").strip()
+    missing_attestation_fields: list[str] = []
+    if not name_value:
+        missing_attestation_fields.append("Full name")
+    if not nic_value:
+        missing_attestation_fields.append("NIC")
+
+    if missing_attestation_fields or zero_data:
+        attestation_preview = None
+    else:
+        attestation_preview = build_attestation_text(
+            full_name=name_value,
+            nic=nic_value,
+            tax_year=tax_year,
+            final_tax_payable_lkr=final_tax,
+        )
+
+    # Promote status to awaiting-attestation if gate passes (or only yellow)
+    # AND the profile is complete enough to sign without placeholders
+    # AND data is present (zero_data users stay in final-gate-pending).
+    if (
+        not gate.blocks
+        and not missing_attestation_fields
+        and not zero_data
+        and sub.status == "final-gate-pending"
+    ):
         sub.status = "awaiting-attestation"
 
     db.session.commit()
+
+    # B16 F6.8: load the 12 walkthrough steps for the pre-attestation preview.
+    walkthrough_steps = _load_walkthrough_steps()
 
     return render_template(
         "submit/index.html",
         submission=sub,
         gate=gate.to_dict(),
         attestation_preview=attestation_preview,
+        missing_attestation_fields=missing_attestation_fields,
+        zero_data=zero_data,
         tax_year=tax_year,
         final_tax_payable_lkr=final_tax,
+        walkthrough_steps=walkthrough_steps,  # B16
     )
 
 
@@ -358,6 +613,18 @@ def post_attest():
         flash(
             "Cannot sign right now -- the final gate hasn't been re-evaluated. "
             "Reload the page.",
+            "warning",
+        )
+        return redirect(url_for("fiesta_submit.show_submit", tax_year=tax_year))
+
+    # X9 F6.2: server-side mirror of the zero-data gate in show_submit.
+    # A direct POST cannot bypass the routing-card block even if the user
+    # skips the GET form and crafts a raw request.
+    _gross_check, _deduct_check, _ = _collect_tax_data(current_user.id, tax_year)
+    if _gross_check == 0.0 and _deduct_check == 0.0:
+        flash(
+            "You haven't logged any income or deductions yet. "
+            "Visit your Remittance Ledger to start.",
             "warning",
         )
         return redirect(url_for("fiesta_submit.show_submit", tax_year=tax_year))
@@ -404,6 +671,25 @@ def post_attest():
         flash(str(result), "danger")
         return redirect(url_for("fiesta_submit.show_submit", tax_year=tax_year))
 
+    # X9 F6.3: server-side mirror of the show_submit guard. A user POSTing
+    # /submit/attest directly cannot bypass the profile-completion gate;
+    # if NIC or name is missing we refuse to sign and route them back to
+    # /fiesta/profile rather than building an attestation with placeholder
+    # strings.
+    from fiesta.profile.models import FiestaProfile  # local; avoid circular
+    fiesta_profile = FiestaProfile.query.filter_by(user_id=current_user.id).first()
+    nic_for_sign = ((fiesta_profile.nic if fiesta_profile else "") or "").strip()
+    name_for_sign = (current_user.name or "").strip()
+    if not name_for_sign or not nic_for_sign:
+        missing = [f for f, v in (("Full name", name_for_sign), ("NIC", nic_for_sign)) if not v]
+        flash(
+            "Cannot sign yet -- your profile is missing "
+            + ", ".join(missing)
+            + ". Please complete your FIESTA profile before signing the attestation.",
+            "warning",
+        )
+        return redirect(url_for("fiesta_profile.index"))
+
     # Capture
     tax_data = customer_data.get("tax_data") or {}
     final_tax = float(
@@ -412,8 +698,8 @@ def post_attest():
         or 0
     )
     text = build_attestation_text(
-        full_name=current_user.name or "",
-        nic=getattr(current_user, "nic", "") or "",
+        full_name=name_for_sign,
+        nic=nic_for_sign,
         tax_year=tax_year,
         final_tax_payable_lkr=final_tax,
     )
@@ -491,7 +777,7 @@ def get_export():
         "tax_data": customer_data.get("tax_data") or {},
         "audit_pack_pdf_path": sub.audit_pack_pdf_path,
         "service_agreement_pdfs": _collect_service_agreements(current_user.id),
-        "rental_agreement_pdfs": [],  # S9 plumbing -- best-effort future
+        "rental_agreement_pdfs": _collect_rental_agreements(current_user.id, tax_year),  # B18 F6.11
     }
 
     when = sub.ird_export_generated_at or datetime.now(timezone.utc)

@@ -1,0 +1,226 @@
+{% extends "admin/layout_fiesta.html" %}
+
+{% block title %}Submissions Admin — FIESTA{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ----------------------------------------------------------------- #}
+  {# Page header                                                         #}
+  {# ----------------------------------------------------------------- #}
+  <div class="d-flex align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0">Submissions Admin</h1>
+      <p class="text-muted mb-0 small">
+        C10 F8.9 — Per-tax-year filing view.
+        Use filters below to answer "how many users completed filing for a given year?"
+      </p>
+    </div>
+  </div>
+
+  {# ----------------------------------------------------------------- #}
+  {# Filter form                                                         #}
+  {# ----------------------------------------------------------------- #}
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <form method="GET" action="{{ request.path }}" class="row g-3 align-items-end">
+
+        <div class="col-sm-4">
+          <label for="tax_year_select" class="form-label fw-semibold">Tax Year</label>
+          <select id="tax_year_select" name="tax_year" class="form-select">
+            <option value="">— All years —</option>
+            {% for yr in distinct_years %}
+              <option value="{{ yr }}" {% if tax_year == yr or tax_year_normalised == yr %}selected{% endif %}>
+                {{ yr }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-sm-4">
+          <label for="status_select" class="form-label fw-semibold">Status</label>
+          <select id="status_select" name="status" class="form-select">
+            <option value="">— All statuses —</option>
+            {% for s in possible_statuses %}
+              <option value="{{ s }}" {% if status == s %}selected{% endif %}>
+                {{ s }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-sm-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-filter me-1"></i>Apply
+          </button>
+          <a href="{{ request.path }}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>Clear
+          </a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {# ----------------------------------------------------------------- #}
+  {# Summary strip                                                       #}
+  {# ----------------------------------------------------------------- #}
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body py-3">
+      <div class="d-flex flex-wrap gap-3 align-items-center">
+        <span class="fw-semibold">
+          Total shown:
+          <span class="badge bg-secondary fs-6">{{ submissions | length }}</span>
+        </span>
+        {% if capped %}
+          <span class="badge bg-warning text-dark">
+            <i class="fas fa-exclamation-triangle me-1"></i>Showing first 500 — apply filters to narrow
+          </span>
+        {% endif %}
+        {% if status_counts %}
+          <span class="text-muted">|</span>
+          <span class="fw-semibold">By status:</span>
+          {% for st, cnt in status_counts.items() | sort %}
+            <span class="badge rounded-pill
+              {% if st == 'customer-filed-on-ird' %}bg-success
+              {% elif st == 'export-generated' %}bg-primary
+              {% elif st == 'attested' %}bg-info text-dark
+              {% elif st == 'preparing' %}bg-light text-dark border
+              {% elif st == 'abandoned' %}bg-secondary
+              {% else %}bg-dark
+              {% endif %}">
+              {{ st }}: {{ cnt }}
+            </span>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ----------------------------------------------------------------- #}
+  {# Submissions table                                                   #}
+  {# ----------------------------------------------------------------- #}
+  {% if submissions %}
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-striped mb-0 align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Reference</th>
+            <th scope="col">User Email</th>
+            <th scope="col">Tax Year</th>
+            <th scope="col">Status</th>
+            <th scope="col">Tax Payable (LKR)</th>
+            <th scope="col">Created</th>
+            <th scope="col">Updated</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in submissions %}
+          <tr>
+            <td class="text-muted small">{{ loop.index }}</td>
+
+            {# Reference — submission ID, zero-padded for visual consistency #}
+            <td>
+              <span class="font-monospace fw-semibold">
+                SUB-{{ '%06d' | format(row.id) }}
+              </span>
+            </td>
+
+            {# User email #}
+            <td>
+              {% if row.user_email != '—' %}
+                <a href="mailto:{{ row.user_email }}" class="text-decoration-none small">
+                  {{ row.user_email }}
+                </a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
+            {# Tax year #}
+            <td>
+              <span class="badge bg-light text-dark border">
+                {{ row.tax_year or '—' }}
+              </span>
+            </td>
+
+            {# Status with colour coding #}
+            <td>
+              <span class="badge rounded-pill
+                {% if row.status == 'customer-filed-on-ird' %}bg-success
+                {% elif row.status == 'export-generated' %}bg-primary
+                {% elif row.status == 'attested' %}bg-info text-dark
+                {% elif row.status == 'final-gate-pending' or row.status == 'awaiting-attestation' %}bg-warning text-dark
+                {% elif row.status == 'preparing' %}bg-light text-dark border
+                {% elif row.status == 'abandoned' %}bg-secondary
+                {% else %}bg-dark
+                {% endif %}">
+                {{ row.status }}
+              </span>
+            </td>
+
+            {# Tax payable #}
+            <td class="text-end font-monospace small">
+              {% if row.final_tax_payable_lkr is not none %}
+                {{ '{:,.2f}'.format(row.final_tax_payable_lkr | float) }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
+            {# Created #}
+            <td class="small text-muted text-nowrap">
+              {% if row.created_at %}
+                {{ row.created_at.strftime('%Y-%m-%d %H:%M') }}
+              {% else %}—{% endif %}
+            </td>
+
+            {# Updated #}
+            <td class="small text-muted text-nowrap">
+              {% if row.updated_at %}
+                {{ row.updated_at.strftime('%Y-%m-%d %H:%M') }}
+              {% else %}—{% endif %}
+            </td>
+
+            {# Actions #}
+            <td>
+              <a href="{{ url_for('fiesta_admin.fiesta_admin_users') }}?search={{ row.user_email | urlencode }}"
+                 class="btn btn-sm btn-outline-primary"
+                 title="View user in admin">
+                <i class="fas fa-user"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if capped %}
+    <div class="card-footer text-muted small">
+      <i class="fas fa-info-circle me-1"></i>
+      Showing first 500 results. Apply tax_year and/or status filters to see the full dataset.
+    </div>
+    {% endif %}
+  </div>
+
+  {% else %}
+  {# Empty state #}
+  <div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+      <p class="text-muted mb-2">No submissions found for the selected filters.</p>
+      {% if tax_year or status %}
+        <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-times me-1"></i>Clear filters
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

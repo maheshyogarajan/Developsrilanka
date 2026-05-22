@@ -399,6 +399,16 @@ try:
 except Exception as e:
     logger.error(f"S2 Signup blueprint load failed: {e}")
 
+# E2 F1.8 — Legal pages (2026-05-22)
+# /legal/tos and /legal/privacy rendered in the FIESTA hub shell.
+# Placeholder content; counsel review async and non-blocking.
+try:
+    from fiesta.legal import register_routes as register_legal_routes
+    register_legal_routes(app)
+    logger.info("Legal blueprint registered: /legal/tos, /legal/privacy")
+except Exception as e:
+    logger.error(f"Legal blueprint load failed: {e}")
+
 # Wave 1 — S1 Triage (2026-05-20)
 # 3 neutral post-signup fact-finds at /fie/triage; answers persist to
 # User.triage_answers (JSON column added by add_triage_answers_to_user.py).
@@ -450,6 +460,44 @@ try:
     logger.info('FIESTA S14 Submit registered at /submit')
 except Exception as e:
     logger.error(f'FIESTA S14 Submit load failed: {e}')
+
+# X9 F5.1 — S8 Service Agreement + S9 Rental Agreement blueprints (the
+# document factory). These were built in Wave 3 but never mounted, so the
+# `Generate agreement` CTA's on S6 / S7 fell to 404. Mount them now so the
+# entire Generate feature is reachable; F5.6 + F5.7 will add the CTAs.
+try:
+    from fiesta.agreements.service_routes import register_routes as register_agreements_service
+    register_agreements_service(app)
+    logger.info('FIESTA S8 Service Agreement registered at /agreements/service')
+except Exception as e:
+    logger.error(f'FIESTA S8 Service Agreement load failed: {e}')
+
+try:
+    # rental_routes.py exposes a module-level Blueprint named `bp` without a
+    # register_routes() wrapper, so mount it directly.
+    from fiesta.agreements.rental_routes import bp as fiesta_agreements_rental_bp
+    app.register_blueprint(fiesta_agreements_rental_bp)
+    logger.info('FIESTA S9 Rental Agreement registered at /agreements/rental')
+except Exception as e:
+    logger.error(f'FIESTA S9 Rental Agreement load failed: {e}')
+
+# X9 F5.1 — S10 Co-sign workflow (Service Provider counter-signing).
+try:
+    from fiesta.cosign.routes import register_routes as register_cosign
+    register_cosign(app)
+    logger.info('FIESTA S10 Co-sign workflow registered at /cosign')
+except Exception as e:
+    logger.error(f'FIESTA S10 Co-sign workflow load failed: {e}')
+
+# FIESTA Feature 9 — Assets & Liabilities declaration tracker (Wave 2, 2026-05-22)
+# D6 blueprint + D7 list/edit routes + D8 PDF + D9 FA 5192455 push at /fie/al
+try:
+    from fiesta.assets_liabilities import models as fiesta_al_models  # noqa: F401
+    from fiesta.assets_liabilities import register_routes as register_al_routes
+    register_al_routes(app)
+    logger.info('FIESTA Feature 9 A&L declaration registered at /fie/al')
+except Exception as e:
+    logger.error(f'FIESTA Feature 9 A&L load failed: {e}')
 
 # FIESTA Wave 6 — S15 Admin Users list (admin-gated, /admin/fie/users)
 #                + S17 Admin Autoreply Queue (/admin/fie/autoreply)

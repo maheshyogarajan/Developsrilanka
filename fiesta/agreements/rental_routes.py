@@ -172,16 +172,54 @@ def _build_input(form: Any, *, user_id: int, user_name: str) -> RentalAgreementI
 # --------------------------------------------------------------------------- #
 
 
+@bp.route("", methods=["GET"], strict_slashes=False)
+@bp.route("/", methods=["GET"], strict_slashes=False)
+@login_required
+def index() -> Any:
+    """HOTFIX 2026-05-22 — Bare-prefix landing for /agreements/rental.
+
+    Sidebar nav links to /agreements/rental (no property_id). Per-record
+    preview routes require an id, so the bare prefix used to 404. Behaviour:
+      - 0 properties: flash + redirect to /property (where user adds one)
+      - 1 property:   redirect straight to that property's preview
+      - >1 properties: redirect to /property listing (each card already has
+                       a "Generate rental agreement" button per B6)
+    """
+    from fiesta.property.models import Property  # type: ignore[import-not-found]
+    user_id = getattr(current_user, "id", None)
+    properties = Property.query.filter_by(user_id=user_id).all()
+    if not properties:
+        flash(
+            "Add the property you live and work in first, then we'll generate the rental agreement.",
+            "info",
+        )
+        return redirect("/property")
+    if len(properties) == 1:
+        return redirect(url_for("fiesta_agreements_rental.preview", property_id=properties[0].id))
+    return redirect("/property")
+
+
 @bp.route("/<int:property_id>", methods=["GET"])
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S9", action="preview")
 def preview(property_id: int) -> Any:
     """Preview/edit form for a Rental Agreement against a given property."""
     user_id = getattr(current_user, "id", None)
+    # B4 F5.5 — surface server-side "protects Rs X" projection on S9.
+    protected_lkr = 0
+    try:
+        from fiesta.property.models import Property  # type: ignore[import-not-found]
+        from fiesta.agreements.helpers import compute_protected_deductions_lkr
+        _prop = Property.query.filter_by(id=property_id, user_id=user_id).first()
+        if _prop is not None:
+            protected_lkr = compute_protected_deductions_lkr(current_user, _prop)
+    except Exception as _e:
+        logger.debug("rental.preview protected_deductions calc failed: %s", _e)
     return render_template(
         "agreements/rental_preview.html",
         property_id=property_id,
         user_id=user_id,
+        protected_deductions_lkr=protected_lkr,
     )
 
 

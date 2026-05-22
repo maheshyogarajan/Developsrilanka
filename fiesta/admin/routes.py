@@ -348,6 +348,73 @@ def fiesta_admin_users():
 
 
 # --------------------------------------------------------------------------- #
+# C9 F8.8 — /admin/fie/settings — DB-backed system settings
+# --------------------------------------------------------------------------- #
+#
+# Separate from the legacy /admin/settings route in admin_routes.py (which
+# still reads module-global dicts and is NOT modified here per W4-scope).
+# This new handler reads/writes via SystemSetting (models.py C9) so edits
+# survive pod restarts.
+#
+# URL is /admin/fie/settings to stay within the fiesta_admin blueprint's
+# /admin/fie/* namespace and avoid Flask routing conflicts with the legacy
+# app-level /admin/settings route.
+# --------------------------------------------------------------------------- #
+
+@fiesta_admin_bp.route("/admin/fie/settings", methods=["GET"])
+@admin_required
+def fie_settings_get():
+    """GET /admin/fie/settings — render all SystemSetting rows as a form."""
+    from models import SystemSetting
+
+    settings = SystemSetting.all_settings()
+    return render_template(
+        "admin/fie_settings.html",
+        settings=settings,
+    )
+
+
+@fiesta_admin_bp.route("/admin/fie/settings", methods=["POST"])
+@admin_required
+def fie_settings_post():
+    """POST /admin/fie/settings — update one or more SystemSetting rows."""
+    from models import SystemSetting
+    from flask_login import current_user
+
+    form = request.form.to_dict()
+    # Strip Flask-WTF CSRF token from the form dict (not a setting key).
+    form.pop("csrf_token", None)
+
+    updated = []
+    errors = []
+    for key, raw_value in form.items():
+        try:
+            # Attempt JSON decode so numbers/booleans round-trip correctly.
+            import json as _json
+            try:
+                value = _json.loads(raw_value)
+            except (ValueError, TypeError):
+                # Treat as plain string if JSON decode fails.
+                value = raw_value
+            SystemSetting.set(
+                key,
+                value,
+                user_id=getattr(current_user, "id", None),
+            )
+            updated.append(key)
+        except Exception as exc:
+            errors.append(f"{key}: {exc}")
+            log.exception("SystemSetting.set failed for key=%s: %s", key, exc)
+
+    if errors:
+        flash(f"Some settings failed to save: {'; '.join(errors)}", "danger")
+    else:
+        flash(f"Settings saved ({len(updated)} keys updated).", "success")
+
+    return redirect(url_for("fiesta_admin.fie_settings_get"))
+
+
+# --------------------------------------------------------------------------- #
 # Public registration hook
 # --------------------------------------------------------------------------- #
 def register_routes(app: Flask) -> None:
@@ -356,4 +423,119 @@ def register_routes(app: Flask) -> None:
         log.debug("fiesta_admin blueprint already registered — skipping.")
         return
     app.register_blueprint(fiesta_admin_bp)
-    log.info("S15 fiesta_admin blueprint registered (/admin/fie/users)")
+    log.info("S15 fiesta_admin blueprint registered (/admin/fie/users, /admin/fie/settings)")
+
+
+# --------------------------------------------------------------------------- #
+# C10 F8.9 — Per-tax-year submission admin view
+# --------------------------------------------------------------------------- #
+@fiesta_admin_bp.route("/admin/submissions", methods=["GET"])
+@admin_required
+def submissions_view():
+    """C10 F8.9 — Per-tax-year submission filter for operator visibility.
+
+    Query params:
+      tax_year  — any accepted form (25/26, 2025/26, 25_26).  Normalised to
+                  canonical "YYYY/YYYY" before filtering.
+      status    — raw status string (preparing, attested, export-generated, …).
+
+    Acceptance: an operator can answer "how many users completed filing for
+    25/26?" from this one page.
+    """
+    from fiesta.submit.models import Submission
+    from models import User
+
+    tax_year_raw = (request.args.get("tax_year") or "").strip()
+    status_raw = (request.args.get("status") or "").strip()
+
+    # ------------------------------------------------------------------ #
+    # Build base query, apply filters
+    # ------------------------------------------------------------------ #
+    q = Submission.query
+
+    tax_year_normalised = tax_year_raw  # fallback: pass through as-is
+    if tax_year_raw:
+        try:
+            from fiesta.tax_bill.aggregator import normalise_tax_year_to_s4_format
+            tax_year_normalised = normalise_tax_year_to_s4_format(tax_year_raw)
+            q = q.filter(Submission.tax_year == tax_year_normalised)
+        except Exception:
+            # If normaliser fails (bad input), filter on the raw string so the
+            # operator sees an empty result rather than an unfiltered dump.
+            q = q.filter(Submission.tax_year == tax_year_raw)
+
+    if status_raw:
+        q = q.filter(Submission.status == status_raw)
+
+    submissions = q.order_by(Submission.created_at.desc()).limit(500).all()
+
+    # ------------------------------------------------------------------ #
+    # Aggregate counts by status for the header summary strip
+    # ------------------------------------------------------------------ #
+    status_counts: dict[str, int] = {}
+    for s in submissions:
+        status_counts[s.status] = status_counts.get(s.status, 0) + 1
+
+    # ------------------------------------------------------------------ #
+    # Distinct tax years for filter dropdown (all rows, not just current page)
+    # ------------------------------------------------------------------ #
+    distinct_years_rows = (
+        Submission.query
+        .with_entities(Submission.tax_year)
+        .distinct()
+        .order_by(Submission.tax_year.desc())
+        .all()
+    )
+    distinct_years = [r.tax_year for r in distinct_years_rows if r.tax_year]
+
+    # ------------------------------------------------------------------ #
+    # Possible statuses for filter dropdown
+    # ------------------------------------------------------------------ #
+    distinct_statuses_rows = (
+        Submission.query
+        .with_entities(Submission.status)
+        .distinct()
+        .order_by(Submission.status)
+        .all()
+    )
+    possible_statuses = sorted({r.status for r in distinct_statuses_rows if r.status})
+
+    # ------------------------------------------------------------------ #
+    # Enrich rows with user email (single IN-query — avoids N+1)
+    # ------------------------------------------------------------------ #
+    user_ids = list({s.user_id for s in submissions})
+    user_email_map: dict[int, str] = {}
+    if user_ids:
+        try:
+            users = User.query.filter(User.id.in_(user_ids)).with_entities(
+                User.id, User.email
+            ).all()
+            user_email_map = {u.id: u.email for u in users}
+        except Exception as exc:
+            log.warning("submissions_view: user email lookup failed: %s", exc)
+
+    enriched = [
+        {
+            "id": s.id,
+            "user_id": s.user_id,
+            "user_email": user_email_map.get(s.user_id, "—"),
+            "tax_year": s.tax_year,
+            "status": s.status,
+            "final_tax_payable_lkr": s.final_tax_payable_lkr,
+            "created_at": s.created_at,
+            "updated_at": s.updated_at,
+        }
+        for s in submissions
+    ]
+
+    return render_template(
+        "admin/submissions.html",
+        submissions=enriched,
+        tax_year=tax_year_raw,
+        tax_year_normalised=tax_year_normalised,
+        status=status_raw,
+        status_counts=status_counts,
+        distinct_years=distinct_years,
+        possible_statuses=possible_statuses,
+        capped=(len(submissions) == 500),
+    )

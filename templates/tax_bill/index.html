@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends layout_template %}
 {% block title %}Your tax bill -- FIESTA{% endblock %}
 
 {% block additional_styles %}
@@ -255,10 +255,113 @@
         margin-bottom: 1rem;
     }
 
+    /* B14 — Projected savings counter */
+    .tb-projected-savings {
+        background: var(--color-success-50, #ECFDF5);
+        border: 1px solid var(--color-success-200, #A7F3D0);
+        border-radius: 10px;
+        padding: 0.75rem 1.25rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .tb-projected-savings__label {
+        font-size: 0.9rem;
+        color: var(--color-success-700, #047857);
+    }
+    .tb-projected-savings__amount {
+        font-family: 'Fraunces', serif;
+        font-size: 1.35rem;
+        font-weight: 600;
+        color: var(--color-success-800, #065F46);
+    }
+    .tb-projected-savings__note {
+        font-size: 0.8rem;
+        color: var(--color-success-600, #059669);
+        margin-left: auto;
+    }
+
+    /* B13 — IRA citations panel */
+    .tb-ira-panel {
+        background: #fff;
+        border: 1px solid var(--color-ink-200, #E2E8F0);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+    }
+    .tb-ira-panel summary {
+        cursor: pointer;
+        font-family: 'Fraunces', serif;
+        font-weight: 500;
+        font-size: 1.15rem;
+        color: var(--color-ink-800, #1E293B);
+        padding: 1.25rem 1.5rem;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .tb-ira-panel summary::-webkit-details-marker { display: none; }
+    .tb-ira-panel summary::after {
+        content: '+';
+        margin-left: auto;
+        font-size: 1.4rem;
+        color: var(--color-ink-500, #64748B);
+    }
+    .tb-ira-panel[open] summary::after { content: '−'; }
+    .tb-ira-panel__body {
+        padding: 0 1.5rem 1.25rem;
+    }
+    .tb-ira-panel__intro {
+        font-size: 0.9rem;
+        color: var(--color-ink-600, #475569);
+        margin-bottom: 1rem;
+        line-height: 1.55;
+    }
+    .tb-ira-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.25rem 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-ink-100, #F1F5F9);
+        align-items: start;
+    }
+    .tb-ira-row:last-child { border-bottom: none; }
+    .tb-ira-row__name {
+        font-weight: 500;
+        font-size: 0.95rem;
+        color: var(--color-ink-800, #1E293B);
+    }
+    .tb-ira-row__cite {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.78rem;
+        color: var(--color-brand-700, #0B5394);
+        white-space: nowrap;
+        padding-top: 0.15rem;
+    }
+    .tb-ira-row__desc {
+        grid-column: 1 / -1;
+        font-size: 0.85rem;
+        color: var(--color-ink-500, #64748B);
+        line-height: 1.5;
+    }
+    .tb-bracket-empty {
+        padding: 1.5rem 0;
+        text-align: center;
+        color: var(--color-ink-500, #64748B);
+        font-size: 0.9rem;
+    }
+    .tb-bracket-empty a {
+        color: var(--color-brand-700, #0B5394);
+    }
+
     @media (max-width: 768px) {
         .tb-hero .tb-final { font-size: 2.2rem; }
         .tb-section { padding: 1rem; }
         .tb-table { font-size: 0.85rem; }
+        .tb-ira-row { grid-template-columns: 1fr; }
+        .tb-ira-row__cite { padding-top: 0; }
     }
 </style>
 {% endblock %}
@@ -280,6 +383,98 @@
             {{ report.engine_error }} You can still review the breakdown below.
         </div>
     {% endif %}
+
+    {# ---- B14 F6.6 — Projected savings counter (always visible) ----------- #}
+    {#
+        hub_projected_savings_lkr is injected by inject_fiesta_hub_context()
+        (app.py context_processor) for authenticated sl_foreign_income users.
+        When deductions are claimed, savings_vs_no_deductions_lkr takes over
+        in the hero section — this counter is the early-funnel teaser above the
+        hero that is always visible regardless of filing state.
+        Extraction of the helper to a shared module is deferred (parallel-safe);
+        we consume the context-processor value directly here.
+    #}
+    {% set _projected = report.savings_vs_no_deductions_lkr if (report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0) else hub_projected_savings_lkr %}
+    <div class="tb-projected-savings">
+        <span class="tb-projected-savings__label">Projected savings:</span>
+        <span class="tb-projected-savings__amount">
+            Rs {{ "{:,.0f}".format(_projected | float) if _projected else "—" }}
+        </span>
+        {% if report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0 %}
+            <span class="tb-projected-savings__note">based on your claimed deductions</span>
+        {% elif hub_projected_savings_lkr and hub_projected_savings_lkr > 0 %}
+            <span class="tb-projected-savings__note">estimate — claim deductions on
+                <a href="/reduce-tax" style="color: inherit;">Reduce your tax</a>
+                to refine</span>
+        {% else %}
+            <span class="tb-projected-savings__note">log income to see your projection</span>
+        {% endif %}
+    </div>
+
+    {# ---- B13 F6.5 — IRA citations panel (always visible, zero-data safe) - #}
+    <details class="tb-ira-panel">
+        <summary>Why each deduction cites the law</summary>
+        <div class="tb-ira-panel__body">
+            <p class="tb-ira-panel__intro">
+                Every deduction on your FIESTA tax bill has a specific section in the
+                <strong>Inland Revenue Act No. 24 of 2017</strong> behind it. The 10
+                categories below are the ones that apply to foreign-income earners.
+                If the IRD ever asks, you can point to the exact statutory reference.
+                <a href="/reduce-tax">Claim your deductions on S5</a> to have them
+                reflected in your bill.
+            </p>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Home office rental</div>
+                <div class="tb-ira-row__cite">§6</div>
+                <div class="tb-ira-row__desc">The business-use portion of your home rent is deductible as expenditure wholly and exclusively incurred in producing your assessable income.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Internet &amp; telecom for work</div>
+                <div class="tb-ira-row__cite">§6</div>
+                <div class="tb-ira-row__desc">The work-use share of your internet and phone bills is deductible. Apportion the annual cost by the proportion of work use.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Equipment — laptop, monitor, software</div>
+                <div class="tb-ira-row__cite">§6 + §13</div>
+                <div class="tb-ira-row__desc">Software subscriptions are fully deductible in the year paid under §6. Hardware qualifies for a capital allowance (depreciation over useful life) under §13.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Training &amp; certifications</div>
+                <div class="tb-ira-row__cite">§6</div>
+                <div class="tb-ira-row__desc">Courses and certifications that maintain or improve skills used in your existing work are deductible. Training for a new field is not.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Service Provider fees (subcontractors)</div>
+                <div class="tb-ira-row__cite">§6 + §195</div>
+                <div class="tb-ira-row__desc">Fees paid to subcontractors who help deliver your work are deductible under §6. §195 requires disclosure of payments above statutory thresholds — FIESTA generates the documentation.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Travel for work</div>
+                <div class="tb-ira-row__cite">§6</div>
+                <div class="tb-ira-row__desc">Flights, accommodation, and transport for income-earning work are deductible. Mixed-purpose trips must be apportioned by work-days vs total days.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Professional services</div>
+                <div class="tb-ira-row__cite">§6</div>
+                <div class="tb-ira-row__desc">Accountant, tax counsel, and legal fees for business matters — including the cost of filing your return — are deductible.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Health insurance &amp; medical</div>
+                <div class="tb-ira-row__cite">Relief schedule</div>
+                <div class="tb-ira-row__desc">Health insurance premiums for the taxpayer and qualifying dependants qualify for personal relief under the IRA First Schedule, within the statutory cap.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Solar installations</div>
+                <div class="tb-ira-row__cite">§6 + §13</div>
+                <div class="tb-ira-row__desc">Rooftop solar on premises used for income-earning work qualifies for a capital allowance under §13, capped at Rs 600,000 across the useful-life period.</div>
+            </div>
+            <div class="tb-ira-row">
+                <div class="tb-ira-row__name">Charitable donations</div>
+                <div class="tb-ira-row__cite">Relief schedule</div>
+                <div class="tb-ira-row__desc">Donations to IRD-approved charities qualify for personal relief under the IRA First Schedule, capped at 5% of taxable income. Charity must appear on the IRD approved list.</div>
+            </div>
+        </div>
+    </details>
 
     {# ---- Hero ------------------------------------------------------------ #}
     <section class="tb-hero">
@@ -615,6 +810,14 @@
                 <h6 style="font-family: 'Fraunces', serif; margin-top: 1.5rem; font-weight: 500;">
                     Bracket walk
                 </h6>
+                {# B15 F6.7 — only render bands that have income; show empty-state for zero-income users #}
+                {% set _has_any_band_income = comp.by_band | selectattr('income_in_band', 'gt', 0) | list | length > 0 %}
+                {% if not _has_any_band_income %}
+                    <div class="tb-bracket-empty">
+                        <p>Once you log your income, your bracket-by-bracket breakdown will appear here.</p>
+                        <a href="/remittance/dashboard">Go to your Remittance Ledger &rarr;</a>
+                    </div>
+                {% else %}
                 <table class="tb-table">
                     <thead>
                         <tr>
@@ -626,6 +829,7 @@
                     </thead>
                     <tbody>
                         {% for b in comp.by_band %}
+                            {% if b.income_in_band > 0 %}
                             <tr>
                                 <td>
                                     {% if b.band_upper %}
@@ -638,6 +842,7 @@
                                 <td class="tb-num">{{ "{:.0%}".format(b.rate) }}</td>
                                 <td class="tb-num">{{ "{:,.2f}".format(b.tax_in_band) }}</td>
                             </tr>
+                            {% endif %}
                         {% endfor %}
                         <tr class="tb-total-row">
                             <td>Gross tax</td>
@@ -651,6 +856,7 @@
                         </tr>
                     </tbody>
                 </table>
+                {% endif %}
                 <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-ink-500);">
                     Effective rate {{ "{:.2%}".format(comp.effective_rate) }} ·
                     Marginal rate {{ "{:.0%}".format(comp.marginal_rate) }}

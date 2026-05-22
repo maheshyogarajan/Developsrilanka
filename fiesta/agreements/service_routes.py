@@ -8,7 +8,7 @@ GET  /agreements/service/<sp_id>             preview form (term + fees + variant
 POST /agreements/service/<sp_id>/generate    generate PDF -> redirect to /pdf/<gen_id>
 GET  /agreements/service/<sp_id>/pdf/<gen_id> download the PDF (application/pdf)
 GET  /agreements/service/<sp_id>/history     list prior generations
-GET  /agreements/service/<sp_id>/preview/<gen_id>  HTML preview wrapper
+GET  /agreements/service/<sp_id>/preview_json/<gen_id>  JSON disclosure snapshot (audit)
 
 Wiring
 ------
@@ -53,6 +53,7 @@ from flask import (
     flash,
     jsonify,
     redirect,
+    render_template,
     render_template_string,
     request,
     url_for,
@@ -90,104 +91,10 @@ bp = Blueprint(
 
 
 # ---------------------------------------------------------------------------
-# Minimal HTML templates (inline -- v0.1 uses render_template_string so the
-# blueprint is self-contained; a later UI pass can extract to .html files.)
+# Inline HTML templates (render_template_string) -- only _HISTORY_PAGE
+# remains here. The S8 preview was extracted to
+# templates/agreements/service_preview.html (B2 — F5.3).
 # ---------------------------------------------------------------------------
-_PREVIEW_FORM = """
-<!doctype html>
-<html><head><title>FIESTA - Service Agreement Generator</title></head>
-<body style="font-family: system-ui, sans-serif; max-width: 760px; margin: 30px auto; padding: 0 20px;">
-<h1>Service Agreement -- generator</h1>
-<p><strong>DRAFT v0.1 -- pending Lanka.tax legal counsel pass 2026-05-27.</strong>
-The template you generate below is jurisdiction-neutral and IRA-anchored, but
-the wording itself has NOT yet been red-lined by Lanka.tax's legal team. Use
-for preview / planning; sign with a final version after 2026-05-27.</p>
-
-{% if gate_warnings or gate_blocks %}
-<div style="border:1px solid #cb8400; background:#fff7e6; padding:12px; border-radius:4px; margin:14px 0;">
-  <strong>Compliance flags from your profile:</strong>
-  <ul>
-  {% for w in gate_warnings %}<li>{{ w.message }} ({{ w.ira_section }})</li>{% endfor %}
-  </ul>
-  {% if gate_blocks %}
-  <p style="color:#a00"><strong>Blocked:</strong> {{ gate_blocks | length }} red block(s); resolve before generating.</p>
-  <ul>
-  {% for b in gate_blocks %}<li>{{ b.message }} ({{ b.ira_section }})</li>{% endfor %}
-  </ul>
-  {% endif %}
-</div>
-{% endif %}
-
-{% if disclosure_default_on %}
-<div style="border:1px solid #cc6600; background:#fff3e6; padding:12px; border-radius:4px; margin:14px 0;">
-  <strong>Section 195 disclosure: default ON</strong><br>
-  <small>{{ evidence_prompt }}</small>
-</div>
-{% endif %}
-
-<form method="post" action="{{ url_for('fiesta_agreements_service.generate', sp_id=sp_id) }}">
-  <fieldset><legend>Term</legend>
-    Start date: <input type="date" name="start_date" required><br>
-    End date:   <input type="date" name="end_date" required><br>
-  </fieldset>
-
-  <fieldset><legend>Fees</legend>
-    Fee structure:
-      <select name="fee_structure_variant">
-        <option value="A" selected>A -- fixed monthly retainer</option>
-        <option value="B">B -- hourly</option>
-        <option value="C">C -- deliverable-based (Schedule A)</option>
-      </select><br>
-    Currency:
-      <select name="currency">
-        <option value="LKR" selected>LKR</option>
-        <option value="USD">USD</option>
-        <option value="EUR">EUR</option>
-        <option value="GBP">GBP</option>
-        <option value="AUD">AUD</option>
-      </select><br>
-    Monthly fee amount (if A): <input type="text" name="monthly_fee_amount"><br>
-    Hourly rate (if B):        <input type="text" name="hourly_rate"><br>
-  </fieldset>
-
-  <fieldset><legend>Governing law</legend>
-    <label><input type="radio" name="governing_law_variant" value="A" checked>
-      A -- Sri Lankan law, SL courts (recommended for IRD audit defence)</label><br>
-    <label><input type="radio" name="governing_law_variant" value="B">
-      B -- Sri Lankan law, arbitration in Colombo</label><br>
-    <label><input type="radio" name="governing_law_variant" value="C">
-      C -- foreign law + foreign arbitration (advanced)</label><br>
-    Chosen law (variant C): <input type="text" name="chosen_law"><br>
-    Arbitration rules (variant C): <input type="text" name="arbitration_rules"><br>
-    Arbitration seat (variant C): <input type="text" name="arbitration_seat"><br>
-  </fieldset>
-
-  <fieldset><legend>Section 195 disclosure (related-party)</legend>
-    <label><input type="checkbox" name="customer_opt_in_disclosure" value="yes"
-       {% if disclosure_default_on %}checked{% endif %}>
-      Include the section 195 disclosure clause in the PDF</label><br>
-    <small>Customer override (only if you believe the engagement is genuinely arm's-length):</small><br>
-    <textarea name="customer_override_reason" rows="3" cols="60"
-              placeholder="(optional) describe how the fee was benchmarked"></textarea>
-    <br><em>Note: even if you provide an override, the disclosure clause still ships
-    in the PDF when our detector says default-ON. Your justification is captured
-    for our audit trail.</em>
-  </fieldset>
-
-  <fieldset><legend>Services</legend>
-    Services description:<br>
-    <textarea name="services_description" rows="3" cols="60" required></textarea>
-  </fieldset>
-
-  <button type="submit" {% if gate_blocks %}disabled{% endif %}>Generate PDF</button>
-  {% if gate_blocks %}<small style="color:#a00"> (gate-blocked)</small>{% endif %}
-</form>
-
-<p><a href="{{ url_for('fiesta_agreements_service.history', sp_id=sp_id) }}">View history of generated agreements</a></p>
-</body></html>
-"""
-
-
 _HISTORY_PAGE = """
 <!doctype html>
 <html><head><title>Service Agreement -- history</title></head>
@@ -408,6 +315,34 @@ def _sanitise_for_json(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@bp.route("", methods=["GET"], strict_slashes=False)
+@bp.route("/", methods=["GET"], strict_slashes=False)
+@login_required
+def index():
+    """HOTFIX 2026-05-22 — Bare-prefix landing for /agreements/service.
+
+    Sidebar nav links to /agreements/service (no sp_id). Per-record preview
+    routes require an id, so the bare prefix used to 404. Behaviour:
+      - 0 service providers: flash + redirect to /service-providers (add one)
+      - 1 SP:                redirect straight to that SP's preview
+      - >1 SPs:              redirect to /service-providers listing (each
+                             card already has a "Generate agreement" button
+                             per B5)
+    """
+    from fiesta.service_providers.models import ServiceProvider  # type: ignore[import-not-found]
+    user_id = getattr(current_user, "id", None)
+    sps = ServiceProvider.query.filter_by(user_id=user_id).all()
+    if not sps:
+        flash(
+            "Add a service provider first — then we'll generate the agreement.",
+            "info",
+        )
+        return redirect("/service-providers")
+    if len(sps) == 1:
+        return redirect(url_for("fiesta_agreements_service.preview", sp_id=sps[0].id))
+    return redirect("/service-providers")
+
+
 @bp.route("/<sp_id>", methods=["GET"])
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S8", action="preview")
@@ -415,6 +350,7 @@ def preview(sp_id: str):
     """Preview / parameter-input screen for the Service Agreement."""
     from fiesta.compliance import gate_check  # late import
     from fiesta.agreements.disclosure import decide_disclosure, DisclosureDecisionInput
+    from fiesta.agreements.helpers import compute_protected_deductions_lkr  # B4 F5.5
 
     customer = _customer_dict_from_user(current_user)
     service_provider = _service_provider_dict(sp_id)
@@ -428,13 +364,28 @@ def preview(sp_id: str):
         )
     )
 
-    return render_template_string(
-        _PREVIEW_FORM,
+    # B4 — resolve SP ORM object for the savings projection (best-effort).
+    sp_obj = None
+    try:
+        from fiesta.service_providers.models import ServiceProvider  # type: ignore[import-not-found]
+        sp_obj = ServiceProvider.query.filter_by(
+            id=sp_id, user_id=int(getattr(current_user, "id", -1))
+        ).first()
+    except Exception:  # noqa: BLE001
+        pass  # SP model unavailable in test context — helper returns 0
+
+    protected_lkr = compute_protected_deductions_lkr(
+        current_user, sp_obj, is_property=False
+    )
+
+    return render_template(
+        "agreements/service_preview.html",
         sp_id=sp_id,
         disclosure_default_on=decision.detector_default_on,
         evidence_prompt=decision.evidence_prompt,
         gate_warnings=gate.warnings,
         gate_blocks=gate.blocks,
+        protected_deductions_lkr=protected_lkr,
     )
 
 
@@ -554,13 +505,14 @@ def history(sp_id: str):
         .order_by(ServiceAgreement.generated_at.desc())
         .all()
     )
-    return render_template_string(_HISTORY_PAGE, rows=rows, sp_id=sp_id)
+    # B9 (F5.11) — proper FIESTA template with inline PDF iframe modal.
+    return render_template("agreements/service_history.html", rows=rows, sp_id=sp_id)
 
 
-@bp.route("/<sp_id>/preview/<int:gen_id>", methods=["GET"])
+@bp.route("/<sp_id>/preview_json/<int:gen_id>", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="S8", action="html_preview")
-def html_preview(sp_id: str, gen_id: int):
+@paywall_required(min_tier="self_file", screen_id="S8", action="audit_snapshot")
+def audit_snapshot(sp_id: str, gen_id: int):
     """JSON view of the disclosure snapshot for a generated agreement."""
     from fiesta.agreements.models import ServiceAgreement  # late import
 

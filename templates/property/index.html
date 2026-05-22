@@ -1,4 +1,4 @@
-{% extends 'layout.html' %}
+{% extends layout_template %}
 
 {% block title %}Properties — Home-office rent · FIESTA{% endblock %}
 
@@ -92,6 +92,29 @@
     padding: .55rem 1.1rem; border-radius:8px; cursor:pointer;
   }
 
+  /* ---- D1 · Shared sticky tally band (same class as S6) ------------- */
+  .fiesta-tally-band {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--card-radius);
+    padding: 0.75rem 1.25rem;
+    margin: 0 0 1.25rem;
+    display: flex; flex-wrap: wrap; gap: 1rem;
+    align-items: baseline;
+  }
+  .fiesta-tally-band__label {
+    color: var(--ink-soft); font-size: 0.9rem;
+  }
+  .fiesta-tally-band__amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700; font-size: 1.45rem;
+    color: var(--accent);
+  }
+  .fiesta-tally-band__hint {
+    color: var(--ink-mute); font-size: 0.8rem;
+  }
+
   @media (max-width: 540px) {
     .s7-page { padding: 1rem .75rem 3rem; }
     .s7-grid { grid-template-columns: 1fr; }
@@ -101,12 +124,24 @@
 
 {% block content %}
 <div class="s7-page">
+
+  <!-- D1 · Sticky live savings tally band -------------------------------- -->
+  <div class="fiesta-tally-band" id="fiesta-tally-band" aria-live="polite">
+    <div>
+      <div class="fiesta-tally-band__label">Projected savings this tax year</div>
+      <div class="fiesta-tally-band__amount" id="fiesta-tally-saving">Rs …</div>
+    </div>
+    <div class="fiesta-tally-band__hint">↻ Updates when you add or edit a property</div>
+  </div>
+
   <div class="s7-header">
-    <h1 class="s7-title">Properties</h1>
+    <h1 class="s7-title">Claim your home-office rent</h1>
     <p class="s7-sub">
-      Capture the property you live and work in. We'll calculate the
-      home-office portion of your rent — that's deductible against your
-      business income under Inland Revenue Act §6.
+      §6(1) of the Inland Revenue Act allows a deduction for the
+      business-use portion of your rent. Add the property you live and work
+      in, tell us your home-office square footage, and FIESTA calculates the
+      exact deductible amount — with a signed rental agreement to back it up
+      at audit.
     </p>
   </div>
 
@@ -184,4 +219,22 @@
     </div>
   </form>
 </div>
+
+<script>
+/* D1 — live tally fetch ------------------------------------------------- */
+async function fiestaTallyRefresh() {
+  try {
+    var r = await fetch('/reduce-tax/estimate', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    var data = await r.json();
+    var el = document.getElementById('fiesta-tally-saving');
+    if (el && data.ok) {
+      el.textContent = 'Rs ' + Math.round(Number(data.estimated_saving_lkr)).toLocaleString();
+    }
+  } catch (e) {
+    console.warn('tally refresh failed', e);
+  }
+}
+document.addEventListener('DOMContentLoaded', fiestaTallyRefresh);
+</script>
 {% endblock %}

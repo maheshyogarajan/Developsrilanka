@@ -50,11 +50,13 @@ logger = logging.getLogger(__name__)
 # Acceptable input forms -> S4-format (canonical to_tax.income_summary_for_tax_year)
 _TAX_YEAR_ALIASES_S4: dict[str, str] = {
     "2025-26": "2025-26",
+    "2025/26": "2025-26",      # X9 F6.1: current_sl_tax_year() returns this form
     "2025/2026": "2025-26",
     "25/26": "2025-26",
     "25_26": "2025-26",
     "Y25_26": "2025-26",
     "2024-25": "2024-25",
+    "2024/25": "2024-25",      # X9 F6.1
     "2024/2025": "2024-25",
     "24/25": "2024-25",
     "24_25": "2024-25",
@@ -64,11 +66,13 @@ _TAX_YEAR_ALIASES_S4: dict[str, str] = {
 # Same input -> S5 format
 _TAX_YEAR_ALIASES_S5: dict[str, str] = {
     "2025-26": "2025/2026",
+    "2025/26": "2025/2026",    # X9 F6.1
     "2025/2026": "2025/2026",
     "25/26": "2025/2026",
     "25_26": "2025/2026",
     "Y25_26": "2025/2026",
     "2024-25": "2024/2025",
+    "2024/25": "2024/2025",    # X9 F6.1
     "2024/2025": "2024/2025",
     "24/25": "2024/2025",
     "24_25": "2024/2025",
@@ -76,14 +80,41 @@ _TAX_YEAR_ALIASES_S5: dict[str, str] = {
 }
 
 
+import re as _re
+
+# X9 F6.1: regex fallback so the normaliser handles any future YYYY/YY input
+# (e.g. "2026/27", "2027/28") without us having to extend the alias map year
+# by year. `current_sl_tax_year()` emits this form, so this fallback is what
+# keeps /tax-bill from breaking after each 1 April fiscal flip.
+_YYYY_YY_PATTERN = _re.compile(r"^(\d{4})/(\d{2})$")
+_YYYY_YYYY_PATTERN = _re.compile(r"^(\d{4})/(\d{4})$")
+
+
 def normalise_tax_year_to_s4_format(ty: str) -> str:
     """Return the S4/earnings canonical form (e.g. '2025-26')."""
-    return _TAX_YEAR_ALIASES_S4.get(str(ty), str(ty))
+    s = str(ty)
+    if s in _TAX_YEAR_ALIASES_S4:
+        return _TAX_YEAR_ALIASES_S4[s]
+    m = _YYYY_YY_PATTERN.match(s)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    m = _YYYY_YYYY_PATTERN.match(s)
+    if m and m.group(2).startswith(m.group(1)[:2]):
+        # "2025/2026" -> "2025-26"
+        return f"{m.group(1)}-{m.group(2)[2:]}"
+    return s
 
 
 def normalise_tax_year_to_s5_format(ty: str) -> str:
     """Return the S5/deductions canonical form (e.g. '2025/2026')."""
-    return _TAX_YEAR_ALIASES_S5.get(str(ty), str(ty))
+    s = str(ty)
+    if s in _TAX_YEAR_ALIASES_S5:
+        return _TAX_YEAR_ALIASES_S5[s]
+    m = _YYYY_YY_PATTERN.match(s)
+    if m:
+        yy = m.group(1)
+        return f"{yy}/{yy[:2]}{m.group(2)}"
+    return s
 
 
 def canonical_tax_year_enum(ty: str):

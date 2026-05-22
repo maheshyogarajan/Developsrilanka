@@ -1,47 +1,43 @@
 """
-FIESTA admin-gate decorator (Wave 6, 2026-05-20).
+FIESTA admin-gate decorator — canonical single definition (C3 F8.3, Wave 4).
 
-This is the canonical gate for all FIESTA-branded ``/admin/*`` surfaces
-introduced from Wave 6 onward (S15, S16, S17, ...). The legacy
-``decorators.admin_required`` at the repo root keeps wrapping the 21 pre-Wave-6
-admin routes; new routes should import from here.
+ALL admin_required callers across the repo import from here. The legacy
+``decorators.admin_required`` at the repo root has been retired (it re-exports
+this implementation to avoid breaking any remaining indirect import paths).
 
-Why a second module?
---------------------
-1. Spec ask: "Put this in ``fiesta/auth/decorators.py`` or wherever similar
-   decorators already live."  -- the FIESTA package boundary is where we want
-   new code to land; the legacy ``decorators.py`` is shared with org-scope and
-   email-verification gates, which is a wider blast radius.
-2. Tests: we want a focused unit-test surface for the admin gate. The legacy
-   decorator has zero tests; this one ships with a 7-test suite.
-3. Future refactor: when the model adds a ``User.is_admin`` boolean column as
-   a direct attribute (instead of the current ``is_admin()`` method), only
-   this decorator needs to evolve. The legacy one can be retired by
-   re-exporting our ``admin_required`` from ``decorators.py``.
+Behaviour
+---------
+* Anonymous user          → 302 to login (preserves ``next`` param)
+* Authenticated non-admin →
+    - HTML request  → 403 with styled ``admin/403.html`` template
+    - JSON request  → 403 JSON ``{"error": "admin_required", "status": 403}``
+* Admin                   → invoke wrapped view
 
-Spec ambiguity / resolution
----------------------------
-The brief proposed ``getattr(current_user, 'is_admin', False)``. On the
-current FIESTA User model ``is_admin`` is a **bound method** (returns
-``role == 'admin'``). ``getattr(...) -> bound method`` is *truthy*, so the
-naive pattern would admit every authenticated user — a security bug.
+JSON detection uses ``request.is_json`` (Content-Type: application/json) with
+a fallback check on the ``Accept`` header — consistent with the pattern used
+throughout fiesta/agreements/rental_routes.py, fiesta/property/routes.py, etc.
 
-We resolve this in one place by calling the attribute when it's callable:
+Admin-check robustness
+----------------------
+``User.is_admin`` is currently a **bound method** (returns ``role == 'admin'``).
+A naive ``getattr(..., False)`` would return the bound method itself, which is
+truthy, admitting every authenticated user.  ``_user_is_admin`` resolves this
+by calling the attribute when it's callable:
 
     flag = getattr(current_user, "is_admin", False)
     is_admin = flag() if callable(flag) else bool(flag)
 
-This works for:
+This forward-compatible pattern works for:
   * Current model (``is_admin`` is a method)
   * Future model (``is_admin`` is a boolean column / property)
-  * AnonymousUserMixin (returns False; method shape via Flask-Login default)
+  * AnonymousUserMixin (returns False)
 """
 from __future__ import annotations
 
 import logging
 from functools import wraps
 
-from flask import flash, redirect, request, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 
 logger = logging.getLogger(__name__)
@@ -68,44 +64,65 @@ def _user_is_admin(user) -> bool:
         return False
 
 
+def _wants_json() -> bool:
+    """Return True if the caller expects a JSON response.
+
+    Checks in priority order:
+    1. ``request.is_json``  — Content-Type: application/json (API clients)
+    2. Accept header best-match — e.g. ``Accept: application/json``
+    """
+    if request.is_json:
+        return True
+    best = request.accept_mimetypes.best_match(
+        ["application/json", "text/html"], default="text/html"
+    )
+    return best == "application/json"
+
+
 def admin_required(f):
     """Gate ``/admin/*`` routes by ``User.is_admin``.
 
-    * Anonymous user        → 302 to ``url_for('login', next=request.url)``
-    * Authenticated non-admin → 302 to ``url_for('index')`` + flash
-    * Admin                 → invoke wrapped view
+    HTML callers receive a styled 403 page (``templates/admin/403.html``).
+    JSON callers receive ``{"error": "admin_required", "status": 403}``, 403.
 
-    The flash category is ``"error"`` (per spec) — alert-error in the base
-    layout. Bootstrap renders it as ``alert-error``; the admin layout's
-    flash handler renders it as ``alert-{{ category }}`` so we don't need
-    a CSS-class shim.
+    Anonymous users are always redirected to login (no 403 — they need a
+    credential, not an explanation that the resource is admin-only).
     """
     @wraps(f)
     def decorated(*args, **kwargs):
         # 1) Unauthenticated → bounce to login, preserve ``next``.
         if not getattr(current_user, "is_authenticated", False):
+            if _wants_json():
+                return jsonify({"error": "login_required", "status": 401}), 401
             try:
                 return redirect(url_for("login", next=request.url))
             except Exception:
                 # If the login endpoint doesn't exist (e.g. test app stub),
                 # fall back to '/'. Don't raise — the gate must close.
                 return redirect("/")
-        # 2) Authenticated but not admin → bounce to index + flash.
+
+        # 2) Authenticated but not admin → 403 (HTML or JSON).
         if not _user_is_admin(current_user):
-            flash("Admin access required.", "error")
+            if _wants_json():
+                return jsonify({"error": "admin_required", "status": 403}), 403
+            # HTML: styled 403 page extending admin/layout.html
             try:
-                return redirect(url_for("index"))
+                return render_template("admin/403.html"), 403
             except Exception:
-                # 'index' isn't always the home endpoint name (e.g. some
-                # apps use 'home'). Try 'home' next, then '/'.
+                # Template not found (shouldn't happen post-C3, but fail safe)
+                flash("Admin access required.", "error")
                 try:
-                    return redirect(url_for("home"))
+                    return redirect(url_for("index"))
                 except Exception:
-                    return redirect("/")
+                    try:
+                        return redirect(url_for("home"))
+                    except Exception:
+                        return redirect("/")
+
         # 3) Admin → run the view.
         return f(*args, **kwargs)
 
     return decorated
 
 
-__all__ = ["admin_required", "_user_is_admin"]
+__all__ = ["admin_required", "_user_is_admin", "_wants_json"]

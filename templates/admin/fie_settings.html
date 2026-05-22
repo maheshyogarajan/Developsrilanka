@@ -1,0 +1,262 @@
+{% extends "admin/layout_fiesta.html" %}
+{#
+  C9 F8.8 — /admin/fie/settings
+  DB-backed system settings page. Reads from SystemSetting model; POSTs
+  back to fie_settings_post which calls SystemSetting.set() per key.
+
+  Each setting renders as an editable input. The form submits all keys
+  in a single POST; the handler updates them atomically (one commit per key
+  via SystemSetting.set, which handles upsert logic).
+
+  Note: The authoritative IIT bracket/relief tables live in
+  fiesta/tax/data/slabs.yaml (gazette-sourced, not operator-editable).
+  Only runtime-tunable operator values are managed here.
+
+  This template extends admin/layout.html for now.
+  C2 (F8.2 cont.) will migrate it to layout_fiesta.html when that shell
+  is ready — do not change the extends line until C2 lands.
+#}
+
+{% block title %}System Settings (DB-backed) — Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0 text-gray-800">System Settings</h1>
+      <small class="text-muted">
+        Values are persisted to the <code>system_setting</code> database table and
+        survive pod restarts. Edit a value and click <strong>Save all settings</strong>.
+      </small>
+    </div>
+    <a href="{{ url_for('admin_settings') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i> Legacy settings
+    </a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('fiesta_admin.fie_settings_post') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ------------------------------------------------------------------ #}
+    {# Tax rate settings                                                    #}
+    {# ------------------------------------------------------------------ #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-percentage me-2 text-primary"></i>Tax rate settings
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-3">
+            <label for="lkr_business_tax_rate" class="form-label fw-semibold">
+              LKR Business Tax Rate
+            </label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="lkr_business_tax_rate"
+                     name="lkr_business_tax_rate"
+                     value="{{ settings.get('lkr_business_tax_rate', 36.0) }}"
+                     step="0.1" min="0" max="100" required>
+              <span class="input-group-text">%</span>
+            </div>
+            <small class="text-muted">36% default — LKR business income 2024/2025</small>
+          </div>
+
+          <div class="col-md-3">
+            <label for="usd_consulting_tax_rate" class="form-label fw-semibold">
+              USD Consulting Tax Rate
+            </label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="usd_consulting_tax_rate"
+                     name="usd_consulting_tax_rate"
+                     value="{{ settings.get('usd_consulting_tax_rate', 15.0) }}"
+                     step="0.1" min="0" max="100" required>
+              <span class="input-group-text">%</span>
+            </div>
+            <small class="text-muted">15% default — USD consulting income</small>
+          </div>
+
+          <div class="col-md-3">
+            <label for="vat_rate" class="form-label fw-semibold">VAT Rate</label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="vat_rate"
+                     name="vat_rate"
+                     value="{{ settings.get('vat_rate', 8.0) }}"
+                     step="0.1" min="0" max="100" required>
+              <span class="input-group-text">%</span>
+            </div>
+            <small class="text-muted">Value-Added Tax rate</small>
+          </div>
+
+          <div class="col-md-3">
+            <label for="sscl_rate" class="form-label fw-semibold">SSCL Rate</label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="sscl_rate"
+                     name="sscl_rate"
+                     value="{{ settings.get('sscl_rate', 2.0) }}"
+                     step="0.1" min="0" max="100" required>
+              <span class="input-group-text">%</span>
+            </div>
+            <small class="text-muted">Social Security Contribution Levy rate</small>
+          </div>
+
+        </div>{# /row #}
+      </div>
+    </div>
+
+    {# ------------------------------------------------------------------ #}
+    {# FIESTA classifier constants                                           #}
+    {# ------------------------------------------------------------------ #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-calculator me-2 text-secondary"></i>FIESTA classifier constants
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-4">
+            <label for="classifier_business_tax_rate" class="form-label fw-semibold">
+              Classifier — Business Tax Rate
+            </label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="classifier_business_tax_rate"
+                     name="classifier_business_tax_rate"
+                     value="{{ settings.get('classifier_business_tax_rate', 0.36) }}"
+                     step="0.01" min="0" max="1" required>
+              <span class="input-group-text">decimal</span>
+            </div>
+            <small class="text-muted">
+              TaxDeductibilityClassifier.BUSINESS_TAX_RATE — 0.36 = 36%
+            </small>
+          </div>
+
+          <div class="col-md-4">
+            <label for="classifier_usd_consulting_rate" class="form-label fw-semibold">
+              Classifier — USD Consulting Rate
+            </label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="classifier_usd_consulting_rate"
+                     name="classifier_usd_consulting_rate"
+                     value="{{ settings.get('classifier_usd_consulting_rate', 0.18) }}"
+                     step="0.01" min="0" max="1" required>
+              <span class="input-group-text">decimal</span>
+            </div>
+            <small class="text-muted">
+              TaxDeductibilityClassifier.USD_CONSULTING_TAX_RATE — 0.18 = 18%
+            </small>
+          </div>
+
+          <div class="col-md-4">
+            <label for="solar_relief_cap_lkr" class="form-label fw-semibold">
+              Solar Relief Cap (LKR)
+            </label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="solar_relief_cap_lkr"
+                     name="solar_relief_cap_lkr"
+                     value="{{ settings.get('solar_relief_cap_lkr', 600000) }}"
+                     step="1" min="0" required>
+              <span class="input-group-text">LKR</span>
+            </div>
+            <small class="text-muted">
+              fiesta.tax.relief.SOLAR_RELIEF_CAP_LKR — gazette-sourced; validate with IRD before changing
+            </small>
+          </div>
+
+        </div>{# /row #}
+      </div>
+    </div>
+
+    {# ------------------------------------------------------------------ #}
+    {# General settings                                                     #}
+    {# ------------------------------------------------------------------ #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-cogs me-2 text-secondary"></i>General settings
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-4">
+            <label for="app_name" class="form-label fw-semibold">Application Name</label>
+            <input type="text" class="form-control" id="app_name" name="app_name"
+                   value="{{ settings.get('app_name', 'Sri Lanka Tax Optimizer') }}" required>
+            <small class="text-muted">Used throughout the application.</small>
+          </div>
+
+          <div class="col-md-2">
+            <label for="items_per_page" class="form-label fw-semibold">Items Per Page</label>
+            <input type="number" class="form-control" id="items_per_page" name="items_per_page"
+                   value="{{ settings.get('items_per_page', 10) }}" min="5" max="100" required>
+            <small class="text-muted">Default pagination count.</small>
+          </div>
+
+          <div class="col-md-2">
+            <label for="default_currency" class="form-label fw-semibold">Default Currency</label>
+            <select class="form-select" id="default_currency" name="default_currency" required>
+              <option value="LKR" {% if settings.get('default_currency', 'LKR') == 'LKR' %}selected{% endif %}>LKR</option>
+              <option value="USD" {% if settings.get('default_currency') == 'USD' %}selected{% endif %}>USD</option>
+            </select>
+            <small class="text-muted">Primary currency.</small>
+          </div>
+
+          <div class="col-md-2 d-flex align-items-end pb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="enable_registration"
+                     name="enable_registration"
+                     value="true"
+                     {% if settings.get('enable_registration', True) %}checked{% endif %}>
+              <label class="form-check-label" for="enable_registration">Enable Registration</label>
+            </div>
+          </div>
+
+          <div class="col-md-2 d-flex align-items-end pb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="enable_ai_features"
+                     name="enable_ai_features"
+                     value="true"
+                     {% if settings.get('enable_ai_features', True) %}checked{% endif %}>
+              <label class="form-check-label" for="enable_ai_features">Enable AI Features</label>
+            </div>
+          </div>
+
+        </div>{# /row #}
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mb-5">
+      <a href="{{ url_for('fiesta_admin.fie_settings_get') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-undo me-1"></i> Discard changes
+      </a>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save me-1"></i> Save all settings
+      </button>
+    </div>
+
+  </form>
+
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Note:</strong> IIT bracket tables (6%/15%/18%/24%/30%/36%) and personal relief
+    amounts are gazette-sourced and live in <code>fiesta/tax/data/slabs.yaml</code> —
+    they are not operator-editable here. Edit that file after confirming the gazette text.
+  </div>
+
+</div>
+{% endblock %}

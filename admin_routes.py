@@ -15,7 +15,7 @@ from io import BytesIO
 
 from app import app, db
 from models import User, Receipt, ReceiptItem, UserIncome, AuditLog
-from decorators import admin_required
+from fiesta.auth.decorators import admin_required
 from image_processor import cleanup_temp_files
 from activity_logger import (
     ActivityLogger, get_recent_activities, get_activity_stats, get_gemini_api_stats
@@ -112,6 +112,10 @@ def admin_dashboard():
             'data_timestamp': dashboard_data['timestamp']
         }
         
+        # C7 F8.4 — FIESTA business KPIs (honest: returns no_data flags when
+        # signal sources are empty rather than returning fake numbers).
+        fiesta_kpis = admin_analytics.get_fiesta_kpis()
+
         return render_template(
             'admin/dashboard.html',
             user_count=user_count,
@@ -137,7 +141,8 @@ def admin_dashboard():
             tax_savings_stats=tax_savings_stats,
             gemini_stats=gemini_stats,
             gemini_stats_30=gemini_stats_30,
-            activity_stats=activity_stats
+            activity_stats=activity_stats,
+            fiesta_kpis=fiesta_kpis,
         )
     except Exception as e:
         flash(f'Error loading admin dashboard: {str(e)}', 'danger')
@@ -1020,7 +1025,11 @@ def admin_engagement():
         ).scalar() or 0
         
         converted_users = User.query.filter(
-            User.subscription_status.in_(['basic', 'pro', 'premium'])
+            # Labels updated to FIESTA tier names (paid, self_file, auto_file).
+            # Underlying subscription_status values may still include legacy
+            # 'basic'/'pro'/'premium' strings in older rows — backfill needed
+            # if the engagement funnel shows zero here despite paid users existing.
+            User.subscription_status.in_(['paid', 'self_file', 'auto_file'])
         ).count()
         
         funnel = {

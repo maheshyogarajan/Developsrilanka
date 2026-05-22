@@ -1,0 +1,414 @@
+{% extends 'layout.html' %}
+
+{% block title %}Cut your tax bill — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* X8a — Token variables consolidated in fiesta-hub-design.css (E5). */
+  .x8a-landing {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: calc(100vh - 64px);
+    padding: 36px 24px 100px;
+  }
+  .x8a-landing * { box-sizing: border-box; }
+  .x8a-landing .container-narrow { max-width: 920px; margin: 0 auto; }
+
+  .x8a-landing .eyebrow {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--clay); margin-bottom: 6px;
+  }
+  .x8a-landing h1.display {
+    font-family: var(--display); font-weight: 600; font-size: 44px; line-height: 1.08;
+    color: var(--forest); margin: 6px 0 14px; letter-spacing: -0.5px;
+  }
+  .x8a-landing h1.display em {
+    font-style: italic; color: var(--clay); font-weight: 600;
+  }
+  .x8a-landing p.sub {
+    font-size: 16px; color: var(--ink-soft); max-width: 720px; margin: 0 0 26px;
+  }
+
+  /* Slider row */
+  .x8a-landing .slider-row {
+    display: grid; grid-template-columns: 1fr 220px; gap: 22px; align-items: center;
+    background: var(--paper-deep); padding: 22px; border-radius: var(--r-lg);
+    border: 1px solid var(--paper-edge); margin-bottom: 22px;
+  }
+  .x8a-landing .slider-label {
+    font-family: var(--display); font-style: italic; font-size: 18px; color: var(--forest);
+  }
+  .x8a-landing .slider-val {
+    font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--clay);
+    text-align: right;
+  }
+  .x8a-landing input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%; appearance: none; -webkit-appearance: none;
+    height: 6px; background: var(--paper-edge); border-radius: 3px;
+  }
+  .x8a-landing input[type=range]::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--clay); border: 3px solid var(--paper-hi); cursor: pointer;
+    box-shadow: 0 2px 6px rgba(184,84,47,0.4);
+  }
+  .x8a-landing input[type=range]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--clay); border: 3px solid var(--paper-hi); cursor: pointer;
+  }
+
+  /* Big counter */
+  .x8a-landing .big-counter {
+    background: var(--forest); color: var(--paper-hi);
+    border-radius: var(--r-xl); padding: 28px; margin-bottom: 22px; text-align: center;
+    box-shadow: var(--shadow-lift);
+  }
+  .x8a-landing .big-counter .lead {
+    font-family: var(--mono); font-size: 12px; color: var(--sage);
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  .x8a-landing .big-counter .num {
+    font-family: var(--mono); font-size: 64px; font-weight: 700; color: var(--clay-soft);
+    letter-spacing: -2px; margin: 8px 0;
+  }
+  .x8a-landing .big-counter .delta {
+    font-family: var(--mono); font-size: 13px; color: var(--paper-hi);
+  }
+  .x8a-landing .big-counter .delta b { color: var(--mustard); }
+  .x8a-landing .big-counter .savings {
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--moss);
+    font-family: var(--mono); font-size: 12px; color: var(--sage);
+  }
+  .x8a-landing .big-counter .savings b { color: var(--mustard); font-size: 14px; }
+
+  /* Section heading */
+  .x8a-landing .chip-heading {
+    font-family: var(--display); color: var(--forest);
+    font-weight: 600; font-size: 18px; margin: 22px 0 10px;
+  }
+
+  /* Expense chip grid */
+  .x8a-landing .expense-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px;
+  }
+  .x8a-landing .expense-chip {
+    background: var(--paper-hi); border: 1px solid var(--paper-edge);
+    padding: 12px 14px; border-radius: var(--r-md); cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: background 0.15s, border-color 0.15s;
+    margin: 0;
+  }
+  .x8a-landing .expense-chip:hover { border-color: var(--clay); }
+  .x8a-landing .expense-chip input { accent-color: var(--clay); width: 16px; height: 16px; }
+  .x8a-landing .expense-chip .name { font-size: 13px; color: var(--ink); }
+  .x8a-landing .expense-chip .impact {
+    margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-muted);
+  }
+  .x8a-landing .expense-chip.checked { background: var(--paper-deep); border-color: var(--moss); }
+  .x8a-landing .expense-chip.checked .impact { color: var(--success); }
+
+  /* CTAs */
+  .x8a-landing .cta-row {
+    display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap;
+  }
+  .x8a-landing .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--clay); color: var(--paper-hi); border: 0;
+    padding: 14px 24px; font-family: var(--body); font-weight: 600;
+    border-radius: var(--r-md); cursor: pointer; font-size: 15px; letter-spacing: 0.2px;
+    box-shadow: var(--shadow-soft); text-decoration: none;
+  }
+  .x8a-landing .btn:hover { background: var(--clay-deep); color: var(--paper-hi); }
+  .x8a-landing .btn.ghost {
+    background: transparent; color: var(--clay); box-shadow: none; padding: 12px 18px;
+    border: 1px solid var(--paper-edge);
+  }
+  .x8a-landing .btn.ghost:hover { background: var(--paper-deep); color: var(--clay-deep); }
+
+  .x8a-landing .landing-footer {
+    margin-top: 32px; padding: 16px 18px;
+    background: var(--paper-deep); border: 1px solid var(--paper-edge);
+    border-radius: var(--r-md);
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft); text-align: center;
+  }
+  .x8a-landing .landing-footer b { color: var(--clay); }
+
+  .x8a-landing .calc-loading {
+    opacity: 0.55; transition: opacity 0.2s;
+  }
+
+  /* Disclaimer / IRA citation panel */
+  .x8a-landing .preview-disclaimer {
+    margin-top: 18px; padding: 14px 18px;
+    background: var(--paper-hi); border-left: 3px solid var(--mustard);
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-muted); line-height: 1.6;
+  }
+
+  @media (max-width: 640px) {
+    .x8a-landing { padding: 24px 16px 80px; }
+    .x8a-landing h1.display { font-size: 32px; }
+    .x8a-landing .big-counter .num { font-size: 44px; }
+    .x8a-landing .slider-row { grid-template-columns: 1fr; }
+    .x8a-landing .slider-val { text-align: left; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="x8a-landing">
+  <div class="container-narrow">
+
+    <div class="eyebrow">Step 0 · No signup needed</div>
+    <h1 class="display">Cut your tax bill. <em>Keep the records clean.</em></h1>
+    <p class="sub">
+      See your estimated tax impact in 2 minutes — no signup. Move the slider, tick the ways
+      you can reduce your tax, and watch the number you owe drop in real time. Each tick is a
+      category of expense the IRD recognises as deductible — every Rs 100 you spend on
+      legitimate business expenses saves you Rs 6&ndash;36 in tax.
+    </p>
+
+    <!-- Slider -->
+    <div class="slider-row" role="group" aria-label="Monthly foreign income slider">
+      <div class="slider-label">Monthly foreign income (USD)</div>
+      <div class="slider-val"><span id="incomeUsd">$1,000</span> / mo</div>
+      <input type="range"
+             id="incomeSlider"
+             name="monthly_usd"
+             min="200" max="10000" step="50" value="1000"
+             aria-label="Monthly foreign income in US dollars">
+    </div>
+
+    <!-- Big counter -->
+    <div class="big-counter" aria-live="polite">
+      <div class="lead">Estimated tax you'd owe &mdash; 2025/26</div>
+      <div class="num" id="taxOwed">Rs &mdash;</div>
+      <div class="delta">
+        Annual income (LKR): <b id="annualLkr">Rs &mdash;</b> &middot; CBSL rate Rs {{ fx_rate_lkr_per_usd or '302' }}/USD
+      </div>
+      <div class="savings">
+        With well-documented expenses &rarr; <b id="taxOwedNet">Rs &mdash;</b>
+        &middot; Saved: <b id="taxSaved">Rs &mdash;/yr</b>
+      </div>
+    </div>
+
+    <h3 class="chip-heading">Which expenses apply to you?</h3>
+    <div class="expense-grid" id="expenseGrid">
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="120000" data-label="bank_transfer_charges">
+        <span class="name">Bank transfer charges (SWIFT, processing)</span>
+        <span class="impact">&minus;Rs 120K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="180000" data-label="payment_platform_fees">
+        <span class="name">Payment platform fees (Payoneer, Wise, PayPal, Upwork)</span>
+        <span class="impact">&minus;Rs 180K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="240000" data-label="fx_margin_loss">
+        <span class="name">FX margin loss (CBSL vs bank credited rate)</span>
+        <span class="impact">&minus;Rs 240K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="350000" data-label="hardware">
+        <span class="name">Hardware (laptop, monitor, phone, peripherals)</span>
+        <span class="impact">&minus;Rs 350K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="180000" data-label="software_subscriptions">
+        <span class="name">Software subscriptions</span>
+        <span class="impact">&minus;Rs 180K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="120000" data-label="internet_phone">
+        <span class="name">Internet &amp; phone bills</span>
+        <span class="impact">&minus;Rs 120K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="180000" data-label="coworking">
+        <span class="name">Co-working space</span>
+        <span class="impact">&minus;Rs 180K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="240000" data-label="training">
+        <span class="name">Professional training</span>
+        <span class="impact">&minus;Rs 240K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="300000" data-label="business_travel">
+        <span class="name">Business travel</span>
+        <span class="impact">&minus;Rs 300K</span>
+      </label>
+      <label class="expense-chip">
+        <input type="checkbox" class="exp" data-rs="600000" data-label="solar_panel">
+        <span class="name">Solar panel installation (extra Rs 600K relief)</span>
+        <span class="impact">&minus;Rs 600K</span>
+      </label>
+    </div>
+
+    <div class="cta-row">
+      {% if current_user.is_authenticated %}
+        <a class="btn" href="{{ url_for('fiesta_triage.triage_form') }}">Continue &mdash; let's set this up properly</a>
+        <a class="btn ghost" href="{{ url_for('fiesta_tax_preview_page') }}">See the full 25/26 result</a>
+      {% else %}
+        <a class="btn" href="{{ url_for('register', next=url_for('fiesta_triage.triage_form')) }}" id="ctaPrimary">Continue &mdash; let's set this up properly</a>
+        <a class="btn ghost" href="{{ url_for('fiesta_tax_preview_page') }}" id="ctaSecondary">See the full 25/26 result</a>
+      {% endif %}
+    </div>
+
+    <div class="landing-footer">
+      <b>Free during launch &mdash; Rs 2,500 from 2026-09-01.</b> No credit card. No sales call. Just better records.
+    </div>
+
+    <div class="preview-disclaimer" id="previewDisclaimer">
+      PREVIEW &mdash; numbers estimated from the inputs above. Actual tax payable depends on your full
+      income, deductions, and WHT credits. Brackets per IRA First Schedule (25/26): first taxable
+      band 6%, foreign income above first band 15% flat, local progressive 6&ndash;36%.
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  var FX_LKR_PER_USD = {{ fx_rate_lkr_per_usd or 302 }};
+  var slider = document.getElementById('incomeSlider');
+  var usdLabel = document.getElementById('incomeUsd');
+  var lkrLabel = document.getElementById('annualLkr');
+  var taxOwed = document.getElementById('taxOwed');
+  var taxOwedNet = document.getElementById('taxOwedNet');
+  var taxSaved = document.getElementById('taxSaved');
+  var bigCounter = document.querySelector('.big-counter');
+  var chips = document.querySelectorAll('.expense-chip input.exp');
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  if (!slider) return;
+
+  function fmtLKR(n) {
+    if (n === null || n === undefined || isNaN(n)) return 'Rs —';
+    var int = Math.round(Number(n));
+    return 'Rs ' + int.toLocaleString('en-US');
+  }
+  function fmtUSD(n) { return '$' + Number(n).toLocaleString('en-US'); }
+
+  function getSpFeeLkr() {
+    var sum = 0;
+    chips.forEach(function (c) { if (c.checked) sum += Number(c.dataset.rs || 0); });
+    return sum;
+  }
+
+  function paintLocal() {
+    var monthlyUsd = Number(slider.value);
+    var annualLkr = monthlyUsd * 12 * FX_LKR_PER_USD;
+    usdLabel.textContent = fmtUSD(monthlyUsd);
+    lkrLabel.textContent = fmtLKR(annualLkr);
+    return annualLkr;
+  }
+
+  function applyCalc(d) {
+    if (!d) return;
+    taxOwed.textContent = fmtLKR(d.naive_tax_lkr);
+    taxOwedNet.textContent = fmtLKR(d.fiesta_tax_lkr);
+    var savedYr = fmtLKR(d.saving_lkr) + '/yr';
+    taxSaved.textContent = savedYr;
+  }
+
+  var inflight = null;
+  var debounceTimer = null;
+  var lastInputEventEmitted = 0;
+
+  function runCalc() {
+    if (bigCounter) bigCounter.classList.add('calc-loading');
+    var annualLkr = paintLocal();
+    var spFee = getSpFeeLkr();
+
+    var headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+    if (inflight && inflight.abort) inflight.abort();
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    inflight = ctrl ? { abort: function () { ctrl.abort(); } } : null;
+
+    fetch('/preview/calc', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        gross_income: annualLkr,
+        currency: 'LKR',
+        income_source: 'foreign',
+        sp_fee: spFee,
+        rental: 0,
+        senior: false,
+        year: '25_26'
+      }),
+      signal: ctrl ? ctrl.signal : undefined
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (d) { applyCalc(d); })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        // Silent failure on the public landing — keep the counter at last good state.
+        if (console && console.warn) console.warn('preview/calc failed', err);
+      })
+      .finally(function () {
+        if (bigCounter) bigCounter.classList.remove('calc-loading');
+      });
+  }
+
+  function scheduleCalc() {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(runCalc, 220);
+  }
+
+  function emitInputChanged(source) {
+    var now = Date.now();
+    // Throttle: at most one input_changed event per 1.5s to keep analytics quiet
+    if (now - lastInputEventEmitted < 1500) return;
+    lastInputEventEmitted = now;
+    var headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    try {
+      fetch('/api/event/public', {
+        method: 'POST',
+        headers: headers,
+        credentials: 'same-origin',
+        keepalive: true,
+        body: JSON.stringify({
+          event_type: 'estimator_input_changed',
+          payload: { source: source, monthly_usd: Number(slider.value), chips_checked: getSpFeeLkr() }
+        })
+      }).catch(function () { /* best-effort */ });
+    } catch (e) { /* best-effort */ }
+  }
+
+  slider.addEventListener('input', function () {
+    paintLocal();
+    emitInputChanged('slider');
+    scheduleCalc();
+  });
+
+  chips.forEach(function (c) {
+    c.addEventListener('change', function () {
+      var label = c.closest('.expense-chip');
+      if (label) label.classList.toggle('checked', c.checked);
+      emitInputChanged('chip:' + (c.dataset.label || 'unknown'));
+      scheduleCalc();
+    });
+  });
+
+  // Initial paint + first calc
+  paintLocal();
+  runCalc();
+})();
+</script>
+{% endblock %}

@@ -22,7 +22,7 @@ from decimal import Decimal
 
 from flask import Blueprint, jsonify
 
-from decorators import admin_required
+from fiesta.auth.decorators import admin_required
 
 log = logging.getLogger(__name__)
 

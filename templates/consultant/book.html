@@ -1,72 +1,126 @@
 {# X4 — Consultant booking landing page (Wave 6, 2026-05-21).
 
-   GET /consultant/book — pure Bootstrap, no JS framework. Available to
-   all signed-up tiers (no paywall gate).
+   X9 F7.4 — migrated to the dynamic FIESTA layout. For sl_foreign_income
+   personas this renders inside layout_fiesta.html (paper/forest/clay shell
+   + persistent savings counter + sidebar). Non-FIESTA personas get the
+   legacy bookkeeping shell. The page-local styling has been retuned to the
+   FIESTA palette so it reads as part of the same house.
 #}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FIESTA — Book a consultation</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body { background: #f5f7fa; }
-        .page-shell { max-width: 720px; margin: 32px auto; padding: 0 16px; }
-        .card-block { background: #fff; border-radius: 10px; padding: 28px;
-                       box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .price-hero { font-size: 40px; font-weight: 700; color: #111827; }
-        .price-sub { color: #6b7280; font-size: 14px; }
-        ul.included { list-style: none; padding: 0; margin: 16px 0 0; }
-        ul.included li { padding: 6px 0; }
-        ul.included li i { color: #10b981; margin-right: 10px; }
-    </style>
-</head>
-<body>
-<div class="page-shell">
+{% extends layout_template %}
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="mb-3">
-                {% for cat, msg in messages %}
-                    {% set alert_cls = 'alert-success' if cat == 'success' else
-                                       'alert-danger' if cat in ('error','danger') else
-                                       'alert-warning' if cat == 'warning' else 'alert-info' %}
-                    <div class="alert {{ alert_cls }} py-2 px-3 mb-2">{{ msg }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
+{% block title %}FIESTA &mdash; Book a consultation{% endblock %}
 
-    <div class="card-block">
-        <h1 class="h3 mb-1">Book a consultation</h1>
-        <div class="text-muted">One-off · {{ session_minutes }} minutes · Google Meet</div>
+{% block additional_styles %}
+<style>
+  /* X9 F7.4 — scoped FIESTA-token styling so the page reads as the rest of
+     the hub regardless of which layout it extends.
+     Token variables consolidated in fiesta-hub-design.css (E5). */
+  .consultant-book {
+    color: var(--ink);
+    font-family: var(--body);
+  }
+  .consultant-book .card-block {
+    background: var(--paper-hi);
+    border: 1px solid var(--paper-edge);
+    border-radius: 14px;
+    padding: 32px;
+    box-shadow: 0 18px 40px -22px rgba(20,35,24,0.18);
+  }
+  .consultant-book .eyebrow {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--clay); margin-bottom: 8px;
+  }
+  .consultant-book h1 {
+    font-family: var(--display); font-weight: 600; letter-spacing: -0.3px;
+    color: var(--forest); font-size: 32px; margin: 0 0 8px;
+  }
+  .consultant-book h1 em {
+    font-style: italic; color: var(--clay); font-weight: 600;
+  }
+  .consultant-book .session-meta {
+    color: var(--ink-muted); font-size: 14px;
+  }
+  .consultant-book .price-hero {
+    font-family: var(--mono); font-size: 44px; font-weight: 700;
+    color: var(--clay); letter-spacing: -0.8px; margin: 24px 0 4px;
+  }
+  .consultant-book .price-sub {
+    color: var(--ink-muted); font-size: 13.5px;
+    font-family: var(--mono);
+  }
+  .consultant-book ul.included {
+    list-style: none; padding: 0; margin: 20px 0 0;
+  }
+  .consultant-book ul.included li {
+    padding: 7px 0; color: var(--ink-soft); font-size: 14.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .consultant-book ul.included li i {
+    color: var(--success); font-size: 13px;
+  }
+  .consultant-book .btn-book {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--clay); color: var(--paper-hi); border: 0;
+    padding: 14px 26px; font-family: var(--body); font-weight: 600;
+    border-radius: 8px; font-size: 15.5px; letter-spacing: 0.2px;
+    cursor: pointer; text-decoration: none;
+  }
+  .consultant-book .btn-book:hover { background: var(--clay-deep); color: var(--paper-hi); }
+  .consultant-book .helper-note {
+    color: var(--ink-muted); margin-top: 10px; font-size: 13px;
+    font-family: var(--mono);
+  }
+  .consultant-book .alert {
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+    font-family: var(--body); font-size: 14px;
+    background: var(--paper-deep); border-left: 3px solid var(--clay-deep);
+    color: var(--ink-soft);
+  }
+</style>
+{% endblock %}
 
-        <div class="mt-4">
-            <div class="price-hero">Rs {{ "{:,}".format(price_lkr) }}</div>
-            <div class="price-sub">paid once, no subscription</div>
-        </div>
+{% block content %}
+<div class="consultant-book">
 
-        <ul class="included">
-            <li><i class="fas fa-check"></i> {{ session_minutes }}-minute one-to-one over Google Meet</li>
-            <li><i class="fas fa-check"></i> Pick your own time after payment (Google Calendar slots)</li>
-            <li><i class="fas fa-check"></i> Available on every FIESTA tier — Trial, Self-File, Auto-File</li>
-            <li><i class="fas fa-check"></i> Consultant gets your prep brief automatically</li>
-        </ul>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+          <div class="mb-3">
+              {% for cat, msg in messages %}
+                  <div class="alert">{{ msg }}</div>
+              {% endfor %}
+          </div>
+      {% endif %}
+  {% endwith %}
 
-        <form method="POST" action="{{ url_for('consultant.book_checkout') }}" class="mt-4">
-            <input type="hidden" name="return_to" value="{{ return_to }}">
-            <button type="submit" class="btn btn-primary btn-lg">
-                <i class="fas fa-calendar-check"></i>
-                Book Rs {{ "{:,}".format(price_lkr) }} ({{ session_minutes }} min)
-            </button>
-            <div class="text-muted mt-2" style="font-size: 13px;">
-                You'll be redirected to Stripe to pay, then to Google Calendar to pick a slot.
-            </div>
-        </form>
-    </div>
+  <div class="card-block">
+    <div class="eyebrow">FIESTA &middot; Help</div>
+    <h1>Book a <em>consultation</em></h1>
+    <div class="session-meta">One-off &middot; {{ session_minutes }} minutes &middot; Google Meet</div>
+
+    <div class="price-hero">Rs {{ "{:,}".format(price_lkr) }}</div>
+    <div class="price-sub">paid once, no subscription</div>
+
+    <ul class="included">
+      <li><i class="fas fa-check"></i> {{ session_minutes }}-minute one-to-one over Google Meet</li>
+      <li><i class="fas fa-check"></i> Pick your own time after payment (Google Calendar slots)</li>
+      <li><i class="fas fa-check"></i> Available on every FIESTA tier &mdash; Trial, Self-File, Auto-File</li>
+      <li><i class="fas fa-check"></i> Consultant gets your prep brief automatically</li>
+    </ul>
+
+    <form method="POST" action="{{ url_for('consultant.book_checkout') }}" class="mt-4">
+      <input type="hidden" name="return_to" value="{{ return_to }}">
+      {% if csrf_token %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% endif %}
+      <button type="submit" class="btn-book">
+        <i class="fas fa-calendar-check"></i>
+        Book Rs {{ "{:,}".format(price_lkr) }} ({{ session_minutes }} min)
+      </button>
+      <div class="helper-note">
+        You'll be redirected to Stripe to pay, then to Google Calendar to pick a slot.
+      </div>
+    </form>
+  </div>
 
 </div>
-</body>
-</html>
+{% endblock %}

@@ -190,8 +190,29 @@ bp = Blueprint(
 )
 
 
-_DEFAULT_TAX_YEAR_S5 = "2025/2026"
-_DEFAULT_TAX_YEAR_S4 = "2025-26"
+# X9 F6.1: legacy hard-coded constants. KEPT only as fallbacks for environments
+# where `fiesta.paywall.models.current_sl_tax_year` cannot be imported.
+# Live code paths MUST route through `_default_tax_year_s4()` so the year
+# advances on its own at the SL fiscal flip (1 April) and stays aligned with
+# what S14 / paywall sees.
+_DEFAULT_TAX_YEAR_S5_FALLBACK = "2025/2026"
+_DEFAULT_TAX_YEAR_S4_FALLBACK = "2025-26"
+
+
+def _default_tax_year_s4() -> str:
+    """Return the active SL tax year in S4 form ("YYYY-YY").
+
+    Uses fiesta.paywall.models.current_sl_tax_year() — the canonical source S14
+    and the paywall both consume — and runs it through the same normalisation
+    the rest of the tax-bill stack uses. Falls back to the hard-coded constant
+    only if the paywall module cannot be imported (e.g. during minimal-stack
+    tests).
+    """
+    try:
+        from fiesta.paywall.models import current_sl_tax_year
+        return normalise_tax_year_to_s4_format(current_sl_tax_year())
+    except Exception:  # pragma: no cover -- defensive fallback only
+        return _DEFAULT_TAX_YEAR_S4_FALLBACK
 
 
 @bp.route("/", methods=["GET"])
@@ -201,7 +222,7 @@ _DEFAULT_TAX_YEAR_S4 = "2025-26"
 def index_redirect():
     """Redirect /tax-bill -> /tax-bill/<current_ty>."""
     return redirect(url_for("fiesta_tax_bill.show_tax_bill",
-                            tax_year=_DEFAULT_TAX_YEAR_S4))
+                            tax_year=_default_tax_year_s4()))
 
 
 @bp.route("/<tax_year>", methods=["GET"])

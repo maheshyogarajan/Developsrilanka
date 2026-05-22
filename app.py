@@ -96,17 +96,26 @@ logging.info(f"Mail configuration: Server={app.config['MAIL_SERVER']}, Port={app
 logging.info(f"Mail username configured: {'Yes' if app.config['MAIL_USERNAME'] else 'No'}")
 logging.info(f"Mail password configured: {'Yes' if app.config['MAIL_PASSWORD'] else 'No'}")
 
-# Production error handlers
+# Production error handlers — X9 F-Platform-6 unified family.
+# All three render templates/error.html, which now extends layout_template
+# (FIESTA shell for sl_foreign_income personas, legacy bookkeeping otherwise)
+# and ships a persona-aware "Go Home" CTA.
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('error.html', 
-                           error_code=404, 
+    return render_template('error.html',
+                           error_code=404,
                            error_message="The page you're looking for doesn't exist."), 404
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('error.html',
+                           error_code=403,
+                           error_message="You don't have access to this page. If you think this is wrong, contact us at tax@lanka.tax."), 403
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    return render_template('error.html', 
-                           error_code=500, 
+    return render_template('error.html',
+                           error_code=500,
                            error_message="Something went wrong on our end. We're working to fix it."), 500
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 
@@ -151,6 +160,134 @@ def inject_csrf_token():
     """Add CSRF token to all templates."""
     from template_utils import get_csrf_token
     return dict(csrf_token=get_csrf_token)
+
+
+# X9 F-Platform-1: expose the persona-aware FIESTA layout template + savings counter
+# context so authenticated FIESTA-persona screens can `{% extends layout_template %}`
+# and pick up `hub_projected_savings_lkr` / `current_sl_tax_year` automatically.
+@app.context_processor
+def inject_fiesta_hub_context():
+    """Make the FIESTA hub shell available to every template.
+
+    `layout_template` is set in `check_authentication` (before_request); we expose
+    it here so templates can do `{% extends layout_template %}`.
+
+    `current_sl_tax_year` is a callable so templates can compute the active YA
+    when they need a default. We resolve it through the paywall.models entrypoint
+    that the rest of the FIESTA stack already trusts.
+
+    X9 F-Platform-5 + F-Platform-4: ALSO expose the authenticated user's
+    personalised numbers — average monthly remittance (for the hub slider
+    pre-fill) and projected tax savings (for the persistent counter pill).
+    Both are computed once per request from RemittanceEntry / IncomeEntry
+    rather than fetched via JS on every page load — simpler, no extra
+    roundtrip, no cache invalidation, and the counter is correct the moment
+    the user logs a new remittance.
+    """
+    from flask import g
+
+    layout_template = getattr(g, 'layout_template', 'layout.html')
+
+    def _current_sl_tax_year():
+        try:
+            from fiesta.paywall.models import current_sl_tax_year as _csl
+            return _csl()
+        except Exception:
+            return '2025/26'
+
+    hub_avg_monthly_usd = 0
+    hub_projected_savings_lkr = 0
+    hub_next_step = None
+    hub_funnel_state = "anon"
+
+    if (
+        current_user.is_authenticated
+        and getattr(current_user, 'persona', None) == 'sl_foreign_income'
+    ):
+        try:
+            from decimal import Decimal
+            from remittance_models import RemittanceEntry
+            tax_year_ya = _current_sl_tax_year()
+            remits = (
+                RemittanceEntry.query
+                .filter(RemittanceEntry.user_id == current_user.id)
+                .filter(RemittanceEntry.tax_year.in_([
+                    tax_year_ya,
+                    tax_year_ya.replace('/', '-') if '/' in tax_year_ya else tax_year_ya,
+                ]))
+                .all()
+            )
+            # Average USD-equivalent monthly remittance for slider pre-fill.
+            # Use the simple foreign_amount when currency is USD; for other
+            # currencies fall back to a 302 LKR/USD divisor on lkr_amount_cbsl.
+            if remits:
+                usd_sum = Decimal('0')
+                count = 0
+                for r in remits:
+                    cur = (r.foreign_currency or '').upper()
+                    if cur == 'USD' and r.foreign_amount:
+                        usd_sum += Decimal(str(r.foreign_amount))
+                        count += 1
+                    elif r.lkr_amount_cbsl:
+                        usd_sum += Decimal(str(r.lkr_amount_cbsl)) / Decimal('302')
+                        count += 1
+                if count > 0:
+                    months = max(count, 1)
+                    hub_avg_monthly_usd = int(usd_sum / months)
+        except Exception as exc:
+            logging.debug(f"hub_avg_monthly_usd compute failed: {exc}")
+
+        try:
+            from fiesta.earnings.to_tax import income_summary_for_tax_year
+            tax_year_s4 = _current_sl_tax_year().replace('/', '-') if '/' in _current_sl_tax_year() else _current_sl_tax_year()
+            summary = income_summary_for_tax_year(current_user.id, tax_year_s4)
+            total_lkr = float(summary.get('total_lkr') or 0)
+            # FIESTA's documented-deductions saving is ~22% of qualifying
+            # income at the 15% foreign flat-rate band (per worked examples).
+            # Use total_lkr * 0.22 * 0.15 as a conservative projection until
+            # the user actually claims deductions on S5.
+            hub_projected_savings_lkr = int(total_lkr * 0.033)
+        except Exception as exc:
+            logging.debug(f"hub_projected_savings_lkr compute failed: {exc}")
+
+        # Next-step recommender state — drives the F-Platform-4 hub card.
+        try:
+            from remittance_models import RemittanceEntry as _RE
+            has_remit = _RE.query.filter_by(user_id=current_user.id).first() is not None
+        except Exception:
+            has_remit = False
+
+        if not has_remit:
+            hub_funnel_state = "no_remittances"
+            hub_next_step = {
+                "label": "Log your first inward remittance",
+                "href": "/remittance/new",
+                "rationale": "Every IRD-defensible deduction starts with logging the remittance at CBSL middle rate.",
+            }
+        elif hub_projected_savings_lkr == 0:
+            hub_funnel_state = "ready_to_deduct"
+            hub_next_step = {
+                "label": "Claim deductions on S5",
+                "href": "/reduce-tax/",
+                "rationale": "Tick the categories that apply — your tax bill drops in real time.",
+            }
+        else:
+            hub_funnel_state = "ready_for_bill"
+            hub_next_step = {
+                "label": "See your tax bill",
+                "href": f"/tax-bill/{_current_sl_tax_year().replace('/', '-')}",
+                "rationale": "Bracket-by-bracket walk through what you owe with your documented deductions.",
+            }
+
+    return dict(
+        layout_template=layout_template,
+        current_sl_tax_year=_current_sl_tax_year,
+        is_fiesta_persona=getattr(g, 'is_fiesta_persona', False),
+        hub_avg_monthly_usd=hub_avg_monthly_usd,
+        hub_projected_savings_lkr=hub_projected_savings_lkr,
+        hub_next_step=hub_next_step,
+        hub_funnel_state=hub_funnel_state,
+    )
 
 # Setup OAuth
 oauth = OAuth(app)
@@ -372,18 +509,66 @@ def db_recovery():
 
 @app.route('/')
 def home():
-    """Render the homepage with welcome message and features."""
-    # Hard-coded statistics for dashboard
-    receipt_stats = {
-        'total': '112,000+',
-        'active_invoices': '2,400+'
-    }
-    return render_template('home.html', stats=receipt_stats)
+    """X8a — public-flow landing.
+
+    Anonymous: render the S0 estimator landing (v4-demo narrative).
+    Authenticated: redirect to /scan (which then handles persona reroute to
+    /remittance/dashboard for sl_foreign_income, or stays on the scan page).
+
+    Legacy bookkeeping home is preserved at templates/home_bookkeeping_legacy.html
+    in case a rollback is needed.
+    """
+    # FX rate the calculator uses for USD->LKR; mirror fiesta.tax.preview FX_FALLBACK.
+    try:
+        from fiesta.tax.preview import FX_FALLBACK_LKR_PER_UNIT
+        fx_rate_lkr_per_usd = int(FX_FALLBACK_LKR_PER_UNIT.get("USD", 302))
+    except Exception:
+        fx_rate_lkr_per_usd = 302
+
+    if current_user.is_authenticated:
+        # X9 F-Platform-4: `/` becomes the FIESTA hub for authenticated
+        # sl_foreign_income personas — same hero, same calculator, same chips,
+        # but pre-filled with their real data + a next-step recommender card.
+        # Two-Doors-One-House: anon S0 and authed hub are the same house, just
+        # personalised behind the door. Non-FIESTA personas keep the legacy
+        # /scan bookkeeping path.
+        if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+            return render_template(
+                'fiesta_public/hub.html',
+                fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
+            )
+        return redirect(url_for('index'))
+
+    # Wave 1 EVENT SPINE: landing_viewed (X8a funnel)
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'landing_viewed',
+            user_id=None,
+            payload={'fx_rate_lkr_per_usd': fx_rate_lkr_per_usd},
+            source='route:home',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (landing_viewed) failed: {_ev_err}")
+
+    return render_template(
+        'fiesta_public/s0_landing.html',
+        fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
+    )
 
 @app.route('/preview')
 def preview():
     """Render the receipt preview page without login requirement."""
     return render_template('preview.html')
+
+
+@app.route('/deductions')
+def deductions_legacy_redirect():
+    """X9 F4.2 — /deductions is the historical S5 URL; the FIESTA blueprint
+    mounts it at /reduce-tax/. A permanent redirect keeps any external link
+    or sidebar item that still says /deductions pointed at the live page.
+    """
+    return redirect('/reduce-tax/', code=301)
 
 
 @app.route('/tax-preview', methods=['GET'])
@@ -445,7 +630,66 @@ def fiesta_tax_preview_calc():
         logging.exception("tax preview calc failed")
         return jsonify({"error": "internal preview error", "detail": str(exc)}), 500
 
+    # X8a funnel: estimator_run — one event per server-side preview call.
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'estimator_run',
+            user_id=getattr(current_user, 'id', None) if current_user.is_authenticated else None,
+            payload={
+                'gross_income_lkr': result.get('gross_income_lkr'),
+                'income_source': result.get('income_source'),
+                'naive_tax_lkr': result.get('naive_tax_lkr'),
+                'fiesta_tax_lkr': result.get('fiesta_tax_lkr'),
+                'saving_lkr': result.get('saving_lkr'),
+            },
+            source='route:fiesta_tax_preview_calc',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (estimator_run) failed: {_ev_err}")
+
     return jsonify(result)
+
+
+# X8a — public-flow event shim. Allows the S0 landing JS to emit
+# client-side funnel events (estimator_input_changed) without exposing the
+# full event spine. Whitelist of allowed event types prevents arbitrary
+# event names from being injected.
+_PUBLIC_EVENT_WHITELIST = frozenset([
+    'estimator_input_changed',
+    'estimator_run',  # also allow client-side echo for resilience
+    'landing_viewed',
+    'signup_page_viewed',
+])
+
+
+@csrf.exempt
+@app.route('/api/event/public', methods=['POST'])
+def public_event_shim():
+    """Best-effort public event emitter. Returns 204 on success or whitelist
+    miss; never returns a 5xx that would surface in console for users.
+    """
+    payload = request.get_json(silent=True) or {}
+    event_type = (payload.get('event_type') or '').strip()
+    inner_payload = payload.get('payload') or {}
+
+    if event_type not in _PUBLIC_EVENT_WHITELIST:
+        return ('', 204)
+    if not isinstance(inner_payload, dict):
+        inner_payload = {'raw': str(inner_payload)[:200]}
+
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            event_type,
+            user_id=getattr(current_user, 'id', None) if current_user.is_authenticated else None,
+            payload=inner_payload,
+            source='route:public_event_shim',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"public_event_shim emit failed: {_ev_err}")
+
+    return ('', 204)
 
 
 @app.route('/tax-doc/scan', methods=['GET', 'POST'])
@@ -507,21 +751,25 @@ def index():
         flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
         return redirect(url_for('verify_email_reminder'))
 
+    # X9 F-Platform-3: persona reroute fires BEFORE the onboarding + org checks.
+    # sl_foreign_income users don't need a business org, so the previous ordering
+    # caused /scan -> /onboarding -> / -> /scan loops. The Remittance Ledger is
+    # their hub; everything else flows from there.
+    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        return redirect(url_for('remittance.dashboard'))
+
     # Check if onboarding is completed (admins bypass this check)
     if hasattr(current_user, 'onboarding_completed') and not current_user.onboarding_completed and current_user.role != 'admin':
         flash('Please complete your account setup before using the app.', 'info')
         return redirect(url_for('onboarding_wizard'))
 
-    # Check if user has any organizations
-    if not current_user.organizations:
+    # Check if user has any organizations (admins bypass — they're the operator,
+    # not a customer, and don't need a business org to reach /scan or anything
+    # else on the legacy bookkeeping path).
+    if not current_user.organizations and current_user.role != 'admin':
         # Redirect to onboarding wizard if no organizations exist
         flash("Please complete your account setup before scanning receipts.", "warning")
         return redirect(url_for('onboarding_wizard'))
-
-    # Persona reroute (Wave A 2026-05-16): SL foreign-income earners land on the Remittance
-    # Ledger, not the generic receipt-scan page. Reversible per-user via profile settings.
-    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
-        return redirect(url_for('remittance.dashboard'))
 
     return render_template('index.html')
 
@@ -2525,8 +2773,77 @@ def register():
         session['invitation_token'] = invitation_token
         flash("Please complete registration to accept the invitation.", "info")
         logging.info(f"Registration page accessed with invitation token: {invitation_token}")
-    
-    return render_template('register.html')
+
+    # A1 F1.6 — safelist the `next` param so deep-link campaigns survive signup.
+    # Accept only same-origin paths: starts with '/' but NOT '//' or '\\'
+    # and does NOT contain '://'. Reject off-origin → render without next.
+    _raw_next = request.args.get('next', '')
+    signup_next = None
+    if (
+        _raw_next
+        and _raw_next.startswith('/')
+        and not _raw_next.startswith('//')
+        and not _raw_next.startswith('\\')
+        and '://' not in _raw_next
+    ):
+        signup_next = _raw_next
+
+    # X8a funnel: signup_page_viewed
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'signup_page_viewed',
+            user_id=None,
+            payload={'has_invitation': bool(invitation_token), 'via': request.path},
+            source='route:register',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (signup_page_viewed) failed: {_ev_err}")
+
+    return render_template('register.html', signup_next=signup_next)
+
+
+@app.route('/signup')
+def signup():
+    """X8a — /signup alias to /register.
+
+    The v4 demo + PLAN_X8 reference the signup screen as /signup. Anonymous
+    visitors arriving at /fie/triage are redirected here, preserving the
+    `next` parameter so the user lands on the intended destination after
+    completing signup + email verification.
+    """
+    # Preserve invitation token handling for parity with /register
+    invitation_token = request.args.get('invitation')
+    if invitation_token:
+        session['invitation_token'] = invitation_token
+        flash("Please complete registration to accept the invitation.", "info")
+
+    # A1 F1.6 — safelist the `next` param (same-origin only, defence-in-depth).
+    # Blocks: off-origin, protocol-relative (//), Windows-path (\\), any :// scheme.
+    _raw_next = request.args.get('next', '')
+    next_target = None
+    if (
+        _raw_next
+        and _raw_next.startswith('/')
+        and not _raw_next.startswith('//')
+        and not _raw_next.startswith('\\')
+        and '://' not in _raw_next
+    ):
+        next_target = _raw_next
+
+    # X8a funnel: signup_page_viewed (via /signup alias)
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'signup_page_viewed',
+            user_id=None,
+            payload={'has_invitation': bool(invitation_token), 'via': '/signup', 'next': next_target},
+            source='route:signup',
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (signup_page_viewed) failed: {_ev_err}")
+
+    return render_template('register.html', signup_next=next_target)
 
 @app.route('/verify-email/<token>')
 def verify_email(token):
@@ -2579,10 +2896,37 @@ def verify_email(token):
             except Exception as _ev_err:
                 logging.debug(f"Event emit (email_verified) failed: {_ev_err}")
 
-            # Log the user in and redirect to onboarding wizard
+            # Log the user in. X8a: post-verify destination is /fie/triage
+            # (the S1 neutral fact-find), not the legacy onboarding wizard.
+            # onboarding_wizard remains accessible at /onboarding for users
+            # who still need the business-org setup step.
             login_user(user)
-            flash('Your email has been verified! Please complete your account setup.', 'success')
-            return redirect(url_for('onboarding_wizard'))
+            # C8 F8.7 — record real last-login timestamp on every successful auth.
+            try:
+                user.last_login_at = datetime.utcnow()
+                db.session.commit()
+            except Exception as _ll_err:
+                db.session.rollback()
+                logging.debug("last_login_at update failed (verify_email): %s", _ll_err)
+            flash('Your email has been verified! A few quick facts to get you set up.', 'success')
+
+            # A1 F1.6 — Pop and re-validate the next URL written at POST-register
+            # time. Defence-in-depth: validate again before redirect so that a
+            # manipulated session value cannot produce an open redirect.
+            _pending_next = session.pop('_signup_next', None)
+            if (
+                _pending_next
+                and _pending_next.startswith('/')
+                and not _pending_next.startswith('//')
+                and not _pending_next.startswith('\\')
+                and '://' not in _pending_next
+            ):
+                return redirect(_pending_next)
+
+            # Default destination: FIESTA hub for sl_foreign_income, legacy /scan otherwise.
+            if getattr(user, 'persona', None) == 'sl_foreign_income':
+                return redirect(url_for('home'))
+            return redirect(url_for('fiesta_triage.triage_form'))
                 
         except SignatureExpired:
             flash('The verification link has expired. Please request a new one.', 'warning')
@@ -2601,6 +2945,11 @@ def verify_email(token):
 @login_required
 def verify_email_reminder():
     """Show a reminder page for email verification."""
+    # X9 F2.1 — already-verified guard. A user who has already verified
+    # their email and lands here (stale link, bookmark, redirect chain)
+    # should NOT see the "please verify" page. Send them home.
+    if getattr(current_user, 'is_email_verified', False):
+        return redirect(url_for('home'))
     return render_template('verify_email_reminder.html')
 
 @app.route('/onboarding', methods=['GET', 'POST'])
@@ -2608,11 +2957,27 @@ def verify_email_reminder():
 def onboarding_wizard():
     """Onboarding wizard for new users to set up their business organization."""
     from models import Organization, OrganizationUser
-    
+
+    # X9 F2.2 — bypass the business-org wizard for sl_foreign_income personas.
+    # Foreign-income earners don't run a business; their Personal Finances org
+    # was auto-created at signup (models_event_listener). Mark onboarding
+    # complete and route them straight to /fie/triage so the funnel is:
+    #   /verify-email -> intercepted /onboarding -> /fie/triage -> FIESTA hub
+    # No "set up your business organization" screen ever appears for them.
+    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        if not current_user.onboarding_completed:
+            current_user.onboarding_completed = True
+            db.session.commit()
+            logging.info(
+                f"User {current_user.id} (sl_foreign_income) auto-completed "
+                f"onboarding; routing to /fie/triage."
+            )
+        return redirect(url_for('fiesta_triage.triage_form'))
+
     # If already completed onboarding, redirect to dashboard
     if current_user.onboarding_completed:
         return redirect(url_for('index'))
-    
+
     # If email not verified, redirect to verification
     if not current_user.is_email_verified:
         flash('Please verify your email before completing setup.', 'warning')
@@ -2660,8 +3025,11 @@ def onboarding_wizard():
             db.session.commit()
             
             logging.info(f"User {current_user.id} completed onboarding with business: {business_name}")
-            flash(f'Welcome! Your business "{business_name}" has been set up. You\'re ready to start tracking expenses!', 'success')
-            return redirect(url_for('index'))
+            flash(f'Welcome! Your business "{business_name}" has been set up. A few quick facts to get you set up.', 'success')
+            # X8a: post-onboarding destination is /fie/triage (S1), not the
+            # legacy /scan dashboard. Triage answers drive downstream FIESTA
+            # screens (S5 chips, S7 property gate, persona reroute).
+            return redirect(url_for('fiesta_triage.triage_form'))
             
         except Exception as e:
             db.session.rollback()
@@ -2752,8 +3120,15 @@ def email_login():
             
             # User authenticated successfully
             login_user(user)
+            # C8 F8.7 — record real last-login timestamp on every successful auth.
+            try:
+                user.last_login_at = datetime.utcnow()
+                db.session.commit()
+            except Exception as _ll_err:
+                db.session.rollback()
+                logging.debug("last_login_at update failed (email_login): %s", _ll_err)
             # We'll handle success feedback through the animation instead of flash messages
-            
+
             # Log the login activity
             try:
                 from activity_logger import ActivityLogger
@@ -2953,12 +3328,25 @@ def email_login():
                     logging.error(f"Failed to send verification email to {email}: {str(email_error)}")
                     # Continue with registration even if email fails
                 
+                # A1 F1.6 — Persist `next` into session AFTER successful user creation
+                # (after validation, before redirect). Re-validate safelist here
+                # so a tampered form field cannot inject an off-origin path.
+                _form_next = request.form.get('next', '').strip()
+                if (
+                    _form_next
+                    and _form_next.startswith('/')
+                    and not _form_next.startswith('//')
+                    and not _form_next.startswith('\\')
+                    and '://' not in _form_next
+                ):
+                    session['_signup_next'] = _form_next
+
                 # Log in the new user
                 login_user(new_user)
-                
+
                 # Display welcome message indicating email verification is needed
                 flash('Account created! Please check your email to verify your address and unlock all features.', 'info')
-                
+
                 # Process any pending invitation
                 invitation_token = session.get('invitation_token')
                 if invitation_token:
@@ -3050,6 +3438,13 @@ def google_callback():
         
         # Log the user in
         login_user(user)
+        # C8 F8.7 — record real last-login timestamp on every successful auth.
+        try:
+            user.last_login_at = datetime.utcnow()
+            db.session.commit()
+        except Exception as _ll_err:
+            db.session.rollback()
+            logging.debug("last_login_at update failed (google_oauth): %s", _ll_err)
         flash('Successfully logged in with Google!', 'success')
         
         # Check if there's a pending invitation token in the session
@@ -3159,6 +3554,13 @@ def facebook_callback():
         
         # Log the user in
         login_user(user)
+        # C8 F8.7 — record real last-login timestamp on every successful auth.
+        try:
+            user.last_login_at = datetime.utcnow()
+            db.session.commit()
+        except Exception as _ll_err:
+            db.session.rollback()
+            logging.debug("last_login_at update failed (facebook_oauth): %s", _ll_err)
         flash('Successfully logged in with Facebook!', 'success')
         
         # Check if there's a pending invitation token in the session
@@ -3806,7 +4208,32 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
 # Update the middleware to handle authentication required routes
 @app.before_request
 def check_authentication():
-    """Check if user is authenticated for protected routes and set default organization."""
+    """Check if user is authenticated for protected routes and set default organization.
+
+    A7 F3.6 — Flash dedupe: if the same message has accumulated more than 5 times
+    in the session's flash queue (e.g. from a redirect loop), collapse it to 1
+    occurrence. Operates directly on session['_flashes'] to avoid consuming the
+    messages. No-op if the key doesn't exist.
+    """
+    # A7 F3.6 — Dedupe stale flash messages before any route handler runs.
+    _flashes = session.get('_flashes')
+    if _flashes and isinstance(_flashes, list):
+        from collections import Counter as _Counter
+        # Count occurrences of each (category, message) tuple.
+        _counts = _Counter(_flashes)
+        # Rebuild: keep only 1 copy of any message that appears more than 5 times.
+        _deduped = []
+        _seen_excess = set()
+        for _item in _flashes:
+            if _counts[_item] > 5:
+                if _item not in _seen_excess:
+                    _deduped.append(_item)
+                    _seen_excess.add(_item)
+            else:
+                _deduped.append(_item)
+        if len(_deduped) != len(_flashes):
+            session['_flashes'] = _deduped
+
     # Set up default organization for authenticated users
     if current_user.is_authenticated:
         from models import Organization, OrganizationUser
@@ -3818,6 +4245,16 @@ def check_authentication():
             g.default_organization = None
     else:
         g.default_organization = None
+
+    # X9 F-Platform-1: pick the layout shell based on persona. FIESTA personas
+    # (sl_foreign_income) get the editorial paper/forest/clay hub shell; legacy
+    # bookkeeping personas keep layout.html. Templates do `{% extends layout_template %}`
+    # to flip without duplicating the auth/title/footer plumbing.
+    g.is_fiesta_persona = (
+        current_user.is_authenticated
+        and getattr(current_user, 'persona', None) == 'sl_foreign_income'
+    )
+    g.layout_template = 'layout_fiesta.html' if g.is_fiesta_persona else 'layout.html'
             
     # Paths that require authentication
     protected_paths = [

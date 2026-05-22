@@ -1,0 +1,318 @@
+{% extends layout_template %}
+
+{% block title %}Privacy Policy — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* ---- Legal page — scoped design tokens (E2 F1.8) ----- */
+  :root {
+    --legal-bg:      #f7f5f0;
+    --legal-ink:     #1a1d27;
+    --legal-soft:    #4a4f5c;
+    --legal-brand:   #c1442d;
+    --legal-border:  #e3ddd0;
+    --legal-warn-bg: #fdf6e1;
+    --legal-warn-fg: #5e4710;
+    --legal-warn-bd: #ecd58b;
+  }
+
+  .legal-wrap {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 5rem;
+  }
+
+  .legal-header { margin-bottom: 1.5rem; }
+
+  .legal-back {
+    color: var(--legal-brand);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+  .legal-back:hover { text-decoration: underline; }
+
+  .legal-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: -0.01em;
+    margin: 0.75rem 0 0.2rem;
+    color: var(--legal-ink);
+  }
+
+  .legal-meta {
+    font-size: 0.85rem;
+    color: var(--legal-soft);
+    margin: 0;
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+
+  .draft-banner {
+    background: var(--legal-warn-bg);
+    border: 1px solid var(--legal-warn-bd);
+    color: var(--legal-warn-fg);
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-family: 'Manrope', system-ui, sans-serif;
+    margin: 1.25rem 0 1.5rem;
+    line-height: 1.55;
+  }
+  .draft-banner strong { font-weight: 700; }
+  .draft-banner a { color: var(--legal-warn-fg); font-weight: 600; }
+
+  .legal-body {
+    background: #fff;
+    padding: 2rem 1.75rem;
+    border-radius: 12px;
+    border: 1px solid var(--legal-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--legal-ink);
+  }
+
+  .legal-body h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1.2rem;
+    letter-spacing: -0.005em;
+    color: var(--legal-ink);
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  .legal-body h2:first-child { margin-top: 0; }
+
+  .legal-body p  { margin-bottom: 0.85rem; }
+  .legal-body ul { padding-left: 1.4rem; margin-bottom: 0.85rem; }
+  .legal-body li { margin-bottom: 0.3rem; }
+
+  .legal-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.2rem;
+    font-size: 0.88rem;
+  }
+  .legal-body th, .legal-body td {
+    border: 1px solid var(--legal-border);
+    padding: 0.45rem 0.65rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .legal-body th {
+    background: #faf7f0;
+    font-weight: 700;
+  }
+
+  .legal-body a { color: var(--legal-brand); }
+  .legal-body a:hover { text-decoration: underline; }
+  .legal-body strong { font-weight: 700; }
+  .legal-body em { font-style: italic; color: var(--legal-soft); }
+
+  .legal-divider {
+    border: none;
+    border-top: 1px solid var(--legal-border);
+    margin: 1.5rem 0;
+  }
+
+  .legal-foot {
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--legal-soft);
+    font-family: 'Manrope', system-ui, sans-serif;
+  }
+  .legal-foot a { color: var(--legal-brand); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="legal-wrap">
+  <div class="legal-header">
+    <a href="javascript:history.back()" class="legal-back">&larr; Back</a>
+    <h1 class="legal-title">Privacy Policy</h1>
+    <p class="legal-meta">
+      Last updated: 2026-05-22 &middot; Version {{ privacy_version }}
+      &middot; Compliance frame: Sri Lankan Personal Data Protection Act, No. 9 of 2022
+    </p>
+  </div>
+
+  {% if is_draft %}
+  <div class="draft-banner">
+    <strong>Working draft &mdash; pending Lanka.tax legal counsel review.</strong>
+    This Privacy Policy is a working draft ({{ privacy_version }}). Counsel review is in progress
+    (est. return {{ legal_review_return_date }}). Substantive changes will be communicated by email
+    before taking effect. Questions? Email
+    <a href="mailto:{{ feedback_email }}">{{ feedback_email }}</a>.
+  </div>
+  {% endif %}
+
+  <article class="legal-body">
+
+    <h2>1. Information We Collect</h2>
+    <p>
+      We collect data in stages, only when you need it: at signup (email, password hash, triage
+      answers) and progressively as you use the service (name, NIC, TIN, income receipts,
+      counterparty details, document uploads). We do not ask for NIC or TIN at signup; they are
+      requested only when you generate your first tax-related document.
+    </p>
+    <p>
+      If you choose Auto-File, we additionally collect your IRD portal credentials, stored
+      encrypted in AWS Secrets Manager with a per-customer encryption key (see §5 below).
+      Payment card details are handled exclusively by Stripe — we never store them.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>2. How We Use Your Information</h2>
+    <p>
+      We use your data to operate the Platform: calculate your income tax, generate service and
+      rental agreements, maintain your invoice cadence, prepare your year-end IRD filing pack,
+      and (if you elect Auto-File) submit your annual return to the IRD. We also use de-identified,
+      aggregated analytics to improve the product.
+    </p>
+    <p>
+      We do not use your data for advertising, we do not build behavioural profiles for third-party
+      sale, and we do not pass your data to AI model providers for general training purposes
+      (see §7 for our processor contracts).
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>3. Sharing Your Information</h2>
+    <p>
+      We share your data only with the Lanka.tax service team members you connect with, and with
+      the technical processors necessary to run the Platform (hosting, payments, email, OCR/AI
+      features). We do not share your data with marketing networks, data brokers, or advertising
+      platforms.
+    </p>
+    <p>
+      We may disclose your data where required by Sri Lankan law (e.g. a Commissioner-General
+      request under IRA Part XI) or compelled by court order. Where legally permitted, we will
+      notify you before complying.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>4. Data Retention</h2>
+    <p>
+      We retain your tax records for <strong>seven (7) years</strong> after your last paid tax
+      year, giving headroom above the <strong>five-year</strong> statutory retention period under
+      section 120 of the Inland Revenue Act No. 24 of 2017. The two-year buffer covers the
+      assessment-and-appeal window.
+    </p>
+    <p>
+      For tax years that we have Auto-Filed on your behalf, we retain the submission package for
+      the full 7-year period even on account closure, because Sri Lankan tax law may require us
+      to produce it. For Self-File years, we honour deletion requests within 21 business days.
+      You may request deletion of identifiable account data on account closure, subject to this
+      legitimate-interest carve-out.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>5. Your Rights</h2>
+    <p>
+      Under the Sri Lankan Personal Data Protection Act, No. 9 of 2022, you have the right to
+      access, correct, or request deletion of your personal data; to restrict processing while a
+      dispute is open; to object to processing based on legitimate interest; to withdraw consent
+      at any time (e.g. for IRD credentials); and to data portability (your year-end pack ZIP is
+      your export format). To exercise these rights, email
+      <a href="mailto:privacy@lanka.tax">privacy@lanka.tax</a>; we respond within 21 business days.
+    </p>
+    <p>
+      You can also lodge a complaint with the Sri Lankan Data Protection Authority at
+      <a href="https://www.dpa.gov.lk/" target="_blank" rel="noopener">dpa.gov.lk</a>.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>6. Security</h2>
+    <p>
+      All data is transmitted over TLS 1.2+ with HSTS enforced. Passwords are stored hashed
+      (bcrypt). IRD credentials are encrypted at rest in AWS Secrets Manager with a per-customer
+      KMS key and are decrypted only at submission time by the automation runner. Production
+      access is limited to named personnel under a least-privilege policy, with all admin actions
+      audit-logged. Uploaded documents are MIME-checked and virus-scanned before storage.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>7. Processors We Use</h2>
+    <p>
+      Each processor below operates under a written contract binding them to confidentiality,
+      security, breach notification, and limited-purpose use.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Processor</th><th>What they process</th><th>Why</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Fly.io (Singapore region)</td><td>Application servers, web traffic</td><td>Hosting</td></tr>
+        <tr><td>AWS Singapore</td><td>Document storage (S3), secrets, automation runner</td><td>Storage + compute</td></tr>
+        <tr><td>Stripe</td><td>Card payment details (we never see them)</td><td>Payment processing</td></tr>
+        <tr><td>Google LLC (Gemini)</td><td>Document images you upload for OCR</td><td>OCR features</td></tr>
+        <tr><td>Anthropic PBC (Claude)</td><td>AI chat conversations</td><td>AI assistant</td></tr>
+        <tr><td>SendGrid (Twilio)</td><td>Outbound email content</td><td>Email delivery</td></tr>
+      </tbody>
+    </table>
+
+    <hr class="legal-divider">
+
+    <h2>8. Cookies</h2>
+    <p>
+      We use a session cookie (required, <code>HttpOnly</code> / <code>Secure</code> /
+      <code>SameSite=Lax</code>) and a CSRF token cookie (required). We use no third-party
+      analytics cookies, no advertising trackers, no Facebook Pixel, and no Google Analytics.
+      Our internal product analytics is server-side and de-identified.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>9. Children</h2>
+    <p>
+      FIESTA is for adult taxpayers (18+) earning foreign income. The Platform is not directed at
+      children. If we discover we have collected data from someone under 18, we delete it promptly.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>10. International Users</h2>
+    <p>
+      Our infrastructure runs primarily in the Singapore regions of Fly.io and AWS. If you access
+      FIESTA from outside Sri Lanka, your data is processed in those jurisdictions. Cross-border
+      transfer is covered by the contract-performance and binding-contractual-safeguards bases
+      under PDPA Part V. We will update this section when the Data Protection Authority issues
+      an adequacy framework.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>11. Changes to This Policy</h2>
+    <p>
+      Material changes (new processor category, changed retention period, new lawful basis) will
+      be communicated at least 14 days in advance by email and in-app banner. We log every
+      published version so you can see what changed.
+    </p>
+
+    <hr class="legal-divider">
+
+    <h2>12. Contact</h2>
+    <p>
+      Data Protection Officer: Mahesh Yogarajan, CEO <em>(interim)</em><br>
+      Email: <a href="mailto:privacy@lanka.tax">privacy@lanka.tax</a>
+      <em>(provisioning pending)</em><br>
+      For PDPA complaints:
+      <a href="https://www.dpa.gov.lk/" target="_blank" rel="noopener">dpa.gov.lk</a>
+    </p>
+
+  </article>
+
+  <p class="legal-foot">
+    Questions? Email <a href="mailto:{{ feedback_email }}">{{ feedback_email }}</a>.
+    &nbsp;&middot;&nbsp;
+    <a href="{{ url_for('legal.tos') }}">Terms of Service &rarr;</a>
+  </p>
+</div>
+{% endblock %}
