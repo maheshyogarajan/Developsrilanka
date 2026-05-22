@@ -1,0 +1,581 @@
+{% extends layout_template %}
+
+{% block title %}Property Setup · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .s7s-page {
+    max-width: 820px; margin: 0 auto; padding: 1rem 1rem 4rem;
+    --line: var(--color-ink-100, #e6e8ec);
+    --ink: var(--color-ink-900, #0f1115);
+    --soft: var(--color-ink-700, #4b525c);
+    --mute: var(--color-ink-500, #6e7682);
+    --accent: var(--color-accent-700, #7c3aed);
+    --accent-soft: var(--color-accent-50, #f3efff);
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --warn-border: #facc15;
+    --ok: #059669;
+    --ok-soft: #d1fae5;
+    --ok-border: #34d399;
+  }
+
+  /* ── Page header ─────────────────────────────────────────────────────── */
+  .s7s-title {
+    font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: clamp(1.5rem, 2vw + 1rem, 2.2rem); margin: 0 0 .25rem;
+  }
+  .s7s-sub { color: var(--soft); margin-bottom: .5rem; line-height: 1.55; }
+
+  .s7s-ira-banner {
+    background: var(--accent-soft); border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: .85rem 1rem; margin-bottom: 1.5rem;
+    font-size: .9rem; color: var(--ink); line-height: 1.5;
+  }
+  .s7s-ira-banner cite { color: var(--mute); font-style: normal; font-size: .82rem; }
+
+  /* ── Progress stepper ────────────────────────────────────────────────── */
+  .s7s-stepper {
+    display: flex; gap: 0; margin-bottom: 1.5rem; border-radius: 10px;
+    overflow: hidden; border: 1px solid var(--line);
+  }
+  .s7s-step {
+    flex: 1; padding: .5rem .6rem; text-align: center;
+    font-size: .8rem; color: var(--mute); background: white;
+    border-right: 1px solid var(--line); cursor: pointer;
+    transition: background .15s;
+  }
+  .s7s-step:last-child { border-right: none; }
+  .s7s-step.is-active { background: var(--accent); color: white; font-weight: 600; }
+  .s7s-step.is-done { background: var(--ok-soft); color: var(--ok); }
+  .s7s-step-num {
+    display: block; font-size: .7rem; opacity: .75; margin-bottom: .1rem;
+  }
+
+  /* ── Collapsible sections ────────────────────────────────────────────── */
+  .s7s-section {
+    background: white; border: 1px solid var(--line); border-radius: 14px;
+    margin-bottom: 1rem; overflow: hidden;
+  }
+  .s7s-section > summary {
+    list-style: none; display: flex; align-items: center; gap: .75rem;
+    padding: 1rem 1.25rem; cursor: pointer; user-select: none;
+    font-weight: 600; color: var(--ink);
+  }
+  .s7s-section > summary::-webkit-details-marker { display: none; }
+  .s7s-section > summary::before {
+    content: '▶'; font-size: .75rem; color: var(--mute);
+    transition: transform .2s; flex-shrink: 0;
+  }
+  .s7s-section[open] > summary::before { transform: rotate(90deg); }
+  .s7s-section-num {
+    background: var(--accent); color: white; border-radius: 50%;
+    width: 1.6rem; height: 1.6rem; display: flex; align-items: center;
+    justify-content: center; font-size: .8rem; font-weight: 700; flex-shrink: 0;
+  }
+  .s7s-section-sub {
+    font-weight: 400; color: var(--mute); font-size: .88rem; margin-left: auto;
+  }
+  .s7s-section-body { padding: 0 1.25rem 1.25rem; }
+
+  /* ── Form grid ───────────────────────────────────────────────────────── */
+  .s7s-grid {
+    display: grid; gap: .85rem 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  .s7s-grid label {
+    display: flex; flex-direction: column; gap: .25rem;
+    font-size: .92rem; color: var(--soft);
+  }
+  .s7s-grid input, .s7s-grid select {
+    padding: .55rem .7rem; border: 1px solid var(--line);
+    border-radius: 8px; font-size: .95rem; color: var(--ink);
+    background: white;
+  }
+  .s7s-grid input:focus, .s7s-grid select:focus {
+    outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent;
+  }
+  .s7s-grid .full { grid-column: 1 / -1; }
+
+  /* ── Section dividers ────────────────────────────────────────────────── */
+  .s7s-divider {
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--mute); margin: 1rem 0 .5rem; padding-bottom: .3rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* ── Inline hint callouts ─────────────────────────────────────────────── */
+  .s7s-hint {
+    padding: .7rem .9rem; border-radius: 8px; font-size: .875rem;
+    line-height: 1.5; margin: .75rem 0; color: var(--ink);
+  }
+  .s7s-hint.accent { background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  .s7s-hint.warn { background: var(--warn-soft); border-left: 3px solid var(--warn-border); }
+  .s7s-hint cite { font-style: normal; color: var(--mute); font-size: .8rem; }
+
+  /* ── Home-office live preview ────────────────────────────────────────── */
+  .s7s-hopc {
+    background: var(--accent-soft); border-radius: 8px;
+    padding: .7rem 1rem; font-size: .9rem; color: var(--ink);
+    margin-top: .75rem; display: none;
+  }
+  .s7s-hopc.visible { display: block; }
+  .s7s-hopc strong { font-family: 'JetBrains Mono', monospace; }
+
+  /* ── Bottom action bar ───────────────────────────────────────────────── */
+  .s7s-actions {
+    background: white; border: 1px solid var(--line); border-radius: 14px;
+    padding: 1.1rem 1.25rem; display: flex; align-items: center;
+    gap: .75rem; flex-wrap: wrap;
+  }
+  .s7s-actions .spacer { flex: 1; }
+  .btn-primary {
+    background: var(--accent); color: white; border: none;
+    padding: .6rem 1.4rem; border-radius: 8px; font-weight: 700;
+    font-size: 1rem; cursor: pointer; letter-spacing: .01em;
+  }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-ghost {
+    background: white; color: var(--soft); border: 1px solid var(--line);
+    padding: .6rem 1.1rem; border-radius: 8px; cursor: pointer;
+    text-decoration: none; font-size: .95rem;
+  }
+
+  /* ── Flash messages ──────────────────────────────────────────────────── */
+  .s7s-flash {
+    padding: .8rem 1rem; border-radius: 8px; margin-bottom: 1rem;
+    font-size: .92rem; line-height: 1.5;
+  }
+  .s7s-flash.error { background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; }
+  .s7s-flash.success { background: var(--ok-soft); border-left: 4px solid var(--ok-border); color: var(--ok); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s7s-page">
+
+  {# Back link #}
+  <a href="{{ url_for('fiesta_property.index') }}"
+     style="color:var(--accent); text-decoration:none; font-size:.9rem;">
+    &larr; My properties
+  </a>
+
+  {# Page heading #}
+  <h1 class="s7s-title" style="margin-top:.5rem;">Add a rental property</h1>
+  <p class="s7s-sub">
+    Everything we need — where you live, your landlord, and the rental terms —
+    in one form. We use this to correctly calculate your home-office deduction
+    and produce a compliant rental agreement for IRD.
+  </p>
+
+  {# IRA empowerment banner — Stage A A9 voice #}
+  <div class="s7s-ira-banner">
+    <strong>You're entitled to this deduction.</strong>
+    If you use part of your home for work, the Inland Revenue Act lets you claim
+    a portion of your rent as a business expense — you just need to document it
+    properly. FIESTA handles the documentation.
+    <br><cite>Inland Revenue Act §6 (qualifying business expenses) · §195 (associated persons disclosure)</cite>
+  </div>
+
+  {# Flash messages #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="s7s-flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {# Progress stepper (visual only — all sections always present) #}
+  <div class="s7s-stepper" aria-label="Setup sections">
+    <div class="s7s-step is-active" onclick="document.getElementById('s7s-sec1').open=true">
+      <span class="s7s-step-num">1 of 3</span>Property
+    </div>
+    <div class="s7s-step" onclick="document.getElementById('s7s-sec2').open=true">
+      <span class="s7s-step-num">2 of 3</span>Landlord
+    </div>
+    <div class="s7s-step" onclick="document.getElementById('s7s-sec3').open=true">
+      <span class="s7s-step-num">3 of 3</span>Rental terms
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('fiesta_property.setup') }}" id="s7s-form" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ── Section 1: Property ─────────────────────────────────────────── #}
+    <details class="s7s-section" open id="s7s-sec1">
+      <summary>
+        <span class="s7s-section-num">1</span>
+        Where you live &amp; work
+        <span class="s7s-section-sub">Address · type · home-office allocation</span>
+      </summary>
+      <div class="s7s-section-body">
+        <p class="s7s-divider">Property address</p>
+        <div class="s7s-grid">
+          <label class="full">
+            Address line 1 <span style="color:#ef4444">*</span>
+            <input name="property_address_line1" required
+                   value="{{ form_data.property_address_line1 if form_data else '' }}"
+                   placeholder="No. 12, Galle Road">
+          </label>
+          <label>
+            Address line 2
+            <input name="property_address_line2"
+                   value="{{ form_data.property_address_line2 if form_data else '' }}"
+                   placeholder="Apartment 4B (optional)">
+          </label>
+          <label>
+            City <span style="color:#ef4444">*</span>
+            <input name="property_city" required
+                   value="{{ form_data.property_city if form_data else '' }}"
+                   placeholder="Colombo">
+          </label>
+          <label>
+            Postcode
+            <input name="property_postcode"
+                   value="{{ form_data.property_postcode if form_data else '' }}"
+                   placeholder="00300">
+          </label>
+        </div>
+
+        <p class="s7s-divider">Property type &amp; your role</p>
+        <div class="s7s-grid">
+          <label>
+            Property type
+            <select name="property_type">
+              {% set pt = form_data.property_type if form_data else 'apartment' %}
+              <option value="apartment" {% if pt=='apartment' %}selected{% endif %}>Apartment</option>
+              <option value="house"     {% if pt=='house'     %}selected{% endif %}>House</option>
+              <option value="villa"     {% if pt=='villa'     %}selected{% endif %}>Villa</option>
+              <option value="condo"     {% if pt=='condo'     %}selected{% endif %}>Condo</option>
+              <option value="annex"     {% if pt=='annex'     %}selected{% endif %}>Annex</option>
+              <option value="other"     {% if pt=='other'     %}selected{% endif %}>Other</option>
+            </select>
+          </label>
+          <label>
+            How do you use it?
+            <select name="property_purpose">
+              {% set pp = form_data.property_purpose if form_data else 'mixed' %}
+              <option value="mixed"     {% if pp=='mixed'     %}selected{% endif %}>Mixed — home + work</option>
+              <option value="residence" {% if pp=='residence' %}selected{% endif %}>Residence only</option>
+              <option value="business"  {% if pp=='business'  %}selected{% endif %}>Business only</option>
+            </select>
+          </label>
+          <label>
+            Your status here
+            <select name="property_customer_status">
+              {% set cs = form_data.property_customer_status if form_data else 'tenant' %}
+              <option value="tenant"         {% if cs=='tenant'         %}selected{% endif %}>Tenant — I pay rent</option>
+              <option value="owner-occupant" {% if cs=='owner-occupant' %}selected{% endif %}>Owner-occupant — I own it</option>
+              <option value="owner-rented-out" {% if cs=='owner-rented-out' %}selected{% endif %}>Owner — I rent it out</option>
+            </select>
+          </label>
+        </div>
+
+        <p class="s7s-divider">Home-office area</p>
+        <div class="s7s-hint accent">
+          Tell us the total size and the part you use exclusively for work.
+          We'll compute the deductible percentage and apply it to your rent.
+          <br><cite>Inland Revenue Act §6 — must be used <em>wholly, exclusively &amp; necessarily</em> for business.</cite>
+        </div>
+        <div class="s7s-grid">
+          <label>
+            Total floor area (sq ft)
+            <input name="property_total_sqft" type="number" min="0" step="1"
+                   value="{{ form_data.property_total_sqft if form_data else '' }}"
+                   placeholder="1200" id="s7s-total-sqft"
+                   oninput="s7sCalcPct()">
+          </label>
+          <label>
+            Home-office area (sq ft)
+            <input name="property_home_office_sqft" type="number" min="0" step="1"
+                   value="{{ form_data.property_home_office_sqft if form_data else '' }}"
+                   placeholder="150" id="s7s-ho-sqft"
+                   oninput="s7sCalcPct()">
+          </label>
+        </div>
+        <div class="s7s-hopc" id="s7s-pct-preview">
+          Home-office allocation: <strong id="s7s-pct-val">—</strong>%
+          — this share of your monthly rent is deductible.
+        </div>
+      </div>
+    </details>
+
+    {# ── Section 2: Landlord ─────────────────────────────────────────── #}
+    <details class="s7s-section" id="s7s-sec2">
+      <summary>
+        <span class="s7s-section-num">2</span>
+        Your landlord
+        <span class="s7s-section-sub">Who you pay rent to</span>
+      </summary>
+      <div class="s7s-section-body">
+        <p style="color:var(--soft); font-size:.9rem; margin:.25rem 0 .75rem;">
+          We need the landlord's details so FIESTA can populate the rental
+          agreement correctly. If this is a family member or you own the property
+          yourself, select the relationship honestly — it triggers the §195
+          associated-person disclosure, which is legal and handled automatically.
+        </p>
+
+        <p class="s7s-divider">Identity</p>
+        <div class="s7s-grid">
+          <label class="full">
+            Landlord's full name <span style="color:#ef4444">*</span>
+            <input name="landlord_full_name" required
+                   value="{{ form_data.landlord_full_name if form_data else '' }}"
+                   placeholder="W.A. Silva">
+          </label>
+          <label>
+            NIC (optional)
+            <input name="landlord_nic"
+                   value="{{ form_data.landlord_nic if form_data else '' }}"
+                   placeholder="956781234V">
+          </label>
+          <label>
+            TIN (optional)
+            <input name="landlord_tin"
+                   value="{{ form_data.landlord_tin if form_data else '' }}"
+                   placeholder="134567890">
+          </label>
+        </div>
+
+        <p class="s7s-divider">Contact</p>
+        <div class="s7s-grid">
+          <label class="full">
+            Address (defaults to property address if blank)
+            <input name="landlord_address"
+                   value="{{ form_data.landlord_address if form_data else '' }}"
+                   placeholder="Same as property, or different address">
+          </label>
+          <label>
+            Phone
+            <input name="landlord_phone" type="tel"
+                   value="{{ form_data.landlord_phone if form_data else '' }}"
+                   placeholder="+94 71 000 0000">
+          </label>
+          <label>
+            Email
+            <input name="landlord_email" type="email"
+                   value="{{ form_data.landlord_email if form_data else '' }}"
+                   placeholder="landlord@example.com">
+          </label>
+        </div>
+
+        <p class="s7s-divider">Bank details (for rent payment records)</p>
+        <div class="s7s-grid">
+          <label>
+            Bank name
+            <input name="landlord_bank_name"
+                   value="{{ form_data.landlord_bank_name if form_data else '' }}"
+                   placeholder="Commercial Bank">
+          </label>
+          <label>
+            Account number
+            <input name="landlord_bank_account_number"
+                   value="{{ form_data.landlord_bank_account_number if form_data else '' }}"
+                   placeholder="8001234567">
+          </label>
+        </div>
+
+        <p class="s7s-divider">Relationship</p>
+        <div class="s7s-grid">
+          <label>
+            Relationship to you
+            <select name="landlord_relationship_to_customer" id="s7s-rel"
+                    onchange="s7sRelChange()">
+              {% set cur = form_data.landlord_relationship_to_customer if form_data else "arm's-length" %}
+              <option value="arm's-length"      {% if cur == "arm's-length"      %}selected{% endif %}>Arm's length</option>
+              <option value="family"            {% if cur == 'family'            %}selected{% endif %}>Family member</option>
+              <option value="spouse"            {% if cur == 'spouse'            %}selected{% endif %}>Spouse</option>
+              <option value="parent"            {% if cur == 'parent'            %}selected{% endif %}>Parent</option>
+              <option value="sibling"           {% if cur == 'sibling'           %}selected{% endif %}>Sibling</option>
+              <option value="child"             {% if cur == 'child'             %}selected{% endif %}>Child</option>
+              <option value="friend"            {% if cur == 'friend'            %}selected{% endif %}>Friend</option>
+              <option value="self-owns"         {% if cur == 'self-owns'         %}selected{% endif %}>I own this property (paying myself)</option>
+              <option value="business-associate" {% if cur == 'business-associate' %}selected{% endif %}>Business associate</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="s7s-hint warn" id="s7s-rel-warn" style="display:none;">
+          <strong>§195 related-party disclosure will be triggered.</strong>
+          This is legal and handled automatically — FIESTA will include the
+          required disclosure language in your rental agreement.
+          <br><cite>Inland Revenue Act §195 — associated persons</cite>
+        </div>
+      </div>
+    </details>
+
+    {# ── Section 3: Rental terms ─────────────────────────────────────── #}
+    <details class="s7s-section" id="s7s-sec3">
+      <summary>
+        <span class="s7s-section-num">3</span>
+        Rental terms
+        <span class="s7s-section-sub">Rent · dates · payment method</span>
+      </summary>
+      <div class="s7s-section-body">
+        <div class="s7s-hint accent">
+          <strong>Stamp-duty default:</strong> the agreement runs 364 days
+          (not 365) to stay under the 12-month stamp-duty threshold under Sri
+          Lankan revenue law. Adjust if your arrangement is longer.
+          <br><cite>Stamp Duty Act — agreements ≥ 12 months attract duty</cite>
+        </div>
+
+        <p class="s7s-divider">Dates &amp; tax year</p>
+        <div class="s7s-grid">
+          <label>
+            Tax year
+            <input name="rental_tax_year"
+                   value="{{ form_data.rental_tax_year if form_data else '2025/2026' }}"
+                   placeholder="2025/2026">
+          </label>
+          <label>
+            Agreement start date
+            <input name="rental_start_date" type="date"
+                   value="{{ form_data.rental_start_date if form_data else '' }}"
+                   id="s7s-start" onchange="s7sAutoEnd()">
+          </label>
+          <label>
+            Agreement end date (auto: start + 364 days)
+            <input name="rental_end_date" type="date"
+                   value="{{ form_data.rental_end_date if form_data else '' }}"
+                   id="s7s-end">
+          </label>
+        </div>
+
+        <p class="s7s-divider">Rent &amp; deposit</p>
+        <div class="s7s-grid">
+          <label>
+            Monthly rent (LKR) <span style="color:#ef4444">*</span>
+            <input name="rental_monthly_rent_lkr" type="number" min="0" step="0.01"
+                   required
+                   value="{{ form_data.rental_monthly_rent_lkr if form_data else '' }}"
+                   placeholder="45000.00" id="s7s-rent"
+                   oninput="s7sCalcPortion()">
+          </label>
+          <label>
+            Security deposit paid (LKR, optional)
+            <input name="rental_deposit_paid" type="number" min="0" step="0.01"
+                   value="{{ form_data.rental_deposit_paid if form_data else '' }}"
+                   placeholder="90000.00">
+          </label>
+        </div>
+
+        <div class="s7s-hopc" id="s7s-portion-card">
+          Home-office deductible portion: <strong id="s7s-portion-val">LKR —</strong>
+          per month.
+          <div style="margin-top:.3rem; color:var(--mute); font-size:.8rem;">
+            Inland Revenue Act §6 — this is the amount claimable as a business expense.
+          </div>
+        </div>
+
+        <p class="s7s-divider">Payment method &amp; frequency</p>
+        <div class="s7s-grid">
+          <label>
+            Payment method
+            <select name="rental_payment_method">
+              {% set m = form_data.rental_payment_method if form_data else 'transfer' %}
+              <option value="transfer"      {% if m=='transfer'      %}selected{% endif %}>Bank transfer</option>
+              <option value="standing-order" {% if m=='standing-order' %}selected{% endif %}>Standing order</option>
+              <option value="cheque"        {% if m=='cheque'        %}selected{% endif %}>Cheque</option>
+              <option value="cash"          {% if m=='cash'          %}selected{% endif %}>Cash</option>
+            </select>
+          </label>
+          <label>
+            Payment frequency
+            <select name="rental_payment_frequency">
+              {% set f = form_data.rental_payment_frequency if form_data else 'monthly' %}
+              <option value="monthly"   {% if f=='monthly'   %}selected{% endif %}>Monthly</option>
+              <option value="quarterly" {% if f=='quarterly' %}selected{% endif %}>Quarterly</option>
+              <option value="annual"    {% if f=='annual'    %}selected{% endif %}>Annual</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </details>
+
+    {# ── Submit bar ──────────────────────────────────────────────────── #}
+    <div class="s7s-actions">
+      <a href="{{ url_for('fiesta_property.index') }}" class="btn-ghost">Cancel</a>
+      <span class="spacer"></span>
+      <span style="color:var(--mute); font-size:.85rem;">
+        One click saves property, landlord &amp; rental agreement.
+      </span>
+      <button type="submit" class="btn-primary">Save &amp; continue &rarr;</button>
+    </div>
+  </form>
+
+</div>
+
+<script>
+/* ── Home-office percentage live preview ──────────────────────────────── */
+function s7sCalcPct() {
+  var total = parseFloat(document.getElementById('s7s-total-sqft').value || '0');
+  var ho    = parseFloat(document.getElementById('s7s-ho-sqft').value   || '0');
+  var card  = document.getElementById('s7s-pct-preview');
+  if (total > 0 && ho > 0) {
+    var pct = Math.min((ho / total * 100), 100).toFixed(1);
+    document.getElementById('s7s-pct-val').textContent = pct;
+    card.classList.add('visible');
+    // also refresh portion if rent is already entered
+    s7sCalcPortion();
+  } else {
+    card.classList.remove('visible');
+  }
+}
+
+/* ── Home-office rent portion live preview ────────────────────────────── */
+function s7sCalcPortion() {
+  var total = parseFloat(document.getElementById('s7s-total-sqft').value || '0');
+  var ho    = parseFloat(document.getElementById('s7s-ho-sqft').value   || '0');
+  var rent  = parseFloat(document.getElementById('s7s-rent').value      || '0');
+  var card  = document.getElementById('s7s-portion-card');
+  if (total > 0 && ho > 0 && rent > 0) {
+    var pct     = Math.min(ho / total, 1.0);
+    var portion = (rent * pct).toFixed(2);
+    document.getElementById('s7s-portion-val').textContent =
+      'LKR ' + Number(portion).toLocaleString(undefined, {minimumFractionDigits:2});
+    card.classList.add('visible');
+  } else {
+    card.classList.remove('visible');
+  }
+}
+
+/* ── Auto end-date (start + 364 days) ────────────────────────────────── */
+function s7sAutoEnd() {
+  var s = document.getElementById('s7s-start');
+  var e = document.getElementById('s7s-end');
+  if (!s || !e || e.value) return;
+  if (s.value) {
+    var d = new Date(s.value);
+    d.setDate(d.getDate() + 364);
+    e.value = d.toISOString().substring(0, 10);
+  }
+}
+
+/* ── §195 related-party warning ──────────────────────────────────────── */
+var _RELATED = ['family','spouse','parent','sibling','child','friend',
+                'self-owns','business-associate'];
+function s7sRelChange() {
+  var v    = document.getElementById('s7s-rel').value;
+  var warn = document.getElementById('s7s-rel-warn');
+  warn.style.display = _RELATED.includes(v) && v !== "arm's-length" ? 'block' : 'none';
+}
+
+/* ── Stepper highlight on section open/close ─────────────────────────── */
+(function () {
+  var secs  = ['s7s-sec1','s7s-sec2','s7s-sec3'];
+  var steps = document.querySelectorAll('.s7s-step');
+  secs.forEach(function(id, i) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('toggle', function () {
+      steps.forEach(function(s) { s.classList.remove('is-active'); });
+      if (el.open) steps[i].classList.add('is-active');
+    });
+  });
+})();
+
+/* ── On-load: init previews if form data was re-populated ────────────── */
+s7sCalcPct();
+s7sCalcPortion();
+s7sRelChange();
+</script>
+{% endblock %}

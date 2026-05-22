@@ -308,7 +308,7 @@ def detail(property_id: int):
     if not _HAS_DB:
         return jsonify({"ok": False, "error": "DB unavailable"}), 503
 
-    from .models import Landlord, RentalAgreement
+    from .models import Landlord, RentalAgreement, LandlordRelationshipDetection
     prop = _own_property_or_404(property_id)
     landlord = Landlord.query.filter_by(property_id=property_id).first()
     rental = (
@@ -317,6 +317,24 @@ def detail(property_id: int):
         .order_by(RentalAgreement.start_date.desc())
         .first()
     )
+    # D2 — pass landlord §195 detection so the template can surface it.
+    landlord_detection = None
+    landlord_reasoning: list = []
+    if landlord is not None:
+        landlord_detection = (
+            LandlordRelationshipDetection.query
+            .filter_by(landlord_id=landlord.id)
+            .order_by(LandlordRelationshipDetection.detected_at.desc())
+            .first()
+        )
+        if landlord_detection is not None:
+            import json as _json
+            try:
+                landlord_reasoning = _json.loads(
+                    landlord_detection.reasoning_json or "[]"
+                )
+            except Exception:
+                landlord_reasoning = []
 
     if request.args.get("format") == "json":
         return jsonify({
@@ -330,6 +348,8 @@ def detail(property_id: int):
         property=prop,
         landlord=landlord,
         rental=rental,
+        landlord_detection=landlord_detection,
+        landlord_reasoning=landlord_reasoning,
     )
 
 
@@ -604,9 +624,27 @@ def rental_save(property_id: int):
 
     landlord = Landlord.query.filter_by(property_id=property_id).first()
     if landlord is None:
-        return (
-            jsonify({"ok": False, "error": "Add the landlord before the rental agreement"}),
-            400,
+        # D4 — friendlier guard: redirect to landlord form with clear message
+        # instead of returning a bare 400.
+        if request.is_json or request.headers.get("Accept", "") == "application/json":
+            return (
+                jsonify({
+                    "ok": False,
+                    "error": "Add the landlord before the rental agreement",
+                    "redirect_to": url_for(
+                        "fiesta_property.landlord_detail",
+                        property_id=property_id,
+                    ),
+                }),
+                422,
+            )
+        flash(
+            "You need to add a landlord first before creating a rental agreement. "
+            "Fill in the landlord details below, then return to add the rental.",
+            "warning",
+        )
+        return redirect(
+            url_for("fiesta_property.landlord_detail", property_id=property_id)
         )
 
     start_date = _parse_date(payload.get("start_date")) or date.today()
@@ -817,6 +855,187 @@ def prefill_prior_year(property_id: int):
         db.session.rollback()
         logger.exception("Prefill from prior year failed")
         return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# GET/POST /property/setup — D3 consolidated single-page form (F4.8)
+# ---------------------------------------------------------------------------
+@property_bp.route("/setup", methods=["GET", "POST"])
+@login_required
+@paywall_required(min_tier="self_file", screen_id="S7", action="setup")
+def setup():
+    """Consolidated Property + Landlord + RentalAgreement form (one click, three models).
+
+    GET  — render templates/property/setup.html with empty (or re-populated) form.
+    POST — parse namespaced fields, create Property → Landlord → RentalAgreement
+           in a single DB transaction. On success redirect to /property/<id>.
+           On validation error flash the specific problem and re-render the form
+           with the submitted values restored.
+
+    Field namespace:
+      property_*  → Property model
+      landlord_*  → Landlord model
+      rental_*    → RentalAgreement model
+
+    Coexists with the existing multi-hop flow (/property, /property/<id>/landlord,
+    /property/<id>/rental). DO NOT modify those routes.
+    """
+    if not _HAS_DB:
+        return jsonify({"ok": False, "error": "DB unavailable"}), 503
+
+    from .models import (
+        Property, Landlord, RentalAgreement,
+        PROPERTY_TYPES, PURPOSES, CUSTOMER_STATUSES,
+        RELATIONSHIPS, PAYMENT_METHODS, PAYMENT_FREQUENCIES,
+        DEFAULT_AGREEMENT_DAYS,
+    )
+
+    user_id = _current_user_id()
+    if not user_id:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+
+    if request.method == "GET":
+        return render_template("property/setup.html", form_data=None)
+
+    # ── POST: parse consolidated form ────────────────────────────────────
+    fd = request.form.to_dict()
+
+    def _re_render(error_msg: str):
+        flash(error_msg, "error")
+        return render_template("property/setup.html", form_data=fd), 400
+
+    # ── Property fields ──────────────────────────────────────────────────
+    address_line1 = (fd.get("property_address_line1") or "").strip()
+    city = (fd.get("property_city") or "").strip()
+    if not address_line1:
+        return _re_render("Address line 1 is required.")
+    if not city:
+        return _re_render("City is required.")
+
+    property_type = (fd.get("property_type") or "apartment").strip().lower()
+    if property_type not in PROPERTY_TYPES:
+        property_type = "other"
+    purpose = (fd.get("property_purpose") or "mixed").strip().lower()
+    if purpose not in PURPOSES:
+        purpose = "mixed"
+    customer_status = (fd.get("property_customer_status") or "tenant").strip().lower()
+    if customer_status not in CUSTOMER_STATUSES:
+        customer_status = "tenant"
+
+    total_sqft = _parse_int(fd.get("property_total_sqft"))
+    home_office_sqft = _parse_int(fd.get("property_home_office_sqft"))
+    if total_sqft is not None and total_sqft < 0:
+        return _re_render("Total floor area must be 0 or greater.")
+    if home_office_sqft is not None and home_office_sqft < 0:
+        return _re_render("Home-office area must be 0 or greater.")
+    if (
+        total_sqft is not None
+        and home_office_sqft is not None
+        and home_office_sqft > total_sqft
+    ):
+        return _re_render("Home-office area cannot exceed total floor area.")
+
+    # ── Landlord fields ──────────────────────────────────────────────────
+    landlord_full_name = (fd.get("landlord_full_name") or "").strip()
+    if not landlord_full_name:
+        return _re_render("Landlord's full name is required.")
+
+    rel = (fd.get("landlord_relationship_to_customer") or "arm's-length").strip().lower()
+    if rel not in RELATIONSHIPS:
+        rel = "arm's-length"
+
+    # ── Rental fields ────────────────────────────────────────────────────
+    monthly_rent = _parse_decimal(fd.get("rental_monthly_rent_lkr"))
+    if monthly_rent is None:
+        return _re_render("Monthly rent (LKR) is required.")
+    if monthly_rent < 0:
+        return _re_render("Monthly rent must be 0 or greater.")
+
+    deposit = _parse_decimal(fd.get("rental_deposit_paid"))
+    if deposit is not None and deposit < 0:
+        return _re_render("Security deposit must be 0 or greater.")
+
+    start_date = _parse_date(fd.get("rental_start_date")) or date.today()
+    end_date = _parse_date(fd.get("rental_end_date"))
+    if end_date is None:
+        end_date = start_date + timedelta(days=DEFAULT_AGREEMENT_DAYS)
+    if end_date < start_date:
+        return _re_render("Agreement end date cannot be before the start date.")
+
+    payment_method = (fd.get("rental_payment_method") or "transfer").strip().lower()
+    if payment_method not in PAYMENT_METHODS:
+        payment_method = "transfer"
+    payment_frequency = (fd.get("rental_payment_frequency") or "monthly").strip().lower()
+    if payment_frequency not in PAYMENT_FREQUENCIES:
+        payment_frequency = "monthly"
+
+    tax_year = (fd.get("rental_tax_year") or _resolve_tax_year()).strip()
+
+    # ── Single DB transaction: Property → Landlord → RentalAgreement ────
+    try:
+        # 1. Property
+        prop = Property(
+            user_id=user_id,
+            address_line1=address_line1,
+            address_line2=(fd.get("property_address_line2") or "").strip() or None,
+            city=city,
+            postcode=(fd.get("property_postcode") or "").strip() or None,
+            property_type=property_type,
+            purpose=purpose,
+            customer_status=customer_status,
+            total_sqft=total_sqft,
+            home_office_sqft=home_office_sqft,
+        )
+        prop.recompute_home_office_percentage()
+        db.session.add(prop)
+        db.session.flush()  # assign prop.id before Landlord FK
+
+        # 2. Landlord (FK → prop)
+        landlord = Landlord(
+            user_id=user_id,
+            property_id=prop.id,
+            full_name=landlord_full_name,
+            nic=(fd.get("landlord_nic") or None) or None,
+            tin=(fd.get("landlord_tin") or None) or None,
+            address=(fd.get("landlord_address") or None) or None,
+            phone=(fd.get("landlord_phone") or None) or None,
+            email=(fd.get("landlord_email") or None) or None,
+            bank_name=(fd.get("landlord_bank_name") or None) or None,
+            bank_account_number=(fd.get("landlord_bank_account_number") or None) or None,
+            relationship_to_customer=rel,
+        )
+        db.session.add(landlord)
+        db.session.flush()  # assign landlord.id before RentalAgreement FK
+
+        # 3. RentalAgreement (FK → prop + landlord)
+        rental = RentalAgreement(
+            user_id=user_id,
+            property_id=prop.id,
+            landlord_id=landlord.id,
+            start_date=start_date,
+            end_date=end_date,
+            payment_method=payment_method,
+            payment_frequency=payment_frequency,
+            tax_year=tax_year,
+        )
+        rental.monthly_rent_lkr = monthly_rent
+        if deposit is not None:
+            rental.deposit_paid = deposit
+        rental.apply_defaults(prop)  # stamp-duty end-date + home-office portion
+        db.session.add(rental)
+
+        db.session.commit()
+
+        flash(
+            f"Property, landlord, and rental agreement saved for {address_line1}, {city}.",
+            "success",
+        )
+        return redirect(url_for("fiesta_property.detail", property_id=prop.id))
+
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Consolidated property setup failed")
+        return _re_render(f"Save failed — please try again. ({exc})")
 
 
 # ---------------------------------------------------------------------------

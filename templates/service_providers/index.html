@@ -215,6 +215,61 @@
     cursor: pointer;
   }
 
+  /* ---- D1 · Shared sticky tally band -------------------------------- */
+  .fiesta-tally-band {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--card-radius);
+    padding: 0.75rem 1.25rem;
+    margin: 0 0 1.25rem;
+    display: flex; flex-wrap: wrap; gap: 1rem;
+    align-items: baseline;
+  }
+  .fiesta-tally-band__label {
+    color: var(--ink-soft); font-size: 0.9rem;
+  }
+  .fiesta-tally-band__amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700; font-size: 1.45rem;
+    color: var(--accent);
+  }
+  .fiesta-tally-band__hint {
+    color: var(--ink-mute); font-size: 0.8rem;
+  }
+
+  /* ---- D2 · "Why this matters" expandable ---------------------------- */
+  .s6-why-matters {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+  }
+  .s6-why-matters summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 500;
+    user-select: none;
+    list-style: none;
+  }
+  .s6-why-matters summary::-webkit-details-marker { display: none; }
+  .s6-why-matters summary::before { content: '▶ '; font-size: 0.7rem; }
+  .s6-why-matters[open] summary::before { content: '▼ '; font-size: 0.7rem; }
+  .s6-why-matters__body {
+    margin-top: 0.5rem;
+    padding: 0.65rem 0.8rem;
+    background: var(--info-soft);
+    border-left: 3px solid var(--info);
+    border-radius: 0 8px 8px 0;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .s6-why-matters__body p { margin: 0 0 0.4rem; }
+  .s6-why-matters__body p:last-child { margin: 0; }
+  .s6-why-matters__reasoning {
+    font-size: 0.8rem; color: var(--ink-mute);
+    margin-top: 0.4rem; padding-left: 0.75rem;
+    border-left: 2px solid var(--line);
+  }
+
   @media (max-width: 600px) {
     .s6-grid { grid-template-columns: 1fr; }
   }
@@ -223,6 +278,15 @@
 
 {% block content %}
 <div class="s6-page">
+
+  <!-- D1 · Sticky live savings tally band -------------------------------- -->
+  <div class="fiesta-tally-band" id="fiesta-tally-band" aria-live="polite">
+    <div>
+      <div class="fiesta-tally-band__label">Projected savings this tax year</div>
+      <div class="fiesta-tally-band__amount" id="fiesta-tally-saving">Rs …</div>
+    </div>
+    <div class="fiesta-tally-band__hint">↻ Updates when you add or edit a Service Provider</div>
+  </div>
 
   <header class="s6-header">
     <h1 class="s6-title">Your deductible support team</h1>
@@ -296,6 +360,37 @@
               </span>
             </div>
           {% endif %}
+
+          <!-- D2 · "Why this matters" §195 expandable ------------------- -->
+          <details class="s6-why-matters">
+            <summary>Why this matters</summary>
+            <div class="s6-why-matters__body">
+              {% if rel and rel.reasoning %}
+                <p><strong>§195 assessment:</strong>
+                  {% if rel.should_default_on_disclosure %}
+                    Disclosure is recommended for this Service Provider.
+                  {% else %}
+                    This arrangement appears arm's length.
+                  {% endif %}
+                </p>
+                <div class="s6-why-matters__reasoning">
+                  {% for reason in rel.reasoning %}<p>{{ reason }}</p>{% endfor %}
+                </div>
+              {% else %}
+                <p>§195 of the Inland Revenue Act requires that payments to
+                non-resident persons be supported by withholding tax compliance.
+                A documented service agreement establishes the deductibility of
+                this payment and protects you in audit by showing the IRD the
+                contractual basis for the expense.</p>
+              {% endif %}
+              <p style="margin-top:0.5rem;">
+                <strong>Audit defence:</strong> A signed agreement is your
+                first line of defence if the IRD questions this deduction.
+                Without it, the expense can be disallowed regardless of
+                whether it was genuinely incurred.
+              </p>
+            </div>
+          </details>
 
           <div class="s6-card__actions">
             <a href="{{ url_for('fiesta_service_providers.show', sp_id=sp.id) }}">Edit</a>
@@ -433,6 +528,22 @@
 </div>
 
 <script>
+/* D1 — live tally fetch ------------------------------------------------- */
+async function fiestaTallyRefresh() {
+  try {
+    var r = await fetch('/reduce-tax/estimate', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    var data = await r.json();
+    var el = document.getElementById('fiesta-tally-saving');
+    if (el && data.ok) {
+      el.textContent = 'Rs ' + Math.round(Number(data.estimated_saving_lkr)).toLocaleString();
+    }
+  } catch (e) {
+    console.warn('tally refresh failed', e);
+  }
+}
+document.addEventListener('DOMContentLoaded', fiestaTallyRefresh);
+
 function s6OpenAdd() { document.getElementById('s6-add-modal').classList.add('is-open'); }
 function s6CloseAdd() { document.getElementById('s6-add-modal').classList.remove('is-open'); }
 

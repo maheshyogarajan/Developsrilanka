@@ -52,6 +52,38 @@
 
   .s7d-empty { color: var(--mute); font-style: italic; }
 
+  /* ---- D2 · "Why this matters" expandable (landlord block) ----------- */
+  .s7d-why-matters {
+    margin-top: 0.75rem;
+    font-size: 0.88rem;
+  }
+  .s7d-why-matters summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 500;
+    user-select: none;
+    list-style: none;
+  }
+  .s7d-why-matters summary::-webkit-details-marker { display: none; }
+  .s7d-why-matters summary::before { content: '▶ '; font-size: 0.7rem; }
+  .s7d-why-matters[open] summary::before { content: '▼ '; font-size: 0.7rem; }
+  .s7d-why-matters__body {
+    margin-top: 0.5rem;
+    padding: 0.7rem 0.9rem;
+    background: #ecf5fc;
+    border-left: 3px solid #1e6fb8;
+    border-radius: 0 8px 8px 0;
+    color: var(--soft);
+    line-height: 1.55;
+  }
+  .s7d-why-matters__body p { margin: 0 0 0.4rem; }
+  .s7d-why-matters__body p:last-child { margin: 0; }
+  .s7d-why-matters__reasoning {
+    font-size: 0.8rem; color: var(--mute);
+    margin-top: 0.5rem; padding-left: 0.75rem;
+    border-left: 2px solid var(--line);
+  }
+
   @media (max-width: 640px) {
     .s7d-grid { grid-template-columns: 1fr; }
     .s7d-grid dt { font-weight: 600; }
@@ -107,6 +139,43 @@
       <dd>{{ landlord.bank_name or '' }} {{ landlord.bank_account_number or '' }}</dd>
       {% endif %}
     </dl>
+
+    <!-- D2 · §195 "Why this matters" expandable ----------------------- -->
+    <details class="s7d-why-matters">
+      <summary>Why this matters</summary>
+      <div class="s7d-why-matters__body">
+        {% if landlord_detection %}
+          <p><strong>§195 assessment:</strong>
+            {% if landlord_detection.should_default_on_disclosure %}
+              Disclosure is recommended for this landlord relationship.
+            {% else %}
+              This landlord arrangement appears arm's length.
+            {% endif %}
+            (Confidence: {{ (landlord_detection.confidence * 100)|round(0)|int }}%)
+          </p>
+          {% if landlord_reasoning %}
+          <div class="s7d-why-matters__reasoning">
+            {% for reason in landlord_reasoning %}
+              <p>{{ reason }}</p>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% else %}
+          <p>§195 of the Inland Revenue Act requires that payments to
+          non-resident persons be supported by withholding tax compliance.
+          A documented rental agreement establishes the deductibility of
+          rent paid to your landlord and protects you in audit by showing
+          the IRD the contractual basis for the expense.</p>
+        {% endif %}
+        <p style="margin-top:0.5rem;">
+          <strong>Audit defence:</strong> A signed rental agreement is your
+          first line of evidence if the IRD questions the home-office
+          deduction. Without it, the rental expense can be disallowed
+          regardless of whether it was genuinely paid.
+        </p>
+      </div>
+    </details>
+
     <div class="s7d-actions">
       <a href="{{ url_for('fiesta_property.landlord_detail', property_id=property.id) }}" class="btn-ghost">Edit landlord</a>
     </div>
