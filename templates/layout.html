@@ -37,11 +37,34 @@
     <!-- FIESTA design system: tokens MUST come before components; both AFTER custom.css so they win the cascade -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-components.css') }}">
-    
+    <!-- E5: Consolidated scoped design-token definitions for all FIESTA scopes. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-hub-design.css') }}">
+
     <!-- Additional page-specific styles -->
     {% block additional_styles %}{% endblock %}
     
     <style>
+        /* E4 — Bookkeeping deprecation banner (legacy shell only, not layout_fiesta.html). */
+        .bookkeeping-deprecation-banner {
+            background: #fef3cd;
+            border-bottom: 1px solid #e6c85a;
+            color: #7a5c10;
+            font-size: 13.5px;
+            font-family: var(--font-body, -apple-system, sans-serif);
+            text-align: center;
+            padding: 9px 20px;
+            position: relative;
+            z-index: 1100;
+        }
+        .bookkeeping-deprecation-banner a {
+            color: #7a5c10;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+        .bookkeeping-deprecation-banner a:hover {
+            color: #4a380a;
+        }
+
         /* Layout-only sidebar geometry. Color / type tokens are owned by fiesta-tokens.css. */
         :root {
             --submenu-bg: var(--color-ink-50);
@@ -324,6 +347,13 @@
 </head>
 {% endblock %}
 <body class="{% if not current_user.is_authenticated %}is-anonymous{% endif %}">
+    {# E4 — Bookkeeping deprecation banner. Show for authenticated non-FIESTA personas only.
+       Hidden for sl_foreign_income (FIESTA persona) and for anonymous users. #}
+    {% if current_user.is_authenticated and current_user.persona != 'sl_foreign_income' %}
+    <div class="bookkeeping-deprecation-banner">
+        This product is winding down &mdash; <a href="/fie/triage">migrate to FIESTA</a>
+    </div>
+    {% endif %}
     {% if current_user.is_authenticated %}
     <!-- Mobile Header (visible on small screens) -->
     <header class="mobile-header">
@@ -359,12 +389,7 @@
                         <span class="menu-text">Home</span>
                     </a>
                 </li>
-                <li class="menu-item">
-                    <a href="{{ url_for('preview') }}" class="menu-link {% if request.path == '/preview' %}active{% endif %}">
-                        <i class="fas fa-eye menu-icon"></i>
-                        <span class="menu-text">Preview</span>
-                    </a>
-                </li>
+                {# E1 F1.7 — /preview orphan hidden from anon nav; route still resolves for deep links. #}
                 <li class="menu-item">
                     <a href="{{ url_for('login') }}" class="menu-link {% if request.path == '/login' %}active{% endif %}">
                         <i class="fas fa-sign-in-alt menu-icon"></i>

@@ -1,0 +1,123 @@
+/*
+ * fiesta-hub-design.css — Consolidated scoped design tokens (E5, X9 WAVE 3).
+ *
+ * Extracted from inline <style> blocks across 5 templates. Each scope keeps
+ * its container class so tokens cannot leak into sibling scopes or the legacy
+ * bookkeeping shell. Structural / component CSS stays in each template's own
+ * <style> block; only the --custom-property token definitions live here.
+ *
+ * Scopes defined in this file:
+ *   .fiesta-hub       — authenticated FIESTA hub shell (layout_fiesta.html)
+ *   .x8a-landing      — anonymous S0 landing page (fiesta_public/s0_landing.html)
+ *   .fiesta-auth      — login + register screens (login.html, register.html)
+ *   .consultant-book  — consultant booking page (consultant/book.html)
+ */
+
+/* ============================================================
+   .fiesta-hub — FIESTA Hub Shell (F-Platform-1 / X9)
+   ============================================================ */
+.fiesta-hub {
+  --paper:        #f4ede2;
+  --paper-deep:   #ece2d2;
+  --paper-edge:   #d8cab4;
+  --paper-hi:     #fbf6eb;
+  --ink:          #1a1f17;
+  --ink-soft:     #3a3f33;
+  --ink-muted:    #6b6f5e;
+  --ink-faint:    #9ea394;
+  --forest:       #1f3a2d;
+  --forest-deep:  #142318;
+  --moss:         #4a6b4a;
+  --clay:         #b8542f;
+  --clay-deep:    #8e3f22;
+  --clay-soft:    #d68866;
+  --mustard:      #c69a3e;
+  --sage:         #a8b89a;
+  --success:      #3d6b3d;
+
+  --display: 'Fraunces', Georgia, serif;
+  --body:    'Manrope', -apple-system, sans-serif;
+  --mono:    'JetBrains Mono', 'Courier New', monospace;
+
+  --topbar-h:  64px;
+  --rail-w:    248px;
+
+  --shadow-soft: 0 1px 0 var(--paper-edge), 0 8px 24px -16px rgba(20,35,24,0.18);
+  --shadow-lift: 0 2px 0 var(--paper-edge), 0 18px 40px -22px rgba(20,35,24,0.28);
+}
+
+/* ============================================================
+   .x8a-landing — Anonymous S0 landing page (X8a design language)
+   ============================================================ */
+.x8a-landing {
+  --paper:        #f4ede2;
+  --paper-deep:   #ece2d2;
+  --paper-edge:   #d8cab4;
+  --paper-hi:     #fbf6eb;
+  --ink:          #1a1f17;
+  --ink-soft:     #3a3f33;
+  --ink-muted:    #6b6f5e;
+  --ink-faint:    #9ea394;
+  --forest:       #1f3a2d;
+  --forest-deep:  #142318;
+  --moss:         #4a6b4a;
+  --clay:         #b8542f;
+  --clay-deep:    #8e3f22;
+  --clay-soft:    #d68866;
+  --mustard:      #c69a3e;
+  --sage:         #a8b89a;
+  --success:      #3d6b3d;
+
+  --display: 'Fraunces', Georgia, serif;
+  --body:    'Manrope', -apple-system, sans-serif;
+  --mono:    'JetBrains Mono', 'Courier New', monospace;
+
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 14px;
+  --r-xl: 22px;
+
+  --shadow-soft: 0 1px 0 var(--paper-edge), 0 8px 24px -16px rgba(20,35,24,0.18);
+  --shadow-lift: 0 2px 0 var(--paper-edge), 0 18px 40px -22px rgba(20,35,24,0.28);
+}
+
+/* ============================================================
+   .fiesta-auth — Login + Register screens (X9 F1.5)
+   ============================================================ */
+.fiesta-auth {
+  --paper:      #f4ede2;
+  --paper-deep: #ece2d2;
+  --paper-edge: #d8cab4;
+  --paper-hi:   #fbf6eb;
+  --ink:        #1a1f17;
+  --ink-soft:   #3a3f33;
+  --ink-muted:  #6b6f5e;
+  --forest:     #1f3a2d;
+  --clay:       #b8542f;
+  --clay-deep:  #8e3f22;
+
+  --display: 'Fraunces', Georgia, serif;
+  --body:    'Manrope', -apple-system, sans-serif;
+  --mono:    'JetBrains Mono', monospace;
+}
+
+/* ============================================================
+   .consultant-book — Consultant booking page (X9 F7.4)
+   ============================================================ */
+.consultant-book {
+  --paper:      #f4ede2;
+  --paper-deep: #ece2d2;
+  --paper-edge: #d8cab4;
+  --paper-hi:   #fbf6eb;
+  --ink:        #1a1f17;
+  --ink-soft:   #3a3f33;
+  --ink-muted:  #6b6f5e;
+  --forest:     #1f3a2d;
+  --clay:       #b8542f;
+  --clay-deep:  #8e3f22;
+  --success:    #3d6b3d;
+
+  --display: 'Fraunces', Georgia, serif;
+  --body:    'Manrope', -apple-system, sans-serif;
+  --mono:    'JetBrains Mono', monospace;
+}

@@ -5,24 +5,8 @@
 {% block additional_styles %}
 <style>
   /* X9 F1.5 — FIESTA-token scoped styling on .fiesta-auth.
-     Same paper/forest/clay editorial language as the X8a S0 landing + the
-     authed hub. Keeps the bootstrap card markup but overrides every
-     surface so the sign-in screen reads as FIESTA, not generic. */
+     Token variables consolidated in fiesta-hub-design.css (E5). */
   .fiesta-auth {
-    --paper:      #f4ede2;
-    --paper-deep: #ece2d2;
-    --paper-edge: #d8cab4;
-    --paper-hi:   #fbf6eb;
-    --ink:        #1a1f17;
-    --ink-soft:   #3a3f33;
-    --ink-muted:  #6b6f5e;
-    --forest:     #1f3a2d;
-    --clay:       #b8542f;
-    --clay-deep:  #8e3f22;
-    --display: 'Fraunces', Georgia, serif;
-    --body:    'Manrope', -apple-system, sans-serif;
-    --mono:    'JetBrains Mono', monospace;
-
     background: var(--paper);
     color: var(--ink);
     font-family: var(--body);
