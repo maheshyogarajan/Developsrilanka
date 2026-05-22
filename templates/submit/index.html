@@ -312,7 +312,24 @@
   {% if not gate.blocks %}
     <div class="s14-card">
       <h2>Declaration + signature</h2>
-      {% if submission.attestation_signed_at %}
+      {% if zero_data and not submission.attestation_signed_at %}
+        {# X9 F6.2 — zero-data routing card.  Block the attestation path and
+           direct the user to the Remittance Ledger where they begin their
+           income log.  F6.3 (NIC/name gate) will still fire after data lands. #}
+        <div class="s14-flash s14-flash--warning">
+          <strong>You haven't logged any income or deductions yet.</strong>
+          <p style="margin: 0.5rem 0 0;">
+            Your declaration needs real figures to be defensible in an IRD
+            audit. Start by recording your remittances — FIESTA will compute
+            your tax bracket and populate the declaration automatically.
+          </p>
+        </div>
+        <div class="s14-actions" style="margin-top: 1rem;">
+          <a href="{{ url_for('remittance.dashboard') }}" class="s14-btn s14-btn--primary">
+            Start with your remittance ledger →
+          </a>
+        </div>
+      {% elif submission.attestation_signed_at %}
         <div class="s14-flash s14-flash--success">
           Attestation signed on
           <strong>{{ submission.attestation_signed_at.strftime('%Y-%m-%d %H:%M UTC') }}</strong>.

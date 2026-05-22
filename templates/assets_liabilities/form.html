@@ -1,0 +1,373 @@
+{% extends layout_template %}
+
+{% block title %}{{ 'Edit' if prefill_asset or prefill_liability else 'Add' }} Entry — A&amp;L · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* ---- A&L entry form — scoped tokens (Feature 9 D7) ---------------- */
+  :root {
+    --al-green:       #2d5016;
+    --al-green-light: #e8ede0;
+    --al-terra:       #c1442d;
+    --al-terra-light: #f5e8e6;
+    --al-cream:       #f7f5f0;
+    --al-border:      #c8c2b6;
+    --al-ink:         #0f1115;
+    --al-ink-soft:    #4b525c;
+    --al-focus:       rgba(45,80,22,0.15);
+  }
+
+  .al-form-page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+  }
+
+  .al-form-page h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--al-green);
+    margin-bottom: 0.25rem;
+  }
+
+  .al-form-page .al-sub {
+    font-size: 0.875rem;
+    color: var(--al-ink-soft);
+    margin-bottom: 2rem;
+  }
+
+  /* Progressive disclosure via <details> */
+  .al-panel {
+    border: 1.5px solid var(--al-border);
+    border-radius: 10px;
+    margin-bottom: 1.25rem;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .al-panel summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    background: var(--al-cream);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--al-ink);
+  }
+
+  .al-panel summary::-webkit-details-marker { display: none; }
+
+  .al-panel summary .al-panel-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+
+  .al-panel.assets summary .al-panel-icon {
+    background: var(--al-green-light);
+    color: var(--al-green);
+  }
+
+  .al-panel.liabilities summary .al-panel-icon {
+    background: var(--al-terra-light);
+    color: var(--al-terra);
+  }
+
+  .al-panel summary .al-chevron {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--al-ink-soft);
+    transition: transform 0.2s;
+  }
+
+  .al-panel[open] summary .al-chevron {
+    transform: rotate(90deg);
+  }
+
+  .al-panel-body {
+    padding: 1.25rem;
+    border-top: 1px solid var(--al-border);
+  }
+
+  /* Form field layout */
+  .al-field-group {
+    margin-bottom: 1.1rem;
+  }
+
+  .al-field-group label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--al-ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.35rem;
+  }
+
+  .al-field-group input,
+  .al-field-group select,
+  .al-field-group textarea {
+    width: 100%;
+    border: 1.5px solid var(--al-border);
+    border-radius: 7px;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+    color: var(--al-ink);
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+  }
+
+  .al-field-group input:focus,
+  .al-field-group select:focus,
+  .al-field-group textarea:focus {
+    outline: none;
+    border-color: var(--al-green);
+    box-shadow: 0 0 0 3px var(--al-focus);
+  }
+
+  .al-panel.liabilities .al-field-group input:focus,
+  .al-panel.liabilities .al-field-group select:focus {
+    border-color: var(--al-terra);
+    box-shadow: 0 0 0 3px rgba(193,68,45,0.15);
+  }
+
+  .al-field-hint {
+    font-size: 0.78rem;
+    color: var(--al-ink-soft);
+    margin-top: 0.25rem;
+  }
+
+  .al-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    .al-field-row { grid-template-columns: 1fr; }
+  }
+
+  /* Buttons */
+  .al-form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn-al-submit {
+    background: var(--al-green);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 0.65rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-al-submit:hover {
+    background: #213b0e;
+  }
+
+  .btn-al-cancel {
+    background: transparent;
+    color: var(--al-ink-soft);
+    border: 1.5px solid var(--al-border);
+    border-radius: 7px;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .al-notice {
+    background: var(--al-green-light);
+    border-left: 3px solid var(--al-green);
+    border-radius: 4px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.82rem;
+    color: var(--al-green);
+    margin-bottom: 1.25rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="al-form-page">
+
+  <h1>{{ 'Edit Entry' if (prefill_asset or prefill_liability) else 'Add Asset or Liability' }}</h1>
+  <div class="al-sub">Tax Year: <strong>{{ tax_year }}</strong> — open the section(s) you want to fill in.</div>
+
+  <div class="al-notice">
+    You can add an asset, a liability, or both in one submission.
+    Expand each section below and fill in the details.
+  </div>
+
+  <form method="POST" action="{{ url_for('fiesta_al.edit_save') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ---------------------------------------------------------------- #}
+    {# Asset section (progressive disclosure)                           #}
+    {# ---------------------------------------------------------------- #}
+    <details class="al-panel assets" {% if prefill_asset %}open{% endif %}>
+      <summary>
+        <span class="al-panel-icon">💰</span>
+        Part A — Asset
+        <span class="al-chevron">▶</span>
+      </summary>
+      <div class="al-panel-body">
+
+        <input type="hidden" name="asset_action"
+               value="{{ 'edit' if prefill_asset else 'add' }}">
+        {% if prefill_asset %}
+        <input type="hidden" name="asset_id" value="{{ prefill_asset.id }}">
+        {% endif %}
+
+        <div class="al-field-group">
+          <label for="asset_category">Category</label>
+          <select id="asset_category" name="asset_category">
+            {% for cat in asset_categories %}
+            <option value="{{ cat }}"
+              {{ 'selected' if prefill_asset and prefill_asset.category == cat }}>
+              {{ cat.replace('_', ' ').title() }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="al-field-group">
+          <label for="asset_description">Description <span style="color:#c1442d">*</span></label>
+          <input type="text" id="asset_description" name="asset_description"
+                 placeholder="e.g. Sampath Bank savings account No. XXXX"
+                 maxlength="512"
+                 value="{{ prefill_asset.description if prefill_asset else '' }}"
+                 required>
+          <div class="al-field-hint">Be specific — IRD may verify against bank statements.</div>
+        </div>
+
+        <div class="al-field-row">
+          <div class="al-field-group">
+            <label for="asset_value_lkr">Market Value (LKR)</label>
+            <input type="number" id="asset_value_lkr" name="asset_value_lkr"
+                   step="0.01" min="0"
+                   placeholder="0.00"
+                   value="{{ prefill_asset.value_lkr if prefill_asset else '' }}">
+            <div class="al-field-hint">Value at end of tax year.</div>
+          </div>
+          <div class="al-field-group">
+            <label for="asset_acquired_date">Acquired Date (optional)</label>
+            <input type="date" id="asset_acquired_date" name="asset_acquired_date"
+                   value="{{ prefill_asset.acquired_date.isoformat() if prefill_asset and prefill_asset.acquired_date else '' }}">
+          </div>
+        </div>
+
+        <div class="al-field-group">
+          <label for="asset_evidence_ref">Evidence Reference (optional)</label>
+          <input type="text" id="asset_evidence_ref" name="asset_evidence_ref"
+                 placeholder="e.g. Bank cert No. / Land reg. folio"
+                 maxlength="256"
+                 value="{{ prefill_asset.evidence_ref if prefill_asset and prefill_asset.evidence_ref else '' }}">
+          <div class="al-field-hint">Document reference number for your records.</div>
+        </div>
+
+      </div>
+    </details>
+
+    {# ---------------------------------------------------------------- #}
+    {# Liability section                                                 #}
+    {# ---------------------------------------------------------------- #}
+    <details class="al-panel liabilities" {% if prefill_liability %}open{% endif %}>
+      <summary>
+        <span class="al-panel-icon">🏦</span>
+        Part B — Liability
+        <span class="al-chevron">▶</span>
+      </summary>
+      <div class="al-panel-body">
+
+        <input type="hidden" name="liability_action"
+               value="{{ 'edit' if prefill_liability else 'add' }}">
+        {% if prefill_liability %}
+        <input type="hidden" name="liability_id" value="{{ prefill_liability.id }}">
+        {% endif %}
+
+        <div class="al-field-group">
+          <label for="liability_category">Category</label>
+          <select id="liability_category" name="liability_category">
+            {% for cat in liability_categories %}
+            <option value="{{ cat }}"
+              {{ 'selected' if prefill_liability and prefill_liability.category == cat }}>
+              {{ cat.replace('_', ' ').title() }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="al-field-group">
+          <label for="liability_description">Description <span style="color:#c1442d">*</span></label>
+          <input type="text" id="liability_description" name="liability_description"
+                 placeholder="e.g. Housing loan — HNB account No. XXXX"
+                 maxlength="512"
+                 value="{{ prefill_liability.description if prefill_liability else '' }}"
+                 required>
+        </div>
+
+        <div class="al-field-group">
+          <label for="liability_lender">Lender / Institution</label>
+          <input type="text" id="liability_lender" name="liability_lender"
+                 placeholder="e.g. Hatton National Bank"
+                 maxlength="256"
+                 value="{{ prefill_liability.lender if prefill_liability and prefill_liability.lender else '' }}">
+        </div>
+
+        <div class="al-field-row">
+          <div class="al-field-group">
+            <label for="liability_balance_lkr">Outstanding Balance (LKR)</label>
+            <input type="number" id="liability_balance_lkr" name="liability_balance_lkr"
+                   step="0.01" min="0"
+                   placeholder="0.00"
+                   value="{{ prefill_liability.balance_lkr if prefill_liability else '' }}">
+            <div class="al-field-hint">Balance at end of tax year.</div>
+          </div>
+          <div class="al-field-group">
+            <label for="liability_original_amount_lkr">Original Loan Amount (LKR)</label>
+            <input type="number" id="liability_original_amount_lkr" name="liability_original_amount_lkr"
+                   step="0.01" min="0"
+                   placeholder="0.00"
+                   value="{{ prefill_liability.original_amount_lkr if prefill_liability and prefill_liability.original_amount_lkr else '' }}">
+          </div>
+        </div>
+
+        <div class="al-field-group">
+          <label for="liability_due_date">Loan Maturity / Due Date (optional)</label>
+          <input type="date" id="liability_due_date" name="liability_due_date"
+                 value="{{ prefill_liability.due_date.isoformat() if prefill_liability and prefill_liability.due_date else '' }}">
+        </div>
+
+      </div>
+    </details>
+
+    {# ---------------------------------------------------------------- #}
+    {# Form actions                                                      #}
+    {# ---------------------------------------------------------------- #}
+    <div class="al-form-actions">
+      <button type="submit" class="btn-al-submit">Save Entry</button>
+      <a href="{{ url_for('fiesta_al.list_view') }}" class="btn-al-cancel">Cancel</a>
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}

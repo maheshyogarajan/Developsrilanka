@@ -1,0 +1,476 @@
+{% extends layout_template %}
+
+{% block title %}Assets &amp; Liabilities — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* ---- A&L list view — scoped design tokens (Feature 9 D7) ----------- */
+  :root {
+    --al-green:     #2d5016;
+    --al-green-light: #e8ede0;
+    --al-terra:     #c1442d;
+    --al-terra-light: #f5e8e6;
+    --al-cream:     #f7f5f0;
+    --al-border:    #c8c2b6;
+    --al-ink:       #0f1115;
+    --al-ink-soft:  #4b525c;
+  }
+
+  .al-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+  }
+
+  .al-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .al-hero h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--al-green);
+    margin: 0;
+  }
+
+  .al-hero-meta {
+    font-size: 0.875rem;
+    color: var(--al-ink-soft);
+  }
+
+  .al-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Net worth summary card */
+  .al-net-worth {
+    background: var(--al-green-light);
+    border: 1px solid var(--al-green);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .al-net-worth.negative {
+    background: var(--al-terra-light);
+    border-color: var(--al-terra);
+  }
+
+  .al-summary-item {
+    text-align: center;
+  }
+
+  .al-summary-label {
+    font-size: 0.75rem;
+    color: var(--al-ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+
+  .al-summary-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--al-green);
+  }
+
+  .al-summary-value.negative {
+    color: var(--al-terra);
+  }
+
+  /* Section blocks */
+  .al-section {
+    margin-bottom: 2rem;
+  }
+
+  .al-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .al-section-heading h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--al-green);
+    margin: 0;
+  }
+
+  .al-table-wrap {
+    overflow-x: auto;
+  }
+
+  .al-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .al-table thead th {
+    background: var(--al-green);
+    color: #fff;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .al-table.liabilities thead th {
+    background: var(--al-terra);
+  }
+
+  .al-table tbody tr:nth-child(odd) {
+    background: var(--al-cream);
+  }
+
+  .al-table tbody tr:nth-child(even) {
+    background: #fff;
+  }
+
+  .al-table tbody td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--al-border);
+    color: var(--al-ink);
+  }
+
+  .al-table tbody td.al-val {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .al-table tfoot td {
+    font-weight: 700;
+    padding: 0.6rem 0.75rem;
+    border-top: 2px solid var(--al-green);
+    background: var(--al-green-light);
+    font-size: 0.9rem;
+  }
+
+  .al-table.liabilities tfoot td {
+    border-top-color: var(--al-terra);
+    background: var(--al-terra-light);
+  }
+
+  .al-cat-badge {
+    display: inline-block;
+    background: var(--al-green-light);
+    color: var(--al-green);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .al-cat-badge.liab {
+    background: var(--al-terra-light);
+    color: var(--al-terra);
+  }
+
+  .al-empty {
+    text-align: center;
+    color: var(--al-ink-soft);
+    padding: 2rem;
+    font-size: 0.9rem;
+  }
+
+  /* Push button */
+  .al-push-section {
+    background: var(--al-cream);
+    border: 1px solid var(--al-border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-top: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .al-push-info {
+    font-size: 0.875rem;
+    color: var(--al-ink-soft);
+  }
+
+  .al-push-info strong {
+    color: var(--al-ink);
+  }
+
+  /* Buttons */
+  .btn-al-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--al-green);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-al-primary:hover {
+    background: #213b0e;
+    color: #fff;
+  }
+
+  .btn-al-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    color: var(--al-green);
+    border: 1.5px solid var(--al-green);
+    border-radius: 7px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .btn-al-outline:hover {
+    background: var(--al-green);
+    color: #fff;
+  }
+
+  .btn-al-push {
+    background: var(--al-terra);
+    border-color: var(--al-terra);
+    color: #fff;
+  }
+
+  .btn-al-push:hover {
+    background: #8c2d1e;
+    color: #fff;
+  }
+
+  .al-error {
+    background: #fff5f5;
+    border: 1px solid #fc8181;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: #9b2c2c;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .al-net-worth {
+      grid-template-columns: 1fr;
+    }
+    .al-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="al-page">
+
+  {# ------------------------------------------------------------------ #}
+  {# Hero header                                                         #}
+  {# ------------------------------------------------------------------ #}
+  <div class="al-hero">
+    <div>
+      <h1>Assets &amp; Liabilities</h1>
+      <div class="al-hero-meta">Tax Year: <strong>{{ tax_year }}</strong></div>
+    </div>
+    <div class="al-actions">
+      <a href="{{ url_for('fiesta_al.edit_view') }}" class="btn-al-primary">
+        + Add Entry
+      </a>
+      {% if assets or liabilities %}
+      <a href="{{ url_for('fiesta_al.download_pdf', tax_year=tax_year) }}"
+         class="btn-al-outline" target="_blank">
+        ↓ Download PDF
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Flash messages #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="al-error" style="{% if category == 'success' %}background:#f0fff4;border-color:#68d391;color:#276749;{% elif category == 'info' %}background:#ebf8ff;border-color:#63b3ed;color:#2b6cb0;{% elif category == 'warning' %}background:#fffbeb;border-color:#f6e05e;color:#744210;{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# DB error banner #}
+  {% if db_error %}
+  <div class="al-error">
+    Database error — entries could not be loaded. Please refresh or contact support.<br>
+    <small>{{ db_error }}</small>
+  </div>
+  {% endif %}
+
+  {# ------------------------------------------------------------------ #}
+  {# Net worth summary                                                    #}
+  {# ------------------------------------------------------------------ #}
+  <div class="al-net-worth {% if not net_worth_positive %}negative{% endif %}">
+    <div class="al-summary-item">
+      <div class="al-summary-label">Total Assets</div>
+      <div class="al-summary-value">LKR {{ "{:,.2f}".format(total_assets_lkr) }}</div>
+    </div>
+    <div class="al-summary-item">
+      <div class="al-summary-label">Total Liabilities</div>
+      <div class="al-summary-value">LKR {{ "{:,.2f}".format(total_liabilities_lkr) }}</div>
+    </div>
+    <div class="al-summary-item">
+      <div class="al-summary-label">Net Worth</div>
+      <div class="al-summary-value {% if not net_worth_positive %}negative{% endif %}">
+        {% if net_worth_positive %}+{% else %}−{% endif %}LKR {{ "{:,.2f}".format(net_worth_lkr|abs) }}
+      </div>
+    </div>
+  </div>
+
+  {# ------------------------------------------------------------------ #}
+  {# Assets table                                                         #}
+  {# ------------------------------------------------------------------ #}
+  <div class="al-section">
+    <div class="al-section-heading">
+      <h2>Part A — Assets</h2>
+      <span style="font-size:0.8rem;color:var(--al-ink-soft);">{{ assets|length }} item{{ 's' if assets|length != 1 }}</span>
+    </div>
+
+    {% if assets %}
+    <div class="al-table-wrap">
+      <table class="al-table">
+        <thead>
+          <tr>
+            <th style="width:20%">Category</th>
+            <th>Description</th>
+            <th style="width:22%;text-align:right">Value (LKR)</th>
+            <th style="width:8%">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assets %}
+          <tr>
+            <td><span class="al-cat-badge">{{ a.category.replace('_', ' ').title() }}</span></td>
+            <td>{{ a.description }}</td>
+            <td class="al-val">{{ "{:,.2f}".format(a.value_lkr) }}</td>
+            <td>
+              <a href="{{ url_for('fiesta_al.edit_view', asset_id=a.id) }}"
+                 style="font-size:0.8rem;color:var(--al-green);text-decoration:none;">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="text-align:right;font-size:0.85rem;color:var(--al-ink-soft);">Total Assets</td>
+            <td class="al-val">{{ "{:,.2f}".format(total_assets_lkr) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="al-empty">
+      No assets declared yet for {{ tax_year }}.
+      <a href="{{ url_for('fiesta_al.edit_view') }}" style="color:var(--al-green);">Add your first asset →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ------------------------------------------------------------------ #}
+  {# Liabilities table                                                    #}
+  {# ------------------------------------------------------------------ #}
+  <div class="al-section">
+    <div class="al-section-heading">
+      <h2>Part B — Liabilities</h2>
+      <span style="font-size:0.8rem;color:var(--al-ink-soft);">{{ liabilities|length }} item{{ 's' if liabilities|length != 1 }}</span>
+    </div>
+
+    {% if liabilities %}
+    <div class="al-table-wrap">
+      <table class="al-table liabilities">
+        <thead>
+          <tr>
+            <th style="width:18%">Category</th>
+            <th>Description</th>
+            <th style="width:20%">Lender</th>
+            <th style="width:20%;text-align:right">Balance (LKR)</th>
+            <th style="width:8%">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lb in liabilities %}
+          <tr>
+            <td><span class="al-cat-badge liab">{{ lb.category.replace('_', ' ').title() }}</span></td>
+            <td>{{ lb.description }}</td>
+            <td>{{ lb.lender or '—' }}</td>
+            <td class="al-val">{{ "{:,.2f}".format(lb.balance_lkr) }}</td>
+            <td>
+              <a href="{{ url_for('fiesta_al.edit_view', liability_id=lb.id) }}"
+                 style="font-size:0.8rem;color:var(--al-terra);text-decoration:none;">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" style="text-align:right;font-size:0.85rem;color:var(--al-ink-soft);">Total Liabilities</td>
+            <td class="al-val">{{ "{:,.2f}".format(total_liabilities_lkr) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="al-empty">
+      No liabilities declared yet for {{ tax_year }}.
+      <a href="{{ url_for('fiesta_al.edit_view') }}" style="color:var(--al-terra);">Add a liability →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ------------------------------------------------------------------ #}
+  {# D9 — FA 5192455 push section (only visible if SF match detected)    #}
+  {# ------------------------------------------------------------------ #}
+  {% if sf_match_present and (assets or liabilities) %}
+  <div class="al-push-section">
+    <div class="al-push-info">
+      <strong>Lanka.tax filing system</strong><br>
+      Your account is linked to a Lanka.tax file. Push your A&amp;L declaration
+      directly to the Lanka.tax system so your tax advisor has the latest data.
+    </div>
+    <form method="POST" action="{{ url_for('fiesta_al.push_to_fa') }}"
+          onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Pushing…';">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-al-primary btn-al-push">
+        Push to Lanka.tax filing system →
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

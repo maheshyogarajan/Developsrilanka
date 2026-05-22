@@ -489,6 +489,16 @@ try:
 except Exception as e:
     logger.error(f'FIESTA S10 Co-sign workflow load failed: {e}')
 
+# FIESTA Feature 9 — Assets & Liabilities declaration tracker (Wave 2, 2026-05-22)
+# D6 blueprint + D7 list/edit routes + D8 PDF + D9 FA 5192455 push at /fie/al
+try:
+    from fiesta.assets_liabilities import models as fiesta_al_models  # noqa: F401
+    from fiesta.assets_liabilities import register_routes as register_al_routes
+    register_al_routes(app)
+    logger.info('FIESTA Feature 9 A&L declaration registered at /fie/al')
+except Exception as e:
+    logger.error(f'FIESTA Feature 9 A&L load failed: {e}')
+
 # FIESTA Wave 6 — S15 Admin Users list (admin-gated, /admin/fie/users)
 #                + S17 Admin Autoreply Queue (/admin/fie/autoreply)
 try:
