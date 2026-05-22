@@ -168,11 +168,21 @@ def pricing_screen():
         source="route:paywall.pricing_screen",
     )
 
+    # A10 F7.2 — context-aware banner copy per screen_id.
+    _SCREEN_ID_COPY = {
+        "S6":  "generate Service Agreements",
+        "S7":  "generate Rental Agreements + home-office rent calc",
+        "S12": "see your bracket-by-bracket tax bill",
+        "S14": "submit the IRD-ready filing pack",
+    }
+    screen_id_copy = _SCREEN_ID_COPY.get(screen_id) if screen_id else None
+
     return render_template(
         "paywall/pricing_x1.html",
         product=SELF_FILE_PRODUCT,
         return_to=return_to,
         screen_id=screen_id,
+        screen_id_copy=screen_id_copy,
         authenticated=is_auth,
         projected_savings_lkr=projected_savings_lkr,
     )

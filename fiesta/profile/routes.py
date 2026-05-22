@@ -1,13 +1,13 @@
 """S3 Profile blueprint — progressive disclosure routes.
 
-Mount point: /fiesta/profile
+Mount point: /fie/profile  (A4 F2.6; /fiesta/profile is a 302 alias via bp_legacy)
 
 Routes:
-- GET  /fiesta/profile                      — render the profile form
-- POST /fiesta/profile                      — persist (full form OR single field auto-save)
-- GET  /fiesta/profile/progress             — JSON for the dashboard widget
-- GET  /fiesta/profile/check/<field>        — async field availability check (NIC dedup)
-- GET  /fiesta/profile/required-for/<scr>   — JSON: missing fields blocking screen <scr>
+- GET  /fie/profile                      — render the profile form
+- POST /fie/profile                      — persist (full form OR single field auto-save)
+- GET  /fie/profile/progress             — JSON for the dashboard widget
+- GET  /fie/profile/check/<field>        — async field availability check (NIC dedup)
+- GET  /fie/profile/required-for/<scr>   — JSON: missing fields blocking screen <scr>
 
 Voice: empowerment ("Help us help you") not corporate-form. See template strings.
 Auth: all routes require @login_required. Per-user single profile row enforced by
@@ -48,11 +48,21 @@ from .validators import ProfileFormPayload
 
 logger = logging.getLogger(__name__)
 
+# A4 F2.6 — Primary mount point is now /fie/profile (URL-space parity with
+# /fie/triage). The old /fiesta/profile prefix is kept as a 302 alias via the
+# redirect blueprint below.
 bp = Blueprint(
     "fiesta_profile",
     __name__,
-    url_prefix="/fiesta/profile",
+    url_prefix="/fie/profile",
     template_folder="../../templates",
+)
+
+# 302-alias blueprint: /fiesta/profile/* → /fie/profile/*
+bp_legacy = Blueprint(
+    "fiesta_profile_legacy",
+    __name__,
+    url_prefix="/fiesta/profile",
 )
 
 
@@ -85,7 +95,19 @@ def _emit_event(event_name: str, **props: Any) -> None:
 @bp.route("/", methods=["GET"], strict_slashes=False)
 @login_required
 def index():
-    """Render the profile form with the user's current values."""
+    """Render the profile form with the user's current values.
+
+    A5 F2.8 — Triage-completion gate: if the user hasn't answered the 3
+    quick triage questions yet (triage_answers is None or empty), flash a
+    friendly prompt and redirect to /fie/triage. The profile only makes
+    sense after the triage persona-detection is complete.
+    """
+    # A5 F2.8 — Gate: triage must be complete before the profile is accessible.
+    triage_answers = getattr(current_user, 'triage_answers', None)
+    if not triage_answers:
+        flash("Let's start with 3 quick questions", "info")
+        return redirect("/fie/triage")
+
     profile = get_or_create_profile(current_user.id)
     sections = section_progress(profile)
     total_pct = progress_pct(profile)
@@ -295,6 +317,34 @@ def required_for(screen_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Legacy /fiesta/profile → /fie/profile 302 redirects (A4 F2.6)
+# ---------------------------------------------------------------------------
+
+
+@bp_legacy.route("", methods=["GET", "POST"], strict_slashes=False)
+@bp_legacy.route("/", methods=["GET", "POST"], strict_slashes=False)
+def _legacy_index():
+    """302 redirect: /fiesta/profile → /fie/profile"""
+    from flask import redirect, url_for as _url_for, request as _req
+    target = "/fie/profile"
+    qs = _req.query_string.decode("utf-8")
+    if qs:
+        target = f"{target}?{qs}"
+    return redirect(target, code=302)
+
+
+@bp_legacy.route("/<path:subpath>", methods=["GET", "POST"])
+def _legacy_subpath(subpath: str):
+    """302 redirect: /fiesta/profile/<subpath> → /fie/profile/<subpath>"""
+    from flask import redirect, request as _req
+    target = f"/fie/profile/{subpath}"
+    qs = _req.query_string.decode("utf-8")
+    if qs:
+        target = f"{target}?{qs}"
+    return redirect(target, code=302)
+
+
+# ---------------------------------------------------------------------------
 # Blueprint registration helper — mirrors fiesta/signup pattern
 # ---------------------------------------------------------------------------
 
@@ -308,8 +358,10 @@ def register_blueprint(app) -> None:
         return
 
     app.register_blueprint(bp)
+    # A4 F2.6 — also register the legacy 302-redirect blueprint
+    app.register_blueprint(bp_legacy)
     summary = profile_migrate(app)
-    logger.info("[fiesta.profile] registered + migrated: %s", summary)
+    logger.info("[fiesta.profile] registered at /fie/profile + legacy 302 at /fiesta/profile: %s", summary)
 
 
-__all__ = ["bp", "register_blueprint"]
+__all__ = ["bp", "bp_legacy", "register_blueprint"]

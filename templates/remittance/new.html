@@ -122,10 +122,99 @@
       </div>
     </div>
 
+    <!-- Live savings projection (A6 / F3.3) -------------------------------- -->
+    <div id="rem-projection" style="
+      display: none;
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.25rem;
+      border-radius: 10px;
+      background: #f3efff;
+      border: 1px solid #7c3aed;
+      transition: opacity 200ms ease;
+    " aria-live="polite">
+      <div style="display:flex; align-items:baseline; gap:0.6rem; flex-wrap:wrap;">
+        <span style="color:#4b525c; font-size:0.95rem;">Under the 15% flat rate, this remittance saves you</span>
+        <span id="rem-saving-amount" style="
+          font-family:'JetBrains Mono', monospace;
+          font-weight:700; font-size:1.5rem; color:#7c3aed;
+        ">Rs —</span>
+        <span style="color:#4b525c; font-size:0.95rem;">compared to the graduated-rate path.</span>
+      </div>
+      <div style="color:#6e7682; font-size:0.8rem; margin-top:0.35rem;">
+        Projection based on your entered LKR equivalent at the CBSL rate · exact figure confirmed at year-end
+      </div>
+    </div>
+
     <div class="d-flex justify-content-between align-items-center">
       <a href="{{ url_for('remittance.dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
       <button type="submit" class="btn btn-primary">Save remittance</button>
     </div>
   </form>
 </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var amountInput = document.getElementById('foreign_amount');
+  var cbslInput   = document.getElementById('cbsl_rate');
+  var projection  = document.getElementById('rem-projection');
+  var savingEl    = document.getElementById('rem-saving-amount');
+  var debounce    = null;
+  var csrfToken   = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  function fmtLKR(n) {
+    try { return 'Rs ' + Math.round(Number(n)).toLocaleString(); }
+    catch (e) { return 'Rs ' + n; }
+  }
+
+  function runProjection() {
+    var amt  = parseFloat(amountInput.value);
+    var rate = parseFloat(cbslInput.value);
+    if (!amt || !rate || amt <= 0 || rate <= 0) {
+      projection.style.display = 'none';
+      return;
+    }
+
+    var grossLkr = amt * rate;
+    var headers  = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+    fetch('/preview/calc', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        gross_income: grossLkr,
+        currency: 'LKR',
+        income_source: 'foreign',
+        sp_fee: 0,
+        rental: 0,
+        senior: false,
+        year: '25_26'
+      })
+    })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+    .then(function (d) {
+      if (d && d.saving_lkr != null) {
+        savingEl.textContent = fmtLKR(d.saving_lkr);
+        projection.style.display = '';
+      }
+    })
+    .catch(function (err) {
+      if (console && console.warn) console.warn('rem projection failed', err);
+      projection.style.display = 'none';
+    });
+  }
+
+  function schedule() {
+    if (debounce) clearTimeout(debounce);
+    debounce = setTimeout(runProjection, 250);
+  }
+
+  amountInput.addEventListener('input', schedule);
+  cbslInput.addEventListener('input', schedule);
+  cbslInput.addEventListener('change', schedule);
+})();
+</script>
 {% endblock %}

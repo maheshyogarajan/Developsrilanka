@@ -17,11 +17,20 @@
     {% endif %}
   {% endwith %}
 
-  {% if screen_id %}
+  {% if screen_id_copy %}
+    {# A10 F7.2 — context banner: tells the user exactly what they unlock #}
+    <div class="text-center mb-4">
+      <div style="display: inline-block; background: #f0ede4; border: 1px solid #d6cfc0; border-radius: 8px; padding: 10px 20px;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; letter-spacing: 1.2px; text-transform: uppercase; color: #6b6f5e;">Unlock Self-File to</span>
+        <div style="font-family: 'Fraunces', serif; font-size: 1.15rem; color: #1f3a2d; margin-top: 2px;">
+          {{ screen_id_copy }}
+        </div>
+      </div>
+    </div>
+  {% elif screen_id %}
+    {# fallback for unknown screen_ids — keep generic message #}
     <div class="alert alert-info" role="alert">
-      <strong>One step away.</strong> The screen you were on (<code>{{ screen_id }}</code>)
-      generates Service Agreements - that's where Self-File starts. Unlock once
-      below and you're set for the whole tax year.
+      <strong>One step away.</strong> Unlock Self-File below and you're set for the whole tax year.
     </div>
   {% endif %}
 
@@ -62,6 +71,20 @@
               Free
             </div>
             <div class="text-muted small">{{ product.scope }} &middot; Sign up before 2026-09-01 to keep this free first filing</div>
+            {# A11 F7.3 — bracket-math link below price #}
+            <div class="mt-2">
+              {% if authenticated and current_user.projected_gross_income_lkr %}
+                <a href="/tax-preview?gross_income_lkr={{ current_user.projected_gross_income_lkr }}"
+                   class="text-muted small" style="text-decoration: underline; text-underline-offset: 2px;">
+                  See the bracket math behind your saving
+                </a>
+              {% else %}
+                <a href="/tax-preview"
+                   class="text-muted small" style="text-decoration: underline; text-underline-offset: 2px;">
+                  See the bracket math behind your saving
+                </a>
+              {% endif %}
+            </div>
           </div>
 
           <ul class="list-unstyled mb-4">

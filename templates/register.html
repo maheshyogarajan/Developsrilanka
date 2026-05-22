@@ -166,6 +166,11 @@
 
       <form method="POST" action="{{ url_for('email_login') }}" id="registerForm" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {# A1 F1.6 — carry the `next` param through the form so it survives the
+           POST to /email_login; the handler writes it to session['_signup_next']
+           which is then consumed by verify_email on success. Only same-origin
+           paths (safelist enforced server-side) are accepted. #}
+        <input type="hidden" name="next" value="{{ signup_next or request.args.get('next', '') }}">
 
         <div class="mb-3">
           <label for="email" class="form-label">Email address</label>

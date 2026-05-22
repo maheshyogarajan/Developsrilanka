@@ -2774,6 +2774,20 @@ def register():
         flash("Please complete registration to accept the invitation.", "info")
         logging.info(f"Registration page accessed with invitation token: {invitation_token}")
 
+    # A1 F1.6 — safelist the `next` param so deep-link campaigns survive signup.
+    # Accept only same-origin paths: starts with '/' but NOT '//' or '\\'
+    # and does NOT contain '://'. Reject off-origin → render without next.
+    _raw_next = request.args.get('next', '')
+    signup_next = None
+    if (
+        _raw_next
+        and _raw_next.startswith('/')
+        and not _raw_next.startswith('//')
+        and not _raw_next.startswith('\\')
+        and '://' not in _raw_next
+    ):
+        signup_next = _raw_next
+
     # X8a funnel: signup_page_viewed
     try:
         from events import emit as _emit_event
@@ -2786,7 +2800,7 @@ def register():
     except Exception as _ev_err:
         logging.debug(f"Event emit (signup_page_viewed) failed: {_ev_err}")
 
-    return render_template('register.html')
+    return render_template('register.html', signup_next=signup_next)
 
 
 @app.route('/signup')
@@ -2804,10 +2818,18 @@ def signup():
         session['invitation_token'] = invitation_token
         flash("Please complete registration to accept the invitation.", "info")
 
-    next_target = request.args.get('next')
-    if next_target and (not next_target.startswith('/') or next_target.startswith('//')):
-        # Open-redirect guard — only relative paths allowed.
-        next_target = None
+    # A1 F1.6 — safelist the `next` param (same-origin only, defence-in-depth).
+    # Blocks: off-origin, protocol-relative (//), Windows-path (\\), any :// scheme.
+    _raw_next = request.args.get('next', '')
+    next_target = None
+    if (
+        _raw_next
+        and _raw_next.startswith('/')
+        and not _raw_next.startswith('//')
+        and not _raw_next.startswith('\\')
+        and '://' not in _raw_next
+    ):
+        next_target = _raw_next
 
     # X8a funnel: signup_page_viewed (via /signup alias)
     try:
@@ -2880,6 +2902,23 @@ def verify_email(token):
             # who still need the business-org setup step.
             login_user(user)
             flash('Your email has been verified! A few quick facts to get you set up.', 'success')
+
+            # A1 F1.6 — Pop and re-validate the next URL written at POST-register
+            # time. Defence-in-depth: validate again before redirect so that a
+            # manipulated session value cannot produce an open redirect.
+            _pending_next = session.pop('_signup_next', None)
+            if (
+                _pending_next
+                and _pending_next.startswith('/')
+                and not _pending_next.startswith('//')
+                and not _pending_next.startswith('\\')
+                and '://' not in _pending_next
+            ):
+                return redirect(_pending_next)
+
+            # Default destination: FIESTA hub for sl_foreign_income, legacy /scan otherwise.
+            if getattr(user, 'persona', None) == 'sl_foreign_income':
+                return redirect(url_for('home'))
             return redirect(url_for('fiesta_triage.triage_form'))
                 
         except SignatureExpired:
@@ -3275,12 +3314,25 @@ def email_login():
                     logging.error(f"Failed to send verification email to {email}: {str(email_error)}")
                     # Continue with registration even if email fails
                 
+                # A1 F1.6 — Persist `next` into session AFTER successful user creation
+                # (after validation, before redirect). Re-validate safelist here
+                # so a tampered form field cannot inject an off-origin path.
+                _form_next = request.form.get('next', '').strip()
+                if (
+                    _form_next
+                    and _form_next.startswith('/')
+                    and not _form_next.startswith('//')
+                    and not _form_next.startswith('\\')
+                    and '://' not in _form_next
+                ):
+                    session['_signup_next'] = _form_next
+
                 # Log in the new user
                 login_user(new_user)
-                
+
                 # Display welcome message indicating email verification is needed
                 flash('Account created! Please check your email to verify your address and unlock all features.', 'info')
-                
+
                 # Process any pending invitation
                 invitation_token = session.get('invitation_token')
                 if invitation_token:
@@ -4128,7 +4180,32 @@ def send_invitation_email(to_email, from_user, personal_message='', token=None):
 # Update the middleware to handle authentication required routes
 @app.before_request
 def check_authentication():
-    """Check if user is authenticated for protected routes and set default organization."""
+    """Check if user is authenticated for protected routes and set default organization.
+
+    A7 F3.6 — Flash dedupe: if the same message has accumulated more than 5 times
+    in the session's flash queue (e.g. from a redirect loop), collapse it to 1
+    occurrence. Operates directly on session['_flashes'] to avoid consuming the
+    messages. No-op if the key doesn't exist.
+    """
+    # A7 F3.6 — Dedupe stale flash messages before any route handler runs.
+    _flashes = session.get('_flashes')
+    if _flashes and isinstance(_flashes, list):
+        from collections import Counter as _Counter
+        # Count occurrences of each (category, message) tuple.
+        _counts = _Counter(_flashes)
+        # Rebuild: keep only 1 copy of any message that appears more than 5 times.
+        _deduped = []
+        _seen_excess = set()
+        for _item in _flashes:
+            if _counts[_item] > 5:
+                if _item not in _seen_excess:
+                    _deduped.append(_item)
+                    _seen_excess.add(_item)
+            else:
+                _deduped.append(_item)
+        if len(_deduped) != len(_flashes):
+            session['_flashes'] = _deduped
+
     # Set up default organization for authenticated users
     if current_user.is_authenticated:
         from models import Organization, OrganizationUser
