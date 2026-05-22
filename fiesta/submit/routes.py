@@ -296,6 +296,176 @@ def _current_tax_year() -> str:
     return f"{now.year - 1}/{now.year}"
 
 
+# B16 F6.8 — walkthrough step loader.
+_WALKTHROUGH_FALLBACK: list[dict[str, Any]] = [
+    # 12 generic IRD steps; displayed with "annotation pending" notes
+    # until B19/B21 land annotations.yaml + screenshots.
+    {
+        "step_number": 1,
+        "title": "Login to the IRD e-services portal",
+        "what_customer_does": "Step 1 action — navigate to eservices.ird.gov.lk and click Sign In.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 2,
+        "title": "Enter your TIN, PIN, and captcha",
+        "what_customer_does": "Step 2 action — type your Taxpayer Identification Number and PIN, complete the captcha.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 3,
+        "title": "Land on the post-login dashboard",
+        "what_customer_does": "Step 3 action — confirm you are logged in and see the individual taxpayer dashboard.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 4,
+        "title": "Open Return / Schedule Management",
+        "what_customer_does": "Step 4 action — select the Return / Schedule Management option from the main menu.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 5,
+        "title": "Select the correct assessment year",
+        "what_customer_does": "Step 5 action — pick the right tax year from the drop-down list of open returns.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 6,
+        "title": "Open the return form",
+        "what_customer_does": "Step 6 action — click the return entry for your chosen tax year to open the filing form.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 7,
+        "title": "Verify your pre-filled personal information",
+        "what_customer_does": "Step 7 action — review the personal details section; correct any stale information.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 8,
+        "title": "Declare income from your FIESTA pack",
+        "what_customer_does": "Step 8 action — enter income figures from the FIESTA export pack into the income sources section.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 9,
+        "title": "Enter deductions from your FIESTA pack",
+        "what_customer_does": "Step 9 action — type each deduction amount into the deductions section using the FIESTA pack values.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "§6(1) IRA — qualifying expenditure",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 10,
+        "title": "Cross-check the tax payable summary",
+        "what_customer_does": "Step 10 action — compare the portal's computed tax payable against the FIESTA S12 bill.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 11,
+        "title": "Read the final submission confirmation prompt carefully",
+        "what_customer_does": "Step 11 action — review the last-chance modal before submitting; confirm all figures are correct.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+    {
+        "step_number": 12,
+        "title": "Save your IRD acknowledgment PDF",
+        "what_customer_does": "Step 12 action — download the acknowledgment PDF from the confirmation page and upload it to FIESTA.",
+        "what_can_go_wrong": "(annotation pending — FIESTA team is documenting this step)",
+        "how_fiesta_helps": "(annotation pending)",
+        "ira_citation": "",
+        "screenshot_url": "",
+    },
+]
+
+
+def _load_walkthrough_steps() -> list[dict[str, Any]]:
+    """Load the 12 IRD walkthrough steps from annotations.yaml if present.
+
+    Lookup order (B16 spec):
+      1. /app/fiesta_ird_walkthrough/annotations.yaml  (Fly.io /app cwd)
+      2. fiesta_ird_walkthrough/annotations.yaml       (relative to process cwd)
+      3. Inline fallback — 12 generic steps with "(annotation pending)" notes.
+
+    Returns a list of 12 dicts with keys: step_number, title,
+    what_customer_does, what_can_go_wrong, how_fiesta_helps,
+    ira_citation, screenshot_url.
+    """
+    try:
+        import yaml  # pyyaml; available on Fly image
+    except ImportError:
+        logger.debug("pyyaml not installed — using walkthrough fallback list")
+        return _WALKTHROUGH_FALLBACK
+
+    candidates = [
+        Path("/app/fiesta_ird_walkthrough/annotations.yaml"),
+        Path("fiesta_ird_walkthrough/annotations.yaml"),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            try:
+                raw = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+                steps_raw = raw.get("steps") or []
+                if not steps_raw:
+                    logger.debug(
+                        "annotations.yaml at %s has no 'steps' key — using fallback",
+                        candidate,
+                    )
+                    return _WALKTHROUGH_FALLBACK
+                out: list[dict[str, Any]] = []
+                for i, s in enumerate(steps_raw, start=1):
+                    out.append(
+                        {
+                            "step_number": s.get("step_number") or i,
+                            "title": s.get("title") or f"Step {i}",
+                            "what_customer_does": s.get("what_customer_does") or "(annotation pending)",
+                            "what_can_go_wrong": s.get("what_can_go_wrong") or "(annotation pending)",
+                            "how_fiesta_helps": s.get("how_fiesta_helps") or "(annotation pending)",
+                            "ira_citation": s.get("ira_citation") or "",
+                            "screenshot_url": s.get("screenshot_url") or "",
+                        }
+                    )
+                logger.info("Loaded %d walkthrough steps from %s", len(out), candidate)
+                return out
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to parse %s: %s — using fallback", candidate, exc)
+
+    logger.debug("annotations.yaml not found in any search path — using walkthrough fallback")
+    return _WALKTHROUGH_FALLBACK
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -399,6 +569,9 @@ def show_submit():
 
     db.session.commit()
 
+    # B16 F6.8: load the 12 walkthrough steps for the pre-attestation preview.
+    walkthrough_steps = _load_walkthrough_steps()
+
     return render_template(
         "submit/index.html",
         submission=sub,
@@ -408,6 +581,7 @@ def show_submit():
         zero_data=zero_data,
         tax_year=tax_year,
         final_tax_payable_lkr=final_tax,
+        walkthrough_steps=walkthrough_steps,  # B16
     )
 
 

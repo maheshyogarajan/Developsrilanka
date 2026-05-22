@@ -1,12 +1,13 @@
-{% extends 'empty_layout.html' %}
+{% extends layout_template %}
 
 {% block title %}Submit -- final review + filing pack -- FIESTA{% endblock %}
 
 {% block content %}
 <style>
-  /* S14 Submit -- the final gate. Empowerment voice through the friction. */
+  /* S14 Submit -- the final gate. Empowerment voice through the friction.
+     Scoped under .submit-wrap so FIESTA shell body styles are not overridden. */
 
-  :root {
+  .submit-wrap {
     --s14-bg:           #f7f5f0;
     --s14-ink:          #1a1d27;
     --s14-ink-soft:     #4a4f5c;
@@ -20,44 +21,38 @@
     --s14-warning-soft: #fcf3df;
     --s14-danger:       #b54029;
     --s14-danger-soft:  #fbeae5;
-  }
-
-  body {
-    background: var(--s14-bg);
     color: var(--s14-ink);
     font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
     line-height: 1.55;
-    margin: 0;
-    padding: 0;
   }
 
-  .s14-wrap {
+  .submit-wrap .s14-wrap {
     max-width: 48rem;
     margin: 0 auto;
     padding: 2.5rem 1.25rem 4rem;
   }
 
-  .s14-brand-row {
+  .submit-wrap .s14-brand-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     margin-bottom: 1rem;
   }
-  .s14-brand {
+  .submit-wrap .s14-brand {
     font-family: 'Fraunces', Georgia, serif;
     font-weight: 600;
     font-size: 1.5rem;
     color: var(--s14-ink);
     margin: 0;
   }
-  .s14-step-label {
+  .submit-wrap .s14-step-label {
     font-size: 0.85rem;
     color: var(--s14-ink-soft);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
-  .s14-h1 {
+  .submit-wrap .s14-h1 {
     font-family: 'Fraunces', Georgia, serif;
     font-weight: 600;
     font-size: 2rem;
@@ -65,13 +60,13 @@
     letter-spacing: -0.01em;
     margin: 1.5rem 0 0.75rem;
   }
-  .s14-tag {
+  .submit-wrap .s14-tag {
     color: var(--s14-ink-soft);
     font-size: 1.05rem;
     margin: 0 0 2rem;
   }
 
-  .s14-card {
+  .submit-wrap .s14-card {
     background: var(--s14-surface);
     border: 1px solid var(--s14-border);
     border-radius: 14px;
@@ -79,20 +74,20 @@
     margin-bottom: 1.5rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.03);
   }
-  .s14-card h2 {
+  .submit-wrap .s14-card h2 {
     font-family: 'Fraunces', Georgia, serif;
     font-weight: 600;
     font-size: 1.25rem;
     margin: 0 0 0.75rem;
   }
 
-  .s14-status-row {
+  .submit-wrap .s14-status-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
   }
-  .s14-pill {
+  .submit-wrap .s14-pill {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -103,37 +98,37 @@
     border: 1px solid var(--s14-border);
     background: var(--s14-surface);
   }
-  .s14-pill--on { background: var(--s14-success-soft); border-color: var(--s14-success); color: var(--s14-success); }
-  .s14-pill--off { color: var(--s14-ink-soft); }
+  .submit-wrap .s14-pill--on { background: var(--s14-success-soft); border-color: var(--s14-success); color: var(--s14-success); }
+  .submit-wrap .s14-pill--off { color: var(--s14-ink-soft); }
 
-  .s14-tax-line {
+  .submit-wrap .s14-tax-line {
     font-family: 'JetBrains Mono', monospace;
     font-size: 1.5rem;
     color: var(--s14-ink);
     margin: 1rem 0;
   }
 
-  .s14-banner {
+  .submit-wrap .s14-banner {
     border-left: 4px solid;
     border-radius: 8px;
     padding: 1rem 1.25rem;
     margin-bottom: 1rem;
   }
-  .s14-banner--warn { background: var(--s14-warning-soft); border-color: var(--s14-warning); }
-  .s14-banner--block { background: var(--s14-danger-soft); border-color: var(--s14-danger); }
-  .s14-banner h3 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 600; }
-  .s14-banner p { margin: 0 0 0.3rem; font-size: 0.95rem; }
-  .s14-banner .s14-cite { font-size: 0.8rem; color: var(--s14-ink-soft); font-style: italic; }
+  .submit-wrap .s14-banner--warn { background: var(--s14-warning-soft); border-color: var(--s14-warning); }
+  .submit-wrap .s14-banner--block { background: var(--s14-danger-soft); border-color: var(--s14-danger); }
+  .submit-wrap .s14-banner h3 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 600; }
+  .submit-wrap .s14-banner p { margin: 0 0 0.3rem; font-size: 0.95rem; }
+  .submit-wrap .s14-banner .s14-cite { font-size: 0.8rem; color: var(--s14-ink-soft); font-style: italic; }
 
-  .s14-form-block { margin-bottom: 1.25rem; }
-  .s14-label {
+  .submit-wrap .s14-form-block { margin-bottom: 1.25rem; }
+  .submit-wrap .s14-label {
     display: block;
     font-size: 0.9rem;
     font-weight: 500;
     margin-bottom: 0.4rem;
     color: var(--s14-ink);
   }
-  .s14-input {
+  .submit-wrap .s14-input {
     width: 100%;
     padding: 0.65rem 0.8rem;
     border: 1px solid var(--s14-border);
@@ -143,11 +138,11 @@
     font-size: 1rem;
     font-family: inherit;
   }
-  .s14-input:focus {
+  .submit-wrap .s14-input:focus {
     outline: 2px solid var(--s14-brand);
     outline-offset: 1px;
   }
-  .s14-attestation-text {
+  .submit-wrap .s14-attestation-text {
     font-family: 'Manrope', system-ui, sans-serif;
     background: var(--s14-bg);
     border: 1px solid var(--s14-border);
@@ -158,15 +153,15 @@
     line-height: 1.55;
     font-size: 0.95rem;
   }
-  .s14-checkbox-row {
+  .submit-wrap .s14-checkbox-row {
     display: flex;
     gap: 0.6rem;
     align-items: flex-start;
     margin-bottom: 0.6rem;
   }
-  .s14-checkbox-row input { margin-top: 0.25rem; }
+  .submit-wrap .s14-checkbox-row input { margin-top: 0.25rem; }
 
-  .s14-btn {
+  .submit-wrap .s14-btn {
     display: inline-block;
     padding: 0.75rem 1.25rem;
     border-radius: 8px;
@@ -177,35 +172,90 @@
     border: 1px solid transparent;
     font-family: inherit;
   }
-  .s14-btn--primary { background: var(--s14-brand); color: white; }
-  .s14-btn--primary:hover { background: #a83925; }
-  .s14-btn--primary:disabled { background: #cccccc; cursor: not-allowed; }
-  .s14-btn--ghost { background: transparent; border-color: var(--s14-border); color: var(--s14-ink); }
-  .s14-btn--ghost:hover { background: var(--s14-bg); }
+  .submit-wrap .s14-btn--primary { background: var(--s14-brand); color: white; }
+  .submit-wrap .s14-btn--primary:hover { background: #a83925; }
+  .submit-wrap .s14-btn--primary:disabled { background: #cccccc; cursor: not-allowed; }
+  .submit-wrap .s14-btn--ghost { background: transparent; border-color: var(--s14-border); color: var(--s14-ink); }
+  .submit-wrap .s14-btn--ghost:hover { background: var(--s14-bg); }
 
-  .s14-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+  .submit-wrap .s14-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
 
-  .s14-meta { font-size: 0.85rem; color: var(--s14-ink-soft); }
-  .s14-meta code { background: var(--s14-bg); padding: 0.1rem 0.35rem; border-radius: 4px; }
+  .submit-wrap .s14-meta { font-size: 0.85rem; color: var(--s14-ink-soft); }
+  .submit-wrap .s14-meta code { background: var(--s14-bg); padding: 0.1rem 0.35rem; border-radius: 4px; }
 
-  .s14-flash {
+  .submit-wrap .s14-flash {
     padding: 0.8rem 1rem;
     margin-bottom: 1rem;
     border-radius: 8px;
     border: 1px solid var(--s14-border);
   }
-  .s14-flash--success { background: var(--s14-success-soft); border-color: var(--s14-success); color: var(--s14-success); }
-  .s14-flash--danger { background: var(--s14-danger-soft); border-color: var(--s14-danger); color: var(--s14-danger); }
-  .s14-flash--warning { background: var(--s14-warning-soft); border-color: var(--s14-warning); color: var(--s14-warning); }
-  .s14-flash--info { background: var(--s14-brand-soft); border-color: var(--s14-brand); color: var(--s14-brand); }
+  .submit-wrap .s14-flash--success { background: var(--s14-success-soft); border-color: var(--s14-success); color: var(--s14-success); }
+  .submit-wrap .s14-flash--danger { background: var(--s14-danger-soft); border-color: var(--s14-danger); color: var(--s14-danger); }
+  .submit-wrap .s14-flash--warning { background: var(--s14-warning-soft); border-color: var(--s14-warning); color: var(--s14-warning); }
+  .submit-wrap .s14-flash--info { background: var(--s14-brand-soft); border-color: var(--s14-brand); color: var(--s14-brand); }
+
+  /* B16 — Walkthrough preview pane */
+  .submit-wrap .s14-walkthrough-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: 1px solid var(--s14-border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--s14-ink);
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .submit-wrap .s14-walkthrough-toggle:hover {
+    border-color: var(--s14-brand);
+    background: var(--s14-brand-soft);
+  }
+  .submit-wrap .s14-walkthrough-preview {
+    display: none;
+    margin-bottom: 1.5rem;
+  }
+  .submit-wrap .s14-walkthrough-preview.open { display: block; }
+
+  /* B14b — Projected savings counter (S14 version) */
+  .submit-wrap .s14-savings-counter {
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .submit-wrap .s14-savings-counter__label {
+    font-size: 0.9rem;
+    color: #047857;
+  }
+  .submit-wrap .s14-savings-counter__amount {
+    font-family: 'Fraunces', serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #065F46;
+  }
+  .submit-wrap .s14-savings-counter__note {
+    font-size: 0.8rem;
+    color: #059669;
+    margin-left: auto;
+  }
 
   @media (max-width: 600px) {
-    .s14-wrap { padding: 1.5rem 1rem 3rem; }
-    .s14-h1 { font-size: 1.6rem; }
-    .s14-tax-line { font-size: 1.25rem; }
+    .submit-wrap .s14-wrap { padding: 1.5rem 1rem 3rem; }
+    .submit-wrap .s14-h1 { font-size: 1.6rem; }
+    .submit-wrap .s14-tax-line { font-size: 1.25rem; }
   }
 </style>
 
+<div class="submit-wrap">
 <div class="s14-wrap">
 
   <div class="s14-brand-row">
@@ -213,11 +263,7 @@
     <span class="s14-step-label">S14 -- Submit ({{ tax_year }})</span>
   </div>
 
-  {# X9 F6.X-PRE-IRD-GATE -- the IRD eservices walkthrough is being captured;
-     the final "send to IRD" handoff goes live alongside it. Until then,
-     attestation + IRD-ready ZIP preview work so a customer can rehearse,
-     but the click that pushes the return to eservices.ird.gov.lk is not
-     wired yet. Sets expectations without removing functionality. #}
+  {# X9 F6.X-PRE-IRD-GATE banner — left in place; B20 removes it when IRD portal is live. #}
   <div class="s14-flash s14-flash--warning" style="background: var(--s14-warning-soft); border-left: 4px solid var(--s14-warning); padding: 0.85rem 1rem; margin-bottom: 1rem;">
     <strong>Filing handoff coming soon.</strong>
     You can preview your full IRD-ready filing pack and sign the
@@ -233,6 +279,32 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
+
+  {# ---- B14b F6.6 — Projected savings counter (S14) ----------------------- #}
+  {#
+     hub_projected_savings_lkr is injected globally by inject_fiesta_hub_context()
+     for authenticated sl_foreign_income users. Same source as S12 counter (B14).
+  #}
+  <div class="s14-savings-counter">
+    <span class="s14-savings-counter__label">Projected savings:</span>
+    <span class="s14-savings-counter__amount">
+      Rs {{ "{:,.0f}".format(hub_projected_savings_lkr | float) if (hub_projected_savings_lkr is defined and hub_projected_savings_lkr) else "—" }}
+    </span>
+    {% if hub_projected_savings_lkr is defined and hub_projected_savings_lkr and hub_projected_savings_lkr > 0 %}
+      <span class="s14-savings-counter__note">vs filing without FIESTA-documented deductions</span>
+    {% else %}
+      <span class="s14-savings-counter__note">log income on your remittance ledger to see your projection</span>
+    {% endif %}
+  </div>
+
+  {# ---- B16 F6.8 — Walkthrough preview (read-only pre-attestation) -------- #}
+  <button class="s14-walkthrough-toggle" type="button"
+          onclick="this.nextElementSibling.classList.toggle('open'); this.textContent = this.nextElementSibling.classList.contains('open') ? '▲ Hide IRD walkthrough preview' : '▶ See what the IRD walkthrough looks like';">
+    ▶ See what the IRD walkthrough looks like
+  </button>
+  <div class="s14-walkthrough-preview">
+    {% include 'submit/_walkthrough_steps.html' with context %}
+  </div>
 
   <h2 class="s14-h1">Almost there -- one final review.</h2>
   <p class="s14-tag">
@@ -503,5 +575,6 @@
     </div>
   {% endif %}
 
-</div>
+</div>{# end .s14-wrap #}
+</div>{# end .submit-wrap (B17 CSS scope wrapper) #}
 {% endblock %}
