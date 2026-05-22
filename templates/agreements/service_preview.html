@@ -149,6 +149,34 @@
     margin-top: .2rem; accent-color: var(--clay);
   }
 
+  /* Tax-savings framing strip (B4 — F5.5) */
+  .s8-tax-savings-strip {
+    background: rgba(31, 58, 45, 0.06);
+    border-left: 4px solid var(--forest);
+    border-radius: 8px;
+    padding: .85rem 1.1rem;
+    font-family: 'Manrope', sans-serif; font-size: .9rem;
+    color: var(--ink-soft);
+    margin-bottom: 1.25rem;
+    line-height: 1.55;
+  }
+  .s8-tax-savings-strip strong {
+    color: var(--forest);
+    font-size: 1rem;
+  }
+  .s8-tax-savings-strip .s8-savings-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--forest);
+    font-size: 1.05rem;
+  }
+  .s8-tax-savings-strip .s8-savings-ira-note {
+    display: block;
+    margin-top: .4rem;
+    font-size: .8rem;
+    color: var(--ink-muted);
+  }
+
   /* Action row */
   .s8-action-row {
     display: flex; align-items: center; gap: 1rem;
@@ -360,6 +388,23 @@
                     placeholder="e.g. Monthly bookkeeping, payroll processing and advisory support"></textarea>
         </div>
       </fieldset>
+
+      {# -- Tax-savings framing (B4 — F5.5) --------------------------------- #}
+      {% set _protected = protected_deductions_lkr | default(0) %}
+      {% if _protected and _protected > 0 %}
+      <div class="s8-tax-savings-strip" role="note" aria-label="Tax savings estimate">
+        <strong>
+          This protects approximately
+          <span class="s8-savings-amount">Rs {{ '{:,.0f}'.format(_protected) }}</span>
+          in deductions across the tax year.
+        </strong>
+        <span class="s8-savings-ira-note">
+          Without a documented agreement, the IRD can disallow expenses paid to
+          this Service Provider. A signed agreement is your audit-defence under
+          IRA §6(1).
+        </span>
+      </div>
+      {% endif %}
 
       {# -- Action row ------------------------------------------------------ #}
       <div class="s8-action-row">

@@ -685,83 +685,19 @@ def rental_save(property_id: int):
 # ---------------------------------------------------------------------------
 @property_bp.route("/<int:property_id>/rental/preview", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="S7", action="rental_preview")
 def rental_preview(property_id: int):
-    if not _HAS_DB:
-        return jsonify({"ok": False, "error": "DB unavailable"}), 503
+    """302 redirect to the canonical rental-agreement path on fiesta_agreements_rental.
 
-    from .models import Landlord, RentalAgreement
-    prop = _own_property_or_404(property_id)
-    landlord = Landlord.query.filter_by(property_id=property_id).first()
-    rental = (
-        RentalAgreement.query
-        .filter_by(property_id=property_id)
-        .order_by(RentalAgreement.start_date.desc())
-        .first()
-    )
-    if landlord is None or rental is None:
-        return (
-            jsonify({
-                "ok": False,
-                "error": "Add landlord + rental agreement before previewing",
-            }),
-            400,
-        )
-
-    preview = {
-        "title": "Rental Agreement (DRAFT — pre-S9 preview)",
-        "parties": {
-            "landlord": landlord.full_name,
-            "landlord_nic": landlord.nic,
-            "tenant": _current_user_profile().get("full_name", ""),
-            "tenant_nic": _current_user_profile().get("nic"),
-        },
-        "property": {
-            "address": ", ".join(
-                filter(None, [prop.address_line1, prop.address_line2, prop.city])
-            ),
-            "type": prop.property_type,
-            "total_sqft": prop.total_sqft,
-            "home_office_sqft": prop.home_office_sqft,
-            "home_office_percentage": prop.home_office_percentage,
-        },
-        "terms": {
-            "start_date": rental.start_date.isoformat() if rental.start_date else None,
-            "end_date": rental.end_date.isoformat() if rental.end_date else None,
-            "monthly_rent_lkr": (
-                str(rental.monthly_rent_lkr) if rental.monthly_rent_lkr else "0"
-            ),
-            "home_office_portion_lkr": (
-                str(rental.home_office_portion_lkr)
-                if rental.home_office_portion_lkr
-                else None
-            ),
-            "deposit_paid": (
-                str(rental.deposit_paid) if rental.deposit_paid else None
-            ),
-            "payment_method": rental.payment_method,
-            "payment_frequency": rental.payment_frequency,
-        },
-        "compliance_note": (
-            "Term defaults to 364 days to keep stamp-duty under the 12-month "
-            "threshold. Adjust on the form if your arrangement is different."
-        ),
-        "ira_section_6": (
-            "Rental for the home-office portion is deductible only if the "
-            "space is used wholly + exclusively + necessarily for business "
-            "(Inland Revenue Act §6)."
-        ),
-    }
-
-    if request.args.get("format") == "json":
-        return jsonify({"ok": True, "preview": preview})
-    return render_template(
-        "property/preview.html",
-        property=prop,
-        landlord=landlord,
-        rental=rental,
-        preview=preview,
-    )
+    B3 (F5.4): fiesta.agreements.rental_routes is the authoritative PDF-producing
+    path.  This legacy route (GET /property/<id>/rental/preview) is retained only
+    so that any bookmarked or cached URLs continue to work; it unconditionally
+    redirects to /agreements/rental/<property_id>, forwarding the query string.
+    """
+    qs = request.query_string.decode("utf-8")
+    target = url_for("fiesta_agreements_rental.preview", property_id=property_id)
+    if qs:
+        target = f"{target}?{qs}"
+    return redirect(target, code=302)
 
 
 # ---------------------------------------------------------------------------

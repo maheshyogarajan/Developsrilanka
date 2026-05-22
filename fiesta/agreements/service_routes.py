@@ -322,6 +322,7 @@ def preview(sp_id: str):
     """Preview / parameter-input screen for the Service Agreement."""
     from fiesta.compliance import gate_check  # late import
     from fiesta.agreements.disclosure import decide_disclosure, DisclosureDecisionInput
+    from fiesta.agreements.helpers import compute_protected_deductions_lkr  # B4 F5.5
 
     customer = _customer_dict_from_user(current_user)
     service_provider = _service_provider_dict(sp_id)
@@ -335,6 +336,20 @@ def preview(sp_id: str):
         )
     )
 
+    # B4 — resolve SP ORM object for the savings projection (best-effort).
+    sp_obj = None
+    try:
+        from fiesta.service_providers.models import ServiceProvider  # type: ignore[import-not-found]
+        sp_obj = ServiceProvider.query.filter_by(
+            id=sp_id, user_id=int(getattr(current_user, "id", -1))
+        ).first()
+    except Exception:  # noqa: BLE001
+        pass  # SP model unavailable in test context — helper returns 0
+
+    protected_lkr = compute_protected_deductions_lkr(
+        current_user, sp_obj, is_property=False
+    )
+
     return render_template(
         "agreements/service_preview.html",
         sp_id=sp_id,
@@ -342,6 +357,7 @@ def preview(sp_id: str):
         evidence_prompt=decision.evidence_prompt,
         gate_warnings=gate.warnings,
         gate_blocks=gate.blocks,
+        protected_deductions_lkr=protected_lkr,
     )
 
 
@@ -461,7 +477,8 @@ def history(sp_id: str):
         .order_by(ServiceAgreement.generated_at.desc())
         .all()
     )
-    return render_template_string(_HISTORY_PAGE, rows=rows, sp_id=sp_id)
+    # B9 (F5.11) — proper FIESTA template with inline PDF iframe modal.
+    return render_template("agreements/service_history.html", rows=rows, sp_id=sp_id)
 
 
 @bp.route("/<sp_id>/preview_json/<int:gen_id>", methods=["GET"])

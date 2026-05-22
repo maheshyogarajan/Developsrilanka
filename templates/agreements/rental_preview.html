@@ -155,6 +155,34 @@
     font-size: .8rem; color: var(--ink-muted); line-height: 1.4; margin-top: .15rem;
   }
 
+  /* Tax-savings framing strip (B4 — F5.5 rental) */
+  .s9-tax-savings-strip {
+    background: rgba(31, 58, 45, 0.06);
+    border-left: 4px solid var(--forest);
+    border-radius: 8px;
+    padding: .85rem 1.1rem;
+    font-family: 'Manrope', sans-serif; font-size: .9rem;
+    color: var(--ink-soft);
+    margin-bottom: 1.25rem;
+    line-height: 1.55;
+  }
+  .s9-tax-savings-strip strong {
+    color: var(--forest);
+    font-size: 1rem;
+  }
+  .s9-tax-savings-strip .s9-savings-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--forest);
+    font-size: 1.05rem;
+  }
+  .s9-tax-savings-strip .s9-savings-ira-note {
+    display: block;
+    margin-top: .4rem;
+    font-size: .8rem;
+    color: var(--ink-muted);
+  }
+
   /* Action row */
   .s9-action-row {
     display: flex; align-items: center; gap: 1rem;
@@ -398,6 +426,22 @@
           </span>
         </div>
       </fieldset>
+
+      {# -- Tax-savings framing (B4 — F5.5 rental) ------------------------- #}
+      {% set _protected = protected_deductions_lkr | default(0) %}
+      {% if _protected and _protected > 0 %}
+      <div class="s9-tax-savings-strip" role="note" aria-label="Tax savings estimate">
+        <strong>
+          This protects approximately
+          <span class="s9-savings-amount">Rs {{ '{:,.0f}'.format(_protected) }}</span>
+          in home-office rent deductions across the tax year.
+        </strong>
+        <span class="s9-savings-ira-note">
+          Without a signed rental agreement, the IRD can disallow the
+          home-office rent portion you claim under §6(1) IRA.
+        </span>
+      </div>
+      {% endif %}
 
       {# -- Action row --------------------------------------------------- #}
       <div class="s9-action-row">

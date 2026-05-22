@@ -130,7 +130,8 @@
     </dl>
     <div class="s7d-actions">
       <a href="{{ url_for('fiesta_property.rental_detail', property_id=property.id) }}" class="btn-ghost">Edit rental</a>
-      <a href="{{ url_for('fiesta_property.rental_preview', property_id=property.id) }}" class="btn-primary">Preview agreement</a>
+      <a href="{{ url_for('fiesta_agreements_rental.preview', property_id=property.id) }}" class="btn-primary">Preview agreement</a>
+      <a href="{{ url_for('fiesta_agreements_rental.preview', property_id=property.id) }}" class="btn-secondary">Generate rental agreement</a>
     </div>
     {% else %}
     <p class="s7d-empty">No rental agreement on file yet.</p>

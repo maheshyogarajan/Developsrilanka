@@ -299,6 +299,7 @@
 
           <div class="s6-card__actions">
             <a href="{{ url_for('fiesta_service_providers.show', sp_id=sp.id) }}">Edit</a>
+            <a href="/agreements/service/{{ sp.id }}">Generate agreement</a>
             <button type="button" onclick="s6ShowSignals({{ sp.id }})">Why this?</button>
             <button type="button" class="danger" onclick="s6Archive({{ sp.id }})">Archive</button>
           </div>

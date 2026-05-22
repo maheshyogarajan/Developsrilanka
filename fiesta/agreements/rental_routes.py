@@ -178,10 +178,21 @@ def _build_input(form: Any, *, user_id: int, user_name: str) -> RentalAgreementI
 def preview(property_id: int) -> Any:
     """Preview/edit form for a Rental Agreement against a given property."""
     user_id = getattr(current_user, "id", None)
+    # B4 F5.5 — surface server-side "protects Rs X" projection on S9.
+    protected_lkr = 0
+    try:
+        from fiesta.property.models import Property  # type: ignore[import-not-found]
+        from fiesta.agreements.helpers import compute_protected_deductions_lkr
+        _prop = Property.query.filter_by(id=property_id, user_id=user_id).first()
+        if _prop is not None:
+            protected_lkr = compute_protected_deductions_lkr(current_user, _prop)
+    except Exception as _e:
+        logger.debug("rental.preview protected_deductions calc failed: %s", _e)
     return render_template(
         "agreements/rental_preview.html",
         property_id=property_id,
         user_id=user_id,
+        protected_deductions_lkr=protected_lkr,
     )
 
 
