@@ -65,6 +65,56 @@ def _try_fx_lookup(currency: str, on_date) -> tuple[Decimal | None, str | None]:
         return None, None
 
 
+def _sum_remittance_lkr(user_id: int, tax_year: str) -> tuple[Decimal, int]:
+    """X9 F3.4 — return (lkr_total, row_count) for foreign inward remittances.
+
+    /remittance/* is the canonical Earn-in surface for sl_foreign_income
+    personas; previously `income_summary_for_tax_year` only saw the
+    legacy `IncomeEntry` table so the Foreign Remittance category on
+    /earnings/summary stayed at zero even when the user had logged real
+    remittances. This helper bridges the gap until /earnings/* is fully
+    retired.
+
+    Tax-year matching accepts the canonical forms RemittanceEntry persists
+    ('YYYY/YY' per `current_sl_tax_year`) AND the S4 form IncomeEntry uses
+    ('YYYY-YY'). We look up both shapes so the helper works regardless of
+    which one the caller passed.
+    """
+    try:
+        from remittance_models import RemittanceEntry
+    except Exception as exc:  # pragma: no cover -- defensive (legacy stack)
+        log.warning("F3.4 remittance rollup unavailable: %s", exc)
+        return Decimal("0"), 0
+
+    s = str(tax_year)
+    alt_forms = {s}
+    if "/" in s:
+        alt_forms.add(s.replace("/", "-"))
+    if "-" in s:
+        head, _, tail = s.partition("-")
+        if len(head) == 4 and len(tail) == 2:
+            alt_forms.add(f"{head}/{tail}")
+
+    rows = (
+        RemittanceEntry.query
+        .filter(
+            RemittanceEntry.user_id == user_id,
+            RemittanceEntry.tax_year.in_(list(alt_forms)),
+        )
+        .all()
+    )
+
+    total = Decimal("0")
+    for r in rows:
+        # Prefer CBSL middle rate (the IRD-defensible number); fall back to
+        # bank-rate LKR amount if CBSL hasn't been captured for this entry.
+        v = r.lkr_amount_cbsl if r.lkr_amount_cbsl is not None else r.lkr_amount_bank_rate
+        if v is None:
+            continue
+        total += Decimal(str(v))
+    return total, len(rows)
+
+
 def income_summary_for_tax_year(user_id: int, tax_year: str) -> dict[str, Any]:
     """Aggregate confirmed IncomeEntry rows for a single user, single tax year."""
     rows = (
@@ -119,16 +169,27 @@ def income_summary_for_tax_year(user_id: int, tax_year: str) -> dict[str, Any]:
         by_category_lkr[cat] += amt_lkr
         total_lkr += amt_lkr
 
+    # X9 F3.4 — also roll RemittanceEntry rows into the Foreign Remittance
+    # category bucket. Customers on /remittance/* used to be invisible to
+    # /earnings/summary; they aren't anymore. RemittanceEntry rows do NOT
+    # increase by_currency / unconverted / fx_warnings — those fields
+    # describe IncomeEntry rows specifically (the legacy summary contract).
+    remit_lkr, remit_count = _sum_remittance_lkr(user_id, tax_year)
+    if remit_lkr > 0 or remit_count > 0:
+        bucket = IncomeCategory.FOREIGN_REMITTANCE.value
+        by_category_lkr[bucket] = by_category_lkr.get(bucket, Decimal("0")) + remit_lkr
+        total_lkr += remit_lkr
+
     return {
         "user_id": user_id,
         "tax_year": tax_year,
         "by_category_lkr": by_category_lkr,
         "by_currency": by_currency,
         "total_lkr": total_lkr,
-        "entry_count": len(rows),
+        "entry_count": len(rows) + remit_count,
         "unconverted_currencies": unconverted,
         "fx_warnings": fx_warnings,
     }
 
 
-__all__ = ["income_summary_for_tax_year"]
+__all__ = ["income_summary_for_tax_year", "_sum_remittance_lkr"]

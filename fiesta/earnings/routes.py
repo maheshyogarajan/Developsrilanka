@@ -127,7 +127,19 @@ def _safe_date(raw):
 @earnings_bp.route("/", methods=["GET"])
 @login_required
 def index():
-    """Render the 'drop your statements here' screen with the user's uploads."""
+    """Render the 'drop your statements here' screen with the user's uploads.
+
+    X9 F3.1: Earn-in canonical surface split. For sl_foreign_income personas,
+    /remittance/* is the authoritative earn-in path (CBSL middle rate,
+    inward-remittance evidence, IRD-ready badge). /earnings/* stays for
+    non-FIESTA personas (bookkeeping). A sl_foreign_income user landing on
+    /earnings is redirected to /remittance/dashboard so they only ever see
+    one Earn-in surface; eventually /earnings/* is retired when the
+    bookkeeping product is.
+    """
+    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        return redirect(url_for('remittance.dashboard'))
+
     statements = (
         Statement.query
         .filter(Statement.user_id == current_user.id)

@@ -31,14 +31,17 @@
         <div class="card-body p-4 p-md-5">
 
           <div class="text-center mb-4">
-            <span class="badge bg-success mb-2">One-time payment · Refundable 14 days</span>
+            <span class="badge bg-success mb-2">Free during launch · Rs 2,500 from 2026-09-01 · Refundable 14 days</span>
             <h1 class="h3 mb-1">{{ product.name }}</h1>
             <p class="text-muted">{{ product.tagline }}</p>
           </div>
 
           <div class="text-center mb-4">
-            <div class="display-5 fw-bold">{{ product.price_display }}</div>
-            <div class="text-muted small">{{ product.scope }}</div>
+            <div class="display-5 fw-bold">
+              <span style="text-decoration: line-through; color: #adb5bd; font-size: 0.7em; margin-right: 0.4em;">{{ product.price_display }}</span>
+              Free
+            </div>
+            <div class="text-muted small">{{ product.scope }} &middot; Sign up before 2026-09-01 to keep this free first filing</div>
           </div>
 
           <ul class="list-unstyled mb-4">

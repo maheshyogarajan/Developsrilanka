@@ -2801,11 +2801,27 @@ def verify_email_reminder():
 def onboarding_wizard():
     """Onboarding wizard for new users to set up their business organization."""
     from models import Organization, OrganizationUser
-    
+
+    # X9 F2.2 — bypass the business-org wizard for sl_foreign_income personas.
+    # Foreign-income earners don't run a business; their Personal Finances org
+    # was auto-created at signup (models_event_listener). Mark onboarding
+    # complete and route them straight to /fie/triage so the funnel is:
+    #   /verify-email -> intercepted /onboarding -> /fie/triage -> FIESTA hub
+    # No "set up your business organization" screen ever appears for them.
+    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        if not current_user.onboarding_completed:
+            current_user.onboarding_completed = True
+            db.session.commit()
+            logging.info(
+                f"User {current_user.id} (sl_foreign_income) auto-completed "
+                f"onboarding; routing to /fie/triage."
+            )
+        return redirect(url_for('fiesta_triage.triage_form'))
+
     # If already completed onboarding, redirect to dashboard
     if current_user.onboarding_completed:
         return redirect(url_for('index'))
-    
+
     # If email not verified, redirect to verification
     if not current_user.is_email_verified:
         flash('Please verify your email before completing setup.', 'warning')
