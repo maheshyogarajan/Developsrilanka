@@ -451,6 +451,34 @@ try:
 except Exception as e:
     logger.error(f'FIESTA S14 Submit load failed: {e}')
 
+# X9 F5.1 — S8 Service Agreement + S9 Rental Agreement blueprints (the
+# document factory). These were built in Wave 3 but never mounted, so the
+# `Generate agreement` CTA's on S6 / S7 fell to 404. Mount them now so the
+# entire Generate feature is reachable; F5.6 + F5.7 will add the CTAs.
+try:
+    from fiesta.agreements.service_routes import register_routes as register_agreements_service
+    register_agreements_service(app)
+    logger.info('FIESTA S8 Service Agreement registered at /agreements/service')
+except Exception as e:
+    logger.error(f'FIESTA S8 Service Agreement load failed: {e}')
+
+try:
+    # rental_routes.py exposes a module-level Blueprint named `bp` without a
+    # register_routes() wrapper, so mount it directly.
+    from fiesta.agreements.rental_routes import bp as fiesta_agreements_rental_bp
+    app.register_blueprint(fiesta_agreements_rental_bp)
+    logger.info('FIESTA S9 Rental Agreement registered at /agreements/rental')
+except Exception as e:
+    logger.error(f'FIESTA S9 Rental Agreement load failed: {e}')
+
+# X9 F5.1 — S10 Co-sign workflow (Service Provider counter-signing).
+try:
+    from fiesta.cosign.routes import register_routes as register_cosign
+    register_cosign(app)
+    logger.info('FIESTA S10 Co-sign workflow registered at /cosign')
+except Exception as e:
+    logger.error(f'FIESTA S10 Co-sign workflow load failed: {e}')
+
 # FIESTA Wave 6 — S15 Admin Users list (admin-gated, /admin/fie/users)
 #                + S17 Admin Autoreply Queue (/admin/fie/autoreply)
 try:
