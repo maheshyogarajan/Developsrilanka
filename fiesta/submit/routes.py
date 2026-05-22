@@ -307,15 +307,41 @@ def show_submit():
         else tax_data.get("final_tax_payable_lkr") or 0
     )
 
-    attestation_preview = build_attestation_text(
-        full_name=current_user.name or "(your profile name)",
-        nic=getattr(current_user, "nic", "") or "(your NIC)",
-        tax_year=tax_year,
-        final_tax_payable_lkr=final_tax,
-    )
+    # X9 F6.3: refuse to render the attestation preview when the user's
+    # profile is missing identity fields the attestation depends on. The
+    # previous fallback to "(your NIC)" / "(your profile name)" leaked
+    # placeholder strings into the signed legal text — a user could end
+    # up with an Electronic Transactions Act signature reading
+    # "I, X (NIC (your NIC)) declare...". We refuse to build the preview
+    # AND signal the missing fields so the template can route the user
+    # to /fiesta/profile to complete them.
+    from fiesta.profile.models import FiestaProfile  # local import; avoid circular
+    fiesta_profile = FiestaProfile.query.filter_by(user_id=current_user.id).first()
+    nic_value = ((fiesta_profile.nic if fiesta_profile else "") or "").strip()
+    name_value = (current_user.name or "").strip()
+    missing_attestation_fields: list[str] = []
+    if not name_value:
+        missing_attestation_fields.append("Full name")
+    if not nic_value:
+        missing_attestation_fields.append("NIC")
 
-    # Promote status to awaiting-attestation if gate passes (or only yellow).
-    if not gate.blocks and sub.status == "final-gate-pending":
+    if missing_attestation_fields:
+        attestation_preview = None
+    else:
+        attestation_preview = build_attestation_text(
+            full_name=name_value,
+            nic=nic_value,
+            tax_year=tax_year,
+            final_tax_payable_lkr=final_tax,
+        )
+
+    # Promote status to awaiting-attestation if gate passes (or only yellow)
+    # AND the profile is complete enough to sign without placeholders.
+    if (
+        not gate.blocks
+        and not missing_attestation_fields
+        and sub.status == "final-gate-pending"
+    ):
         sub.status = "awaiting-attestation"
 
     db.session.commit()
@@ -325,6 +351,7 @@ def show_submit():
         submission=sub,
         gate=gate.to_dict(),
         attestation_preview=attestation_preview,
+        missing_attestation_fields=missing_attestation_fields,
         tax_year=tax_year,
         final_tax_payable_lkr=final_tax,
     )
@@ -404,6 +431,25 @@ def post_attest():
         flash(str(result), "danger")
         return redirect(url_for("fiesta_submit.show_submit", tax_year=tax_year))
 
+    # X9 F6.3: server-side mirror of the show_submit guard. A user POSTing
+    # /submit/attest directly cannot bypass the profile-completion gate;
+    # if NIC or name is missing we refuse to sign and route them back to
+    # /fiesta/profile rather than building an attestation with placeholder
+    # strings.
+    from fiesta.profile.models import FiestaProfile  # local; avoid circular
+    fiesta_profile = FiestaProfile.query.filter_by(user_id=current_user.id).first()
+    nic_for_sign = ((fiesta_profile.nic if fiesta_profile else "") or "").strip()
+    name_for_sign = (current_user.name or "").strip()
+    if not name_for_sign or not nic_for_sign:
+        missing = [f for f, v in (("Full name", name_for_sign), ("NIC", nic_for_sign)) if not v]
+        flash(
+            "Cannot sign yet -- your profile is missing "
+            + ", ".join(missing)
+            + ". Please complete your FIESTA profile before signing the attestation.",
+            "warning",
+        )
+        return redirect(url_for("fiesta_profile.index"))
+
     # Capture
     tax_data = customer_data.get("tax_data") or {}
     final_tax = float(
@@ -412,8 +458,8 @@ def post_attest():
         or 0
     )
     text = build_attestation_text(
-        full_name=current_user.name or "",
-        nic=getattr(current_user, "nic", "") or "",
+        full_name=name_for_sign,
+        nic=nic_for_sign,
         tax_year=tax_year,
         final_tax_payable_lkr=final_tax,
     )

@@ -305,6 +305,31 @@
           <strong>{{ submission.attestation_signed_at.strftime('%Y-%m-%d %H:%M UTC') }}</strong>.
         </div>
         <pre class="s14-attestation-text">{{ submission.attestation_text }}</pre>
+      {% elif missing_attestation_fields %}
+        {# X9 F6.3 — refuse to render the attestation with placeholder strings.
+           Send the user to /fiesta/profile to complete identity fields first. #}
+        <div class="s14-flash s14-flash--warning">
+          <p>
+            Before you can sign, please complete your FIESTA profile so the
+            declaration carries your real legal identity rather than placeholder
+            text. Missing:
+          </p>
+          <ul>
+            {% for field in missing_attestation_fields %}
+              <li><strong>{{ field }}</strong></li>
+            {% endfor %}
+          </ul>
+          <p>
+            Your filing is signed under the Electronic Transactions Act No. 19 of
+            2006 — every field in the declaration must be your own, not a
+            placeholder, for the signature to be defensible in an IRD audit.
+          </p>
+        </div>
+        <div class="s14-actions">
+          <a href="{{ url_for('fiesta_profile.index') }}" class="s14-btn s14-btn--primary">
+            Complete your profile
+          </a>
+        </div>
       {% else %}
         <p class="s14-meta">
           Read the declaration below. When you're ready, type your full name
