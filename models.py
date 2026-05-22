@@ -387,10 +387,49 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user has global admin role."""
         return self.role == 'admin'
-    
+
     def has_role(self, role):
         """Check if user has a specific global role."""
         return self.role == role
+
+    def promote_to_admin(self, *, granted_by=None, reason=None):
+        """Promote this user to global admin.
+
+        X9 F8.1: the walkthrough seed script did `u.is_admin = spec["admin"]`,
+        which silently failed because `is_admin` is a METHOD on this model, not
+        a column. Setting it sets a transient attribute, the role column stays
+        at 'user', and `is_admin()` returns False for the "admin" seed user.
+        Use this helper instead — it writes to `role` and logs the change.
+
+        `granted_by` is the User performing the action (None for system seeds).
+        """
+        previous = self.role
+        self.role = 'admin'
+        try:
+            import logging
+            logging.info(
+                "admin_role_granted user_id=%s email=%s previous_role=%s granted_by=%s reason=%s",
+                self.id, self.email, previous,
+                getattr(granted_by, 'id', None), reason,
+            )
+        except Exception:
+            pass
+        return self
+
+    def demote_from_admin(self, *, revoked_by=None, reason=None):
+        """Revoke global admin role and drop the user back to 'user'."""
+        previous = self.role
+        self.role = 'user'
+        try:
+            import logging
+            logging.info(
+                "admin_role_revoked user_id=%s email=%s previous_role=%s revoked_by=%s reason=%s",
+                self.id, self.email, previous,
+                getattr(revoked_by, 'id', None), reason,
+            )
+        except Exception:
+            pass
+        return self
     
     def get_default_organization(self):
         """Get the user's default organization."""
