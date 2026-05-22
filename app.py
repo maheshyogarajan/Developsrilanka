@@ -644,8 +644,10 @@ def index():
         flash('Please complete your account setup before using the app.', 'info')
         return redirect(url_for('onboarding_wizard'))
 
-    # Check if user has any organizations
-    if not current_user.organizations:
+    # Check if user has any organizations (admins bypass — they're the operator,
+    # not a customer, and don't need a business org to reach /scan or anything
+    # else on the legacy bookkeeping path).
+    if not current_user.organizations and current_user.role != 'admin':
         # Redirect to onboarding wizard if no organizations exist
         flash("Please complete your account setup before scanning receipts.", "warning")
         return redirect(url_for('onboarding_wizard'))
