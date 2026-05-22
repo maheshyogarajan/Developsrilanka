@@ -139,7 +139,8 @@
                 {% for r in rows %}
                     <tr data-user-id="{{ r.id }}">
                         <td>
-                            <div><strong>{{ r.email }}</strong></div>
+                            {# C5 F8.6 — link email cell to the per-user 360 view #}
+                            <div><a href="{{ url_for('customer_brain.view', user_id=r.id) }}" class="text-decoration-none"><strong>{{ r.email }}</strong></a></div>
                             {% if r.name %}
                                 <div class="text-muted small">{{ r.name }}</div>
                             {% endif %}

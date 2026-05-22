@@ -2901,6 +2901,13 @@ def verify_email(token):
             # onboarding_wizard remains accessible at /onboarding for users
             # who still need the business-org setup step.
             login_user(user)
+            # C8 F8.7 — record real last-login timestamp on every successful auth.
+            try:
+                user.last_login_at = datetime.utcnow()
+                db.session.commit()
+            except Exception as _ll_err:
+                db.session.rollback()
+                logging.debug("last_login_at update failed (verify_email): %s", _ll_err)
             flash('Your email has been verified! A few quick facts to get you set up.', 'success')
 
             # A1 F1.6 — Pop and re-validate the next URL written at POST-register
@@ -3113,8 +3120,15 @@ def email_login():
             
             # User authenticated successfully
             login_user(user)
+            # C8 F8.7 — record real last-login timestamp on every successful auth.
+            try:
+                user.last_login_at = datetime.utcnow()
+                db.session.commit()
+            except Exception as _ll_err:
+                db.session.rollback()
+                logging.debug("last_login_at update failed (email_login): %s", _ll_err)
             # We'll handle success feedback through the animation instead of flash messages
-            
+
             # Log the login activity
             try:
                 from activity_logger import ActivityLogger
@@ -3424,6 +3438,13 @@ def google_callback():
         
         # Log the user in
         login_user(user)
+        # C8 F8.7 — record real last-login timestamp on every successful auth.
+        try:
+            user.last_login_at = datetime.utcnow()
+            db.session.commit()
+        except Exception as _ll_err:
+            db.session.rollback()
+            logging.debug("last_login_at update failed (google_oauth): %s", _ll_err)
         flash('Successfully logged in with Google!', 'success')
         
         # Check if there's a pending invitation token in the session
@@ -3533,6 +3554,13 @@ def facebook_callback():
         
         # Log the user in
         login_user(user)
+        # C8 F8.7 — record real last-login timestamp on every successful auth.
+        try:
+            user.last_login_at = datetime.utcnow()
+            db.session.commit()
+        except Exception as _ll_err:
+            db.session.rollback()
+            logging.debug("last_login_at update failed (facebook_oauth): %s", _ll_err)
         flash('Successfully logged in with Facebook!', 'success')
         
         # Check if there's a pending invitation token in the session

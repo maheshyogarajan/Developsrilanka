@@ -11,21 +11,14 @@ from models import OrganizationUser
 
 logger = logging.getLogger(__name__)
 
-def admin_required(f):
-    """
-    Decorator to require admin role for a route.
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('login', next=request.url))
-        
-        if not current_user.is_admin():
-            flash('You do not have permission to access this page.', 'danger')
-            return redirect(url_for('index'))
-            
-        return f(*args, **kwargs)
-    return decorated_function
+# ---------------------------------------------------------------------------
+# admin_required — re-exported from the canonical location (C3 F8.3, Wave 4)
+# ---------------------------------------------------------------------------
+# The single authoritative definition lives in fiesta/auth/decorators.py.
+# This re-export keeps legacy ``from decorators import admin_required`` imports
+# working without code changes in every caller file; they will be migrated to
+# ``from fiesta.auth.decorators import admin_required`` incrementally.
+from fiesta.auth.decorators import admin_required  # noqa: E402, F401
 
 def role_required(role):
     """

@@ -17,7 +17,8 @@ from models import (
     Receipt, ReceiptItem, CompanyExpense, ExpenseStatus, 
     Organization, OrganizationUser, User, Client, UserRole
 )
-from decorators import role_required, admin_required
+from decorators import role_required
+from fiesta.auth.decorators import admin_required
 
 # Create the blueprint for expense reports with proper URL prefix
 expense_reports_bp = Blueprint('expense_reports', __name__, url_prefix='/reports')

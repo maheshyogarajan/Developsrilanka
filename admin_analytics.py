@@ -547,3 +547,169 @@ def get_dashboard_data():
     
     logger.info(f"Dashboard data compiled in {elapsed:.2f} seconds")
     return dashboard_data
+
+
+# --------------------------------------------------------------------------- #
+# C7 F8.4 — FIESTA business KPIs
+# --------------------------------------------------------------------------- #
+
+def get_fiesta_kpis(date_range=None):
+    """Return the four FIESTA business KPIs for the admin dashboard.
+
+    Sources:
+      - paywall_hit_rate:        events table, event_type='paywall_screen_viewed'
+                                 vs total FIESTA-persona users. Returns no_data=True
+                                 if no paywall_screen_viewed events are present yet.
+      - trial_to_paid_conversion: events 'checkout_completed' / 'signup' ratio.
+                                 'signup_completed' is not yet a STANDARD_EVENT so
+                                 we proxy with 'signup'. Returns no_data=True when
+                                 checkout_completed has zero rows.
+      - tax_bills_generated:     count of Submission rows that have reached
+                                 'attested' or later (the tax bill is finalized at
+                                 that point). No TaxBillGenerated model exists;
+                                 Submission.status is the canonical signal.
+      - submissions_filed:       count of Submission rows with status
+                                 'customer-filed-on-ird' (customer self-reported).
+
+    If a signal source has no data the returned dict includes a 'no_data' key
+    set to True for that KPI — the helper NEVER invents fake numbers.
+
+    Args:
+        date_range: optional dict with 'start' and 'end' datetime keys.
+                    If None, returns all-time counts.
+
+    Returns:
+        dict with keys:
+          paywall_hit_rate          float or None
+          paywall_hit_rate_no_data  bool
+          trial_to_paid_conversion  float or None
+          trial_to_paid_no_data     bool
+          tax_bills_generated       int
+          submissions_filed         int
+    """
+    result = {
+        "paywall_hit_rate": None,
+        "paywall_hit_rate_no_data": True,
+        "trial_to_paid_conversion": None,
+        "trial_to_paid_no_data": True,
+        "tax_bills_generated": 0,
+        "submissions_filed": 0,
+    }
+
+    try:
+        from event_models import Event  # event spine (event_models.py)
+
+        # ------------------------------------------------------------------ #
+        # paywall_hit_rate — paywall_screen_viewed events / active FIESTA users
+        # ------------------------------------------------------------------ #
+        try:
+            paywall_q = db.session.query(func.count(Event.id)).filter(
+                Event.event_type == "paywall_screen_viewed"
+            )
+            if date_range:
+                paywall_q = paywall_q.filter(
+                    Event.created_at >= date_range["start"],
+                    Event.created_at <= date_range["end"],
+                )
+            paywall_hits = paywall_q.scalar() or 0
+
+            # Active FIESTA users = users with persona='sl_foreign_income'
+            active_fiesta_q = db.session.query(func.count(User.id)).filter(
+                User.persona == "sl_foreign_income"
+            )
+            active_fiesta = active_fiesta_q.scalar() or 0
+
+            if paywall_hits > 0 and active_fiesta > 0:
+                result["paywall_hit_rate"] = round(
+                    paywall_hits / active_fiesta * 100, 1
+                )
+                result["paywall_hit_rate_no_data"] = False
+            else:
+                result["paywall_hit_rate"] = 0.0
+                # Keep no_data=True when signal is absent (paywall event not
+                # yet flowing) so the template can show a "no signal yet" label.
+                result["paywall_hit_rate_no_data"] = paywall_hits == 0
+        except Exception as e:
+            logger.warning("get_fiesta_kpis: paywall_hit_rate query failed: %s", e)
+
+        # ------------------------------------------------------------------ #
+        # trial_to_paid_conversion — checkout_completed / signup
+        # 'signup_completed' is not in STANDARD_EVENTS yet; proxy = 'signup'.
+        # ------------------------------------------------------------------ #
+        try:
+            signup_q = db.session.query(func.count(Event.id)).filter(
+                Event.event_type == "signup"
+            )
+            checkout_q = db.session.query(func.count(Event.id)).filter(
+                Event.event_type == "checkout_completed"
+            )
+            if date_range:
+                signup_q = signup_q.filter(
+                    Event.created_at >= date_range["start"],
+                    Event.created_at <= date_range["end"],
+                )
+                checkout_q = checkout_q.filter(
+                    Event.created_at >= date_range["start"],
+                    Event.created_at <= date_range["end"],
+                )
+            signups = signup_q.scalar() or 0
+            checkouts = checkout_q.scalar() or 0
+
+            if checkouts > 0 and signups > 0:
+                result["trial_to_paid_conversion"] = round(
+                    checkouts / signups * 100, 1
+                )
+                result["trial_to_paid_no_data"] = False
+            else:
+                result["trial_to_paid_conversion"] = 0.0
+                result["trial_to_paid_no_data"] = checkouts == 0
+        except Exception as e:
+            logger.warning("get_fiesta_kpis: trial_to_paid query failed: %s", e)
+
+    except Exception as e:
+        logger.warning("get_fiesta_kpis: event_models import failed: %s", e)
+
+    # ---------------------------------------------------------------------- #
+    # tax_bills_generated — Submission rows at attested or beyond.
+    # The tax bill is frozen at attestation; we count distinct users who
+    # reached that milestone. (No TaxBillGenerated model exists.)
+    # ---------------------------------------------------------------------- #
+    try:
+        from fiesta.submit.models import Submission
+
+        tax_bill_statuses = [
+            "attested",
+            "export-generated",
+            "customer-filed-on-ird",
+        ]
+        bill_q = db.session.query(func.count(Submission.id)).filter(
+            Submission.status.in_(tax_bill_statuses)
+        )
+        if date_range:
+            bill_q = bill_q.filter(
+                Submission.created_at >= date_range["start"],
+                Submission.created_at <= date_range["end"],
+            )
+        result["tax_bills_generated"] = bill_q.scalar() or 0
+    except Exception as e:
+        logger.warning("get_fiesta_kpis: tax_bills_generated query failed: %s", e)
+
+    # ---------------------------------------------------------------------- #
+    # submissions_filed — Submission rows where customer self-reported filing.
+    # ---------------------------------------------------------------------- #
+    try:
+        from fiesta.submit.models import Submission
+
+        filed_q = db.session.query(func.count(Submission.id)).filter(
+            Submission.status == "customer-filed-on-ird"
+        )
+        if date_range:
+            filed_q = filed_q.filter(
+                Submission.created_at >= date_range["start"],
+                Submission.created_at <= date_range["end"],
+            )
+        result["submissions_filed"] = filed_q.scalar() or 0
+    except Exception as e:
+        logger.warning("get_fiesta_kpis: submissions_filed query failed: %s", e)
+
+    return result
