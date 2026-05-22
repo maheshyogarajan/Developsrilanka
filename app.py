@@ -452,6 +452,15 @@ def preview():
     return render_template('preview.html')
 
 
+@app.route('/deductions')
+def deductions_legacy_redirect():
+    """X9 F4.2 — /deductions is the historical S5 URL; the FIESTA blueprint
+    mounts it at /reduce-tax/. A permanent redirect keeps any external link
+    or sidebar item that still says /deductions pointed at the live page.
+    """
+    return redirect('/reduce-tax/', code=301)
+
+
 @app.route('/tax-preview', methods=['GET'])
 def fiesta_tax_preview_page():
     """FIESTA Tax Math Breakdown — S0 landing component (Risk A mitigation).
@@ -2780,6 +2789,11 @@ def verify_email(token):
 @login_required
 def verify_email_reminder():
     """Show a reminder page for email verification."""
+    # X9 F2.1 — already-verified guard. A user who has already verified
+    # their email and lands here (stale link, bookmark, redirect chain)
+    # should NOT see the "please verify" page. Send them home.
+    if getattr(current_user, 'is_email_verified', False):
+        return redirect(url_for('home'))
     return render_template('verify_email_reminder.html')
 
 @app.route('/onboarding', methods=['GET', 'POST'])

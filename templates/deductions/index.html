@@ -1,4 +1,4 @@
-{% extends 'layout.html' %}
+{% extends layout_template %}
 
 {% block title %}Reduce your tax — 10 ways · FIESTA{% endblock %}
 
@@ -275,7 +275,7 @@
       <strong>Next:</strong> connect the people who help you deliver your
       work — your Service Providers — so the deduction holds up under audit.
     </div>
-    <a class="s5-cta__btn" href="{{ url_for('static', filename='#') }}#s6">
+    <a class="s5-cta__btn" href="{{ url_for('fiesta_service_providers.index') }}">
       Connect your Service Providers &rarr;
     </a>
   </section>

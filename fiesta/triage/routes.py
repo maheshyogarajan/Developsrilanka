@@ -134,13 +134,22 @@ def _post_complete_redirect() -> str:
 
     Priority:
       1. ?next=... if it's a safe relative path
-      2. Try url_for('index')  -> typically the app dashboard
+      2. X9 F2.5 -- if persona == 'sl_foreign_income', send to /
+         (which auto-redirects to /remittance/dashboard, the FIESTA hub
+         entry for foreign-income earners). Otherwise the legacy /scan
+         page via url_for('index').
       3. Fall back to '/'
     """
     nxt = _safe_next_url(request.args.get("next") or request.form.get("next"))
     if nxt:
         return nxt
     try:
+        from flask_login import current_user
+        if (
+            current_user.is_authenticated
+            and getattr(current_user, "persona", None) == "sl_foreign_income"
+        ):
+            return url_for("home")
         return url_for("index")
     except Exception:
         return "/"

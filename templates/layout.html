@@ -311,10 +311,20 @@
         .footer {
             margin-top: auto;
         }
+
+        /* X9 F1.4 — anonymous visitors see no sidebar / no mobile-header so
+           the S0 landing has the floor. Authenticated bookkeeping users keep
+           the legacy chrome; FIESTA personas already render through
+           layout_fiesta.html so this only matters for the legacy persona. */
+        body.is-anonymous .sidebar,
+        body.is-anonymous .mobile-header,
+        body.is-anonymous .sidebar-overlay { display: none !important; }
+        body.is-anonymous .content { margin-left: 0 !important; padding-top: 0 !important; }
     </style>
 </head>
 {% endblock %}
-<body>
+<body class="{% if not current_user.is_authenticated %}is-anonymous{% endif %}">
+    {% if current_user.is_authenticated %}
     <!-- Mobile Header (visible on small screens) -->
     <header class="mobile-header">
         <button class="mobile-toggle" id="mobileSidebarToggle">
@@ -324,10 +334,10 @@
             {% include '_fiesta_logo.html' %}
         </a>
     </header>
-    
+
     <!-- Sidebar Overlay (for mobile) -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    
+
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -588,7 +598,8 @@
             </ul>
         </nav>
     </aside>
-    
+    {% endif %}
+
     <!-- Main Content Area -->
     <div class="content" id="content">
         <header class="main-header">

@@ -1,6 +1,19 @@
-{% extends 'layout.html' %}
+{% extends layout_template %}
 
 {% block content %}
+{# X9 F3.5 — persona-aware "Go Home" destination. sl_foreign_income users
+   land back on the Remittance Ledger (their hub entry); everyone else
+   gets the legacy /scan page. Anon users get the public S0 landing at /. #}
+{% set _home_href = url_for('home') %}
+{% if current_user.is_authenticated and current_user.persona == 'sl_foreign_income' %}
+  {% set _home_href = url_for('remittance.dashboard') %}
+  {% set _home_label = 'Back to your Remittance Ledger' %}
+{% elif current_user.is_authenticated %}
+  {% set _home_href = url_for('index') %}
+  {% set _home_label = 'Back to your dashboard' %}
+{% else %}
+  {% set _home_label = 'Back to FIESTA' %}
+{% endif %}
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -10,8 +23,8 @@
                     <h2 class="mb-4">Oops! Something went wrong</h2>
                     <p class="lead mb-5">{{ error_message }}</p>
                     <div>
-                        <a href="{{ url_for('home') }}" class="btn btn-primary btn-lg px-5">
-                            <i class="fas fa-home me-2"></i> Go Home
+                        <a href="{{ _home_href }}" class="btn btn-primary btn-lg px-5">
+                            <i class="fas fa-home me-2"></i> {{ _home_label }}
                         </a>
                     </div>
                 </div>

@@ -213,6 +213,19 @@
     <span class="s14-step-label">S14 -- Submit ({{ tax_year }})</span>
   </div>
 
+  {# X9 F6.X-PRE-IRD-GATE -- the IRD eservices walkthrough is being captured;
+     the final "send to IRD" handoff goes live alongside it. Until then,
+     attestation + IRD-ready ZIP preview work so a customer can rehearse,
+     but the click that pushes the return to eservices.ird.gov.lk is not
+     wired yet. Sets expectations without removing functionality. #}
+  <div class="s14-flash s14-flash--warning" style="background: var(--s14-warning-soft); border-left: 4px solid var(--s14-warning); padding: 0.85rem 1rem; margin-bottom: 1rem;">
+    <strong>Filing handoff coming soon.</strong>
+    You can preview your full IRD-ready filing pack and sign the
+    attestation today. The one-click push to <a href="https://eservices.ird.gov.lk" target="_blank" rel="noopener">eservices.ird.gov.lk</a>
+    activates as soon as the IRD walkthrough is published &mdash; we'll
+    notify you the moment it does.
+  </div>
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
