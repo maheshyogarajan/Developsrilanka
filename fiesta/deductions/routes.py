@@ -270,6 +270,13 @@ def claim(category_id: str):
             if notes is not None:
                 claim_row.notes = notes
         db.session.commit()
+        # Sprint 3 (perf): bust the per-user hub cache so the topbar's
+        # "you're saving" pill picks up the new claim on the next render.
+        try:
+            from app import _invalidate_hub_cache
+            _invalidate_hub_cache(user_id)
+        except Exception:
+            pass
         return jsonify({"ok": True, "claim": claim_row.to_dict()})
     except Exception as exc:
         db.session.rollback()
@@ -303,6 +310,12 @@ def unclaim(category_id: str):
         claim_row.claimed = False
         claim_row.updated_at = datetime.utcnow()
         db.session.commit()
+        # Sprint 3 (perf): bust the per-user hub cache so the topbar updates.
+        try:
+            from app import _invalidate_hub_cache
+            _invalidate_hub_cache(user_id)
+        except Exception:
+            pass
         return jsonify({"ok": True, "claim": claim_row.to_dict()})
     except Exception as exc:
         db.session.rollback()

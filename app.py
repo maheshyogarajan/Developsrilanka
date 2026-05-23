@@ -162,6 +162,41 @@ def inject_csrf_token():
     return dict(csrf_token=get_csrf_token)
 
 
+# Sprint 3 (perf): per-user in-memory cache for inject_fiesta_hub_context.
+# Each authenticated page-render was making 3-4 DB queries (RemittanceEntry x 2,
+# income_summary_for_tax_year, sometimes more). At 250ms/query (Neon us-east-1
+# from Fly bom), that's ~1s of pure DB latency per page render — on every
+# authenticated page, even the cheap ones.
+#
+# This cache trades freshness for speed: 60s TTL, per-user, process-local.
+# Stale-by-60s is acceptable because:
+#   - the live savings counter on /reduce-tax already updates the topbar via
+#     XHR on every claim/unclaim, so the user sees instant updates regardless
+#     of the cached server-side value
+#   - any state-changing POST (claim, unclaim, log remittance) bumps the user's
+#     cache entry via _invalidate_hub_cache(user_id) so the next render is fresh
+#   - 60s without a state change can only show numbers off by activity the user
+#     themselves performed without going through FIESTA — out of scope
+#
+# Each gunicorn worker has its own _HUB_CTX_CACHE; that's by design (no shared
+# Redis dependency added pre-revenue, and four workers warming up is acceptable
+# given the TTL is short).
+_HUB_CTX_CACHE: dict = {}
+_HUB_CTX_TTL_SECONDS = 60
+
+
+def _invalidate_hub_cache(user_id) -> None:
+    """Drop the cached hub context for a user. Call after any state change
+    that should be visible on the next page render (new remittance, new
+    claim, etc.)."""
+    if user_id is None:
+        return
+    try:
+        _HUB_CTX_CACHE.pop(int(user_id), None)
+    except (TypeError, ValueError):
+        pass
+
+
 # X9 F-Platform-1: expose the persona-aware FIESTA layout template + savings counter
 # context so authenticated FIESTA-persona screens can `{% extends layout_template %}`
 # and pick up `hub_projected_savings_lkr` / `current_sl_tax_year` automatically.
@@ -204,6 +239,26 @@ def inject_fiesta_hub_context():
         current_user.is_authenticated
         and getattr(current_user, 'persona', None) == 'sl_foreign_income'
     ):
+        # Sprint 3 (perf): cache check before the heavy DB compute. Saves
+        # ~1s of cross-region DB latency per authenticated page render.
+        # Cache key is the user_id; TTL 60s. Invalidated by writes via
+        # _invalidate_hub_cache(user_id).
+        import time as _time
+        _cache_key = int(current_user.id)
+        _now = _time.time()
+        _cached = _HUB_CTX_CACHE.get(_cache_key)
+        if _cached and _cached[0] > _now:
+            _ctx = _cached[1]
+            return dict(
+                layout_template=layout_template,
+                current_sl_tax_year=_current_sl_tax_year,
+                is_fiesta_persona=getattr(g, 'is_fiesta_persona', False),
+                hub_avg_monthly_usd=_ctx.get('hub_avg_monthly_usd', 0),
+                hub_projected_savings_lkr=_ctx.get('hub_projected_savings_lkr', 0),
+                hub_next_step=_ctx.get('hub_next_step'),
+                hub_funnel_state=_ctx.get('hub_funnel_state', 'anon'),
+            )
+
         try:
             from decimal import Decimal
             from remittance_models import RemittanceEntry
@@ -278,6 +333,23 @@ def inject_fiesta_hub_context():
                 "href": f"/tax-bill/{_current_sl_tax_year().replace('/', '-')}",
                 "rationale": "Bracket-by-bracket walk through what you owe with your documented deductions.",
             }
+
+        # Sprint 3 (perf): store the heavy compute outputs in the per-user
+        # cache so the next 60s of page renders for this user skip the
+        # 3-4 DB queries above. Cache invalidated explicitly by writes.
+        try:
+            import time as _time_w
+            _HUB_CTX_CACHE[int(current_user.id)] = (
+                _time_w.time() + _HUB_CTX_TTL_SECONDS,
+                {
+                    'hub_avg_monthly_usd': hub_avg_monthly_usd,
+                    'hub_projected_savings_lkr': hub_projected_savings_lkr,
+                    'hub_next_step': hub_next_step,
+                    'hub_funnel_state': hub_funnel_state,
+                },
+            )
+        except Exception:  # pragma: no cover -- never block the request
+            pass
 
     return dict(
         layout_template=layout_template,
