@@ -143,9 +143,9 @@ steps:
   what_customer_does: 'Read the declaration: ''I declare that the information given
     in this return is true, correct and complete.'' Check the agreement box. Click
     SUBMIT.'
-  what_can_go_wrong: Once submitted, amendments require a Revised Return (Section
-    95 IRA). Don't sign if anything looks wrong — go back and fix first. Section 178
-    IRA penalties apply to false declarations.
+  what_can_go_wrong: Once submitted, amendments require a Revised Return (§95 IRA).
+    Don't sign if anything looks wrong — go back and fix first. §178 IRA penalties
+    apply to false declarations.
   how_fiesta_helps: FIESTA's attestation flow makes you sign the same declaration
     BEFORE you reach IRD — by the time you click SUBMIT on the IRD portal, you've
     already attested to FIESTA. No surprises.
@@ -155,8 +155,8 @@ steps:
 - step: 12
   title: Download acknowledgement
   what_customer_does: After submit, IRD shows an Acknowledgement Number and offers
-    a PDF download. SAVE THIS. It's your proof of filing — keep for 7 years per Section
-    120 IRA record-keeping.
+    a PDF download. SAVE THIS. It's your proof of filing — keep for 7 years per
+    §120 IRA record-keeping.
   what_can_go_wrong: Forgetting to download. IRD's acknowledgement PDF email is sometimes
     delayed or filtered to spam. Upload the ack PDF back to FIESTA so we have it on
     file.
