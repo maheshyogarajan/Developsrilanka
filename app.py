@@ -259,6 +259,9 @@ def inject_fiesta_hub_context():
                 hub_funnel_state=_ctx.get('hub_funnel_state', 'anon'),
             )
 
+        # Sprint 3 perf: pre-declare so the has_remit micro-opt below stays
+        # safe if the import/query try-block below raises.
+        remits = None
         try:
             from decimal import Decimal
             from remittance_models import RemittanceEntry
@@ -306,11 +309,18 @@ def inject_fiesta_hub_context():
             logging.debug(f"hub_projected_savings_lkr compute failed: {exc}")
 
         # Next-step recommender state — drives the F-Platform-4 hub card.
-        try:
-            from remittance_models import RemittanceEntry as _RE
-            has_remit = _RE.query.filter_by(user_id=current_user.id).first() is not None
-        except Exception:
-            has_remit = False
+        # Sprint 3 perf micro-opt: if the current-tax-year query above already
+        # returned rows, we know has_remit is True without a second query.
+        # Only fall back to the all-years lookup when the current-year query
+        # was empty.
+        if remits:
+            has_remit = True
+        else:
+            try:
+                from remittance_models import RemittanceEntry as _RE
+                has_remit = _RE.query.filter_by(user_id=current_user.id).first() is not None
+            except Exception:
+                has_remit = False
 
         if not has_remit:
             hub_funnel_state = "no_remittances"
