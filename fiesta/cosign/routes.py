@@ -141,6 +141,59 @@ def _send_sp_email(workflow, agreement, kind: str = "initial") -> tuple[bool, st
 
 
 # ---------------------------------------------------------------------------
+# Customer-side: index (empty state + list of in-progress workflows)
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/", methods=["GET"])
+@bp.route("", methods=["GET"])
+@login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="index")
+def index():
+    """Index page for /cosign.
+
+    Customers reach /cosign by following a sidebar link or by manually typing
+    the URL. Before this route existed (Wave 3 ship), /cosign returned a hard
+    404 because the blueprint only registered /<int:agreement_id>. That dead-
+    ended customers who had zero ServiceAgreements yet.
+
+    Now: list the customer's existing CosignWorkflows (one per service
+    agreement) with status pills + a "continue" link, and if there are none,
+    show the empty-state CTA pointing at /agreements/service (where a
+    workflow is born).
+    """
+    from fiesta.cosign.models import CosignWorkflow  # late import
+    from fiesta.agreements.models import ServiceAgreement  # late import
+
+    user_id = int(getattr(current_user, "id", -1))
+
+    # Load workflows for the user, newest first. Join is best-effort -- if
+    # the agreement row was hard-deleted we still surface the workflow row
+    # so the customer can see "deleted" instead of a silent disappearance.
+    workflows = (
+        CosignWorkflow.query
+        .filter_by(user_id=user_id)
+        .order_by(CosignWorkflow.id.desc())
+        .all()
+    )
+
+    # Hydrate agreement reference per workflow for the list UI.
+    rows: list[dict[str, Any]] = []
+    for wf in workflows:
+        agreement = ServiceAgreement.query.filter_by(
+            id=wf.service_agreement_id, user_id=user_id,
+        ).first()
+        rows.append({
+            "workflow": wf,
+            "agreement": agreement,
+            "status": wf.status,
+            "sp_email": wf.sp_email,
+        })
+
+    return render_template("cosign/index.html", rows=rows)
+
+
+# ---------------------------------------------------------------------------
 # Customer-side: walkthrough
 # ---------------------------------------------------------------------------
 

@@ -198,19 +198,41 @@ bp = Blueprint(
 _DEFAULT_TAX_YEAR_S5_FALLBACK = "2025/2026"
 _DEFAULT_TAX_YEAR_S4_FALLBACK = "2025-26"
 
+# Years the tax engine actually supports (must match canonical_tax_year_enum's
+# dict in fiesta/tax_bill/aggregator.py). Newest first. When the SL fiscal flip
+# advances past the newest entry here, _default_tax_year_s4 will keep returning
+# the most recent SUPPORTED year until IRD publishes new brackets and a new
+# entry is added below (and in aggregator.canonical_tax_year_enum + the
+# fiesta.tax.types.TaxYear enum).
+_SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST = ["2025-26", "2024-25"]
+
+
+def _most_recent_supported_tax_year_s4() -> str:
+    """Newest tax year the engine has brackets for."""
+    return _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST[0]
+
 
 def _default_tax_year_s4() -> str:
-    """Return the active SL tax year in S4 form ("YYYY-YY").
+    """Return the most-recent SUPPORTED SL tax year in S4 form ("YYYY-YY").
 
-    Uses fiesta.paywall.models.current_sl_tax_year() — the canonical source S14
-    and the paywall both consume — and runs it through the same normalisation
-    the rest of the tax-bill stack uses. Falls back to the hard-coded constant
-    only if the paywall module cannot be imported (e.g. during minimal-stack
-    tests).
+    Filters the fiscal-calendar current year through the engine's supported
+    set. After 1 April 2026 the fiscal year ticks to 2026-27, but IRD has not
+    gazetted 2026-27 brackets yet (and the engine enum doesn't have a Y26_27
+    entry). Returning the un-supported year produces an engine_error on S12
+    and the user sees "Tax engine unavailable" instead of their bill. Falling
+    back to the most recent SUPPORTED year keeps S12 working through the
+    bracket-publication lag.
+
+    Also note: 30 November 2026 is the filing deadline for FY 2025-26, so the
+    "year you're filing for" right now IS 2025-26, even though we're calendar-
+    in FY 2026-27. The most-recent-supported semantics align with that.
     """
     try:
         from fiesta.paywall.models import current_sl_tax_year
-        return normalise_tax_year_to_s4_format(current_sl_tax_year())
+        current_s4 = normalise_tax_year_to_s4_format(current_sl_tax_year())
+        if current_s4 in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST:
+            return current_s4
+        return _most_recent_supported_tax_year_s4()
     except Exception:  # pragma: no cover -- defensive fallback only
         return _DEFAULT_TAX_YEAR_S4_FALLBACK
 
@@ -220,7 +242,7 @@ def _default_tax_year_s4() -> str:
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S12", action="index_redirect")
 def index_redirect():
-    """Redirect /tax-bill -> /tax-bill/<current_ty>."""
+    """Redirect /tax-bill -> /tax-bill/<most_recent_supported_ty>."""
     return redirect(url_for("fiesta_tax_bill.show_tax_bill",
                             tax_year=_default_tax_year_s4()))
 
@@ -235,6 +257,27 @@ def show_tax_bill(tax_year: str):
         abort(401)
 
     tax_year_s4 = normalise_tax_year_to_s4_format(tax_year)
+
+    # If the requested year isn't supported by the engine (e.g. user typed
+    # 2026-27 manually, or a stale link points there before IRD publishes
+    # 26/27 brackets), redirect to the most recent supported year with a
+    # flash message so they understand why. Without this, the page renders
+    # the "Tax engine unavailable" error block and the user can't see any
+    # bill at all.
+    if tax_year_s4 not in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST:
+        try:
+            flash(
+                f"Tax brackets for {tax_year_s4} have not been gazetted by "
+                f"IRD yet. Showing your most recent supported year instead.",
+                "info",
+            )
+        except Exception:  # pragma: no cover
+            pass
+        return redirect(url_for(
+            "fiesta_tax_bill.show_tax_bill",
+            tax_year=_most_recent_supported_tax_year_s4(),
+        ))
+
     report = compute_tax_bill(user_id, tax_year)
 
     # Finalize state is process-local.

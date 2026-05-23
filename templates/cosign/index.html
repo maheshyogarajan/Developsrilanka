@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+{% block title %}Co-sign workflows -- FIESTA{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 880px;">
+
+  <h1 class="h2 mb-3" style="font-family: 'Fraunces', serif;">Co-sign your Service Agreements</h1>
+
+  {% if rows %}
+    <p class="text-muted mb-4">
+      Below are the agreements you've prepared for Service-Provider co-sign. Pick one to continue tracking it.
+    </p>
+
+    <div class="list-group mb-4">
+      {% for r in rows %}
+        {% set wf = r.workflow %}
+        {% set ag = r.agreement %}
+        <a class="list-group-item list-group-item-action d-flex flex-column flex-md-row justify-content-between align-items-md-center"
+           href="{{ url_for('fiesta_cosign.walkthrough', agreement_id=wf.service_agreement_id) }}">
+          <div>
+            <div class="fw-semibold">
+              {% if ag %}
+                {{ ag.reference_id or ('SA #' ~ wf.service_agreement_id) }}
+              {% else %}
+                Agreement #{{ wf.service_agreement_id }} <span class="badge bg-light text-muted ms-1">deleted</span>
+              {% endif %}
+            </div>
+            <div class="text-muted small">
+              {% if r.sp_email %}Sent to: {{ r.sp_email }} &middot; {% endif %}
+              Status:
+              <span class="
+                {% if wf.status == 'drafted' %}text-secondary
+                {% elif wf.status in ('sent_to_sp', 'sp_viewed') %}text-info
+                {% elif wf.status == 'sp_signed' %}text-warning
+                {% elif wf.status in ('customer_countersigned', 'complete') %}text-success
+                {% elif wf.status == 'abandoned' %}text-muted
+                {% else %}text-secondary{% endif %}">
+                {{ wf.status.replace('_', ' ') }}
+              </span>
+            </div>
+          </div>
+          <span class="text-muted small mt-2 mt-md-0">Continue &rarr;</span>
+        </a>
+      {% endfor %}
+    </div>
+
+    <div class="text-muted small">
+      To start a new co-sign workflow, generate the agreement first from
+      <a href="{{ url_for('service_providers.index') if 'service_providers' in config.get('REGISTERED_BLUEPRINTS', []) else '/service-providers' }}">your Service Providers</a>.
+    </div>
+
+  {% else %}
+    {# Empty state -- the bug CEO hit: /cosign returned 404 because no
+       index route existed. Now we explain why nothing is here and point
+       them at where a co-sign workflow is born. #}
+    <div class="alert alert-light border" role="status">
+      <h2 class="h5 mb-2">No co-sign workflows yet</h2>
+      <p class="mb-2">
+        A co-sign workflow is created when you generate a Service Agreement and
+        send it to a Service Provider for their signature.
+      </p>
+      <p class="mb-3 small text-muted">
+        Each workflow tracks: who you sent the agreement to, when they viewed
+        it, when they signed, and your countersignature.
+      </p>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="/service-providers">Add a Service Provider</a>
+        <a class="btn btn-outline-secondary" href="/agreements/service">View Service Agreements</a>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
