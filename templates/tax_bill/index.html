@@ -4,6 +4,10 @@
 {% block additional_styles %}
 <style>
     /* S12 outcome page -- calm, IRA-anchored, audit-defensibility-front-and-centre. */
+    /* S12 hero — Sprint 1 redesign (CEO red-pen 2026-05-23):
+       Lead with PROTO-TAX (what you'd pay without FIESTA) + SAVINGS DELTA as
+       the hero numbers. Actual bill stays legible but small. Math integrity:
+       all three numbers visible (so the saving has an anchor). */
     .tb-hero {
         background: linear-gradient(135deg, var(--color-brand-50, #EFF6FF) 0%, #fff 100%);
         border: 1px solid var(--color-brand-200, #BFDBFE);
@@ -16,9 +20,72 @@
         font-weight: 500;
         font-size: 1.1rem;
         color: var(--color-ink-700, #334155);
-        margin-bottom: 0.5rem;
+        margin-bottom: 1.2rem;
         letter-spacing: 0.02em;
     }
+    /* Row 1 — proto-tax (what you'd pay WITHOUT FIESTA). Medium font, muted. */
+    .tb-hero-proto {
+        display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+        color: var(--color-ink-600, #475569);
+        font-family: 'Manrope', sans-serif;
+        font-size: 1.05rem;
+        margin-bottom: 0.4rem;
+    }
+    .tb-hero-proto__amount {
+        font-family: 'Fraunces', serif;
+        font-weight: 500;
+        font-size: 1.6rem;
+        color: var(--color-ink-700, #334155);
+        text-decoration: line-through;
+        text-decoration-color: rgba(220, 38, 38, 0.6);
+        text-decoration-thickness: 2px;
+    }
+    /* Row 2 — the HERO. Savings number. Big, green, animated count-up. */
+    .tb-hero-saved {
+        margin: 0.8rem 0 1rem;
+        padding: 1.2rem 0 1rem;
+        border-top: 1px solid rgba(0,0,0,0.06);
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .tb-hero-saved__label {
+        font-family: 'Manrope', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--color-success-700, #047857);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.2rem;
+    }
+    .tb-hero-saved__amount {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 4rem;
+        line-height: 1.05;
+        color: var(--color-success-700, #047857);
+        letter-spacing: -0.02em;
+    }
+    .tb-hero-saved__pct {
+        font-family: 'Manrope', sans-serif;
+        font-size: 0.95rem;
+        color: var(--color-success-700, #047857);
+        margin-top: 0.2rem;
+        opacity: 0.85;
+    }
+    /* Row 3 — actual final bill. Small but legible. */
+    .tb-hero-bill {
+        display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+        color: var(--color-ink-700, #334155);
+        font-family: 'Manrope', sans-serif;
+        font-size: 1rem;
+        margin-top: 0.4rem;
+    }
+    .tb-hero-bill__amount {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 1.4rem;
+        color: var(--color-brand-900, #0B5394);
+    }
+    /* Legacy class kept so the no-deductions path below still works */
     .tb-hero .tb-final {
         font-family: 'Fraunces', serif;
         font-weight: 600;
@@ -384,16 +451,14 @@
         </div>
     {% endif %}
 
-    {# ---- B14 F6.6 — Projected savings counter (always visible) ----------- #}
+    {# ---- B14 F6.6 — Projected savings counter (gated on engine health) --- #}
     {#
-        hub_projected_savings_lkr is injected by inject_fiesta_hub_context()
-        (app.py context_processor) for authenticated sl_foreign_income users.
-        When deductions are claimed, savings_vs_no_deductions_lkr takes over
-        in the hero section — this counter is the early-funnel teaser above the
-        hero that is always visible regardless of filing state.
-        Extraction of the helper to a shared module is deferred (parallel-safe);
-        we consume the context-processor value directly here.
+        Sprint 1 fix: previously this block rendered "Rs —" when engine_error
+        was set, which read as "FIESTA can't compute anything." Now gate on
+        not engine_error AND we have a real projected number. If engine_error,
+        the engine_error block above takes the visual real-estate instead.
     #}
+    {% if not report.engine_error %}
     {% set _projected = report.savings_vs_no_deductions_lkr if (report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0) else hub_projected_savings_lkr %}
     <div class="tb-projected-savings">
         <span class="tb-projected-savings__label">Projected savings:</span>
@@ -410,6 +475,7 @@
             <span class="tb-projected-savings__note">log income to see your projection</span>
         {% endif %}
     </div>
+    {% endif %}
 
     {# ---- B13 F6.5 — IRA citations panel (always visible, zero-data safe) - #}
     <details class="tb-ira-panel">
@@ -476,42 +542,103 @@
         </div>
     </details>
 
-    {# ---- Hero ------------------------------------------------------------ #}
-    <section class="tb-hero">
-        <h1>Your {{ tax_year_display }} tax bill</h1>
-        <div class="tb-final">Rs {{ "{:,.2f}".format(report.net_tax_payable_lkr) }}</div>
-        {% if report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0 %}
+    {# ---- Hero — Sprint 1 rewrite: SAVINGS-FIRST -------------------------- #}
+    {#
+       CEO red-pen 2026-05-23: lead with proto-tax (what you'd pay without
+       FIESTA) + savings delta. Actual bill stays legible but small. Math
+       integrity preserved: all three numbers visible.
+       Two render paths:
+       (1) engine_error → fall back to friendly chrome (no fake numbers).
+       (2) no savings yet (no deductions) → show the actual bill as hero
+           with a CTA to /reduce-tax — saves the page from looking empty.
+       (3) savings > 0 → the new 3-tier hero. This is the win state.
+    #}
+    {% if report.engine_error %}
+      <section class="tb-hero">
+          <h1>Your {{ tax_year_display }} tax bill</h1>
+          <p class="tb-savings" style="margin-top:1rem;">
+              We're rebuilding your bill — the tax engine is between releases.
+              Your breakdown below still shows what you've logged so far.
+          </p>
+      </section>
+    {% elif report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0 %}
+      {% set _proto = report.tax_without_deductions_lkr | float %}
+      {% set _saved = report.savings_vs_no_deductions_lkr | float %}
+      {% set _bill  = report.net_tax_payable_lkr | float %}
+      {% set _pct   = ((_saved / _proto) * 100) if _proto > 0 else 0 %}
+      <section class="tb-hero">
+          <h1>Your {{ tax_year_display }} tax bill</h1>
+
+          <div class="tb-hero-proto">
+              <span>Without FIESTA you'd owe</span>
+              <span class="tb-hero-proto__amount">Rs {{ "{:,.0f}".format(_proto) }}</span>
+          </div>
+
+          <div class="tb-hero-saved">
+              <div class="tb-hero-saved__label">FIESTA saved you</div>
+              <div class="tb-hero-saved__amount" id="tb-hero-saved-amount"
+                   data-final="{{ "%.0f"|format(_saved) }}">
+                  Rs {{ "{:,.0f}".format(_saved) }}
+              </div>
+              <div class="tb-hero-saved__pct">
+                  ({{ "{:.0f}".format(_pct) }}% of what you would have paid)
+              </div>
+          </div>
+
+          <div class="tb-hero-bill">
+              <span>Your final tax bill</span>
+              <span class="tb-hero-bill__amount">Rs {{ "{:,.0f}".format(_bill) }}</span>
+          </div>
+      </section>
+    {% else %}
+      {# No deductions claimed yet — show actual bill + savings CTA #}
+      <section class="tb-hero">
+          <h1>Your {{ tax_year_display }} tax bill</h1>
+          <div class="tb-final">Rs {{ "{:,.0f}".format(report.net_tax_payable_lkr | float) }}</div>
+          {% if inputs.deductions_itemised %}
             <div class="tb-savings">
-                <strong>FIESTA helped you save Rs
-                    {{ "{:,.2f}".format(report.savings_vs_no_deductions_lkr) }}</strong>
-                versus filing without these deductions
-                (Rs {{ "{:,.2f}".format(report.tax_without_deductions_lkr) }}).
+                Deductions claimed: Rs {{ "{:,.0f}".format(inputs.deductions_total_lkr | float) }}.
+                <a href="/reduce-tax" style="color:inherit;text-decoration:underline;">Add more to lower this bill</a>.
             </div>
-        {% elif inputs.deductions_itemised %}
+          {% else %}
             <div class="tb-savings">
-                Deductions claimed: Rs {{ "{:,.2f}".format(inputs.deductions_total_lkr) }}.
+                No deductions claimed yet —
+                <a href="/reduce-tax">claim deductions on Reduce your tax</a>
+                to lower this number before filing.
             </div>
-        {% else %}
-            <div class="tb-savings">
-                No deductions claimed yet --
-                <a href="/reduce-tax">see Reduce your tax</a>
-                to find allowable deductions before filing.
-            </div>
-        {% endif %}
-    </section>
+          {% endif %}
+      </section>
+    {% endif %}
 
     {# ---- Audit defensibility ------------------------------------------- #}
+    {#
+       Sprint 1 fix: previously a mid-flow user (income logged + deductions
+       claimed but agreements not yet generated + return not yet attested)
+       saw a red "At-Risk" panel with "Your filing has issues that an IRD
+       review would likely challenge." That language is correct for someone
+       who has FILED with weak evidence — but wrong for someone who is just
+       mid-build. Now: if the bill is not finalized AND score < 50, show
+       the gentler "Building toward audit-defensible" framing with a
+       checklist of remaining steps. If the bill IS finalized and the score
+       is still < 50, keep the original harsh language because that's the
+       real "you submitted with weak evidence" signal.
+    #}
     {% set def_class = 'tb-def-atrisk' %}
+    {% set def_label_display = report.audit_defensibility_label %}
     {% if report.audit_defensibility_label == 'Strong' %}
         {% set def_class = 'tb-def-strong' %}
     {% elif report.audit_defensibility_label == 'Moderate' %}
         {% set def_class = 'tb-def-moderate' %}
+    {% elif not report.is_finalized %}
+        {# At-Risk + not yet filed → soften to "Building". #}
+        {% set def_class = 'tb-def-moderate' %}
+        {% set def_label_display = 'Building' %}
     {% endif %}
     <div class="tb-defensibility {{ def_class }}">
         <div class="tb-def-score">{{ report.audit_defensibility_score }}</div>
         <div>
             <div class="tb-def-label">
-                Audit defensibility: {{ report.audit_defensibility_label }}
+                Audit defensibility: {{ def_label_display }}
             </div>
             <div class="tb-def-explain">
                 {% if report.audit_defensibility_label == 'Strong' %}
@@ -520,11 +647,33 @@
                 {% elif report.audit_defensibility_label == 'Moderate' %}
                     Your filing is mostly defensible but has a few items
                     worth tightening before submission.
+                {% elif def_label_display == 'Building' %}
+                    You're partway through. Each step below adds points and
+                    locks in your audit-defence. Most foreign-income filers
+                    land at Strong (80+) once their Service Agreement is
+                    generated and they've signed the attestation.
                 {% else %}
                     Your filing has issues that an IRD review would likely
                     challenge. Address the flags below before submission.
                 {% endif %}
             </div>
+            {% if def_label_display == 'Building' and report.audit_score_components %}
+              <div class="tb-def-checklist" style="margin-top:0.6rem;font-size:0.85rem;color:var(--color-ink-600,#475569);">
+                {% set comps = report.audit_score_components %}
+                {% set remaining = [] %}
+                {% if comps.profile_complete is defined and not comps.profile_complete.met %}{% set _ = remaining.append('Complete your profile in S3 (+15)') %}{% endif %}
+                {% if comps.income_logged is defined and not comps.income_logged.met %}{% set _ = remaining.append('Log your foreign income (+25)') %}{% endif %}
+                {% if comps.deductions_claimed is defined and not comps.deductions_claimed.met %}{% set _ = remaining.append('Claim at least one deduction (+20)') %}{% endif %}
+                {% if comps.agreements_generated is defined and not comps.agreements_generated.met %}{% set _ = remaining.append('Generate your Service Agreement or Rental Agreement (+25)') %}{% endif %}
+                {% if comps.attestation_signed is defined and not comps.attestation_signed.met %}{% set _ = remaining.append('Sign your attestation on the Submit page (+15)') %}{% endif %}
+                {% if remaining %}
+                  <strong>Add to your score:</strong>
+                  <ul style="margin:0.3rem 0 0 1.2rem;padding:0;">
+                    {% for r in remaining %}<li>{{ r }}</li>{% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            {% endif %}
         </div>
     </div>
 

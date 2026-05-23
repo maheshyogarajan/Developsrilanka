@@ -307,6 +307,7 @@
   'use strict';
 
   const tallySaving = document.getElementById('s5-tally-saving');
+  const hubSavedAmt = document.getElementById('hubSavedAmt');  // Sprint 1: live topbar counter
   const cards = document.querySelectorAll('.s5-card');
   const modal = document.getElementById('s5-legal-modal');
   const modalCite = document.getElementById('s5-legal-cite');
@@ -321,14 +322,44 @@
     } catch (e) { return 'Rs ' + n; }
   }
 
+  // Sprint 1: animated count-up so the savings reveal feels earned, not magic.
+  // 700ms ease-out from current value to target. Skip animation if delta < 100.
+  function parseAmount(el) {
+    if (!el) return 0;
+    const raw = (el.textContent || '').replace(/[^0-9.-]/g, '');
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function animateTo(el, target) {
+    if (!el) return;
+    const from = parseAmount(el);
+    const delta = target - from;
+    if (Math.abs(delta) < 100) {
+      el.textContent = fmt(target);
+      return;
+    }
+    const start = performance.now();
+    const dur = 700;
+    function tick(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);  // ease-out cubic
+      el.textContent = fmt(from + delta * eased);
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
   async function refreshTally() {
     try {
       const r = await fetch('/reduce-tax/estimate', { credentials: 'same-origin' });
       if (!r.ok) return;
       const data = await r.json();
-      if (data.ok && tallySaving) {
-        tallySaving.textContent = fmt(data.estimated_saving_lkr);
-      }
+      if (!data.ok) return;
+      const target = Number(data.estimated_saving_lkr) || 0;
+      // Sprint 1: animate both the S5 tally AND the global topbar so the
+      // "savings discovery" feels like a single live number across pages.
+      animateTo(tallySaving, target);
+      animateTo(hubSavedAmt, target);
     } catch (e) {
       console.warn('tally refresh failed', e);
     }

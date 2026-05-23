@@ -363,6 +363,7 @@
       <h2 style="color: var(--s14-warning);">Worth a second look (yellow flags)</h2>
       <p class="s14-meta">These don't block submission, but you must explicitly acknowledge each before signing.</p>
       <form method="post" action="{{ url_for('fiesta_submit.post_attest') }}" id="s14-attest-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="tax_year" value="{{ tax_year }}">
         <input type="hidden" name="final_tax_payable_lkr" value="{{ final_tax_payable_lkr }}">
         {% for w in gate.warnings %}
@@ -442,6 +443,7 @@
 
         {% if not gate.warnings %}
           <form method="post" action="{{ url_for('fiesta_submit.post_attest') }}" id="s14-attest-form-clean">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="tax_year" value="{{ tax_year }}">
             <input type="hidden" name="final_tax_payable_lkr" value="{{ final_tax_payable_lkr }}">
         {% endif %}
@@ -510,6 +512,7 @@
         paste the IRD acknowledgment number you saw.
       </p>
       <form method="post" action="{{ url_for('fiesta_submit.post_mark_filed') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="tax_year" value="{{ tax_year }}">
         <div class="s14-form-block">
           <label class="s14-label" for="ack_number">IRD acknowledgment number (optional):</label>
@@ -534,6 +537,7 @@
       </p>
       <form method="post" action="{{ url_for('fiesta_submit.post_upload_confirmation') }}"
             enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="tax_year" value="{{ tax_year }}">
         <div class="s14-form-block">
           <label class="s14-label" for="receipt_pdf">IRD receipt PDF:</label>
@@ -567,6 +571,7 @@
         audit log; you'll need to re-sign before exporting again.
       </p>
       <form method="post" action="{{ url_for('fiesta_submit.post_reopen') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="tax_year" value="{{ tax_year }}">
         <div class="s14-actions">
           <button type="submit" class="s14-btn s14-btn--ghost">Reopen for edits</button>

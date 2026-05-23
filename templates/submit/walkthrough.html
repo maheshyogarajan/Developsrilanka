@@ -183,6 +183,7 @@
       acknowledgment PDF on the next screen.
     </p>
     <form method="post" action="{{ url_for('fiesta_submit.post_mark_filed') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="tax_year" value="{{ tax_year }}">
       <button type="submit" class="wt-btn wt-btn--primary">I'm done -- I've filed</button>
     </form>

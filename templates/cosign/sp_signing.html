@@ -164,6 +164,7 @@
 <div class="tab-section active" id="tab-typed-name">
   <form method="post"
         action="{{ url_for('fiesta_cosign.sp_sign', tracking_token=tracking_token) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="method" value="typed-name">
     <label for="typed_name">Type your full name to sign</label>
     <input type="text" id="typed_name" name="typed_name" required
@@ -194,6 +195,7 @@
   </ol>
   <form method="post"
         action="{{ url_for('fiesta_cosign.sp_sign', tracking_token=tracking_token) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="method" value="printed-pdf">
     <input type="hidden" name="typed_name" value="(signed on paper -- scan returned to customer)">
     <p class="small">
@@ -216,6 +218,7 @@
   </p>
   <form method="post"
         action="{{ url_for('fiesta_cosign.sp_sign', tracking_token=tracking_token) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="concern">
     <label for="concern_message">Describe your concern (optional)</label>
     <textarea id="concern_message" name="concern_message" rows="4"

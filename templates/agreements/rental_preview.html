@@ -339,6 +339,10 @@
   <div class="s9-pane">
     <form method="post"
           action="{{ url_for('fiesta_agreements_rental.generate', property_id=property.id) if property else '#' }}">
+      {# Sprint 1 fix: same CSRF bug as service_preview.html — adding token
+         to the rental-agreement generate form too (would have hit any P5/P1
+         rental-claiming user). #}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       {# -- Term --------------------------------------------------------- #}
       <fieldset class="s9-fieldset">

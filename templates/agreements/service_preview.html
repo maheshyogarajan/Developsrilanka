@@ -273,6 +273,10 @@
   <div class="s8-pane">
     <form method="post"
           action="{{ url_for('fiesta_agreements_service.generate', sp_id=sp_id) }}">
+      {# Sprint 1 fix: Flask-WTF CSRFProtect is active on this app; without
+         this hidden field every POST 400s with "The CSRF token is missing."
+         Bug screenshot 2026-05-23 evening: /agreements/service/2/generate. #}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       {# -- Term ----------------------------------------------------------- #}
       <fieldset class="s8-fieldset">

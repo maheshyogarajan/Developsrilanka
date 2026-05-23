@@ -394,10 +394,13 @@
           <i class="ico fas fa-file-contract"></i>
           <span>Rental agreement</span>
         </a>
-        <a href="/cosign/pending"
+        {# Sprint 1 fix: was pointing at /cosign/pending which 404'd. The
+           /cosign index route added in batch 2 (058d5fe) lists pending
+           workflows + empty state, so we redirect the sidebar there. #}
+        <a href="/cosign"
            class="rail-link {% if request.path.startswith('/cosign') %}active{% endif %}">
           <i class="ico fas fa-handshake"></i>
-          <span>Co-sign pending</span>
+          <span>Co-sign agreements</span>
         </a>
       </div>
 
