@@ -203,22 +203,201 @@ def index() -> Any:
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S9", action="preview")
 def preview(property_id: int) -> Any:
-    """Preview/edit form for a Rental Agreement against a given property."""
+    """Preview/edit form for a Rental Agreement against a given property.
+
+    D1 FIX 2026-05-23 (CEO crash repro on /agreements/rental/<id> rendering
+    a blank body): the previous implementation only passed property_id and
+    protected_deductions_lkr, but templates/agreements/rental_preview.html
+    gates ALL of its visible body on `{% if property %}`, `{% if preview %}`
+    and `{% if rental_form_context %}`. With none of those in context, the
+    page rendered the chrome (DRAFT banner, breadcrumb) and nothing else.
+
+    The defect-log hypothesis attributed the blank body to a calculator
+    branch failing for purpose=="mixed", but the actual root cause is route
+    context — purpose plays no role in the current preview path. All three
+    purpose values (residence / business / mixed) would render equally
+    blank pages before this fix.
+
+    Fix shape: enrich context defensively. property is REQUIRED (404 if
+    not owned by user, no presence leak). preview, rental_form_context and
+    history_url are best-effort — landlord/rental may not exist yet for a
+    fresh property, in which case we still render a usable preview pane.
+    """
     user_id = getattr(current_user, "id", None)
-    # B4 F5.5 — surface server-side "protects Rs X" projection on S9.
-    protected_lkr = 0
+
+    # Resolve the property; cross-tenant access returns 404 by design.
     try:
         from fiesta.property.models import Property  # type: ignore[import-not-found]
         from fiesta.agreements.helpers import compute_protected_deductions_lkr
-        _prop = Property.query.filter_by(id=property_id, user_id=user_id).first()
-        if _prop is not None:
-            protected_lkr = compute_protected_deductions_lkr(current_user, _prop)
+    except Exception as _e:  # pragma: no cover -- import-time tolerance
+        logger.warning("rental.preview model imports failed: %s", _e)
+        Property = None  # type: ignore[assignment]
+        compute_protected_deductions_lkr = None  # type: ignore[assignment]
+
+    prop = None
+    if Property is not None:
+        prop = Property.query.filter_by(id=property_id, user_id=user_id).first()
+        if prop is None:
+            # 404 (not 403) to avoid leaking the existence of other users' rows.
+            abort(404)
+
+    # B4 F5.5 — surface server-side "protects Rs X" projection on S9.
+    protected_lkr = 0
+    if prop is not None and compute_protected_deductions_lkr is not None:
+        try:
+            # is_property=True ensures we route to the Property branch of the
+            # helper (which reads monthly_rent_lkr × home_office_percentage),
+            # not the ServiceProvider branch. monthly_rent_lkr is not stored
+            # on Property itself — the helper handles None gracefully and
+            # returns 0, which suppresses the framing block in the template.
+            protected_lkr = compute_protected_deductions_lkr(
+                current_user, prop, is_property=True
+            )
+        except Exception as _e:
+            logger.debug("rental.preview protected_deductions calc failed: %s", _e)
+
+    # Best-effort load of landlord + most-recent rental agreement so the
+    # preview pane can render party + term details when available.
+    landlord = None
+    rental = None
+    try:
+        from fiesta.property.models import Landlord, RentalAgreement  # type: ignore[import-not-found]
+        landlord = Landlord.query.filter_by(property_id=property_id).first()
+        rental = (
+            RentalAgreement.query
+            .filter_by(property_id=property_id)
+            .order_by(RentalAgreement.start_date.desc())
+            .first()
+        )
     except Exception as _e:
-        logger.debug("rental.preview protected_deductions calc failed: %s", _e)
+        logger.debug("rental.preview landlord/rental fetch failed: %s", _e)
+
+    # Build the preview dict the template's {% if preview %} block expects.
+    # All sub-fields are tolerant of missing data — the template guards on
+    # truthiness of optional sub-fields (deposit, home_office_portion).
+    preview_ctx: dict[str, Any] | None = None
+    if prop is not None:
+        property_type = getattr(prop, "property_type", None) or "property"
+        purpose = getattr(prop, "purpose", None)
+        type_label = (
+            f"{property_type} ({purpose})" if purpose else property_type
+        )
+        address_parts = [
+            getattr(prop, "address_line1", None),
+            getattr(prop, "address_line2", None),
+            getattr(prop, "city", None),
+            getattr(prop, "postcode", None),
+        ]
+        property_address = ", ".join(p for p in address_parts if p)
+
+        monthly_rent = getattr(rental, "monthly_rent_lkr", None) if rental else None
+        deposit = getattr(rental, "deposit_paid", None) if rental else None
+        home_office_portion = (
+            getattr(rental, "home_office_portion_lkr", None) if rental else None
+        )
+        start_date = getattr(rental, "start_date", None) if rental else None
+        end_date = getattr(rental, "end_date", None) if rental else None
+        payment_method = (
+            getattr(rental, "payment_method", None) if rental else None
+        ) or "bank_transfer"
+        payment_frequency = (
+            getattr(rental, "payment_frequency", None) if rental else None
+        ) or "monthly"
+
+        preview_ctx = {
+            "title": "Rental Agreement",
+            "parties": {
+                "landlord": (
+                    getattr(landlord, "full_name", None) if landlord else "Landlord pending"
+                ),
+                "landlord_nic": getattr(landlord, "nic", None) if landlord else None,
+                "tenant": (
+                    getattr(current_user, "full_name", None)
+                    or getattr(current_user, "name", None)
+                    or getattr(current_user, "email", "Tenant")
+                ),
+                "tenant_nic": getattr(current_user, "nic", None),
+            },
+            "property": {
+                "address": property_address or "Address pending",
+                "type": type_label,
+                "total_sqft": getattr(prop, "total_sqft", None),
+                "home_office_sqft": getattr(prop, "home_office_sqft", None),
+                "home_office_percentage": getattr(
+                    prop, "home_office_percentage", None
+                ),
+            },
+            "terms": {
+                "start_date": start_date.isoformat() if start_date else "TBD",
+                "end_date": end_date.isoformat() if end_date else "TBD",
+                "monthly_rent_lkr": (
+                    f"{monthly_rent:,.2f}" if monthly_rent is not None else "TBD"
+                ),
+                "deposit_paid": (
+                    f"{deposit:,.2f}" if deposit is not None else None
+                ),
+                "home_office_portion_lkr": (
+                    f"{home_office_portion:,.2f}"
+                    if home_office_portion is not None
+                    else None
+                ),
+                "payment_method": payment_method,
+                "payment_frequency": payment_frequency,
+            },
+            "compliance_note": (
+                "This rental documents your home-office portion for "
+                "deduction under IRA §6(1). The signed PDF is your "
+                "primary defence if the IRD audits the deduction."
+            ),
+            "ira_section_6": (
+                "IRA §6(1): rent paid in production of business income is "
+                "an allowable deduction proportionate to business use."
+            ),
+        }
+
+    # Build the form context the template's {% if rental_form_context %}
+    # block expects. Pre-fill from any existing rental so edits round-trip.
+    rental_form_context = {
+        "start_date": (
+            getattr(rental, "start_date", None).isoformat()
+            if rental and getattr(rental, "start_date", None)
+            else None
+        ),
+        "end_date": (
+            getattr(rental, "end_date", None).isoformat()
+            if rental and getattr(rental, "end_date", None)
+            else None
+        ),
+        "monthly_rent_lkr": (
+            str(getattr(rental, "monthly_rent_lkr", None))
+            if rental and getattr(rental, "monthly_rent_lkr", None) is not None
+            else None
+        ),
+        "deposit_lkr": (
+            str(getattr(rental, "deposit_paid", None))
+            if rental and getattr(rental, "deposit_paid", None) is not None
+            else None
+        ),
+        "payment_method": (
+            getattr(rental, "payment_method", None) if rental else None
+        ),
+        "landlord_email": getattr(landlord, "email", None) if landlord else None,
+    }
+
+    history_url = url_for(
+        "fiesta_agreements_rental.history", property_id=property_id
+    )
+
     return render_template(
         "agreements/rental_preview.html",
         property_id=property_id,
         user_id=user_id,
+        property=prop,
+        preview=preview_ctx,
+        rental_form_context=rental_form_context,
+        history_url=history_url,
+        gate_warnings=[],
+        gate_blocks=[],
         protected_deductions_lkr=protected_lkr,
     )
 

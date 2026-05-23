@@ -156,7 +156,11 @@
            POST to /email_login; the handler writes it to session['_signup_next']
            which is then consumed by verify_email on success. Only same-origin
            paths (safelist enforced server-side) are accepted. #}
-        <input type="hidden" name="next" value="{{ signup_next or request.args.get('next', '') }}">
+        {# D2 SEV-1 fix: only echo the server-safelisted signup_next. Never fall
+           back to the raw request.args['next'] — that bypasses safelisting and
+           is an XSS / open-redirect vector. If signup_next is missing/None,
+           emit empty string; the POST handler treats that as no redirect. #}
+        <input type="hidden" name="next" value="{{ signup_next or '' }}">
 
         <div class="mb-3">
           <label for="email" class="form-label">Email address</label>

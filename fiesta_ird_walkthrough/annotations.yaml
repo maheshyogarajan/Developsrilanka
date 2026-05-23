@@ -23,7 +23,7 @@ steps:
   how_fiesta_helps: FIESTA stores your prior-year filing as a draft so you don't lose
     your work between IRD sessions. If your PIN gets reset, update your saved PIN
     in FIESTA settings so future sessions auto-prefill.
-  ira_citation: Section 92 IRA (filing of return online via approved e-Services system)
+  ira_citation: §92 IRA (filing of return online via approved e-Services system)
   screenshot_url: /static/fiesta_ird_walkthrough/step_01.png
 - step: 2
   title: Open Return of Income (e-Filing menu)
@@ -35,7 +35,7 @@ steps:
     Type effective from' date — ignore that; if you've filed before, you're registered.
   how_fiesta_helps: FIESTA computes your liability for the Y/A before you ever touch
     IRD — you arrive at the portal already knowing what to declare.
-  ira_citation: Section 56 IRA (registration for tax)
+  ira_citation: §56 IRA (registration for tax)
   screenshot_url: /static/fiesta_ird_walkthrough/step_02.png
 - step: 3
   title: Select assessment year (Y/A 2024-2025 for tax year 24/25)
@@ -46,7 +46,7 @@ steps:
   how_fiesta_helps: FIESTA always shows you the Y/A label that matches the return
     you're about to file (e.g. '25/26' means Y/A 2025-2026, income earned April 2025–March
     2026).
-  ira_citation: Section 19 IRA (year of assessment definition)
+  ira_citation: §19 IRA (year of assessment definition)
   screenshot_url: /static/fiesta_ird_walkthrough/step_03.png
 - step: 4
   title: Confirm taxpayer profile
@@ -58,7 +58,7 @@ steps:
   how_fiesta_helps: FIESTA stores your taxpayer profile and lets you keep it up to
     date in one place — your address-of-record on FIESTA mirrors what you've told
     IRD.
-  ira_citation: Section 102 IRA (taxpayer duty to maintain accurate records)
+  ira_citation: §102 IRA (taxpayer duty to maintain accurate records)
   screenshot_url: /static/fiesta_ird_walkthrough/step_04.png
 - step: 5
   title: Declare income sources
@@ -71,7 +71,7 @@ steps:
   how_fiesta_helps: FIESTA's Remittance Ledger captures every foreign remittance the
     moment you log it — at year-end you have a single Rs total ready to enter. Categorise
     income by source as you earn it, not all at once at filing time.
-  ira_citation: Sections 5-9 IRA (sources of assessable income)
+  ira_citation: §§5-9 IRA (sources of assessable income)
   screenshot_url: /static/fiesta_ird_walkthrough/step_05.png
 - step: 6
   title: Enter deductions (qualifying expenditure)
@@ -84,7 +84,7 @@ steps:
   how_fiesta_helps: Every Service Agreement and Rental Agreement you generate in FIESTA
     becomes your audit-defence — the IRD asks 'where is the documented basis for this
     deduction?' and you point at the signed agreement.
-  ira_citation: Section 6(1) IRA (qualifying expenditure incurred in producing assessable
+  ira_citation: §6(1) IRA (qualifying expenditure incurred in producing assessable
     income)
   screenshot_url: /static/fiesta_ird_walkthrough/step_06.png
 - step: 7
@@ -97,7 +97,7 @@ steps:
   how_fiesta_helps: FIESTA's tax-bill engine applies personal relief automatically
     per Y/A — the projected savings you see already factor it in. No mental math at
     filing time.
-  ira_citation: Section 51 IRA (residents qualifying for relief), Y/A 24-25 personal
+  ira_citation: §51 IRA (residents qualifying for relief), Y/A 24-25 personal
     relief LKR 1,800,000
   screenshot_url: /static/fiesta_ird_walkthrough/step_07.png
 - step: 8
@@ -111,7 +111,7 @@ steps:
     remitted yet (foreign income is on remittance basis) is incorrect.
   how_fiesta_helps: FIESTA tracks every WHT certificate as it arrives; year-end the
     total is one click away.
-  ira_citation: Section 84 IRA (foreign tax credits), Sections 85-90 IRA (withholding
+  ira_citation: §84 IRA (foreign tax credits), §§85-90 IRA (withholding
     tax credits)
   screenshot_url: /static/fiesta_ird_walkthrough/step_08.png
 - step: 9
@@ -124,7 +124,7 @@ steps:
     something was entered wrong upstream. Don't sign yet — go back and reconcile.
   how_fiesta_helps: FIESTA's S12 Tax Bill shows the same bracket-by-bracket walk before
     you file. If FIESTA's number matches IRD's, you can sign with confidence.
-  ira_citation: First Schedule IRA (graduated rate bands for resident individuals)
+  ira_citation: §First Schedule IRA (graduated rate bands for resident individuals)
   screenshot_url: /static/fiesta_ird_walkthrough/step_09.png
 - step: 10
   title: Confirm bank refund details (if refund expected)
@@ -136,7 +136,7 @@ steps:
     be LKR.
   how_fiesta_helps: FIESTA stores your bank-of-record after the first filing — next
     year it auto-fills.
-  ira_citation: Section 116 IRA (refund of overpaid tax)
+  ira_citation: §116 IRA (refund of overpaid tax)
   screenshot_url: /static/fiesta_ird_walkthrough/step_10.png
 - step: 11
   title: Declare and sign
@@ -149,7 +149,7 @@ steps:
   how_fiesta_helps: FIESTA's attestation flow makes you sign the same declaration
     BEFORE you reach IRD — by the time you click SUBMIT on the IRD portal, you've
     already attested to FIESTA. No surprises.
-  ira_citation: Section 92 IRA (declaration on return), Section 178 IRA (penalty for
+  ira_citation: §92 IRA (declaration on return), §178 IRA (penalty for
     false statement)
   screenshot_url: /static/fiesta_ird_walkthrough/step_11.png
 - step: 12
@@ -163,5 +163,5 @@ steps:
   how_fiesta_helps: FIESTA prompts you to upload the IRD acknowledgement PDF after
     filing — we store it for 7 years and it shows on your return history page. Year-on-year
     you have a full audit trail.
-  ira_citation: Section 120 IRA (record-keeping requirements — 7 years)
+  ira_citation: §120 IRA (record-keeping requirements — 7 years)
   screenshot_url: /static/fiesta_ird_walkthrough/step_12.png

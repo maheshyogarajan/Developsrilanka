@@ -379,8 +379,12 @@
       <span>Dashboard</span>
     </a>
 
-    {# 2. Users — /admin/fie/users (S15 fiesta_admin blueprint) #}
-    <a href="{{ url_for('fiesta_admin.users_list') }}"
+    {# 2. Users — /admin/fie/users (S15 fiesta_admin blueprint).
+       Endpoint is fiesta_admin.fiesta_admin_users (the view function's __name__),
+       not 'users_list' — the placeholder name from the original wireframe never
+       matched the route definition. Hard-coding `/admin/fie/users` keeps the
+       sidebar render-safe even if the blueprint is renamed in the future. #}
+    <a href="/admin/fie/users"
        class="af-rail-link {% if request.path.startswith('/admin/fie/users') %}active{% endif %}">
       <i class="af-ico fas fa-users"></i>
       <span>Users</span>
@@ -432,8 +436,10 @@
       <span>AI-Org Dashboards</span>
     </a>
 
-    {# 8. Revenue Intelligence — /admin/revenue (revenue_intel blueprint) #}
-    <a href="{{ url_for('revenue_intel.revenue_view') }}"
+    {# 8. Revenue Intelligence — /admin/revenue (revenue_intel blueprint).
+       Endpoint is revenue_intel.revenue_dashboard (the actual route name),
+       not 'revenue_view'. Same wireframe-vs-implementation drift as Users. #}
+    <a href="{{ url_for('revenue_intel.revenue_dashboard') }}"
        class="af-rail-link {% if request.path.startswith('/admin/revenue') %}active{% endif %}">
       <i class="af-ico fas fa-chart-line"></i>
       <span>Revenue Intelligence</span>
