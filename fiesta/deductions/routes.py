@@ -324,6 +324,81 @@ def unclaim(category_id: str):
 
 
 # ---------------------------------------------------------------------------
+# POST /reduce-tax/evidence/<category_id> — Sprint 2: evidence-chain status
+# ---------------------------------------------------------------------------
+# Lifecycle (per fiesta/deductions/models.py):
+#   pending   -> initial state on claim
+#   collected -> customer has the receipts/agreement ready (self-attested)
+#   submitted -> customer has uploaded into FIESTA (Wave 4 - file upload TBD)
+#   rejected  -> upload failed review (Wave 4)
+#
+# This endpoint accepts a JSON body {"status": "<one of the above>"} and
+# updates the DeductionClaim row. The audit-defensibility scoring already
+# tallies pending vs with-evidence (aggregator.py:174-380), so this directly
+# moves the customer's score upward as they collect.
+@deductions_bp.route("/evidence/<category_id>", methods=["POST"])
+@login_required
+def update_evidence_status(category_id: str):
+    if not _HAS_DB:
+        return jsonify({"ok": False, "error": "DB unavailable"}), 503
+
+    user_id = _current_user_id()
+    if not user_id:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+
+    tax_year = _resolve_tax_year()
+    from .models import (
+        DeductionClaim,
+        EVIDENCE_STATUS_PENDING,
+        EVIDENCE_STATUS_COLLECTED,
+        EVIDENCE_STATUS_SUBMITTED,
+        EVIDENCE_STATUS_REJECTED,
+    )
+
+    allowed = {
+        EVIDENCE_STATUS_PENDING,
+        EVIDENCE_STATUS_COLLECTED,
+        EVIDENCE_STATUS_SUBMITTED,
+        EVIDENCE_STATUS_REJECTED,
+    }
+    payload = request.get_json(silent=True) or {}
+    new_status = (payload.get("status") or "").strip().lower()
+    if new_status not in allowed:
+        return jsonify({
+            "ok": False,
+            "error": f"status must be one of {sorted(allowed)}",
+        }), 400
+
+    try:
+        claim_row = (
+            DeductionClaim.query
+            .filter_by(user_id=user_id, tax_year=tax_year, category_id=category_id)
+            .first()
+        )
+        if claim_row is None:
+            return jsonify({
+                "ok": False,
+                "error": "No claim exists for that category — claim it first.",
+            }), 404
+        claim_row.evidence_status = new_status
+        claim_row.updated_at = datetime.utcnow()
+        db.session.commit()
+        # Sprint 3 perf: evidence changes affect the audit-defensibility
+        # number that feeds /tax-bill — bust the cached hub so the topbar
+        # picks up any downstream score shifts.
+        try:
+            from app import _invalidate_hub_cache
+            _invalidate_hub_cache(user_id)
+        except Exception:
+            pass
+        return jsonify({"ok": True, "claim": claim_row.to_dict()})
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Evidence status update failed")
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
 # GET /reduce-tax/estimate — live JSON for the running tally
 # ---------------------------------------------------------------------------
 @deductions_bp.route("/estimate", methods=["GET"])
