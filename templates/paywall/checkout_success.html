@@ -1,42 +1,209 @@
-{% extends "layout.html" %}
+{% extends layout_template %}
 
-{% block title %}Processing payment - FIESTA{% endblock %}
+{% block title %}You're in — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  /* Sprint 4 Tier A: post-payment welcome — replaces the spinner-only
+     processing page so a paying customer sees a concrete welcome, what
+     they unlocked, and three obvious next steps. */
+  .cs-page {
+    max-width: 760px;
+    margin: 2rem auto;
+    padding: 0 1.25rem;
+  }
+  .cs-hero {
+    background: linear-gradient(135deg, #ECFDF5 0%, #fff 100%);
+    border: 1px solid #A7F3D0;
+    border-radius: 18px;
+    padding: 2rem 1.75rem 1.75rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .cs-hero__tick {
+    width: 56px; height: 56px;
+    margin: 0 auto 0.75rem;
+    border-radius: 50%;
+    background: #10B981;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 28px;
+  }
+  .cs-hero h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 2rem;
+    margin: 0 0 0.4rem;
+    color: #064E3B;
+    letter-spacing: -0.01em;
+  }
+  .cs-hero p { margin: 0; color: #064E3B; opacity: 0.85; }
+  .cs-status {
+    display: inline-block;
+    margin-top: 0.9rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .cs-status--active { background: #DCFCE7; color: #166534; }
+  .cs-status--pending { background: #FEF3C7; color: #92400E; }
+  .cs-unlocked {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1.5rem;
+  }
+  .cs-unlocked h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem; font-weight: 600;
+    margin: 0 0 0.75rem;
+  }
+  .cs-unlocked ul {
+    margin: 0; padding-left: 1.1rem;
+    color: #475569; font-size: 0.95rem; line-height: 1.7;
+  }
+  .cs-next h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem; font-weight: 600;
+    margin: 0 0 0.75rem;
+    color: #1E293B;
+  }
+  .cs-nextlist {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr;
+  }
+  .cs-nextlink {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fff; border: 1px solid #E5E7EB; border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    text-decoration: none; color: #1E293B;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .cs-nextlink:hover {
+    border-color: #10B981; transform: translateX(2px);
+    text-decoration: none;
+  }
+  .cs-nextlink__num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #ECFDF5; color: #047857;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem;
+    margin-right: 0.85rem;
+    flex-shrink: 0;
+  }
+  .cs-nextlink__body { flex: 1; }
+  .cs-nextlink__title { font-weight: 600; }
+  .cs-nextlink__sub { color: #64748B; font-size: 0.85rem; margin-top: 0.1rem; }
+  .cs-nextlink__arrow { color: #94A3B8; font-size: 1.2rem; }
+  .cs-footnote {
+    text-align: center; color: #94A3B8;
+    font-size: 0.82rem; margin-top: 1.5rem;
+  }
+  .cs-footnote code { color: #64748B; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-lg-6 text-center">
+<div class="cs-page">
 
-      <div class="card shadow-sm border-0">
-        <div class="card-body p-5">
+  <div class="cs-hero">
+    <div class="cs-hero__tick">&#10003;</div>
+    <h1>You're in.</h1>
+    <p>Self-File is live on your account for the {{ tax_year_display | default('2025/26') }} tax year.</p>
+    {% if subscription_active %}
+      <div class="cs-status cs-status--active">Subscription active</div>
+    {% else %}
+      <div class="cs-status cs-status--pending">Confirming with Stripe</div>
+    {% endif %}
+  </div>
 
-          <div class="mb-3">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Processing...</span>
-            </div>
-          </div>
+  <div class="cs-unlocked">
+    <h2>What just unlocked</h2>
+    <ul>
+      <li>10 IRA-anchored deduction categories — each with the §6(1) statutory basis attached</li>
+      <li>Service Agreements + Rental Agreements with audit-defence built in</li>
+      <li>The full tax-bill computation with bracket-by-bracket walkthrough</li>
+      <li>S14 attestation flow + 12-step IRD submission walkthrough</li>
+      <li>Audit-defence pack (PDF) you can download anytime</li>
+    </ul>
+  </div>
 
-          <h2 class="h4 mb-2">Payment received</h2>
-          <p class="text-muted">
-            Stripe is confirming your charge. This usually takes a few seconds.
-            We'll route you back to where you left off as soon as it clears.
-          </p>
-
-          <p class="text-muted small mt-4 mb-0">
-            Session: <code>{{ session_id[:16] }}&hellip;</code>
-          </p>
-
+  <div class="cs-next">
+    <h2>Three things to do next (5 minutes)</h2>
+    <div class="cs-nextlist">
+      <a class="cs-nextlink" href="/remittance/new">
+        <span class="cs-nextlink__num">1</span>
+        <div class="cs-nextlink__body">
+          <div class="cs-nextlink__title">Log your first remittance</div>
+          <div class="cs-nextlink__sub">Every IRD-defensible deduction starts with logging the foreign income at CBSL middle rate.</div>
         </div>
-      </div>
-
-      <p class="text-muted small mt-4">
-        Not redirected automatically?
-        <a href="{{ return_to }}">Continue to {{ return_to }}</a>.
-      </p>
-
+        <span class="cs-nextlink__arrow">&rarr;</span>
+      </a>
+      <a class="cs-nextlink" href="/reduce-tax/">
+        <span class="cs-nextlink__num">2</span>
+        <div class="cs-nextlink__body">
+          <div class="cs-nextlink__title">Claim your deductions</div>
+          <div class="cs-nextlink__sub">Tick the categories that apply to you — your savings number ticks up in real time.</div>
+        </div>
+        <span class="cs-nextlink__arrow">&rarr;</span>
+      </a>
+      <a class="cs-nextlink" href="/tax-bill/2025-26">
+        <span class="cs-nextlink__num">3</span>
+        <div class="cs-nextlink__body">
+          <div class="cs-nextlink__title">See your tax bill</div>
+          <div class="cs-nextlink__sub">Bracket-by-bracket walk through what you owe — and how much FIESTA saved you.</div>
+        </div>
+        <span class="cs-nextlink__arrow">&rarr;</span>
+      </a>
     </div>
   </div>
+
+  <p class="cs-footnote">
+    Receipt for Rs 2,500 on its way to your email.
+    {% if session_id %}
+      Stripe reference: <code>{{ session_id[:16] }}&hellip;</code>
+    {% endif %}
+    <br>
+    Original destination: <a href="{{ return_to }}" style="color: #64748B;">{{ return_to }}</a>
+  </p>
+
 </div>
 
-<meta http-equiv="refresh" content="3; url={{ return_to }}"/>
+{# Sprint 4 Tier A: poll subscription state in the background so we can flip
+   "Confirming with Stripe" -> "Subscription active" without forcing a full
+   page refresh. The webhook usually beats the user by 1-2 seconds; if it
+   doesn't, the badge updates the moment the row appears. #}
+{% if not subscription_active %}
+<script>
+(function () {
+  'use strict';
+  let attempts = 0;
+  const maxAttempts = 10;  // 10 * 2s = 20s ceiling
+  const badge = document.querySelector('.cs-status');
+  function poll() {
+    attempts += 1;
+    fetch('/pricing/x1.json', { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.subscription_active === true) {
+          if (badge) {
+            badge.classList.remove('cs-status--pending');
+            badge.classList.add('cs-status--active');
+            badge.textContent = 'Subscription active';
+          }
+          return;
+        }
+        if (attempts < maxAttempts) setTimeout(poll, 2000);
+      })
+      .catch(() => {
+        if (attempts < maxAttempts) setTimeout(poll, 2000);
+      });
+  }
+  setTimeout(poll, 2000);
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -194,6 +194,12 @@ def index():
         cat["_estimated_lkr"] = (
             Decimal(claim["estimated_lkr"]) if claim and claim.get("estimated_lkr") else None
         )
+        # Sprint 4 Tier A: expose evidence_status to template so we can render
+        # the per-card "Evidence ready?" badge + toggle. Default to 'pending'
+        # when no claim exists or status hasn't been set.
+        cat["_evidence_status"] = (
+            (claim.get("evidence_status") if claim else None) or "pending"
+        )
 
     # Running tally for the top of the page
     claim_dicts = [c for c in current_claims.values() if c.get("claimed")]

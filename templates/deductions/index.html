@@ -170,6 +170,48 @@
     font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
     color: var(--ink-strong);
   }
+
+  /* Sprint 4 Tier A: evidence-chain toggle on claimed cards */
+  .s5-evidence-row {
+    margin-top: 0.75rem; padding-top: 0.75rem;
+    border-top: 1px dashed var(--line);
+    display: flex; flex-wrap: wrap; gap: 0.6rem;
+    align-items: center; justify-content: space-between;
+  }
+  .s5-evidence-label {
+    font-size: 0.85rem; color: var(--ink-soft);
+    display: inline-flex; align-items: center; gap: 0.5rem;
+  }
+  .s5-evidence-badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .s5-evidence-badge--pending {
+    background: #FEF3C7; color: #92400E;
+  }
+  .s5-evidence-badge--collected {
+    background: #DCFCE7; color: #166534;
+  }
+  .s5-evidence-badge--submitted {
+    background: #BBF7D0; color: #14532D;
+  }
+  .s5-evidence-badge--rejected {
+    background: #FEE2E2; color: #991B1B;
+  }
+  .s5-evidence-toggle {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 8px; padding: 0.35rem 0.85rem;
+    font-size: 0.85rem; cursor: pointer;
+    color: var(--ink-strong);
+  }
+  .s5-evidence-toggle:hover {
+    border-color: var(--accent); color: var(--accent);
+  }
 </style>
 {% endblock %}
 
@@ -263,6 +305,34 @@
           {% else %}
           <button class="s5-btn" data-claim>Claim this</button>
           {% endif %}
+        </div>
+
+        {# Sprint 4 Tier A: evidence-chain toggle — appears only on claimed
+           cards so the customer can mark when their evidence (rent
+           receipts, tenancy agreement, sketch, photo, etc) is actually in
+           hand. Status flips through pending -> collected -> submitted
+           and feeds the audit-defensibility ratio in aggregator.py. #}
+        <div class="s5-evidence-row" data-evidence-row
+             {% if not cat._is_claimed %}style="display:none"{% endif %}>
+          <div class="s5-evidence-label">
+            Evidence:
+            <span class="s5-evidence-badge s5-evidence-badge--{{ cat._evidence_status }}"
+                  data-evidence-badge data-evidence-status="{{ cat._evidence_status }}">
+              {% if cat._evidence_status == 'collected' %}Collected
+              {% elif cat._evidence_status == 'submitted' %}Submitted
+              {% elif cat._evidence_status == 'rejected' %}Rejected
+              {% else %}Pending{% endif %}
+            </span>
+          </div>
+          <button type="button" class="s5-evidence-toggle"
+                  data-evidence-toggle
+                  data-evidence-current="{{ cat._evidence_status }}">
+            {% if cat._evidence_status in ('collected', 'submitted') %}
+              I haven't collected proofs yet
+            {% else %}
+              I have my proofs ready
+            {% endif %}
+          </button>
         </div>
       </div>
     </article>
@@ -409,6 +479,9 @@
           card.setAttribute('aria-pressed', 'true');
           claimBtn.outerHTML = '<button class="s5-btn s5-btn--ghost" data-unclaim>Unclaim</button>';
           card.querySelector('[data-unclaim]').addEventListener('click', unclaimHandler(card, catId));
+          // Sprint 4: reveal evidence row + reset badge to pending on fresh claim
+          const evRow = card.querySelector('[data-evidence-row]');
+          if (evRow) evRow.style.display = '';
           await refreshTally();
         } else {
           alert('Could not claim: ' + (result.error || 'unknown error'));
@@ -418,6 +491,58 @@
     const unclaimBtn = card.querySelector('[data-unclaim]');
     if (unclaimBtn) {
       unclaimBtn.addEventListener('click', unclaimHandler(card, catId));
+    }
+
+    // Sprint 4 Tier A: evidence-status toggle. Flips between pending and
+    // collected. The submitted/rejected states are reserved for Wave 4
+    // (file upload + admin review) — out of scope here.
+    const evToggle = card.querySelector('[data-evidence-toggle]');
+    if (evToggle) {
+      evToggle.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const badge = card.querySelector('[data-evidence-badge]');
+        const current = (badge && badge.dataset.evidenceStatus) || 'pending';
+        const next = (current === 'collected' || current === 'submitted') ? 'pending' : 'collected';
+        evToggle.disabled = true;
+        try {
+          const r = await fetch('/reduce-tax/evidence/' + encodeURIComponent(catId), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({ status: next }),
+          });
+          const data = await r.json();
+          if (data.ok) {
+            // Update badge text + class + dataset
+            if (badge) {
+              badge.className = 's5-evidence-badge s5-evidence-badge--' + next;
+              badge.dataset.evidenceStatus = next;
+              badge.textContent = (
+                next === 'collected' ? 'Collected'
+                : next === 'submitted' ? 'Submitted'
+                : next === 'rejected' ? 'Rejected'
+                : 'Pending'
+              );
+            }
+            // Update toggle label
+            evToggle.textContent = (next === 'collected' || next === 'submitted')
+              ? "I haven't collected proofs yet"
+              : 'I have my proofs ready';
+            // The audit-defensibility ratio just changed -> refresh the tally
+            // (which also re-syncs the topbar via the existing animateTo path).
+            await refreshTally();
+          } else {
+            alert('Could not update evidence status: ' + (data.error || 'unknown'));
+          }
+        } catch (err) {
+          console.warn('evidence toggle failed', err);
+        } finally {
+          evToggle.disabled = false;
+        }
+      });
     }
 
     // Legal-basis link
@@ -461,6 +586,9 @@
             });
           }
         }
+        // Sprint 4: hide the evidence row when the claim is removed
+        const evRow = card.querySelector('[data-evidence-row]');
+        if (evRow) evRow.style.display = 'none';
         await refreshTally();
       }
     };

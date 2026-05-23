@@ -316,21 +316,40 @@ def checkout_success():
         payload={"session_id": session_id[:64], "return_to": return_to},
         source="route:paywall.checkout_success",
     )
+    # Sprint 4 Tier A: pass subscription_active + tax_year_display to the
+    # rewritten welcome template so we can show the right badge state and
+    # the right tax year copy. The template polls /pricing/x1.json every 2s
+    # to flip from "Confirming" -> "Active" if the webhook lands late.
     return render_template(
         "paywall/checkout_success.html",
         return_to=return_to,
         session_id=session_id,
+        subscription_active=False,
+        tax_year_display=current_sl_tax_year(),
     )
 
 
 @paywall_bp.route("/pricing/x1.json", methods=["GET"])
 def product_json():
     """Machine-readable product spec — for landing pages, the AI orchestrator,
-    and the funnel admin views."""
+    and the funnel admin views.
+
+    Sprint 4 Tier A: also include subscription_active for the
+    checkout-success page's polling JS to flip 'Confirming' -> 'Active'
+    once the Stripe webhook lands.
+    """
+    from .gate import is_tier_active
+    subscription_active = False
+    try:
+        if current_user.is_authenticated:
+            subscription_active = bool(is_tier_active(current_user, TIER_SELF_FILE))
+    except Exception:
+        pass
     return jsonify({
         "product": SELF_FILE_PRODUCT,
         "tax_year": current_sl_tax_year(),
         "expires_at_iso": expires_at_for_tax_year().isoformat(),
+        "subscription_active": subscription_active,
     })
 
 
