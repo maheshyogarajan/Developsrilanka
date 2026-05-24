@@ -16,10 +16,15 @@ RUN uv sync --frozen --no-dev --no-install-project
 FROM python:3.11-slim
 
 # Install OS-level runtime deps (psycopg2-binary needs libpq, Pillow needs libjpeg)
+# postgresql-client-15 added 2026-05-24 (Tier D1/F1) for daily pg_dump backup.
+# Debian 12 (bookworm) base ships PG 15 client; works fine against PG 17 server
+# for logical pg_dump --format=custom (forward compat is per-format guaranteed
+# but we pin server-side flags in tasks/pg_backup.py to be PG15-client-safe).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     libjpeg62-turbo \
     libwebp7 \
+    postgresql-client-15 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
