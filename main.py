@@ -163,6 +163,16 @@ try:
 except Exception as e:
     logger.error(f"Error loading analytics beacon routes: {str(e)}")
 
+# Tier C Wave A — admin-only analytics dashboard (/admin/analytics +
+# /admin/analytics/export). Reads from the same `events` table the beacon
+# above writes to. Admin-gated via fiesta.auth.decorators.admin_required.
+try:
+    from analytics_dashboard_routes import register_routes as register_analytics_dashboard_routes
+    register_analytics_dashboard_routes(app)
+    logger.info("Tier-C analytics dashboard loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading analytics dashboard routes: {str(e)}")
+
 # Import team management routes
 try:
     from blueprints.team import register_routes as register_team_routes
