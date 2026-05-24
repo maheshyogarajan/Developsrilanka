@@ -31,6 +31,19 @@ try:
 except Exception as e:
     logger.error(f"Error loading feedback_models: {str(e)}")
 
+# Tier D5 / E6 2026-05-24: A/B testing harness. Import ab_test_models so
+# ab_experiment + ab_assignment tables register with SQLAlchemy metadata
+# for db.create_all(). Register the {{ ab_variant('experiment_key') }}
+# Jinja helper so templates can branch on variant without touching Python.
+# Raw DDL backup lives in migrations/add_ab_tests.py.
+try:
+    import ab_test_models  # noqa: F401
+    from ab_test import register_template_helper as register_ab_template_helper
+    register_ab_template_helper(app)
+    logger.info("A/B testing harness loaded (ab_experiment + ab_assignment + ab_variant helper)")
+except Exception as e:
+    logger.error(f"Error loading ab_test harness: {str(e)}")
+
 # Import model event listeners (for auto-creating Personal Finances organization)
 try:
     import models_event_listener
