@@ -331,6 +331,12 @@ def _build_beacon_view(csrf):
                 enriched.pop(k, None)
 
         # ---- Persist via the existing EVENT SPINE ---- #
+        #
+        # Transitional dual-write (Tier C2, 2026-05-24): we pass session_anon_id
+        # both inside the `enriched` payload (so any existing analytics consumer
+        # that reads payload['session_anon_id'] keeps working) AND as the
+        # explicit kwarg (so it lands in the indexed top-level column
+        # `events.session_anon_id`). The two write paths reconcile on the row.
         try:
             from events import emit as _emit
             _emit(
@@ -338,6 +344,7 @@ def _build_beacon_view(csrf):
                 user_id=user_id,
                 payload=enriched,
                 source="beacon",
+                session_anon_id=anon_id,
             )
         except Exception as exc:
             # Best-effort: log + continue. We still return 204 because the
