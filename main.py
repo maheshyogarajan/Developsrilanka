@@ -305,6 +305,20 @@ try:
 except Exception as e:
     logger.error(f"Error loading Paywall X1: {str(e)}")
 
+# Tier D1 C1 — Stripe subscription auto-renew + customer billing portal (2026-05-24)
+# Recurring webhooks (invoice.paid / invoice.payment_failed /
+# customer.subscription.updated / customer.subscription.deleted) + /billing
+# portal redirect. Distinct from the one-time X1 webhook above.
+try:
+    from webhooks.stripe_subscription import register_routes as register_stripe_subscription
+    register_stripe_subscription(app)
+    logger.info(
+        "Stripe subscription auto-renew registered "
+        "(/webhooks/stripe/subscription, /billing)"
+    )
+except Exception as e:
+    logger.error(f"Error loading Stripe subscription: {str(e)}")
+
 # Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
 try:
     import customer_brain_routes
