@@ -311,6 +311,20 @@ def _handle_invoice_paid(stripe_event: dict) -> None:
     except Exception as exc:
         log.debug("invoice.paid: dunning recovery skipped: %s", exc)
 
+    # Tier D4 / A5 — enroll user in lifecycle drip (payment_thanks +
+    # the deadline reminders). Best-effort; never breaks the webhook.
+    # cohort_id (YYYY-MM) makes this idempotent within a billing cycle.
+    try:
+        if row.user_id:
+            from models import User
+            from lifecycle_drip import enroll as _drip_enroll
+            u = User.query.get(row.user_id)
+            if u is not None:
+                _drip_enroll(u, "payment_completed")
+                _drip_enroll(u, "tax_year_cycle")
+    except Exception as exc:
+        log.debug("invoice.paid: lifecycle drip enroll skipped: %s", exc)
+
     emit_analytics_event(
         "subscription_invoice_paid",
         user_id=row.user_id,

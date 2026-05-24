@@ -284,6 +284,17 @@ def signup_submit():
         source="route:signup_submit",
     )
 
+    # ---------- 6b. Tier D4 / A5 — enroll in lifecycle drip ---------- #
+    # Schedules welcome (day 0) + calculator_nudge (day 1). Never raises
+    # into the signup flow — best-effort, logged.
+    try:
+        from lifecycle_drip import enroll as _drip_enroll
+        _drip_enroll(new_user, "signup")
+    except Exception as exc:
+        log.warning(
+            "S2 signup: lifecycle_drip enroll failed for %s: %s", email, exc,
+        )
+
     # ---------- 7. Log in + send to verify-email reminder ---------- #
     login_user(new_user)
     flash(
