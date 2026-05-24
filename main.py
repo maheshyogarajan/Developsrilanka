@@ -503,6 +503,20 @@ try:
 except Exception as e:
     logger.error(f"FIESTA S12 tax-bill load failed: {e}")
 
+# FIESTA Tier D2-bpdf — IRD-ready tax return PDF download (2026-05-24)
+# Sellable without IRD-portal automation (B4/B5/B7 external gates bypassed).
+try:
+    from fiesta.tax_bill.tax_return_pdf_routes import (
+        register_blueprint as register_tax_return_pdf,
+    )
+    register_tax_return_pdf(app)
+    logger.info(
+        "FIESTA Tier-D2-bpdf IRD return PDF route registered at "
+        "/tax-bill/<tax_year>/return.pdf"
+    )
+except Exception as e:
+    logger.error(f"FIESTA Tier-D2-bpdf IRD return PDF load failed: {e}")
+
 # FIESTA Wave 3 Week 5 — S14 Submit (final gate + IRD-ready export pack)
 try:
     from fiesta.submit.routes import register_routes as register_submit
