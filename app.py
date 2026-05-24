@@ -589,6 +589,60 @@ def db_recovery():
     
     return redirect(url_for('home'))
 
+
+# B-0040 (Tier C) — S0 anon landing hero example, cached once per process.
+# The savings-first hero in fiesta_public/s0_landing.html shows a worked
+# example for a representative SL-based remote engineer (USD 2,500/mo
+# foreign income, 25/26 brackets). Inputs are STATIC — there is no per-
+# request variance — so calling fiesta.tax.preview.quick_preview() on every
+# anonymous GET / was pure waste (measured 3.6-6.4s warm response times
+# vs 900ms healthz). lru_cache(maxsize=1) caches the rendered dict for
+# the process lifetime; first call computes, every subsequent call is a
+# dict lookup. Defensive fallback to the previously hardcoded values
+# keeps the template rendering safe even if the tax engine raises.
+import functools as _functools
+
+_HERO_EXAMPLE_FALLBACK = {
+    "naive_tax_lkr": "999,000",
+    "fiesta_tax_lkr": "700,020",
+    "saving_lkr": "298,980",
+    "saving_pct": "30",
+    "gross_income_lkr": "9,060,000",
+}
+
+
+@_functools.lru_cache(maxsize=1)
+def _s0_hero_example():
+    """Compute the S0 anon-landing hero example once per process.
+
+    Returns a dict of pre-formatted display strings for the savings-first
+    hero block. Values are derived from fiesta.tax.preview.quick_preview()
+    with the canonical example inputs (USD 2,500/mo foreign income, 25/26
+    brackets). Falls back to the previously hardcoded literals on any
+    import or compute error so the landing page never breaks.
+    """
+    try:
+        from fiesta.tax.preview import quick_preview
+        r = quick_preview(2500 * 12, "USD", "foreign", year="25_26")
+        # quick_preview returns Decimal-coerced strings ("999000"); format
+        # with thousands separators for display, drop the decimal on pct.
+        def _fmt(key):
+            try:
+                return "{:,.0f}".format(float(r[key]))
+            except (KeyError, ValueError, TypeError):
+                return _HERO_EXAMPLE_FALLBACK.get(key, "0")
+        return {
+            "naive_tax_lkr": _fmt("naive_tax_lkr"),
+            "fiesta_tax_lkr": _fmt("fiesta_tax_lkr"),
+            "saving_lkr": _fmt("saving_lkr"),
+            "saving_pct": "{:.0f}".format(float(r.get("saving_pct", "30"))),
+            "gross_income_lkr": _fmt("gross_income_lkr"),
+        }
+    except Exception as exc:
+        logging.warning(f"S0 hero example compute failed, using fallback: {exc}")
+        return dict(_HERO_EXAMPLE_FALLBACK)
+
+
 @app.route('/')
 def home():
     """X8a — public-flow landing.
@@ -618,6 +672,7 @@ def home():
             return render_template(
                 'fiesta_public/hub.html',
                 fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
+                hero_example=_s0_hero_example(),
             )
         return redirect(url_for('index'))
 
@@ -636,6 +691,7 @@ def home():
     return render_template(
         'fiesta_public/s0_landing.html',
         fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
+        hero_example=_s0_hero_example(),
     )
 
 @app.route('/preview')
