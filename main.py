@@ -21,6 +21,16 @@ try:
 except Exception as e:
     logger.error(f"Error loading event_models: {str(e)}")
 
+# Tier D4 2026-05-24: import feedback_models so the `feedback` table is
+# registered with SQLAlchemy metadata for db.create_all(). The table is
+# ALSO created via raw SQL in app._ensure_additive_schema() for belt-and-
+# braces — that path covers every entry point (gunicorn, wsgi, celery).
+try:
+    import feedback_models  # noqa: F401
+    logger.info("Feedback models loaded (feedback table)")
+except Exception as e:
+    logger.error(f"Error loading feedback_models: {str(e)}")
+
 # Import model event listeners (for auto-creating Personal Finances organization)
 try:
     import models_event_listener
@@ -162,6 +172,14 @@ try:
     logger.info("Analytics beacon routes loaded successfully")
 except Exception as e:
     logger.error(f"Error loading analytics beacon routes: {str(e)}")
+
+# Sprint 4 Tier D4 — in-app feedback widget endpoint (POST /api/feedback)
+try:
+    from feedback_routes import register_routes as register_feedback_routes
+    register_feedback_routes(app)
+    logger.info("Feedback routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading feedback routes: {str(e)}")
 
 # Tier C Wave A — admin-only analytics dashboard (/admin/analytics +
 # /admin/analytics/export). Reads from the same `events` table the beacon
