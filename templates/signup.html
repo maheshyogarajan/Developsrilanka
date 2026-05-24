@@ -1,5 +1,10 @@
 {% extends 'empty_layout.html' %}
 
+{# Tier D6 / A2 — pixel_event='signup_started' is passed in via
+   render_template() kwargs from fiesta.signup.routes.signup_form. Jinja
+   `{% set %}` in a child template does NOT propagate to the parent layout's
+   include scope, so the route is the only correct place to set it. #}
+
 {% block title %}Start your FIESTA trial — Sign up{% endblock %}
 
 {% block content %}

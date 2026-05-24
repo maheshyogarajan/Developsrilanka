@@ -1,0 +1,144 @@
+{# ------------------------------------------------------------------------- #
+   Paid-acquisition pixels — Tier D6 / A2 (2026-05-24).
+
+   Renders Meta Pixel + LinkedIn Insight Tag + Twitter (X) Pixel,
+   each independently env-gated. The master kill switch ``PIXELS_ENABLED``
+   and per-network IDs live in pixels.py; this template is the
+   ONLY surface where the pixel JS reaches a browser.
+
+   USAGE
+   =====
+
+   In the base layout, include unconditionally — the component handles
+   its own enable/suppression logic:
+
+       {% include 'components/pixels.html' %}
+
+   To fire a conversion event on a specific page, set ``pixel_event``
+   in the template's local context. Recognised events:
+
+       signup_started
+       signup_completed
+       paid_subscription_started
+       paid_subscription_completed
+
+   Example (in a route handler):
+
+       return render_template('signup.html', pixel_event='signup_started')
+
+   Or inside a template:
+
+       {% set pixel_event = 'signup_started' %}
+       {% include 'components/pixels.html' %}
+
+   PRODUCTION SAFETY
+   =================
+
+   * No pixel renders unless ``pixel_cfg.enabled`` is True (master switch).
+   * Each network requires its own ID env var to be set (else suppressed).
+   * Test mode / dev mode are suppressed inside pixels.py before the
+     context processor ever populates a truthy ID.
+   * All IDs pass through Jinja ``|e`` autoescape AND a defensive
+     character whitelist in pixels.py.
+#}
+{% if pixel_cfg and pixel_cfg.enabled %}
+  {# ------------------------------------------------------------------ #}
+  {# Meta Pixel (Facebook)                                              #}
+  {# Standard PageView fires on every page; conversion events fire when #}
+  {# pixel_event is set.                                                 #}
+  {# ------------------------------------------------------------------ #}
+  {% if pixel_cfg.meta_id %}
+  <!-- Meta Pixel — gated on META_PIXEL_ID + PIXELS_ENABLED -->
+  <script>
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+    document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '{{ pixel_cfg.meta_id|e }}');
+    fbq('track', 'PageView');
+    {% if pixel_event == 'signup_started' %}
+    fbq('track', 'Lead', { content_name: 'signup_started' });
+    {% elif pixel_event == 'signup_completed' %}
+    fbq('track', 'CompleteRegistration', { content_name: 'signup_completed' });
+    {% elif pixel_event == 'paid_subscription_started' %}
+    fbq('track', 'InitiateCheckout', { content_name: 'paid_subscription_started' });
+    {% elif pixel_event == 'paid_subscription_completed' %}
+    fbq('track', 'Purchase', {
+      content_name: 'paid_subscription_completed',
+      currency: '{{ pixel_purchase_currency|default("LKR")|e }}',
+      value: {{ pixel_purchase_value|default(0)|float }}
+    });
+    {% endif %}
+  </script>
+  <noscript>
+    <img height="1" width="1" style="display:none"
+         src="https://www.facebook.com/tr?id={{ pixel_cfg.meta_id|e }}&ev=PageView&noscript=1"
+         alt="">
+  </noscript>
+  <!-- End Meta Pixel -->
+  {% endif %}
+
+  {# ------------------------------------------------------------------ #}
+  {# LinkedIn Insight Tag                                                #}
+  {# Base init fires every page. Conversion events fire when an         #}
+  {# explicit LinkedIn conversion_id is configured (currently only      #}
+  {# base PageView — conversion mapping requires per-campaign IDs from  #}
+  {# LinkedIn Campaign Manager, configured post-launch).                #}
+  {# ------------------------------------------------------------------ #}
+  {% if pixel_cfg.linkedin_id %}
+  <!-- LinkedIn Insight Tag — gated on LINKEDIN_PARTNER_ID + PIXELS_ENABLED -->
+  <script type="text/javascript">
+    _linkedin_partner_id = "{{ pixel_cfg.linkedin_id|e }}";
+    window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
+    window._linkedin_data_partner_ids.push(_linkedin_partner_id);
+  </script>
+  <script type="text/javascript">
+    (function(l) {
+    if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
+    window.lintrk.q=[]}
+    var s = document.getElementsByTagName("script")[0];
+    var b = document.createElement("script");
+    b.type = "text/javascript";b.async = true;
+    b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
+    s.parentNode.insertBefore(b, s);})(window.lintrk);
+    {% if pixel_event == 'signup_completed' and pixel_linkedin_signup_conversion_id %}
+    window.lintrk('track', { conversion_id: '{{ pixel_linkedin_signup_conversion_id|e }}' });
+    {% elif pixel_event == 'paid_subscription_completed' and pixel_linkedin_purchase_conversion_id %}
+    window.lintrk('track', { conversion_id: '{{ pixel_linkedin_purchase_conversion_id|e }}' });
+    {% endif %}
+  </script>
+  <noscript>
+    <img height="1" width="1" style="display:none;" alt=""
+         src="https://px.ads.linkedin.com/collect/?pid={{ pixel_cfg.linkedin_id|e }}&fmt=gif">
+  </noscript>
+  <!-- End LinkedIn Insight Tag -->
+  {% endif %}
+
+  {# ------------------------------------------------------------------ #}
+  {# Twitter (X) Pixel (uet.js)                                          #}
+  {# Base 'pageview' on every page; events on conversions.              #}
+  {# ------------------------------------------------------------------ #}
+  {% if pixel_cfg.twitter_id %}
+  <!-- Twitter Pixel — gated on TWITTER_PIXEL_ID + PIXELS_ENABLED -->
+  <script>
+    !function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);
+    },s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='https://static.ads-twitter.com/uwt.js',
+    a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');
+    twq('config','{{ pixel_cfg.twitter_id|e }}');
+    {% if pixel_event == 'signup_started' %}
+    twq('event', 'tw-{{ pixel_cfg.twitter_id|e }}-signup_started', {});
+    {% elif pixel_event == 'signup_completed' %}
+    twq('event', 'tw-{{ pixel_cfg.twitter_id|e }}-signup_completed', {});
+    {% elif pixel_event == 'paid_subscription_started' %}
+    twq('event', 'tw-{{ pixel_cfg.twitter_id|e }}-checkout_started', {});
+    {% elif pixel_event == 'paid_subscription_completed' %}
+    twq('event', 'tw-{{ pixel_cfg.twitter_id|e }}-purchase', {
+      value: {{ pixel_purchase_value|default(0)|float }},
+      currency: '{{ pixel_purchase_currency|default("LKR")|e }}'
+    });
+    {% endif %}
+  </script>
+  <!-- End Twitter Pixel -->
+  {% endif %}
+{% endif %}

@@ -12,6 +12,10 @@
             margin: 0;
         }
     </style>
+
+    {# Tier D6 / A2 — Paid-acquisition pixels (Meta + LinkedIn + Twitter).
+       All three are env-gated; default-OFF behind PIXELS_ENABLED. See pixels.py. #}
+    {% include 'components/pixels.html' %}
 </head>
 <body>
     {% block content %}{% endblock %}

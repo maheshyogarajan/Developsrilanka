@@ -1,5 +1,10 @@
 {% extends layout_template %}
 
+{# Tier D6 / A2 — pixel_event='paid_subscription_started' is passed in via
+   render_template() kwargs from fiesta.paywall.pricing_screen.pricing_screen.
+   Child-template {% set %} does NOT propagate to includes in the parent
+   layout's scope, so the route is the only correct place to set it. #}
+
 {% block title %}Unlock Self-File - FIESTA{% endblock %}
 
 {% block content %}
