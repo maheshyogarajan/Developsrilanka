@@ -1,0 +1,77 @@
+# fly.staging.toml — FIESTA STAGING app on Fly.io Mumbai (bom)
+# Forked from prod fly.toml @ f52158d (Tier D5/F2 — 2026-05-24)
+#
+# Differences from prod (fly.toml):
+#   - app name = fiesta-mvp-staging (separate Fly app, own Postgres)
+#   - FLASK_ENV = staging
+#   - Smaller VMs: shared-cpu-1x / 512MB on the app group (no perf bundle)
+#   - min_machines_running = 1 (not 2 — staging tolerates cold start)
+#   - gunicorn workers reduced to 2 (no --preload — fits 512MB)
+#   - No mounts (staging is ephemeral; no persistent disk attached here)
+#
+# Deploy: flyctl deploy --remote-only --config fly.staging.toml
+# Smoke:  https://fiesta-mvp-staging.fly.dev/healthz
+
+app = "fiesta-mvp-staging"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  FLASK_ENV = "staging"
+
+# ── Web process ───────────────────────────────────────────────────────────────
+# Staging keeps a leaner gunicorn: 2 workers, no --preload — fits comfortably
+# in 512MB. Worker + beat unchanged from prod (they're not the bottleneck).
+[processes]
+  app    = "gunicorn -w 2 -b 0.0.0.0:8080 --timeout 120 --access-logfile - wsgi:app"
+  worker = "celery -A celery_config worker --loglevel=info --concurrency=2 --without-gossip --without-mingle --pool=prefork"
+  beat   = "celery -A celery_config beat --loglevel=info"
+
+# ── HTTP service (web process only) ──────────────────────────────────────────
+[[services]]
+  protocol    = "tcp"
+  internal_port = 8080
+  processes   = ["app"]
+
+  [[services.ports]]
+    port     = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port     = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type       = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.http_checks]]
+    interval    = "15s"
+    timeout     = "5s"
+    grace_period = "20s"
+    method      = "GET"
+    path        = "/healthz"
+    protocol    = "http"
+
+# ── VM sizing ─────────────────────────────────────────────────────────────────
+# Staging runs on the smallest viable footprint:
+#   - 1 machine min (cold start tolerated — staging only)
+#   - shared-cpu-1x / 512MB across all process groups
+#   - auto_stop_machines = true to let idle staging machines suspend (cost)
+[http_service]
+  internal_port       = 8080
+  force_https         = true
+  auto_stop_machines  = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes           = ["app"]
+
+[[vm]]
+  size       = "shared-cpu-1x"
+  memory     = "512mb"
+  processes  = ["app", "worker", "beat"]
