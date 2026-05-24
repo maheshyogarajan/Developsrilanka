@@ -489,11 +489,68 @@
         .tb-gate-block,
         .tb-gate-warn { padding: 0.75rem 0.85rem; font-size: 0.85rem; }
     }
+
+    /* Tier D4 C4 year-selector. Sits above the bill, lets returning customers
+       switch which tax year they're viewing. Hidden when there is only one
+       option (no value adding chrome a user can't act on). */
+    .tb-year-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+        font-family: 'Manrope', sans-serif;
+        font-size: 0.9rem;
+        color: var(--color-ink-700, #334155);
+    }
+    .tb-year-selector label {
+        font-weight: 500;
+    }
+    .tb-year-selector select {
+        font-family: inherit;
+        font-size: 0.95rem;
+        padding: 0.4rem 0.7rem;
+        border: 1px solid var(--color-ink-300, #CBD5E1);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--color-ink-800, #1E293B);
+        cursor: pointer;
+        min-height: 36px;
+    }
+    .tb-year-selector select:focus {
+        outline: 2px solid var(--color-brand-400, #60A5FA);
+        outline-offset: 1px;
+    }
+    @media (max-width: 480px) {
+        .tb-year-selector select { min-height: 44px; padding: 0.5rem 0.85rem; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid tb-container" style="max-width: 1080px; padding: 1rem 1.5rem;">
+
+    {# Tier D4 C4 — year selector. Hidden when only one option exists; the route
+       always seeds the supported set, so single-option = engine only supports
+       one year, in which case there is nothing to switch to. The select's
+       onchange navigates to /tax-bill/<year> (path-based; the route accepts
+       <tax_year> directly, no query-param needed). #}
+    {% if available_years and available_years|length > 1 %}
+    <div class="tb-year-selector" data-testid="tb-year-selector">
+        <label for="tb-year-select">Viewing tax year:</label>
+        <select id="tb-year-select"
+                onchange="if(this.value){window.location.href='/tax-bill/'+this.value;}">
+            {% for ty in available_years %}
+                {# Convert S4 ("2025-26") -> friendly S5 ("2025/2026") for display. #}
+                {% set _yy_start = ty[:4] %}
+                {% set _yy_end = ty[5:] %}
+                {% set _display = _yy_start ~ '/20' ~ _yy_end %}
+                <option value="{{ ty }}" {% if ty == selected_year %}selected{% endif %}>
+                    {{ _display }}{% if ty == selected_year %} (current view){% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
 
     {% if report.is_finalized %}
         <div class="tb-finalized-banner">

@@ -212,6 +212,94 @@ def _most_recent_supported_tax_year_s4() -> str:
     return _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST[0]
 
 
+def _available_years_for_user(user_id: int) -> list[str]:
+    """Return tax-years (S4 format, newest first) the user has data for, plus
+    always-include the most-recent and previous supported year so a brand-new
+    returning customer still sees a switcher with sensible defaults.
+
+    Sources scanned (defensive imports -- a missing module just contributes
+    nothing, never raises):
+        DeductionClaim.tax_year     (S5 -- "2025/2026")
+        RentalAgreement.tax_year    (S5 -- "2025/2026")
+        ServiceAgreement.tax_year   (S4 / mixed)
+        IncomeEntry.tax_year        (S4 -- "2025-26")
+
+    All values are normalised to S4 via normalise_tax_year_to_s4_format and
+    filtered against _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST so the dropdown can
+    never produce an option the engine can't render.
+    """
+    found: set[str] = set()
+
+    # Always-include: the supported set so a returning customer with no data
+    # in a prior year still sees that year in the dropdown (lets them realise
+    # there's nothing there yet, vs hiding the option entirely).
+    for ty in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST:
+        found.add(ty)
+
+    def _scan(model_attr_pairs):
+        for model_loader, attr in model_attr_pairs:
+            try:
+                model = model_loader()
+                if model is None:
+                    continue
+                rows = (
+                    model.query
+                    .with_entities(getattr(model, attr))
+                    .filter(model.user_id == user_id)
+                    .distinct()
+                    .all()
+                )
+                for (raw,) in rows:
+                    if not raw:
+                        continue
+                    s4 = normalise_tax_year_to_s4_format(raw)
+                    if s4 in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST:
+                        found.add(s4)
+            except Exception as exc:  # pragma: no cover -- defensive
+                logger.debug("available_years scan failed for %s.%s: %s",
+                             model_loader, attr, exc)
+
+    def _load_deduction_claim():
+        try:
+            from fiesta.deductions.models import DeductionClaim
+            return DeductionClaim
+        except Exception:
+            return None
+
+    def _load_rental_agreement():
+        try:
+            from fiesta.property.models import RentalAgreement
+            return RentalAgreement
+        except Exception:
+            return None
+
+    def _load_service_agreement():
+        try:
+            from fiesta.agreements.models import ServiceAgreement
+            return ServiceAgreement
+        except Exception:
+            return None
+
+    def _load_income_entry():
+        try:
+            from fiesta.earnings.models import IncomeEntry
+            return IncomeEntry
+        except Exception:
+            return None
+
+    _scan([
+        (_load_deduction_claim, "tax_year"),
+        (_load_rental_agreement, "tax_year"),
+        (_load_service_agreement, "tax_year"),
+        (_load_income_entry, "tax_year"),
+    ])
+
+    # Sort newest first by aligning to the supported-list order (which is
+    # already newest first). Anything not in the supported list is excluded
+    # above, so this loop is total.
+    return [ty for ty in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST if ty in found]
+
+
 def _default_tax_year_s4() -> str:
     """Return the most-recent SUPPORTED SL tax year in S4 form ("YYYY-YY").
 
@@ -286,6 +374,10 @@ def show_tax_bill(tax_year: str):
     # Run X6 gate -- DISPLAY_BILL action.
     gate = run_gate(report, action="display_bill")
 
+    # Tier D4 C4 year-selector: list of years this user has data for (intersected
+    # with engine-supported years), so /tax-bill can render a year switcher.
+    available_years = _available_years_for_user(user_id)
+
     return render_template(
         "tax_bill/index.html",
         report=report,
@@ -293,6 +385,8 @@ def show_tax_bill(tax_year: str):
         gate=gate,
         tax_year_s4=tax_year_s4,
         tax_year_display=report.tax_year_s5_format,
+        available_years=available_years,
+        selected_year=tax_year_s4,
     )
 
 
