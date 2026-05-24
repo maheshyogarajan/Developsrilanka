@@ -24,8 +24,19 @@ Design constraints (Council #2, 2026-05-17):
      are permitted (the DB column is free-form VARCHAR) but the canonical
      list should be promoted as patterns stabilise. The list is also the
      contract every Wave 2 consumer (dashboard, AI CRM, scheduler) reads.
+
+Tier D1 / B-0040 perf (2026-05-24):
+
+  5. `defer=True` runs the DB write on a small process-wide
+     ThreadPoolExecutor. The HTTP request returns before the row hits
+     Postgres. Anonymous-path call sites (notably `/` landing) use this so
+     the user doesn't eat 3-4 cross-region DB round-trips on a page render.
+     Tests can force synchronous emission by setting EVENTS_SYNC_FOR_TEST=1
+     so assertions don't race the background thread.
 """
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -66,6 +77,49 @@ STANDARD_EVENTS = [
 ]
 
 
+# --------------------------------------------------------------------------- #
+# Deferred-emit infrastructure (Tier D1 / B-0040, 2026-05-24)
+# --------------------------------------------------------------------------- #
+#
+# A single shared ThreadPoolExecutor handles `defer=True` emissions. 2 workers
+# is enough headroom for the current event volume (single-digit emits/second
+# at peak) while keeping process memory bounded. Workers are daemon threads
+# (Python's default for ThreadPoolExecutor) so they don't block interpreter
+# exit on shutdown.
+#
+# We do NOT use Celery here: the existing Celery worker is reserved for
+# heavy/retry-able tasks (OCR, Gemini, S3 uploads). Analytics emit failures
+# are tolerable losses — Council #2 design point 1.
+#
+# The executor is lazily constructed on first deferred call so that test
+# environments that never trigger defer don't spin up a thread pool.
+#
+_EXECUTOR: Optional[ThreadPoolExecutor] = None
+_EXECUTOR_MAX_WORKERS = 2
+
+
+def _get_executor() -> ThreadPoolExecutor:
+    """Return the process-wide deferred-emit executor, constructing it on
+    first use. Not thread-safe to call concurrently from multiple threads
+    on the very first call, but Python's GIL + ThreadPoolExecutor are
+    cheap enough that a race here at most creates one extra orphan
+    executor — harmless."""
+    global _EXECUTOR
+    if _EXECUTOR is None:
+        _EXECUTOR = ThreadPoolExecutor(
+            max_workers=_EXECUTOR_MAX_WORKERS,
+            thread_name_prefix="events-emit",
+        )
+    return _EXECUTOR
+
+
+def _events_sync_override() -> bool:
+    """When EVENTS_SYNC_FOR_TEST=1, force defer=True calls to emit
+    synchronously. Tests need this so assertions on Event.query don't
+    race the background thread."""
+    return os.environ.get("EVENTS_SYNC_FOR_TEST", "0") == "1"
+
+
 def _safe_request_context() -> dict:
     """Lift session_id / ip_address / user_agent from the Flask request if
     we're inside a request scope. Returns an empty dict otherwise — emit()
@@ -101,6 +155,80 @@ def _safe_request_context() -> dict:
     return ctx
 
 
+def _do_emit(
+    event_type: str,
+    user_id: Optional[int],
+    payload: Optional[dict],
+    source: Optional[str],
+    organization_id: Optional[int],
+    session_anon_id: Optional[str],
+    ctx: dict,
+    app_obj: Any = None,
+) -> Optional[int]:
+    """The actual DB write. Used by both sync and deferred paths. If
+    app_obj is supplied (deferred path), we push an app context so
+    Flask-SQLAlchemy can find the session."""
+    try:
+        from app import db
+        from event_models import Event
+
+        # Dual-write reconciliation: prefer the explicit kwarg, fall back to
+        # whatever the caller embedded in payload. This keeps every existing
+        # call site (which passes session_anon_id INSIDE payload) writing to
+        # the indexed top-level column without any code change at the caller.
+        effective_anon = session_anon_id
+        if not effective_anon and isinstance(payload, dict):
+            v = payload.get("session_anon_id")
+            if isinstance(v, str) and v:
+                effective_anon = v
+        if effective_anon:
+            effective_anon = effective_anon[:64]  # column cap
+
+        def _write() -> Optional[int]:
+            event = Event(
+                event_type=event_type[:64],  # column cap
+                user_id=user_id,
+                organization_id=organization_id,
+                payload=payload,
+                source=(source[:32] if source else None),
+                session_id=ctx.get("session_id"),
+                ip_address=ctx.get("ip_address"),
+                user_agent=ctx.get("user_agent"),
+                session_anon_id=effective_anon,
+            )
+            db.session.add(event)
+            db.session.commit()
+            return event.id
+
+        if app_obj is not None:
+            # Background thread: need an app context for the SQLAlchemy
+            # session to bind. Also use a fresh scoped session to avoid
+            # cross-thread session reuse.
+            with app_obj.app_context():
+                try:
+                    return _write()
+                finally:
+                    try:
+                        db.session.remove()
+                    except Exception:
+                        pass
+        else:
+            return _write()
+    except Exception as exc:
+        # Best-effort: log, roll back, return None. Never propagate —
+        # analytics is observational, not transactional.
+        logger.warning(
+            "events.emit(%r) failed: %s. Caller continues.",
+            event_type, exc,
+        )
+        try:
+            from app import db
+            db.session.rollback()
+        except Exception:
+            pass
+        return None
+
+
 def emit(
     event_type: str,
     user_id: Optional[int] = None,
@@ -108,9 +236,10 @@ def emit(
     source: Optional[str] = None,
     organization_id: Optional[int] = None,
     session_anon_id: Optional[str] = None,
+    defer: bool = False,
 ) -> Optional[int]:
     """Best-effort emit one Event row. Returns the new event id on success,
-    None on any failure. NEVER raises.
+    None on any failure or when deferred. NEVER raises.
 
     Args:
         event_type: short slug, ideally from STANDARD_EVENTS.
@@ -127,57 +256,81 @@ def emit(
                 payload['session_anon_id'] is set, we lift it into the
                 top-level column (transitional dual-write — keeps any
                 pre-Tier-C2 caller's row queryable on the new index).
+        defer: when True, schedule the DB write on a background thread and
+                return immediately. Returns None (no event id available).
+                When EVENTS_SYNC_FOR_TEST=1 the defer flag is ignored and
+                emit() behaves synchronously, so tests can assert on the
+                row immediately. Tier D1 / B-0040 — landing-path latency.
 
     Returns:
-        The new Event.id on success, None on failure.
+        The new Event.id on success (sync path), None on failure or when
+        deferred.
     """
-    try:
-        # Local imports so this module can be imported by app.py without a
-        # circular-import death spiral (app -> events -> event_models -> app).
-        from app import db
-        from event_models import Event
+    ctx = _safe_request_context()
 
-        ctx = _safe_request_context()
-
-        # Dual-write reconciliation: prefer the explicit kwarg, fall back to
-        # whatever the caller embedded in payload. This keeps every existing
-        # call site (which passes session_anon_id INSIDE payload) writing to
-        # the indexed top-level column without any code change at the caller.
-        effective_anon = session_anon_id
-        if not effective_anon and isinstance(payload, dict):
-            v = payload.get("session_anon_id")
-            if isinstance(v, str) and v:
-                effective_anon = v
-        if effective_anon:
-            effective_anon = effective_anon[:64]  # column cap
-
-        event = Event(
-            event_type=event_type[:64],  # column cap
+    # Sync path — either the caller didn't request defer, or the test
+    # override is active.
+    if not defer or _events_sync_override():
+        return _do_emit(
+            event_type=event_type,
             user_id=user_id,
-            organization_id=organization_id,
             payload=payload,
-            source=(source[:32] if source else None),
-            session_id=ctx.get("session_id"),
-            ip_address=ctx.get("ip_address"),
-            user_agent=ctx.get("user_agent"),
-            session_anon_id=effective_anon,
+            source=source,
+            organization_id=organization_id,
+            session_anon_id=session_anon_id,
+            ctx=ctx,
+            app_obj=None,
         )
-        db.session.add(event)
-        db.session.commit()
-        return event.id
+
+    # Deferred path — grab the current Flask app object now (we're still
+    # in the request thread) so the background worker can push its own
+    # app context. Catch the import lazily; if anything goes sideways
+    # we silently fall back to a sync emit to preserve the row.
+    try:
+        from flask import current_app
+        app_obj = current_app._get_current_object()
+    except Exception:
+        return _do_emit(
+            event_type=event_type,
+            user_id=user_id,
+            payload=payload,
+            source=source,
+            organization_id=organization_id,
+            session_anon_id=session_anon_id,
+            ctx=ctx,
+            app_obj=None,
+        )
+
+    try:
+        _get_executor().submit(
+            _do_emit,
+            event_type,
+            user_id,
+            payload,
+            source,
+            organization_id,
+            session_anon_id,
+            ctx,
+            app_obj,
+        )
     except Exception as exc:
-        # Best-effort: log, roll back, return None. Never propagate —
-        # analytics is observational, not transactional.
+        # Pool saturated / shutdown / etc. — fall back to sync so we don't
+        # silently drop the event.
         logger.warning(
-            "events.emit(%r) failed: %s. Caller continues.",
+            "events.emit(%r) defer submit failed: %s. Falling back to sync.",
             event_type, exc,
         )
-        try:
-            from app import db
-            db.session.rollback()
-        except Exception:
-            pass
-        return None
+        return _do_emit(
+            event_type=event_type,
+            user_id=user_id,
+            payload=payload,
+            source=source,
+            organization_id=organization_id,
+            session_anon_id=session_anon_id,
+            ctx=ctx,
+            app_obj=None,
+        )
+    return None
 
 
 # Alias for sites where the intent ("this is a fire-and-forget side-effect")
