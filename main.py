@@ -181,6 +181,15 @@ try:
 except Exception as e:
     logger.error(f"Error loading feedback routes: {str(e)}")
 
+# Sprint 4 Tier D3 / D1 — AI Q&A RAG over 40-entry FAQ corpus
+# (POST /api/qa + GET /support/qa). TF-IDF retrieval, no LLM calls.
+try:
+    from qa_routes import register_routes as register_qa_routes
+    register_qa_routes(app)
+    logger.info("AI Q&A routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading AI Q&A routes: {str(e)}")
+
 # Tier C Wave A — admin-only analytics dashboard (/admin/analytics +
 # /admin/analytics/export). Reads from the same `events` table the beacon
 # above writes to. Admin-gated via fiesta.auth.decorators.admin_required.
