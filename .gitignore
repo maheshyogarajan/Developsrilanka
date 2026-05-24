@@ -18,3 +18,12 @@ __pycache__/
 
 # Fly / build
 .fly/
+
+# Tier C6 DB prep — never commit secrets / dumps
+_tier_c_db_prep/fly_pg_connection.txt
+_tier_c_db_prep/.rollback_database_url
+_tier_c_db_prep/*.sql
+_tier_c_db_prep/*.dump
+_tier_c_db_prep/*.pgdump
+_tier_c_db_prep/neon_*.txt
+_tier_c_db_prep/.secrets/
