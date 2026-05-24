@@ -1,0 +1,75 @@
+{% extends layout_template %}
+
+{% block title %}Your data &mdash; FIESTA{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 44rem;">
+  <h1 class="h2 mb-3" style="font-family: 'Fraunces', Georgia, serif;">
+    Your data
+  </h1>
+  <p class="text-muted mb-4">
+    Your rights under the Sri Lankan Personal Data Protection Act (No. 9 of
+    2022) and, for EU residents, the EU General Data Protection Regulation.
+    See the
+    <a href="{{ url_for('legal.privacy') }}">Privacy Policy</a>
+    for the full text.
+  </p>
+
+  <!-- ============================================================ -->
+  <!-- Export                                                       -->
+  <!-- ============================================================ -->
+  <section class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5">Download your data</h2>
+      <p class="small text-muted mb-3">
+        Returns a JSON file containing every record we hold for you: your
+        account, subscriptions, deduction claims, rental agreements, service
+        providers, and activity events. This is your portability export
+        (PDPA s.13 / GDPR Art. 20).
+      </p>
+      <a href="{{ url_for('data_rights.data_export') }}"
+         class="btn btn-outline-primary">
+        Download data export (JSON)
+      </a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Delete                                                       -->
+  <!-- ============================================================ -->
+  <section class="card border-danger">
+    <div class="card-body">
+      <h2 class="h5 text-danger">Delete my account</h2>
+      <p class="small text-muted mb-2">
+        Erasure right under PDPA s.16 / GDPR Art. 17. We will anonymise your
+        name and email, cancel any active subscriptions, and log you out.
+      </p>
+      <p class="small text-muted mb-3">
+        <strong>What we retain:</strong> tax-related records (deduction
+        claims, rental agreements, filings) are kept for 7 years per the
+        Sri Lankan Inland Revenue Act s.120 retention rule. See
+        <a href="{{ url_for('legal.privacy') }}">Privacy Policy &sect; 4</a>.
+      </p>
+
+      <form method="POST"
+            action="{{ url_for('data_rights.data_delete') }}"
+            onsubmit="return confirm('Are you sure? This anonymises your account and cannot be undone.');">
+        {% if csrf_token %}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% endif %}
+        <input type="hidden"
+               name="confirmation_token"
+               value="{{ delete_confirmation_token }}">
+        <button type="submit" class="btn btn-outline-danger">
+          Delete my account
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <p class="mt-4 small text-muted">
+    Questions about your data? Email
+    <a href="mailto:privacy@lanka.tax">privacy@lanka.tax</a>.
+  </p>
+</div>
+{% endblock %}
