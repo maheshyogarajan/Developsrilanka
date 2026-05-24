@@ -1,0 +1,35 @@
+# CI — run pytest on every push and PR.
+# Created by tier-d5/f3-cicd (SUB-D5 INFRA, 2026-05-24).
+
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies (uv sync)
+        run: uv sync --frozen
+
+      - name: Run pytest
+        run: uv run python -m pytest tests/ --tb=short -x
