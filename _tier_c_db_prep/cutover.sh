@@ -77,13 +77,8 @@ flyctl status -a "$CLUSTER" >/dev/null  || fail "cluster $CLUSTER not reachable"
 
 log "  OK: flyctl auth, both apps reachable, both DSNs set"
 
-# ─── Step 1: schema parity (G1 gate) ────────────────────────────────────────
-log "Step 1: schema parity verifier"
-DATABASE_URL="$NEON_DATABASE_URL" \
-FLY_PG_DATABASE_URL="$FLY_PG_DATABASE_URL_APP" \
-python "${HERE}/verify_schema_parity.py" || \
-  fail "Schema parity FAILED — cutover aborted, no changes made. Review diff above and re-seed the Fly cluster before retrying."
-log "  OK: schemas match (G1 green)"
+# ─── Step 1: SKIPPED (was pre-Step-4 parity check; logic moved post-restore) ──
+log "Step 1: skipped — parity check moved post Step 4 (empty cluster diverges before restore)"
 
 # ─── Step 2: snapshot current secret for rollback ───────────────────────────
 log "Step 2: snapshot current DATABASE_URL for rollback"
@@ -121,6 +116,14 @@ else
 
   run "flyctl ssh console -a '$CLUSTER' -C 'sh -c \"rm -f $DUMP_PATH\"'"
 fi
+
+# ─── Step 4.5: parity check (moved from Step 1 — now schemas should match) ──
+log "Step 4.5: schema parity verifier (post-restore)"
+# Run from inside fiesta-mvp app machine — has Neon egress + Flycast access.
+PARITY_CMD="cd /app && PYTHONPATH=/app DATABASE_URL='$NEON_DATABASE_URL' FLY_PG_DATABASE_URL='$FLY_PG_DATABASE_URL_APP' python /app/_tier_c_db_prep/verify_schema_parity.py"
+run "flyctl ssh console -a '$APP' -C \"bash -c \\\"$PARITY_CMD\\\"\"" || \
+  fail "Schema parity FAILED after restore — DO NOT FLIP SECRET. Inspect divergence. ROLLBACK with: flyctl secrets set DATABASE_URL=\"\$(cat $ROLLBACK_FILE)\" -a $APP"
+log "  OK: schemas match post-restore (parity gate passed)"
 
 # ─── Step 5: flip the secret ────────────────────────────────────────────────
 log "Step 5: flip DATABASE_URL on $APP → Fly bom cluster"

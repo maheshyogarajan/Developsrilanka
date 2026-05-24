@@ -109,12 +109,12 @@ app = Celery(
         # Tier D4 / E5 (2026-05-24) — Weekly self-audit Telegram report.
         'tasks.weekly_self_audit',
         # Tier D4 / A5 (2026-05-24) — Lifecycle email drip (5-email cap).
-        # Beat task scans pending rows every 15min and calls _send_stub()
-        # until SES/Mailgun is wired (see lifecycle_drip.py TODO).
         'tasks.lifecycle_drip_send',
-        # Model-only sibling so worker can register LifecycleEmail before
-        # lifecycle_drip lazy-imports it (v18.1 bootstrap pattern).
         'lifecycle_drip_models',
+        # Tier D4 / C2 (2026-05-24) — Year-over-year retention nudges.
+        # 3 calendar-anchored schedulers + daily renewal-check + hourly dispatcher.
+        'tasks.yoy_nudges_run',
+        'yoy_models',
     ]
 )
 
@@ -271,9 +271,7 @@ app.conf.beat_schedule.update({
 })
 
 # Tier D4 / E5 (2026-05-24) — Weekly self-audit Telegram report.
-# Mon 03:35 UTC = 09:05 IST. Five-minute offset from the 03:30-UTC daily
-# signup_drop_probe (so the two don't queue on the same beat tick) and
-# 25 min ahead of faq_autogen-weekly-mon-0400-utc.
+# Mon 03:35 UTC = 09:05 IST.
 app.conf.beat_schedule.update({
     'weekly-self-audit-mon-0335-utc': {
         'task': 'tasks.weekly_self_audit.run_weekly_audit',
@@ -282,14 +280,35 @@ app.conf.beat_schedule.update({
 })
 
 # Tier D4 / A5 (2026-05-24) — Lifecycle email drip scan + send.
-# Every 15min: select pending rows with scheduled_at<=now() and call
-# lifecycle_drip.send(). Council cap = 5 emails total in the sequence.
-# Send infrastructure is STUBBED — TODO in lifecycle_drip.py covers the
-# SES/Mailgun (preferred: SendGrid first since it already runs) wire-up.
 app.conf.beat_schedule.update({
     'lifecycle_drip-scan-every-15min': {
         'task': 'tasks.lifecycle_drip_send.scan_and_send_task',
         'schedule': crontab(minute='*/15'),
+    },
+})
+
+# Tier D4 / C2 (2026-05-24) — Year-over-year retention nudges.
+# 3 calendar-anchored schedulers + daily renewal-check + hourly dispatcher.
+app.conf.beat_schedule.update({
+    'yoy-apr-1-yearly': {
+        'task': 'yoy_nudges.apr_1_run',
+        'schedule': crontab(month_of_year=4, day_of_month=1, hour=4, minute=0),
+    },
+    'yoy-payment-deadline-yearly': {
+        'task': 'yoy_nudges.payment_run',
+        'schedule': crontab(month_of_year=9, day_of_month=1, hour=4, minute=0),
+    },
+    'yoy-filing-deadline-yearly': {
+        'task': 'yoy_nudges.filing_run',
+        'schedule': crontab(month_of_year=10, day_of_month=31, hour=4, minute=0),
+    },
+    'yoy-renewal-check-daily': {
+        'task': 'yoy_nudges.renewal_check',
+        'schedule': crontab(hour=4, minute=30),
+    },
+    'yoy-dispatch-hourly': {
+        'task': 'yoy_nudges.dispatch',
+        'schedule': crontab(minute=12),
     },
 })
 

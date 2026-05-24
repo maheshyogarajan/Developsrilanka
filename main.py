@@ -343,6 +343,17 @@ try:
 except Exception as e:
     logger.error(f"Error loading Paywall X1: {str(e)}")
 
+# Tier D4 / C2 — YoY retention nudges (2026-05-24)
+# Registers the yoy_nudge ORM model so db.create_all() in this same module
+# creates the table on first boot. Beat schedule + Celery tasks live in
+# celery_config.py + tasks/yoy_nudges_run.py.
+try:
+    from yoy_models import register_models as register_yoy_models
+    register_yoy_models()
+    logger.info("YoY retention nudge model registered (yoy_nudge)")
+except Exception as e:
+    logger.error(f"Error registering YoY nudges model: {str(e)}")
+
 # Tier D1 C1 — Stripe subscription auto-renew + customer billing portal (2026-05-24)
 # Recurring webhooks (invoice.paid / invoice.payment_failed /
 # customer.subscription.updated / customer.subscription.deleted) + /billing
