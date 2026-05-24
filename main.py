@@ -538,6 +538,19 @@ try:
 except Exception as e:
     logger.error(f"Legal blueprint load failed: {e}")
 
+# Tier D5 F5 — Data subject rights (2026-05-24)
+# /account/data UI + /api/me/data-export + /api/me/delete.
+# Backs PDPA (No. 9 of 2022) + GDPR rights surfaced in privacy_policy.html §5.
+try:
+    import data_rights_routes
+    data_rights_routes.register_routes(app)
+    logger.info(
+        "data_rights blueprint registered: /account/data, "
+        "/api/me/data-export, /api/me/delete"
+    )
+except Exception as e:
+    logger.error(f"data_rights blueprint load failed: {e}")
+
 # Wave 1 — S1 Triage (2026-05-20)
 # 3 neutral post-signup fact-finds at /fie/triage; answers persist to
 # User.triage_answers (JSON column added by add_triage_answers_to_user.py).

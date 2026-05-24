@@ -365,6 +365,14 @@ class User(UserMixin, db.Model):
     # Backfill from events table (auth_login event) is part of the migration.
     last_login_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
+    # F5 GDPR/PDPA soft-delete (Tier D5, 2026-05-24).
+    # Set by POST /api/me/delete (data_rights_routes.py). Non-NULL means the
+    # account is soft-deleted: PII anonymised (name/email rewritten to
+    # `deleted_user_<id>@deleted.fiesta`), subscriptions cancelled, but
+    # financial rows retained per SL IRA s.120 (privacy_policy.html §4).
+    # Added by migrations/add_user_deleted_at.py (idempotent ALTER TABLE).
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
+
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
     access_expiration_date = db.Column(db.DateTime, nullable=True)
