@@ -127,6 +127,95 @@
     color: var(--color-success-600);
     margin-bottom: var(--space-3);
   }
+
+  /* Tier D2/B1 — mobile tap-target compliance (Apple HIG 44x44).
+     Applies at 320 / 375 / 414 / 768 viewports. Layout only; no copy/visual
+     polish. Fixes 7 violations flagged by Tier C #5 mobile audit. */
+  @media (max-width: 768px) {
+    /* Brand link wrapping the FIESTA logo — was 166x36, needs h>=44. */
+    .fiesta-auth .login-card a.d-inline-block,
+    .fiesta-auth a[aria-label="FIESTA home"] {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      min-width: 44px;
+      padding: 4px 8px;
+    }
+    .fiesta-auth a[aria-label="FIESTA home"] .brand-logo,
+    .fiesta-auth a[aria-label="FIESTA home"] svg {
+      display: block;
+    }
+
+    /* Form inputs — were 237x42, need h>=44.
+       font-size: 16px also prevents iOS Safari auto-zoom on focus. */
+    .fiesta-auth .form-control {
+      min-height: 44px;
+      padding: 12px 14px;
+      font-size: 16px;
+    }
+
+    /* Primary submit button — was OK at btn-lg, ensure floor. */
+    .fiesta-auth .btn-primary,
+    .fiesta-auth .btn-lg,
+    .fiesta-auth button[type="submit"] {
+      min-height: 44px;
+      padding: 12px 22px;
+    }
+
+    /* Secondary "Create a new account" — was 237x40, need h>=44. */
+    .fiesta-auth .btn-outline-secondary {
+      min-height: 44px;
+      padding: 12px 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Inline "Forgot?" link — was 41x18, both dims too small.
+       Render as 44x44 tap target without changing visible text size. */
+    .fiesta-auth .form-label a,
+    .fiesta-auth a.small.text-muted {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0 8px;
+    }
+
+    /* Footer legal links (Terms of Service, Privacy Policy) — were tiny.
+       Use inline-block with vertical padding so the bounding box hits 44.
+       Keep visible text small; only the tap zone grows. */
+    .fiesta-auth .text-center a,
+    .fiesta-auth .text-muted a {
+      display: inline-block;
+      min-height: 44px;
+      min-width: 44px;
+      padding: 12px 6px;
+      line-height: 20px;
+      vertical-align: middle;
+    }
+
+    /* Any alert-embedded anchors get the same floor. */
+    .fiesta-auth .alert a {
+      display: inline-block;
+      min-height: 44px;
+      padding: 12px 6px;
+    }
+  }
+
+  /* Tightest viewport — ensure container padding doesn't squeeze tap zones. */
+  @media (max-width: 414px) {
+    .fiesta-auth { padding: 24px 16px; }
+    .fiesta-auth .card-body { padding: 28px 20px 24px; }
+  }
+
+  @media (max-width: 320px) {
+    .fiesta-auth { padding: 16px 12px; }
+    .fiesta-auth .card-body { padding: 24px 16px 20px; }
+    .fiesta-auth h1.h2 { font-size: 28px; }
+  }
 </style>
 {% endblock %}
 

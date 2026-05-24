@@ -69,6 +69,9 @@ SURFACES = [
     ("s5_hub",             "/",                   True,  True),
     ("tax_bill",           "/tax-bill/25-26",     True,  False),
     ("agreements_service", "/agreements/service", True,  False),
+    # Tier D2/B1 — login page is itself a critical mobile gate
+    # (50%+ of social-acquisition traffic lands here first).
+    ("login",              "/login",              False, True),
 ]
 
 # Post-deploy mobile CSS for tax_bill + agreements (this branch's changes,
@@ -112,6 +115,44 @@ INJECTED_MOBILE_CSS = """
 }
 @media (max-width: 414px) {
   .tb-container { padding: 0.75rem 0.75rem !important; }
+}
+/* Tier D2/B1 — login page tap-target compliance (mirrors templates/login.html). */
+@media (max-width: 768px) {
+  .fiesta-auth a[aria-label="FIESTA home"] {
+    display: inline-flex !important; align-items: center; justify-content: center;
+    min-height: 44px; min-width: 44px; padding: 4px 8px;
+  }
+  .fiesta-auth .form-control {
+    min-height: 44px; padding: 12px 14px; font-size: 16px;
+  }
+  .fiesta-auth .btn-primary, .fiesta-auth .btn-lg,
+  .fiesta-auth button[type="submit"] {
+    min-height: 44px; padding: 12px 22px;
+  }
+  .fiesta-auth .btn-outline-secondary {
+    min-height: 44px; padding: 12px 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .fiesta-auth .form-label a, .fiesta-auth a.small.text-muted {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; min-width: 44px; padding: 0 8px;
+  }
+  .fiesta-auth .text-center a, .fiesta-auth .text-muted a {
+    display: inline-block; min-height: 44px; min-width: 44px;
+    padding: 12px 6px; line-height: 20px; vertical-align: middle;
+  }
+  .fiesta-auth .alert a {
+    display: inline-block; min-height: 44px; padding: 12px 6px;
+  }
+}
+@media (max-width: 414px) {
+  .fiesta-auth { padding: 24px 16px; }
+  .fiesta-auth .card-body { padding: 28px 20px 24px; }
+}
+@media (max-width: 320px) {
+  .fiesta-auth { padding: 16px 12px; }
+  .fiesta-auth .card-body { padding: 24px 16px 20px; }
+  .fiesta-auth h1.h2 { font-size: 28px; }
 }
 """
 
