@@ -106,6 +106,11 @@ app = Celery(
         # lazy-imports FAQEntry inside faq_autogen tasks and lookups need
         # the model metadata loaded first).
         'faq_models',
+        # Tier D4 / E5 (2026-05-24) — Weekly self-audit Telegram report.
+        # Mon 09:00 IST (03:30 UTC). Five sections: users, revenue, ops,
+        # tech, funnel. Sends one Telegram message to CEO chat 1813046950
+        # via ops_alerts.send_alert(severity='INFO').
+        'tasks.weekly_self_audit',
     ]
 )
 
@@ -258,6 +263,21 @@ app.conf.beat_schedule.update({
     'faq_autogen-weekly-mon-0400-utc': {
         'task': 'faq_autogen.weekly_run',
         'schedule': crontab(day_of_week=1, hour=4, minute=0),
+    },
+})
+
+# Tier D4 / E5 (2026-05-24) — Weekly self-audit Telegram report.
+# Mon ~09:00 IST. Ships one Telegram message to the CEO with users /
+# revenue / ops / tech / funnel snapshot of the last 7d. The CEO wakes
+# up Monday and sees the state of the business without asking.
+#
+# Schedule: Mon 03:35 UTC = 09:05 IST. Five-minute offset from the
+# 03:30-UTC daily signup_drop_probe (so the two don't queue on the same
+# beat tick) and 25 min ahead of faq_autogen-weekly-mon-0400-utc.
+app.conf.beat_schedule.update({
+    'weekly-self-audit-mon-0335-utc': {
+        'task': 'tasks.weekly_self_audit.run_weekly_audit',
+        'schedule': crontab(day_of_week=1, hour=3, minute=35),
     },
 })
 
