@@ -205,6 +205,21 @@ try:
 except Exception as e:
     logger.error(f"Error loading FAQ routes: {str(e)}")
 
+# Tier D6 / A4 — SEO + Article engine (2026-05-24)
+# /articles, /articles/<slug>, /robots.txt + canonical /sitemap.xml that
+# extends the FAQ sitemap with article + landing entries. Registered
+# AFTER faq_routes so the sitemap override mechanic resolves correctly
+# (seo_routes.register_routes() overrides app.view_functions["faq_bp.sitemap_xml"]).
+try:
+    from seo_routes import register_routes as register_seo_routes
+    register_seo_routes(app)
+    logger.info(
+        "Tier D6 A4 SEO routes registered "
+        "(/articles, /articles/<slug>, /robots.txt, /sitemap.xml)"
+    )
+except Exception as e:
+    logger.error(f"Error loading SEO routes: {str(e)}")
+
 # Sprint 4 Tier D3 / D1 — AI Q&A RAG over 41-entry FAQ corpus
 # (POST /api/qa + GET /support/qa). TF-IDF retrieval, no LLM calls.
 try:

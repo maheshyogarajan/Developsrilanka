@@ -5,11 +5,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}FIESTA - Foreign Income Earner Saving & Tax Advisor{% endblock %}</title>
-    <meta name="description" content="FIESTA - Bookkeeping and audit-defence for foreign income earners and self-employed professionals.">
+    {# Tier D6 A4 (2026-05-24): centralised SEO surface. Per-page overrides via
+       `seo_title`, `seo_description`, `seo_canonical`, `seo_og_image`,
+       `seo_og_type`, `seo_keywords`, `seo_schemas` template variables OR via
+       the {% block title %} / {% block seo_jsonld %} child overrides.
+       Defaults preserved for legacy bookkeeping pages that don't set them. #}
+    <title>{% block title %}{{ seo_title if seo_title else 'FIESTA - Foreign Income Earner Saving & Tax Advisor' }}{% endblock %}</title>
+    <meta name="description" content="{{ seo_description if seo_description else 'FIESTA - Bookkeeping and audit-defence for foreign income earners and self-employed professionals.' }}">
+    {% if seo_keywords %}<meta name="keywords" content="{{ seo_keywords | join(', ') }}">{% endif %}
+    {% if seo_canonical %}<link rel="canonical" href="{{ seo_canonical }}">{% endif %}
+    <meta property="og:title" content="{{ seo_title if seo_title else self.title() }}">
+    <meta property="og:description" content="{{ seo_description if seo_description else 'FIESTA - Bookkeeping and audit-defence for foreign income earners and self-employed professionals.' }}">
+    <meta property="og:type" content="{{ seo_og_type if seo_og_type else 'website' }}">
+    {% if seo_canonical %}<meta property="og:url" content="{{ seo_canonical }}">{% endif %}
+    <meta property="og:site_name" content="FIESTA">
+    {% if seo_og_image %}<meta property="og:image" content="{{ seo_og_image }}">{% endif %}
+    <meta name="twitter:card" content="{{ 'summary_large_image' if seo_og_image else 'summary' }}">
+    <meta name="twitter:title" content="{{ seo_title if seo_title else self.title() }}">
+    <meta name="twitter:description" content="{{ seo_description if seo_description else 'FIESTA - Bookkeeping and audit-defence for foreign income earners and self-employed professionals.' }}">
+    {% if seo_og_image %}<meta name="twitter:image" content="{{ seo_og_image }}">{% endif %}
     <meta name="application-name" content="FIESTA">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="alternate icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    {# JSON-LD structured data. Per-page passes `seo_schemas` as a list of dicts
+       (Organization, Article, FAQPage, BreadcrumbList — see seo_routes.py). #}
+    {% block seo_jsonld %}
+    {% if seo_schemas %}
+      {% from "_seo_macros.html" import jsonld_block %}
+      {% for s in seo_schemas %}{{ jsonld_block(s) }}{% endfor %}
+    {% endif %}
+    {% endblock %}
 
     <!-- Google Fonts: Fraunces (display serif) + Manrope (body sans) + JetBrains Mono (numerics) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
