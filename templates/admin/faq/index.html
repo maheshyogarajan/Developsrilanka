@@ -1,0 +1,134 @@
+{% extends "admin/layout_fiesta.html" %}
+
+{% block title %}FAQ Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">FAQ Manager</h1>
+    <div class="text-muted small">
+      {{ drafts|length }} draft(s), {{ published|length }} published
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- ===== Drafts ===== -->
+  <div class="card shadow mb-4">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-warning">
+        Drafts awaiting review ({{ drafts|length }})
+      </h6>
+    </div>
+    <div class="card-body">
+      {% if drafts %}
+        <table class="table table-sm table-striped">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>Category</th>
+              <th>Source</th>
+              <th>Created</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in drafts %}
+              <tr>
+                <td>
+                  <code class="text-muted small">{{ d.slug }}</code><br>
+                  <strong>{{ d.question }}</strong>
+                </td>
+                <td><span class="badge bg-secondary">{{ d.category }}</span></td>
+                <td><span class="badge bg-info">{{ d.source }}</span></td>
+                <td class="small">{{ d.created_at.strftime('%Y-%m-%d') }}</td>
+                <td class="text-end">
+                  <form method="post"
+                        action="{{ url_for('faq_bp.admin_faq_publish', entry_id=d.id) }}"
+                        style="display:inline;">
+                    <input type="hidden" name="csrf_token"
+                           value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-success">
+                      Publish
+                    </button>
+                  </form>
+                  <form method="post"
+                        action="{{ url_for('faq_bp.admin_faq_delete', entry_id=d.id) }}"
+                        style="display:inline;"
+                        onsubmit="return confirm('Delete this draft?');">
+                    <input type="hidden" name="csrf_token"
+                           value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      Delete
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted mb-0">No drafts pending. Autogen runs Mon 04:00 UTC.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ===== Published ===== -->
+  <div class="card shadow mb-4">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-success">
+        Published ({{ published|length }})
+      </h6>
+    </div>
+    <div class="card-body">
+      {% if published %}
+        <table class="table table-sm table-striped">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>Category</th>
+              <th>Views</th>
+              <th>Updated</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in published %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('faq_bp.help_entry', slug=p.slug) }}"
+                     target="_blank">{{ p.question }}</a>
+                </td>
+                <td><span class="badge bg-secondary">{{ p.category }}</span></td>
+                <td>{{ p.view_count }}</td>
+                <td class="small">{{ p.updated_at.strftime('%Y-%m-%d') }}</td>
+                <td class="text-end">
+                  <form method="post"
+                        action="{{ url_for('faq_bp.admin_faq_publish', entry_id=p.id) }}"
+                        style="display:inline;">
+                    <input type="hidden" name="csrf_token"
+                           value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                      Unpublish
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted mb-0">Nothing published yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

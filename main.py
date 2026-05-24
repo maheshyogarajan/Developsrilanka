@@ -181,6 +181,17 @@ try:
 except Exception as e:
     logger.error(f"Error loading feedback routes: {str(e)}")
 
+# Sprint 4 Tier D3 — FAQ / Knowledge Base auto-gen pages.
+# Public: /help, /help/<slug>, /sitemap.xml (SEO + LLM citation surface).
+# Admin: /admin/faq, /admin/faq/<id>/publish, /admin/faq/<id>/delete
+# (admin_required gate applied inside register_routes).
+try:
+    from faq_routes import register_routes as register_faq_routes
+    register_faq_routes(app)
+    logger.info("FAQ routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading FAQ routes: {str(e)}")
+
 # Tier C Wave A — admin-only analytics dashboard (/admin/analytics +
 # /admin/analytics/export). Reads from the same `events` table the beacon
 # above writes to. Admin-gated via fiesta.auth.decorators.admin_required.

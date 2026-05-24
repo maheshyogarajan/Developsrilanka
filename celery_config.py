@@ -97,6 +97,13 @@ app = Celery(
         'tasks.pg_backup',
         # Tier D1 / E2 — Telegram ops alerts probes (2026-05-24)
         'tasks.ops_probes',
+        # Tier D3 (2026-05-24) — FAQ auto-gen from feedback corpus.
+        # Weekly cluster + draft creation; staff publishes at /admin/faq.
+        'faq_autogen',
+        # D3 model-only sibling (bootstrap fix per v18.1 pattern — worker
+        # lazy-imports FAQEntry inside faq_autogen tasks and lookups need
+        # the model metadata loaded first).
+        'faq_models',
     ]
 )
 
@@ -225,6 +232,17 @@ app.conf.beat_schedule.update({
         'task': 'tasks.ops_probes.signup_drop_probe',
         # 09:00 IST = 03:30 UTC (IST is UTC+5:30)
         'schedule': crontab(hour=3, minute=30),
+    },
+})
+
+# Tier D3 (2026-05-24) — FAQ auto-gen from feedback + AI Q&A misses.
+# Weekly clustering; staff reviews drafts at /admin/faq before publish.
+# Mon 04:00 UTC = 09:30 IST. Off-cycle from all other scheduled tasks
+# to avoid stacking DB load.
+app.conf.beat_schedule.update({
+    'faq_autogen-weekly-mon-0400-utc': {
+        'task': 'faq_autogen.weekly_run',
+        'schedule': crontab(day_of_week=1, hour=4, minute=0),
     },
 })
 
