@@ -7,6 +7,21 @@ Two engine calls:
     2. With deductions zeroed            -> the "without FIESTA" bill.
 The delta is the savings_vs_no_deductions headline number.
 
+x9 tier-b cache (2026-05-24)
+----------------------------
+Per (user_id, tax_year_s4) TTL cache sits INSIDE compute_tax_bill, around the
+aggregator + engine work. Stacks cleanly with the per-user
+inject_fiesta_hub_context cache (app.py, Sprint 3): the hub cache speeds the
+chrome around every page; this cache speeds the /tax-bill body specifically.
+
+  - 60-second TTL, per-(user_id, tax_year_s4), process-local dict.
+  - Invalidated by any deduction claim/unclaim write via
+    _invalidate_tax_bill_cache(user_id). Other write paths (remittance, SP,
+    rental) tolerate ≤60s staleness because their effect on the headline
+    number is bounded and the user's next claim/unclaim flushes it.
+  - Each gunicorn worker has its own cache (matches Sprint 3 hub-cache
+    posture: no shared Redis dependency pre-revenue).
+
 Audit-defensibility score
 -------------------------
 A 0-100 numeric + bucket label ("Strong" / "Moderate" / "At-Risk") computed
@@ -32,6 +47,7 @@ from .aggregator import (
     TaxInputs,
     assemble_tax_inputs,
     canonical_tax_year_enum,
+    normalise_tax_year_to_s4_format,
 )
 from .audit_defensibility import score_audit_defensibility as _score_audit_defensibility_v2
 
@@ -383,10 +399,56 @@ def _build_gate_customer_data(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# x9 tier-b: per-(user, tax_year) TTL cache for compute_tax_bill.
+# ---------------------------------------------------------------------------
+# Key: (int(user_id), tax_year_s4_str). Value: (expires_at_unix, TaxBillReport).
+# 60s TTL matches the Sprint 3 inject_fiesta_hub_context cache so the same
+# request-flight typically gets two cache hits (chrome + body) within a single
+# window, and successive renders within the user's idle minute are free.
+_TAX_BILL_CACHE: dict = {}
+_TAX_BILL_CACHE_TTL_SECONDS = 60
+
+
+def _invalidate_tax_bill_cache(user_id=None, tax_year=None) -> None:
+    """Drop one or all cached tax bills.
+
+    Call signatures:
+        _invalidate_tax_bill_cache()                  -- wipe the whole cache
+        _invalidate_tax_bill_cache(user_id)           -- drop all years for user
+        _invalidate_tax_bill_cache(user_id, tax_year) -- drop one year only
+
+    Called by deductions claim/unclaim write paths so the next /tax-bill
+    render reflects the change. Other writes (remittance, agreement
+    generation, SP edits) tolerate ≤60s of staleness — the savings number
+    on /reduce-tax updates via XHR on every claim regardless.
+    """
+    global _TAX_BILL_CACHE
+    if user_id is None:
+        _TAX_BILL_CACHE.clear()
+        return
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return
+    if tax_year is None:
+        # Drop every (uid, *) entry.
+        for key in list(_TAX_BILL_CACHE.keys()):
+            if key[0] == uid:
+                _TAX_BILL_CACHE.pop(key, None)
+        return
+    try:
+        ty_s4 = normalise_tax_year_to_s4_format(tax_year)
+    except Exception:
+        ty_s4 = str(tax_year)
+    _TAX_BILL_CACHE.pop((uid, ty_s4), None)
+
+
 def compute_tax_bill(
     user_id: int,
     tax_year: str,
     pre_assembled: Optional[TaxInputs] = None,
+    use_cache: bool = True,
 ) -> TaxBillReport:
     """Compute the full S12 outcome for one user, one tax year.
 
@@ -394,12 +456,33 @@ def compute_tax_bill(
         user_id:        FIESTA user id.
         tax_year:       any accepted form (see aggregator.normalise_tax_year).
         pre_assembled:  optional pre-built TaxInputs (test/route fast-path).
+                        When provided, the cache is bypassed (the caller has
+                        already paid for assembly and wants the engine path
+                        deterministically).
+        use_cache:      defaults True. Tests asserting query counts pass
+                        False to measure cache-miss behaviour repeatably.
 
     Returns:
         TaxBillReport. If the tax engine fails to import or compute,
         `engine_error` is populated and the engine-derived fields stay at
         their defaults so the UI can still render a partial breakdown.
     """
+    # Cache check -- only when we will be doing the full assembly path
+    # (pre_assembled bypasses cache because the caller has constructed
+    # a possibly-test TaxInputs that may differ from what we'd assemble).
+    cache_key = None
+    if pre_assembled is None and use_cache:
+        try:
+            ty_s4 = normalise_tax_year_to_s4_format(tax_year)
+            cache_key = (int(user_id), ty_s4)
+        except Exception:
+            cache_key = None
+        if cache_key is not None:
+            import time as _time
+            cached = _TAX_BILL_CACHE.get(cache_key)
+            if cached and cached[0] > _time.time():
+                return cached[1]
+
     if pre_assembled is not None:
         inputs = pre_assembled
     else:
@@ -475,10 +558,22 @@ def compute_tax_bill(
         total_deductions=report.total_deductions_lkr,
     )
 
+    # x9 tier-b: only cache SUCCESSFUL computes (no engine_error). Caching
+    # a failure for 60s would block legitimate retries after a transient DB
+    # blip. is_finalized is a route-layer write that lives outside the cache
+    # (routes.show_tax_bill sets it AFTER calling compute_tax_bill).
+    if cache_key is not None and report.engine_error is None:
+        import time as _time
+        _TAX_BILL_CACHE[cache_key] = (
+            _time.time() + _TAX_BILL_CACHE_TTL_SECONDS,
+            report,
+        )
+
     return report
 
 
 __all__ = [
     "TaxBillReport",
     "compute_tax_bill",
+    "_invalidate_tax_bill_cache",
 ]

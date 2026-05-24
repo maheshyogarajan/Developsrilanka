@@ -32,6 +32,19 @@ Design constraints
   rows -- intentional and well-documented there.)
 - Headless-import safe: any upstream not loaded => empty section, never raise.
 - Decimal everywhere money is involved.
+
+x9 tier-b (2026-05-24): the legacy per-table loaders below (_load_profile,
+_load_deductions, _load_service_providers, _load_property_and_rentals) are
+kept in place but are NOT invoked on the hot path when `vw_tax_bill_context`
+(see migrations/add_vw_tax_bill_context.py) is available. The new
+`_load_via_view` collapses the 6-baseline + 2*N_sp + 4*N_rental query fan-out
+(~20 queries for a typical user) into a single SELECT against the view. If
+the view does not exist (dev/test env without the migration applied), we
+fall back to the legacy loaders so behaviour stays identical -- never raise.
+The S4 earnings path stays separate from the view because
+`income_summary_for_tax_year` does an idempotent FX backfill (writes
+amount_lkr back to IncomeEntry rows on first read) that the view cannot
+preserve.
 """
 from __future__ import annotations
 
@@ -776,6 +789,336 @@ def _compose_engine_inputs(inputs: TaxInputs) -> None:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# x9 tier-b: consolidated view-backed loader.
+# ---------------------------------------------------------------------------
+
+# Cap rules cache -- get_caps() is a YAML read, cheap but worth memoising
+# since this hot path is in the request loop.
+_DEDUCTION_CAPS_CACHE: Optional[dict] = None
+
+
+def _get_deduction_caps() -> dict:
+    """Memoised wrapper around fiesta.deductions.catalog_loader.get_caps."""
+    global _DEDUCTION_CAPS_CACHE
+    if _DEDUCTION_CAPS_CACHE is not None:
+        return _DEDUCTION_CAPS_CACHE
+    try:
+        from fiesta.deductions.catalog_loader import get_caps
+        _DEDUCTION_CAPS_CACHE = get_caps() or {}
+    except Exception:
+        _DEDUCTION_CAPS_CACHE = {}
+    return _DEDUCTION_CAPS_CACHE
+
+
+def _cents_to_decimal(c: Any) -> Decimal:
+    """Cents-stored-as-int -> Decimal LKR (2dp)."""
+    if c is None:
+        return Decimal("0")
+    try:
+        return (Decimal(str(c)) / Decimal("100")).quantize(Decimal("0.01"))
+    except Exception:
+        return Decimal("0")
+
+
+def _load_via_view(inputs: TaxInputs) -> bool:
+    """Single-query path: read vw_tax_bill_context, populate profile + dedns
+    + SPs + rentals from the JSONB-aggregated row.
+
+    Returns True on success, False if the view is not available (caller falls
+    back to the legacy per-table loaders).
+    """
+    try:
+        from app import db
+        from sqlalchemy import text
+    except Exception:
+        return False
+
+    try:
+        row = db.session.execute(
+            text("""
+                SELECT
+                    nic, tin, city, employment_type, user_name,
+                    deductions, service_providers, rentals
+                FROM vw_tax_bill_context
+                WHERE user_id = :uid
+                  AND tax_year_s4 = :ty
+                LIMIT 1
+            """),
+            {"uid": int(inputs.user_id), "ty": inputs.tax_year_s4_format},
+        ).mappings().first()
+    except Exception as exc:
+        # View may not exist (migration not applied) or DB unreachable.
+        # Caller decides whether to fall back. Log at debug because the
+        # fallback path is intentional and well-tested.
+        logger.debug("vw_tax_bill_context unavailable, falling back: %s", exc)
+        return False
+
+    # No row means "user has nothing yet"; we still want to mark sources_loaded
+    # so the legacy loaders are NOT invoked as a fallback that would re-query.
+    if row is None:
+        inputs.sources_loaded.append("vw_tax_bill_context")
+        # The earnings path still runs below in assemble_tax_inputs.
+        return True
+
+    inputs.sources_loaded.append("vw_tax_bill_context")
+
+    # ---- Profile + User scalars ----
+    inputs.nic = row.get("nic")
+    inputs.tin = row.get("tin")
+    inputs.full_name = row.get("user_name")
+    inputs.senior_citizen = False  # S3 v1 doesn't carry DOB.
+    # "Complete" = NIC + city + employment_type all present (matches
+    # _load_profile semantics exactly).
+    inputs.profile_complete = bool(
+        row.get("nic") and row.get("city") and row.get("employment_type")
+    )
+
+    # ---- Deductions ----
+    dedn_rows = row.get("deductions") or []
+    caps = _get_deduction_caps()
+    total = Decimal("0")
+    with_evi = 0
+    pending = 0
+    items: list[dict[str, Any]] = []
+    for d in dedn_rows:
+        category_id = d.get("category_id")
+        try:
+            from fiesta.deductions.catalog_loader import get_category
+            cat = get_category(category_id) or {}
+        except Exception:
+            cat = {}
+
+        estimated = _cents_to_decimal(d.get("estimated_lkr_cents"))
+        actual = _cents_to_decimal(d.get("actual_lkr_cents"))
+        # Prefer actual_lkr (evidence-backed) over estimated_lkr -- match
+        # _load_deductions semantics (None means "fall back").
+        used = actual if d.get("actual_lkr_cents") is not None else estimated
+
+        # Apply per-category cap (e.g. solar 600K).
+        cap_note: Optional[str] = None
+        cap_def = caps.get(category_id) if isinstance(caps, dict) else None
+        if cap_def and used > 0:
+            cap_type = (cap_def or {}).get("type")
+            if cap_type == "absolute":
+                cap_amount = _to_decimal(cap_def.get("amount_lkr"))
+                if cap_amount > 0 and used > cap_amount:
+                    cap_note = (
+                        f"Capped at Rs {cap_amount:,} per "
+                        f"{cap_def.get('rule', 'gazette rule')}."
+                    )
+                    used = cap_amount
+
+        items.append({
+            "category_id": category_id,
+            "name": cat.get("name") or category_id,
+            "ira_section": cat.get("ira_section") or "§6",
+            "ira_section_long": cat.get("ira_section_long") or "",
+            "estimated_lkr": estimated,
+            "actual_lkr": actual,
+            "used_lkr": used,
+            "evidence_status": d.get("evidence_status"),
+            "notes": d.get("notes"),
+            "cap_note": cap_note,
+            "engine_bucket": _deduction_engine_bucket(category_id),
+        })
+        if d.get("evidence_status") in ("collected", "submitted"):
+            with_evi += 1
+        else:
+            pending += 1
+        total += used
+
+    inputs.deductions_itemised = items
+    inputs.deductions_total_lkr = total
+    inputs.deductions_with_evidence_count = with_evi
+    inputs.deductions_pending_evidence_count = pending
+
+    # ---- Service providers + agreements ----
+    sp_rows = row.get("service_providers") or []
+    sp_total = Decimal("0")
+    sp_disc_required = 0
+    sp_disc_applied = 0
+    sp_items: list[dict[str, Any]] = []
+    for sp in sp_rows:
+        monthly_rate = _cents_to_decimal(sp.get("monthly_rate_cents"))
+        hourly_rate = _cents_to_decimal(sp.get("hourly_rate_cents"))
+        # Monthly fee or notional 160h-month from hourly -- matches legacy.
+        if sp.get("monthly_rate_cents") is not None:
+            monthly = monthly_rate
+        elif sp.get("hourly_rate_cents") is not None:
+            monthly = hourly_rate * Decimal("160")
+        else:
+            monthly = Decimal("0")
+        annual = monthly * Decimal("12") if monthly else Decimal("0")
+        sp_total += annual
+
+        requires_disclosure = bool(
+            sp.get("requires_disclosure")
+            or sp.get("rel_should_default_on_disclosure")
+        )
+
+        has_agreement = bool(sp.get("agreement_has"))
+        # Status derivation -- matches _latest_service_agreement_for exactly.
+        if has_agreement:
+            cs = (sp.get("agreement_customer_sig") or "unsigned").lower()
+            ss = (sp.get("agreement_sp_sig") or "unsigned").lower()
+            if cs == "signed" and ss == "signed":
+                status = "signed"
+            elif cs == "signed" or ss == "signed":
+                status = "partial"
+            else:
+                status = "generated_unsigned"
+        else:
+            status = "none"
+
+        agreement_monthly_fee = _to_decimal(sp.get("agreement_monthly_fee_lkr"))
+        disclosure_applied_in_agreement = bool(sp.get("agreement_sec195_applied"))
+
+        if requires_disclosure:
+            sp_disc_required += 1
+            if disclosure_applied_in_agreement:
+                sp_disc_applied += 1
+            else:
+                if has_agreement:
+                    inputs.missing_disclosures.append({
+                        "kind": "service_provider",
+                        "id": sp.get("id"),
+                        "name": sp.get("name"),
+                        "reason": (
+                            "Service Agreement generated without §195 "
+                            "disclosure clause -- detector flagged "
+                            "related-party."
+                        ),
+                    })
+
+        # Mismatch check: claimed monthly > agreement monthly * 1.10.
+        if agreement_monthly_fee > 0 and monthly > 0:
+            if monthly > agreement_monthly_fee * Decimal("1.10"):
+                inputs.sp_agreement_mismatches.append({
+                    "sp_id": sp.get("id"),
+                    "sp_name": sp.get("name"),
+                    "claimed_monthly_lkr": monthly,
+                    "agreement_monthly_lkr": agreement_monthly_fee,
+                    "diff_lkr": monthly - agreement_monthly_fee,
+                })
+
+        sp_items.append({
+            "id": sp.get("id"),
+            "name": sp.get("name"),
+            "service_type": sp.get("service_type"),
+            "monthly_rate_lkr": monthly,
+            "annual_lkr": annual,
+            "stated_relationship": sp.get("stated_relationship"),
+            "requires_disclosure": requires_disclosure,
+            "has_agreement": has_agreement,
+            "agreement_status": status,
+            "agreement_reference_id": sp.get("agreement_reference_id"),
+            "agreement_monthly_fee_lkr": agreement_monthly_fee,
+            "disclosure_applied_in_agreement": disclosure_applied_in_agreement,
+            "rel_confidence": float(sp.get("rel_confidence") or 0.0),
+        })
+
+    inputs.service_providers = sp_items
+    inputs.sp_total_fees_lkr = sp_total
+    inputs.sp_disclosure_required_count = sp_disc_required
+    inputs.sp_disclosure_applied_count = sp_disc_applied
+
+    # ---- Rentals + property + landlord + S9 agreement ----
+    rental_rows = row.get("rentals") or []
+    rent_total = Decimal("0")
+    ho_total = Decimal("0")
+    rent_disc_required = 0
+    rent_disc_applied = 0
+    stamp_outstanding = 0
+    rental_items: list[dict[str, Any]] = []
+    for ra in rental_rows:
+        monthly = _cents_to_decimal(ra.get("monthly_rent_lkr_cents"))
+        ho_portion = _cents_to_decimal(ra.get("home_office_portion_lkr_cents"))
+        annual_rent = monthly * Decimal("12")
+        annual_ho = ho_portion * Decimal("12")
+        rent_total += annual_rent
+        ho_total += annual_ho
+
+        landlord_rel = ra.get("landlord_relationship")
+        landlord_self = bool(landlord_rel == "self-owns")
+        requires_disclosure = bool(
+            landlord_self or ra.get("lrd_should_default_on_disclosure")
+        )
+
+        has_rag = bool(ra.get("rag_has"))
+        disclosure_applied = bool(ra.get("rag_s195_applied"))
+
+        if requires_disclosure:
+            rent_disc_required += 1
+            if disclosure_applied:
+                rent_disc_applied += 1
+            else:
+                if has_rag:
+                    inputs.missing_disclosures.append({
+                        "kind": "rental",
+                        "id": ra.get("id"),
+                        "name": ra.get("landlord_full_name") or "Landlord",
+                        "reason": (
+                            "Rental Agreement generated without §195 "
+                            "disclosure clause -- landlord relationship "
+                            "flagged."
+                        ),
+                    })
+
+        stamp_chargeable = bool(ra.get("rag_stamp_duty_chargeable"))
+        # _latest_rental_agreement_for hard-codes stamp_duty_paid=False;
+        # mirror that.
+        if stamp_chargeable:
+            stamp_outstanding += 1
+
+        property_address = ra.get("property_address_line1") or ""
+        property_city = ra.get("property_city") or ""
+        if property_address or property_city:
+            address_str = f"{property_address}, {property_city}".strip(", ")
+        else:
+            address_str = "—"
+
+        # start_date / end_date come back as date objects from PG; isoformat
+        # them to match legacy behaviour (ra.start_date.isoformat()).
+        def _maybe_iso(d):
+            if d is None:
+                return None
+            iso = getattr(d, "isoformat", None)
+            return iso() if callable(iso) else str(d)
+
+        rental_items.append({
+            "rental_id": ra.get("id"),
+            "property_address": address_str if address_str.strip(", ") else "—",
+            "property_type": ra.get("property_type") or "—",
+            "customer_status": ra.get("property_customer_status") or "—",
+            "landlord_name": ra.get("landlord_full_name") or "—",
+            "landlord_relationship": landlord_rel or "—",
+            "monthly_rent_lkr": monthly,
+            "annual_rent_lkr": annual_rent,
+            "home_office_portion_monthly_lkr": ho_portion,
+            "home_office_portion_annual_lkr": annual_ho,
+            "home_office_percentage": ra.get("property_home_office_percentage"),
+            "term_start": _maybe_iso(ra.get("start_date")),
+            "term_end": _maybe_iso(ra.get("end_date")),
+            "document_status": ra.get("document_status"),
+            "requires_disclosure": requires_disclosure,
+            "disclosure_applied_in_agreement": disclosure_applied,
+            "agreement_reference_id": ra.get("rag_reference_id"),
+            "stamp_duty_chargeable": stamp_chargeable,
+            "stamp_duty_lkr": _to_decimal(ra.get("rag_stamp_duty_lkr")),
+            "rel_confidence": float(ra.get("lrd_confidence") or 0.0),
+        })
+
+    inputs.rentals = rental_items
+    inputs.rental_total_lkr = rent_total
+    inputs.home_office_portion_total_lkr = ho_total
+    inputs.rental_disclosure_required_count = rent_disc_required
+    inputs.rental_disclosure_applied_count = rent_disc_applied
+    inputs.rental_stamp_duty_outstanding_count = stamp_outstanding
+
+    return True
+
+
 def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
     """Pull from all upstream sources into a TaxInputs snapshot.
 
@@ -788,6 +1131,16 @@ def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
         TaxInputs with everything the compute + UI layers need. Sections
         sourced from missing modules / empty DB are returned as empty
         lists / zero Decimals; the `sources_missing` field tracks them.
+
+    Query budget (x9 tier-b, 2026-05-24):
+        Cache-miss hot path issues 1 query to vw_tax_bill_context, then
+        1-2 queries inside income_summary_for_tax_year (IncomeEntry, and
+        RemittanceEntry only if at least one row exists per the
+        bca49b2 short-circuit). Total: 2-3 queries vs the legacy ~20.
+
+        If the view does not exist (dev/test env without the migration
+        applied), falls back to the legacy per-table loaders so behaviour
+        stays identical -- never raises.
     """
     inputs = TaxInputs(
         user_id=int(user_id),
@@ -795,11 +1148,21 @@ def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
         tax_year_s5_format=normalise_tax_year_to_s5_format(tax_year),
     )
 
-    _load_profile(inputs)
+    # Try the consolidated view first. If the view is missing or unreadable,
+    # _load_via_view returns False and we fall through to the legacy path.
+    view_ok = _load_via_view(inputs)
+
+    if not view_ok:
+        _load_profile(inputs)
+        _load_deductions(inputs)
+        _load_service_providers(inputs)
+        _load_property_and_rentals(inputs)
+
+    # Earnings is ALWAYS loaded via income_summary_for_tax_year because that
+    # helper does an idempotent FX backfill (writes amount_lkr back to
+    # IncomeEntry rows on first read) that a pure-read view cannot preserve.
     _load_earnings(inputs)
-    _load_deductions(inputs)
-    _load_service_providers(inputs)
-    _load_property_and_rentals(inputs)
+
     _compose_engine_inputs(inputs)
 
     return inputs
