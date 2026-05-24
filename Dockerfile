@@ -16,15 +16,14 @@ RUN uv sync --frozen --no-dev --no-install-project
 FROM python:3.11-slim
 
 # Install OS-level runtime deps (psycopg2-binary needs libpq, Pillow needs libjpeg)
-# postgresql-client-15 added 2026-05-24 (Tier D1/F1) for daily pg_dump backup.
-# Debian 12 (bookworm) base ships PG 15 client; works fine against PG 17 server
-# for logical pg_dump --format=custom (forward compat is per-format guaranteed
-# but we pin server-side flags in tasks/pg_backup.py to be PG15-client-safe).
+# postgresql-client-17 added 2026-05-24 (Tier D1/F1) for daily pg_dump backup.
+# python:3.11-slim is currently based on Debian 13 (trixie) which only ships
+# postgresql-client-17. This matches fiesta-pg-bom (postgres 17.2) version-perfectly.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     libjpeg62-turbo \
     libwebp7 \
-    postgresql-client-15 \
+    postgresql-client-17 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
