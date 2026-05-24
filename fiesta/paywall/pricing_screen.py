@@ -185,6 +185,11 @@ def pricing_screen():
         screen_id_copy=screen_id_copy,
         authenticated=is_auth,
         projected_savings_lkr=projected_savings_lkr,
+        # Tier D6 / A2 — fire the InitiateCheckout / paid_subscription_started
+        # conversion event when this pricing screen is viewed. Passed via
+        # render_template kwargs so the pixels.html include (rendered in the
+        # parent layout's scope) sees it.
+        pixel_event="paid_subscription_started",
     )
 
 
@@ -196,6 +201,14 @@ def checkout():
     screen_id = _safe_screen_id()
     tax_year = current_sl_tax_year()
 
+    # Tier D6 / A2 — UTM attribution. Lift first-touch from session so the
+    # paid_subscription_started event can be filtered by acquisition channel.
+    try:
+        from utm_capture import utm_for_payload as _utm_for_payload
+        _utm_payload = _utm_for_payload()
+    except Exception:
+        _utm_payload = {}
+
     emit_analytics_event(
         "paywall_checkout_started",
         user_id=current_user.id,
@@ -205,6 +218,7 @@ def checkout():
             "screen_id": screen_id,
             "tax_year": tax_year,
             "price_lkr": SELF_FILE_PRICE_LKR,
+            **_utm_payload,
         },
         source="route:paywall.checkout",
     )
@@ -326,6 +340,12 @@ def checkout_success():
         session_id=session_id,
         subscription_active=False,
         tax_year_display=current_sl_tax_year(),
+        # Tier D6 / A2 — fire the Purchase / paid_subscription_completed pixel
+        # on this post-Stripe landing page. The webhook is the DB source of
+        # truth; the pixel fires browser-side here for ad-network attribution.
+        pixel_event="paid_subscription_completed",
+        pixel_purchase_value=float(SELF_FILE_PRICE_LKR),
+        pixel_purchase_currency="LKR",
     )
 
 
