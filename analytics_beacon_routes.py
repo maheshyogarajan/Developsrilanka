@@ -337,6 +337,12 @@ def _build_beacon_view(csrf):
         # that reads payload['session_anon_id'] keeps working) AND as the
         # explicit kwarg (so it lands in the indexed top-level column
         # `events.session_anon_id`). The two write paths reconcile on the row.
+        # Tier D1 / B-0040 perf: defer=True. The /api/event beacon is a
+        # sendBeacon-style fire-and-forget — the browser doesn't read the
+        # body, only the 204. Releasing the request thread before the
+        # Postgres round-trip eliminates ~1s of cross-region latency per
+        # event from the page's RUM. Tests force sync via
+        # EVENTS_SYNC_FOR_TEST=1.
         try:
             from events import emit as _emit
             _emit(
@@ -345,6 +351,7 @@ def _build_beacon_view(csrf):
                 payload=enriched,
                 source="beacon",
                 session_anon_id=anon_id,
+                defer=True,
             )
         except Exception as exc:
             # Best-effort: log + continue. We still return 204 because the

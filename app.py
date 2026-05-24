@@ -677,6 +677,10 @@ def home():
         return redirect(url_for('index'))
 
     # Wave 1 EVENT SPINE: landing_viewed (X8a funnel)
+    # Tier D1 / B-0040 perf: defer=True so the anon landing GET doesn't eat
+    # 3-4 cross-region DB round-trips before returning HTML. The background
+    # thread pool in events.py writes the row asynchronously. Tests force
+    # synchronous emission via EVENTS_SYNC_FOR_TEST=1.
     try:
         from events import emit as _emit_event
         _emit_event(
@@ -684,6 +688,7 @@ def home():
             user_id=None,
             payload={'fx_rate_lkr_per_usd': fx_rate_lkr_per_usd},
             source='route:home',
+            defer=True,
         )
     except Exception as _ev_err:
         logging.debug(f"Event emit (landing_viewed) failed: {_ev_err}")
@@ -782,6 +787,9 @@ def fiesta_tax_preview_calc():
                 'saving_lkr': result.get('saving_lkr'),
             },
             source='route:fiesta_tax_preview_calc',
+            # Tier D1 / B-0040 perf: defer — /preview/calc is anon-callable
+            # and live-fires from S0 sliders, so latency here is user-visible.
+            defer=True,
         )
     except Exception as _ev_err:
         logging.debug(f"Event emit (estimator_run) failed: {_ev_err}")
@@ -816,6 +824,9 @@ def public_event_shim():
     if not isinstance(inner_payload, dict):
         inner_payload = {'raw': str(inner_payload)[:200]}
 
+    # Tier D1 / B-0040 perf: defer=True. /api/event/public is the public
+    # event shim used by the S0 anon landing JS — same fire-and-forget
+    # contract as /api/event. Release the request thread before Postgres.
     try:
         from events import emit as _emit_event
         _emit_event(
@@ -823,6 +834,7 @@ def public_event_shim():
             user_id=getattr(current_user, 'id', None) if current_user.is_authenticated else None,
             payload=inner_payload,
             source='route:public_event_shim',
+            defer=True,
         )
     except Exception as _ev_err:
         logging.debug(f"public_event_shim emit failed: {_ev_err}")
