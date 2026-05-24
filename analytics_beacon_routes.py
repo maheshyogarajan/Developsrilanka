@@ -234,6 +234,40 @@ def _current_user_id() -> Optional[int]:
     return None
 
 
+def _current_organization_id() -> Optional[int]:
+    """Return the logged-in user's default organization id, or None.
+
+    Tier D2 F8 (2026-05-24): Event.organization_id exists on the events table
+    but no producer populates it. This helper resolves the canonical org-id
+    for an authenticated user so the beacon can stamp every event with the
+    org slice analytics needs for B2B + multi-tenant readiness.
+
+    User <-> Organization is M2M via `OrganizationUser` (no direct
+    `User.organization_id` column). Which org wins when a user belongs to
+    several: `User.get_default_organization()` already encodes the rule —
+    prefer the row where `is_default=True`, otherwise the first OrganizationUser
+    row (oldest membership). We reuse that single source of truth here so the
+    beacon never disagrees with the rest of the app.
+
+    Returns None for anonymous users, users with zero memberships, or any
+    exception path (best-effort: org_id is a nice-to-have, never a blocker).
+    """
+    try:
+        from flask_login import current_user
+        if not getattr(current_user, "is_authenticated", False):
+            return None
+        getter = getattr(current_user, "get_default_organization", None)
+        if not callable(getter):
+            return None
+        org = getter()
+        if org is None:
+            return None
+        oid = getattr(org, "id", None)
+        return int(oid) if oid is not None else None
+    except Exception:
+        return None
+
+
 # --------------------------------------------------------------------------- #
 # After-request hook: ensure every browser carries the anon cookie.
 # --------------------------------------------------------------------------- #
@@ -305,6 +339,9 @@ def _build_beacon_view(csrf):
         # ---- Validate event name ---- #
         event_name = (body.get("event") or "").strip()
         user_id = _current_user_id()
+        # Tier D2 F8 (2026-05-24): lift org_id from current_user so every
+        # authenticated beacon row gets the org slice. None for anon.
+        organization_id = _current_organization_id() if user_id else None
         err = _validate_event_name(event_name, is_authenticated=bool(user_id))
         if err:
             return jsonify({"error": err}), 400
@@ -350,6 +387,7 @@ def _build_beacon_view(csrf):
                 user_id=user_id,
                 payload=enriched,
                 source="beacon",
+                organization_id=organization_id,
                 session_anon_id=anon_id,
                 defer=True,
             )
