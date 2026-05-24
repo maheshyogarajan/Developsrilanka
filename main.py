@@ -534,6 +534,17 @@ try:
 except Exception as e:
     logger.error(f'FIESTA X4 Consultant booking load failed: {e}')
 
+# Tier D1 / E1 — Sentry verification route (/sentry-test, admin-only).
+# Sentry SDK itself is init'd inside app.py at import time (sentry_init.py);
+# this blueprint only exposes the deliberate-exception endpoint used to verify
+# Sentry ingestion in production after `flyctl secrets set SENTRY_DSN=...`.
+try:
+    from sentry_routes import sentry_bp
+    app.register_blueprint(sentry_bp)
+    logger.info("Tier D1/E1 Sentry verification route registered at /sentry-test")
+except Exception as e:
+    logger.error(f"Tier D1/E1 Sentry route load failed: {e}")
+
 # Create database tables when the application starts.
 # Note: additive schema fixes (e.g. organization.ocr_provider) are applied
 # inside app.py at app-init time so every entry point — gunicorn, wsgi.py,
