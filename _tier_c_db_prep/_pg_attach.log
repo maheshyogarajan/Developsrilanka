@@ -1,0 +1,15 @@
+Checking for existing attachments
+Registering attachment
+Creating database
+Creating user
+
+Postgres cluster fiesta-pg-bom is now attached to fiesta-mvp
+The following secret was added to fiesta-mvp:
+  FLY_PG_DATABASE_URL=postgres://fiesta_mvp:[REDACTED — stored as Fly secret only]@fiesta-pg-bom.flycast:5432/fiesta_mvp?sslmode=disable
+
+Notes:
+- Attach created a NEW restricted role `fiesta_mvp` (separate from superuser `postgres`) with rights ONLY on `fiesta_mvp` database.
+- App DSN landed in Fly secret `FLY_PG_DATABASE_URL` on fiesta-mvp app. Existing `DATABASE_URL` (Neon) untouched — verified by `flyctl secrets list -a fiesta-mvp`.
+- `sslmode=disable` because Flycast (internal IPv6 network) is end-to-end encrypted; PG-level TLS would be redundant overhead.
+- Database name on the Fly cluster: `fiesta_mvp` (auto-named per `flyctl postgres attach` convention).
+- App user (`fiesta_mvp`) password is in fly_pg_connection.txt for reference; never inline.

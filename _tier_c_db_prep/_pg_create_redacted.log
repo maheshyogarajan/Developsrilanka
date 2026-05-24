@@ -1,0 +1,21 @@
+Creating postgres cluster in organization personal
+Creating app...
+Setting secrets on app fiesta-pg-bom...
+Provisioning 1 of 1 machines with image flyio/postgres-flex:17.2@sha256:77a24a931bf5862878fb6b53c1e62fd914beb69e7864a56b0f17d2bd069f1529
+Waiting for machine to start...
+Machine 8ed669b7112268 is created
+Postgres cluster fiesta-pg-bom created
+  Username:    postgres
+  Password:    [REDACTED — see fly_pg_connection.txt, gitignored]
+  Hostname:    fiesta-pg-bom.internal
+  Flycast:     fdaa:75:e475:0:1::2
+  Proxy port:  5432
+  Postgres port: 5433
+  Connection string: postgres://postgres:[REDACTED]@fiesta-pg-bom.flycast:5432
+
+Notes:
+- Image: flyio/postgres-flex:17.2 (Postgres 17.2, Repmgr-managed)
+- VM: shared-cpu-1x / 512MB (default) — volume 10GB
+- Initial cluster size: 1 (single primary, no standby for prep; if cutover wants HA, scale to 3 with `flyctl scale count -a fiesta-pg-bom 3`)
+- "Unmanaged Fly Postgres" — Fly Support won't manage backups/DR; we own backups via `flyctl postgres backup`.
+- Org: personal (Mahesh Yogarajan)
