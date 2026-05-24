@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block title %}Billing - FIESTA{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <h1 class="h2 mb-3">No active subscription</h1>
+      <p class="text-muted mb-4">
+        You don't have a FIESTA subscription yet. Pick a plan on the pricing
+        page to get started; once you've subscribed, this page will let you
+        manage your card, change your plan, or cancel anytime.
+      </p>
+      <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+        <a href="/pricing/x1" class="btn btn-primary btn-lg">
+          See pricing
+        </a>
+        <a href="/" class="btn btn-outline-secondary btn-lg">
+          Back to dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

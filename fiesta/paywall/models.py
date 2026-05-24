@@ -144,6 +144,38 @@ def register_models():
             nullable=True,
         )
 
+        # ---------------- Tier D1 / C1: auto-renew columns ----------------
+        # Populated when the row represents a recurring Stripe Subscription
+        # rather than a one-time payment_intent purchase. Both billing models
+        # coexist; see migrations/add_subscription_autorenew.py.
+        #
+        # auto_renew:           True iff this row is backed by a Stripe
+        #                       Subscription that will renew automatically.
+        # stripe_subscription_id: Stripe `sub_...` id. Unique index for the
+        #                       webhook lookup path.
+        # stripe_customer_id:   Stripe `cus_...` id. Required for the
+        #                       customer billing portal redirect.
+        # current_period_end:   Stripe-authoritative end of the current paid
+        #                       period. Updated by invoice.paid /
+        #                       customer.subscription.updated. We mirror this
+        #                       into ``expires_at`` so the existing
+        #                       ``is_active`` helper Just Works.
+        # cancel_at_period_end: True if the user has scheduled cancellation
+        #                       via the billing portal. Access remains until
+        #                       current_period_end; then customer.subscription.
+        #                       deleted flips status='cancelled'.
+        auto_renew = db.Column(db.Boolean, nullable=False, default=False)
+        stripe_subscription_id = db.Column(
+            db.String(255), nullable=True, unique=True, index=True,
+        )
+        stripe_customer_id = db.Column(
+            db.String(255), nullable=True, index=True,
+        )
+        current_period_end = db.Column(db.DateTime, nullable=True)
+        cancel_at_period_end = db.Column(
+            db.Boolean, nullable=False, default=False,
+        )
+
         def __repr__(self):  # pragma: no cover
             return (f"<Subscription id={self.id} user={self.user_id} "
                     f"tier={self.tier} status={self.status} "

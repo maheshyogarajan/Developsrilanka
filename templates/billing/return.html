@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}Billing updated - FIESTA{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 text-center">
+      <h1 class="h2 mb-3">Thanks - your changes are saved.</h1>
+      <p class="text-muted mb-4">
+        Stripe has confirmed your update. If you changed your card, the next
+        renewal will use the new one. If you cancelled, you'll keep access
+        through the end of your current paid period.
+      </p>
+      <a href="/" class="btn btn-primary btn-lg">Back to FIESTA</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
