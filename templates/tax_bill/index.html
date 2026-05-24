@@ -1088,6 +1088,15 @@
             Export audit pack PDF
         </a>
 
+        {# Tier D2-bpdf: standalone IRD-ready return PDF (manual filing). #}
+        <a href="{{ url_for('fiesta_tax_bill_return_pdf.download_return_pdf', tax_year=tax_year_s4) }}"
+           class="tb-cta-secondary"
+           data-track="ird_return_pdf_download"
+           data-track-surface="download_ird_return_pdf_cta"
+           data-track-tax-year="{{ tax_year_s4 }}">
+            Download IRD-ready PDF
+        </a>
+
         {% if gate and gate.blocks %}
             <span class="tb-cta-primary tb-cta-disabled"
                   title="Resolve the flagged items above before continuing to submit.">
