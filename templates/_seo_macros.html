@@ -1,0 +1,54 @@
+{#
+  FIESTA SEO macros — Tier D6 A4 slice 1 (2026-05-24).
+
+  Each macro renders a single <script type="application/ld+json"> block
+  for a Schema.org type. The Python side (seo_routes.py) builds the dict;
+  this template `tojson`-ifies it. Calling with no args or with a falsy
+  payload renders nothing (safer than emitting an empty {}).
+
+  Usage:
+    {% from "_seo_macros.html" import jsonld_block, meta_seo, og_twitter %}
+    {{ jsonld_block(org_schema) }}
+    {{ jsonld_block(article_schema) }}
+    {% for s in schemas %}{{ jsonld_block(s) }}{% endfor %}
+#}
+
+{% macro jsonld_block(payload) -%}
+{%- if payload -%}
+<script type="application/ld+json">{{ payload | tojson(indent=None) | safe }}</script>
+{%- endif -%}
+{%- endmacro %}
+
+
+{#
+  Centralised meta tag block — drop this in <head> of any page that wants
+  the full SEO surface. Defaults sane; per-page args override.
+
+  Args:
+    title            - <title> contents (string)
+    description      - <meta name="description">
+    canonical_url    - absolute URL for <link rel=canonical>
+    og_image         - absolute URL for og:image / twitter:image
+    og_type          - "article" | "website" | etc.   (default "website")
+    keywords         - list of strings (joined as comma-sep)
+#}
+{% macro meta_seo(title, description, canonical_url, og_image=None, og_type='website', keywords=None) -%}
+<title>{{ title }}</title>
+<meta name="description" content="{{ description }}">
+{% if keywords %}<meta name="keywords" content="{{ keywords | join(', ') }}">{% endif %}
+{% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+
+{# Open Graph #}
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="{{ description }}">
+<meta property="og:type" content="{{ og_type }}">
+{% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+<meta property="og:site_name" content="FIESTA">
+{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+
+{# Twitter #}
+<meta name="twitter:card" content="{{ 'summary_large_image' if og_image else 'summary' }}">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="{{ description }}">
+{% if og_image %}<meta name="twitter:image" content="{{ og_image }}">{% endif %}
+{%- endmacro %}

@@ -1,0 +1,241 @@
+{% extends 'layout.html' %}
+
+{# Tier D6 A4 slice 1 — single-article page.
+   Template variables from seo_routes.article_detail():
+     article          - dict with title, summary, date, updated, body_html,
+                        word_count, reading_minutes, faq (list of {q,a}),
+                        keywords (list), hero_image (optional)
+     schemas          - list of JSON-LD dicts (Article, Breadcrumb, optional FAQPage)
+     canonical_url    - absolute URL for this article
+     page_title       - <title>
+     page_description - meta description
+     og_image         - optional og:image URL
+#}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% set seo_title = page_title %}
+{% set seo_description = page_description %}
+{% set seo_canonical = canonical_url %}
+{% set seo_og_image = og_image %}
+{% set seo_og_type = 'article' %}
+{% set seo_keywords = article.keywords %}
+{% set seo_schemas = schemas %}
+
+{% block additional_styles %}
+<style>
+  .article-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    color: #1c2a20;
+    line-height: 1.6;
+  }
+  .article-page .crumbs {
+    font-size: 13px;
+    color: #7a8a7d;
+    margin-bottom: 18px;
+  }
+  .article-page .crumbs a { color: #7a8a7d; text-decoration: none; }
+  .article-page .crumbs a:hover { color: #b8542f; text-decoration: underline; }
+  .article-page header.article-head {
+    margin-bottom: 28px;
+  }
+  .article-page header.article-head .meta {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #7a8a7d;
+    margin-bottom: 8px;
+  }
+  .article-page h1 {
+    font-size: 36px;
+    line-height: 1.15;
+    margin: 0 0 14px;
+    color: #25402a;
+    letter-spacing: -0.5px;
+  }
+  .article-page .article-summary {
+    font-size: 17px;
+    color: #4a5a4d;
+    margin: 0 0 24px;
+  }
+  .article-page .article-body p {
+    font-size: 16px;
+    margin: 0 0 18px;
+  }
+  .article-page .article-body h2 {
+    font-size: 24px;
+    margin: 36px 0 12px;
+    color: #25402a;
+    line-height: 1.25;
+  }
+  .article-page .article-body h3 {
+    font-size: 19px;
+    margin: 28px 0 10px;
+    color: #25402a;
+  }
+  .article-page .article-body ul,
+  .article-page .article-body ol {
+    margin: 0 0 18px 24px;
+    padding: 0;
+  }
+  .article-page .article-body li {
+    margin-bottom: 6px;
+  }
+  .article-page .article-body blockquote {
+    border-left: 3px solid #b8542f;
+    margin: 20px 0;
+    padding: 4px 0 4px 18px;
+    color: #4a5a4d;
+    font-style: italic;
+  }
+  .article-page .article-body a {
+    color: #b8542f;
+    text-decoration: underline;
+  }
+  .article-page .article-body a:hover { color: #25402a; }
+  .article-page .article-body code {
+    background: #f5efe1;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .article-page .article-body hr {
+    border: 0;
+    border-top: 1px solid #e5dfd2;
+    margin: 32px 0;
+  }
+  .article-faq {
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 2px solid #e5dfd2;
+  }
+  .article-faq h2 {
+    font-size: 22px;
+    color: #25402a;
+    margin: 0 0 18px;
+  }
+  .article-faq details {
+    border-bottom: 1px solid #e5dfd2;
+    padding: 14px 0;
+  }
+  .article-faq summary {
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+    color: #25402a;
+    font-size: 16px;
+  }
+  .article-faq summary::-webkit-details-marker { display: none; }
+  .article-faq summary::before {
+    content: "+ ";
+    color: #b8542f;
+    font-weight: 700;
+  }
+  .article-faq details[open] summary::before { content: "− "; }
+  .article-faq .answer {
+    padding-top: 10px;
+    color: #4a5a4d;
+    font-size: 15px;
+  }
+  .article-cta {
+    margin-top: 48px;
+    padding: 28px 24px;
+    background: #25402a;
+    color: #fff;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .article-cta h3 {
+    color: #fff !important;
+    margin: 0 0 6px;
+    font-size: 20px;
+  }
+  .article-cta p {
+    color: #cfdfd1;
+    margin: 0 0 18px;
+    font-size: 15px;
+  }
+  .article-cta a {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #b8542f;
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .article-cta a:hover { background: #fff; color: #25402a; }
+  .article-footer-meta {
+    margin-top: 32px;
+    padding-top: 18px;
+    border-top: 1px solid #e5dfd2;
+    font-size: 12px;
+    color: #7a8a7d;
+  }
+  .article-disclaimer {
+    margin-top: 22px;
+    font-size: 12px;
+    color: #7a8a7d;
+    font-style: italic;
+    line-height: 1.5;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<article class="article-page">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo; <a href="/articles">Articles</a> &rsaquo; {{ article.title }}
+  </nav>
+
+  <header class="article-head">
+    <div class="meta">
+      Published {{ article.date }}
+      {% if article.updated and article.updated != article.date %}
+        &middot; Updated {{ article.updated }}
+      {% endif %}
+      &middot; {{ article.reading_minutes }} min read
+    </div>
+    <h1>{{ article.title }}</h1>
+    <p class="article-summary">{{ article.summary }}</p>
+  </header>
+
+  <div class="article-body">
+    {{ article.body_html | safe }}
+  </div>
+
+  {% if article.faq %}
+    <section class="article-faq" id="faq">
+      <h2>Frequently asked questions</h2>
+      {% for item in article.faq %}
+        <details>
+          <summary>{{ item.q }}</summary>
+          <div class="answer">{{ item.a }}</div>
+        </details>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <div class="article-cta">
+    <h3>Calculate your foreign-income tax</h3>
+    <p>FIESTA generates your declaration in minutes — with the IRA citations built in.</p>
+    <a href="/remittance/new">Start now &rarr;</a>
+  </div>
+
+  <div class="article-disclaimer">
+    This article is general guidance for Sri Lankan foreign-income earners. It
+    is not a substitute for advice tailored to your facts. FIESTA cites the
+    Inland Revenue Act No. 24 of 2017 (as amended). If a rule has changed
+    since the publication date above, the most recent IRA / IRD gazette wins.
+  </div>
+
+  <div class="article-footer-meta">
+    Source: {{ article.author }} &middot; FIESTA &middot; {{ article.word_count }} words
+  </div>
+</article>
+{% endblock %}

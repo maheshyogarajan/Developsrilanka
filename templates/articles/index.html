@@ -1,0 +1,146 @@
+{% extends 'layout.html' %}
+
+{# Tier D6 A4 slice 1 — article hub.
+   Template variables expected from seo_routes.article_index():
+     articles          - list of article dicts (sorted newest first)
+     breadcrumb        - BreadcrumbList JSON-LD dict
+     org_schema        - Organization JSON-LD dict
+     canonical_url     - absolute URL for this index page
+     page_title        - <title> + og:title
+     page_description  - meta description + og:description
+#}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{# Pass SEO vars to layout's seo_meta surface. Setting these template
+   variables BEFORE the base layout renders the head works because Jinja
+   inheritance evaluates variables at render-time across the whole tree. #}
+{% set seo_title = page_title %}
+{% set seo_description = page_description %}
+{% set seo_canonical = canonical_url %}
+{% set seo_schemas = [org_schema, breadcrumb] %}
+{% set seo_og_type = 'website' %}
+
+{% block additional_styles %}
+<style>
+  .articles-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    color: #1c2a20;
+  }
+  .articles-page h1 {
+    font-size: 36px;
+    line-height: 1.1;
+    margin: 0 0 8px;
+    letter-spacing: -0.5px;
+    color: #25402a;
+  }
+  .articles-page .lede {
+    font-size: 17px;
+    color: #4a5a4d;
+    margin: 0 0 36px;
+    max-width: 640px;
+  }
+  .articles-page .crumbs {
+    font-size: 13px;
+    color: #7a8a7d;
+    margin-bottom: 18px;
+  }
+  .articles-page .crumbs a { color: #7a8a7d; text-decoration: none; }
+  .articles-page .crumbs a:hover { color: #b8542f; text-decoration: underline; }
+  .article-card {
+    display: block;
+    padding: 24px 0;
+    border-top: 1px solid #e5dfd2;
+    text-decoration: none;
+    color: inherit;
+  }
+  .article-card:hover .article-card__title { color: #b8542f; }
+  .article-card:first-of-type { border-top: 0; }
+  .article-card__meta {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #7a8a7d;
+    margin-bottom: 6px;
+  }
+  .article-card__title {
+    font-size: 22px;
+    line-height: 1.25;
+    margin: 0 0 6px;
+    color: #25402a;
+    transition: color 0.15s;
+  }
+  .article-card__summary {
+    font-size: 15px;
+    color: #4a5a4d;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .articles-empty {
+    padding: 48px 0;
+    text-align: center;
+    color: #7a8a7d;
+    font-size: 15px;
+  }
+  .articles-cta {
+    margin-top: 40px;
+    padding: 24px;
+    background: #f5efe1;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .articles-cta a {
+    display: inline-block;
+    padding: 10px 22px;
+    background: #25402a;
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .articles-cta a:hover { background: #b8542f; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="articles-page">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo; Articles
+  </nav>
+
+  <h1>Sri Lanka foreign-income tax — guides</h1>
+  <p class="lede">
+    Plain-English explainers on how Sri Lankans abroad and at home are taxed on
+    foreign income. Citations to the Inland Revenue Act so you can verify every
+    claim.
+  </p>
+
+  {% if articles %}
+    {% for art in articles %}
+      <a class="article-card" href="/articles/{{ art.slug }}">
+        <div class="article-card__meta">
+          {{ art.date }} &middot; {{ art.reading_minutes }} min read
+        </div>
+        <h2 class="article-card__title">{{ art.title }}</h2>
+        <p class="article-card__summary">{{ art.summary }}</p>
+      </a>
+    {% endfor %}
+  {% else %}
+    <div class="articles-empty">
+      Articles coming soon. In the meantime, see our
+      <a href="/help">FAQ</a> or try the <a href="/tax-preview">tax preview</a>.
+    </div>
+  {% endif %}
+
+  <div class="articles-cta">
+    <div style="margin-bottom: 12px; color: #4a5a4d;">
+      Ready to file your own foreign-income tax?
+    </div>
+    <a href="/">Start your tax bill in 60 seconds</a>
+  </div>
+</div>
+{% endblock %}
