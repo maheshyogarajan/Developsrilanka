@@ -2,6 +2,28 @@
 
 {% block title %}Email Verification Required{% endblock %}
 
+{% block scripts %}
+{# Sprint 4 Tier B: signup_completed fires here because this is the page a
+   user lands on immediately after the signup POST succeeds (see
+   fiesta/signup/routes.py::signup_submit -> redirect(verify_email_reminder)).
+   Server-side `signup` event covers the DB side; this beacon covers the
+   client-side funnel attribution. #}
+<script>
+  (function () {
+    function fire() {
+      if (window.fiestaTrack) {
+        window.fiestaTrack('signup_completed', { surface: 'verify_email_reminder' });
+      } else if (window.requestAnimationFrame) {
+        window.requestAnimationFrame(fire);
+      } else {
+        setTimeout(fire, 50);
+      }
+    }
+    fire();
+  })();
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">

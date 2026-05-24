@@ -1022,7 +1022,10 @@
     {# ---- CTAs --------------------------------------------------------- #}
     <div class="tb-ctas">
         <a href="{{ url_for('fiesta_tax_bill.export_audit_pack', tax_year=tax_year_s4) }}"
-           class="tb-cta-secondary">
+           class="tb-cta-secondary"
+           data-track="audit_view"
+           data-track-surface="export_audit_pack_cta"
+           data-track-tax-year="{{ tax_year_s4 }}">
             Export audit pack PDF
         </a>
 
@@ -1054,4 +1057,29 @@
     </p>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+{# Sprint 4 Tier B: tax_bill_view fires when the S5 tax-bill surface loads.
+   audit_view fires from the audit-pack export route's success page; here we
+   also tag the "view audit pack" CTA as an audit_view beacon so we capture
+   both flows. #}
+<script>
+  (function () {
+    function fire() {
+      if (window.fiestaTrack) {
+        window.fiestaTrack('tax_bill_view', {
+          surface: 's4_tax_bill',
+          tax_year: '{{ tax_year_s4 if tax_year_s4 is defined else "" }}',
+          finalized: {{ 'true' if report and report.is_finalized else 'false' }}
+        });
+      } else if (window.requestAnimationFrame) {
+        window.requestAnimationFrame(fire);
+      } else {
+        setTimeout(fire, 50);
+      }
+    }
+    fire();
+  })();
+</script>
 {% endblock %}

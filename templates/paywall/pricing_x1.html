@@ -94,7 +94,8 @@
           </ul>
 
           {% if authenticated %}
-            <form method="POST" action="{{ url_for('paywall.checkout') }}">
+            <form method="POST" action="{{ url_for('paywall.checkout') }}"
+                  onsubmit="try { window.fiestaTrack && window.fiestaTrack('payment_started', { product_id: '{{ product.id|default('') }}', screen_id: '{{ screen_id|default('') }}' }); } catch (_) {}">
               {% if csrf_token %}
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
               {% endif %}
