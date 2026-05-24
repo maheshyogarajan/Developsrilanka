@@ -283,6 +283,14 @@ def claim(category_id: str):
             _invalidate_hub_cache(user_id)
         except Exception:
             pass
+        # x9 tier-b (perf): also bust the per-(user, year) /tax-bill cache so
+        # the next S12 render reflects the new claim end-to-end (not just the
+        # topbar pill).
+        try:
+            from fiesta.tax_bill.compute import _invalidate_tax_bill_cache
+            _invalidate_tax_bill_cache(user_id, tax_year)
+        except Exception:
+            pass
         return jsonify({"ok": True, "claim": claim_row.to_dict()})
     except Exception as exc:
         db.session.rollback()
@@ -320,6 +328,12 @@ def unclaim(category_id: str):
         try:
             from app import _invalidate_hub_cache
             _invalidate_hub_cache(user_id)
+        except Exception:
+            pass
+        # x9 tier-b (perf): also bust the per-(user, year) /tax-bill cache.
+        try:
+            from fiesta.tax_bill.compute import _invalidate_tax_bill_cache
+            _invalidate_tax_bill_cache(user_id, tax_year)
         except Exception:
             pass
         return jsonify({"ok": True, "claim": claim_row.to_dict()})
@@ -395,6 +409,13 @@ def update_evidence_status(category_id: str):
         try:
             from app import _invalidate_hub_cache
             _invalidate_hub_cache(user_id)
+        except Exception:
+            pass
+        # x9 tier-b (perf): evidence status feeds directly into the
+        # audit-defensibility score on /tax-bill — invalidate that cache too.
+        try:
+            from fiesta.tax_bill.compute import _invalidate_tax_bill_cache
+            _invalidate_tax_bill_cache(user_id, tax_year)
         except Exception:
             pass
         return jsonify({"ok": True, "claim": claim_row.to_dict()})
