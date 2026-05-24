@@ -418,11 +418,36 @@ def breakdown_json(tax_year: str):
     return jsonify({"ok": True, **payload})
 
 
+def _v2_flag_enabled() -> bool:
+    """Resolve the AUDIT_PDF_V2_ENABLED feature flag.
+
+    Honours both `feature_flags.is_feature_enabled` (project convention) and
+    direct env-var lookup as a fallback for environments where feature_flags
+    is not importable. Default OFF.
+    """
+    try:
+        from feature_flags import is_feature_enabled  # type: ignore
+        if is_feature_enabled("AUDIT_PDF_V2_ENABLED"):
+            return True
+    except Exception:
+        pass
+    import os
+    val = (os.environ.get("AUDIT_PDF_V2_ENABLED") or "").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
+
 @bp.route("/<tax_year>/export", methods=["GET"])
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S12", action="export_audit_pack")
 def export_audit_pack(tax_year: str):
-    """Generate + stream the audit-pack PDF."""
+    """Generate + stream the audit-pack PDF.
+
+    B14: optional v2 branch. Query param `?v=2` requests the v2 layout
+    (per-claim evidence chain + IRA cite text + calculation methodology).
+    v2 is gated by the AUDIT_PDF_V2_ENABLED feature flag; when the flag is
+    OFF, `?v=2` silently falls back to v1 (no breaking change for the
+    existing customer-facing S12 export button).
+    """
     user_id = _current_user_id()
     if not user_id:
         abort(401)
@@ -431,9 +456,16 @@ def export_audit_pack(tax_year: str):
     tax_year_s4 = normalise_tax_year_to_s4_format(tax_year)
     report.is_finalized = _is_finalized(user_id, tax_year_s4)
 
+    # Decide which generator to use.
+    requested_v2 = (request.args.get("v") or "").strip() == "2"
+    v2_active = requested_v2 and _v2_flag_enabled()
+
     # Build PDF (lazy import: ReportLab is heavy).
     try:
-        from .audit_pack import build_audit_pack
+        if v2_active:
+            from .audit_pack_v2 import build_audit_pack_v2 as _builder
+        else:
+            from .audit_pack import build_audit_pack as _builder
     except Exception as exc:
         logger.exception("audit_pack import failed: %s", exc)
         return jsonify({
@@ -442,18 +474,17 @@ def export_audit_pack(tax_year: str):
         }), 503
 
     try:
-        pdf_bytes = build_audit_pack(report)
+        pdf_bytes = _builder(report)
     except Exception as exc:
-        logger.exception("audit_pack build failed: %s", exc)
+        logger.exception("audit_pack build failed (v2=%s): %s", v2_active, exc)
         return jsonify({
             "ok": False,
             "error": f"PDF generation failed: {exc}",
         }), 500
 
     from io import BytesIO
-    filename = (
-        f"FIESTA_AuditPack_{tax_year_s4}_user{user_id}.pdf"
-    )
+    suffix = "_v2" if v2_active else ""
+    filename = f"FIESTA_AuditPack_{tax_year_s4}_user{user_id}{suffix}.pdf"
     return send_file(
         BytesIO(pdf_bytes),
         mimetype="application/pdf",

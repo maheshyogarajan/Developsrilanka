@@ -1,0 +1,139 @@
+{
+  "_meta": {
+    "schema_version": 1,
+    "version": "1.0.0",
+    "generated_at": "2026-05-24",
+    "jurisdiction": "LK",
+    "source_act": "Inland Revenue Act No. 24 of 2017 (consolidated to 31 March 2025)",
+    "source_method": "Pulled via mcp__ira__get_section on 2026-05-24; full chunks preserved verbatim and trimmed of inline marginalia (amendment refs) to fit PDF rendering. The unedited text remains accessible via the IRA KG at section level.",
+    "notes": [
+      "These citations support B14 Audit-Defence PDF v2. Each section text is a verbatim excerpt from the IRA KG, slightly trimmed of right-margin amendment metadata for PDF readability.",
+      "Sections NOT yet captured here but commonly cross-referenced from the FIESTA catalog: §13 (capital allowance / depreciation on plant & equipment) and §195 (disclosure of payments to associated persons). Both must be added before v2 ships GA. They are marked TODO below.",
+      "Foreign-income-earner relevance is annotated per entry under `relevance_to_foreign_income_earner` so PDF v2 can reorder by personal applicability."
+    ]
+  },
+  "sections": [
+    {
+      "section": "2",
+      "title": "Charging provision",
+      "heading_path": "PART I > CHAPTER I > IMPOSITION OF INCOME TAX > Section 2",
+      "pages": "11-12",
+      "text": "Income tax shall be payable for each year of assessment by (a) a person who has taxable income for that year; or (b) a person who receives a final withholding payment during that year. The amount of income tax payable by a person for any year of assessment shall be the total of the amounts payable under subsection (1). The income tax payable by a person under paragraph (a) of subsection (1) shall be calculated by (a) applying the relevant rates of income tax set out in the First Schedule to this Act to that person's taxable income; (b) deducting any foreign tax credit claimed by and allowed to the person for the year under section 80 of this Act; and (c) deducting any other tax credit granted or allowed to the person for the year under this Act.",
+      "relevance_to_foreign_income_earner": "Authorises tax on the taxpayer's annual taxable income and confirms that any foreign tax credit (section 80) is deductible against the Sri Lankan tax computed."
+    },
+    {
+      "section": "3",
+      "title": "Taxable income",
+      "heading_path": "PART I > CHAPTER II > Division I: Taxable Income > Section 3",
+      "pages": "12",
+      "text": "Subject to subsection (2), the taxable income of a person for a year of assessment shall be equal to the total of the person's assessable income for the year from each employment, business, investment and other sources. In arriving at taxable income of a year of assessment qualifying payments and reliefs for that year under section 52 shall be deducted. The taxable income of each person and the assessable income from each source shall be determined separately.",
+      "relevance_to_foreign_income_earner": "Confirms that a taxpayer's foreign income (computed under sections 5/6/7 depending on character) is consolidated into taxable income, less qualifying payments and reliefs (§52)."
+    },
+    {
+      "section": "5",
+      "title": "Employment income",
+      "heading_path": "PART I > CHAPTER II > Division II: Assessable Income > Section 5",
+      "pages": "12-14",
+      "text": "An individual's income from an employment for a year of assessment shall be the individual's gains and profits from the employment for that year of assessment. In calculating an individual's gains and profits from an employment the following amounts shall be included: payments of salary, wages, leave pay, overtime pay, fees, pensions, commissions, gratuities, bonuses and other similar payments; personal allowance (cost of living, subsistence, rent, entertainment, travel); reimbursement of expenses; agreement to conditions of employment; redundancy or termination payments; retirement contributions; transfers to another person for the benefit of the individual; fair market value of benefits; other payments including gifts; and the market value of shares allotted under an employee share scheme. Excluded: exempt amounts, final withholding payments, certain reimbursements, employer-paid health insurance on non-discriminatory terms, and approved retirement contributions.",
+      "relevance_to_foreign_income_earner": "Foreign-employer salary received by a resident is assessable employment income under §5 unless explicitly exempted. The PDF cites this when 'salary' appears in the income breakdown."
+    },
+    {
+      "section": "6",
+      "title": "Business income",
+      "heading_path": "PART I > CHAPTER II > Division II: Assessable Income > Section 6",
+      "pages": "14-15",
+      "text": "A person's income from a business for a year of assessment shall be the person's gains and profits from conducting the business for the year. In calculating gains and profits the following derived amounts shall be included: service fees; consideration received in respect of trading stock; gains from the realisation of capital assets and liabilities of the business as calculated under Chapter IV; amounts required to be included by the Fourth Schedule on the realisation of depreciable assets; consideration for accepting a restriction on capacity to conduct the business; gifts received in respect of the business; amounts effectively connected with the business that would otherwise be investment income; and other amounts required to be included under this Act. The following shall be excluded: exempt amounts and final withholding payments; and amounts that are included in calculating the person's income from an employment.",
+      "relevance_to_foreign_income_earner": "Foreign-client service fees (contractor / consultant / freelancer income) are assessable business income under §6. This is the canonical 'deductibility' anchor cited by most FIESTA deduction categories (the 'wholly, exclusively and necessarily' rule)."
+    },
+    {
+      "section": "7",
+      "title": "Investment income",
+      "heading_path": "PART I > CHAPTER II > Division II: Assessable Income > Section 7",
+      "pages": "15-16",
+      "text": "A person's income from an investment for a year of assessment shall be the person's gains and profits from that investment for the year. The following amounts derived during the year shall be included: dividends, interest, discounts, charges, annuities, natural resource payments, rents, premiums and royalties; gains from the realisation of investment assets calculated under Chapter IV; consideration for accepting a restriction on capacity to conduct the investment; gifts received in respect of the investment; winnings from lotteries, betting or gambling; and other amounts required to be included under this Act. Excluded: exempt amounts and final withholding payments; and amounts that are included in calculating the person's income from an employment or business.",
+      "relevance_to_foreign_income_earner": "Foreign dividends, interest, rent, royalties and gains on foreign investment assets are assessable under §7. The PDF cites this when 'interest', 'dividend' or 'rental' appears in the income breakdown."
+    },
+    {
+      "section": "13",
+      "title": "Capital allowance / depreciation on depreciable assets",
+      "heading_path": "PART I > CHAPTER III > Section 13 (placeholder)",
+      "pages": "TODO",
+      "text": "[TODO — section text not yet retrieved from the IRA KG. The deduction catalog cites this section for equipment_capex and solar_installation (read with §6). The Fourth Schedule schedules capital allowance rates per asset class.]",
+      "relevance_to_foreign_income_earner": "Authorises capital allowance (depreciation) deduction against business income for plant, equipment and qualifying renewable-energy assets used in producing income. Cited alongside §6 in equipment_capex and solar_installation deduction categories.",
+      "todo": true
+    },
+    {
+      "section": "51",
+      "title": "Apportionment of costs and consideration received",
+      "heading_path": "PART I > CHAPTER IV > Division II: Realization of assets > Section 51",
+      "pages": "51-52",
+      "text": "Where a person acquires one or more assets by way of transfer at the same time or as part of the same arrangement, the expenditure incurred in acquiring each asset shall be apportioned between the assets according to their market values at the time of acquisition. Where a person realises one or more assets by way of transfer at the same time or as part of the same arrangement, the amounts derived in realising each asset shall be apportioned between the assets according to their market values at the time of realisation. Where a person who owns an asset realises part of it, the net cost of the asset immediately before the realisation shall be apportioned between the part of the asset realised and the part retained according to their market values immediately after the realisation.",
+      "relevance_to_foreign_income_earner": "Relevant where a customer claims a partial-use deduction (e.g. home office on a rented residence, equipment used part-personal / part-business) — the apportionment principle governs the deduction's defensible quantum."
+    },
+    {
+      "section": "52",
+      "title": "Qualifying payments and reliefs",
+      "heading_path": "PART I > CHAPTER V > Division I: Individuals and Entities > Section 52",
+      "pages": "52",
+      "text": "In arriving at the taxable income of an individual or entity for a year of assessment under section 3, the aggregate qualifying payments referred to in the Fifth Schedule to this Act shall be deducted. In arriving at the taxable income of an individual who is resident in Sri Lanka for a year of assessment under section 3, the aggregate reliefs referred to in the Fifth Schedule to this Act shall be deducted. In arriving at the taxable income of an individual who is not resident in Sri Lanka for a year of assessment but is a citizen of Sri Lanka under section 3, the relief referred to in paragraph 2(a) of the Fifth Schedule to this Act shall be deducted.",
+      "relevance_to_foreign_income_earner": "Authorises the personal relief and qualifying-payment deductions used by the FIESTA computation (charitable_donations, health_insurance categories cite this via the Fifth Schedule)."
+    },
+    {
+      "section": "83",
+      "title": "Withholding by employers / Advance Personal Income Tax",
+      "heading_path": "PART I > CHAPTER VIII > Division II: Tax Payable by Withholding > Section 83 / 83A",
+      "pages": "84-85",
+      "text": "The Commissioner General may specify the circumstances in which an employer shall withhold tax prior to January 1, 2020 from a payment that is to be included in calculating the taxable income of an employee. The obligation to withhold shall not be reduced or extinguished by competing deduction rights or other laws. An employer shall deduct Advance Personal Income Tax with effect from January 1, 2023 on any payment which falls under section 5 made to his employee, as specified by the Commissioner-General. The provisions applicable to withholding tax under this Act shall, mutatis mutandis, apply to APIT.",
+      "relevance_to_foreign_income_earner": "Foreign-employer salary is generally NOT within §83/83A APIT (the foreign employer does not deduct Sri Lankan tax). This section is cited in the PDF when explaining why APIT credit is zero for the foreign-employer salary line — the customer must self-assess and pay the tax by instalment under §90."
+    },
+    {
+      "section": "85",
+      "title": "Withholding from service fees and contract payments",
+      "heading_path": "PART I > CHAPTER VIII > Division II: Tax Payable by Withholding > Section 85",
+      "pages": "87-89",
+      "text": "Subject to subsection (3), with effect from January 1, 2023, a person shall withhold tax at the rate of 5% of the payment where such person pays a service fee with a source in Sri Lanka to a resident individual who is not an employee of the payer for teaching, lecturing, examining, invigilating; commission or brokerage to a resident insurance, sales or canvassing agent; or services provided by such individual in the capacity of independent service provider such as doctor, engineer, accountant, lawyer, software developer, researcher, academic or any individual service provider as may be prescribed. This subsection shall not apply to a service payment which does not exceed Rs.100,000 per month.",
+      "relevance_to_foreign_income_earner": "Cross-border service fees TO a non-resident are subject to §85(1B) at 14%. Foreign-income earners who PAY a Sri Lankan service provider must withhold under §85(1C). FIESTA cites §85 in the audit pack when a service-provider relationship is on file."
+    },
+    {
+      "section": "92",
+      "title": "Statement of estimated tax payable not required",
+      "heading_path": "PART I > CHAPTER VIII > Division III: Tax Payable by Instalment > Section 92",
+      "pages": "97",
+      "text": "The Commissioner General may specify by notice in writing that an instalment payer or class of instalment payers is not required to submit an estimate under section 91. Where an instalment payer is not required to submit an estimate by reason of subsection (1), the Commissioner General shall make an estimate of the person's estimated tax payable for the year of assessment, which may be based on the tax payable for the previous year of assessment with an uplift; and serve on the instalment payer a written notice stating the Commissioner-General's estimate and the manner in which it is calculated.",
+      "relevance_to_foreign_income_earner": "Foreign-income earners on the instalment regime can be released from estimate-filing duty under §92; the Commissioner-General then issues a notice with an estimate. The PDF cites this when explaining the instalment-vs-self-estimate position."
+    },
+    {
+      "section": "93",
+      "title": "Return of income and capital gains",
+      "heading_path": "PART I > CHAPTER VIII > Division IV: Tax Payable on Assessment > Section 93",
+      "pages": "97-99",
+      "text": "Subject to section 94 and subsection (2), every person shall file with the Commissioner General not later than eight months after the end of each year of assessment a return of income for the year. A return of income shall be in the manner and form specified by the Commissioner-General and shall set out: the person's assessable income from each employment, business, investment and other income and the source of that income; the person's taxable income and the tax payable on it; any tax paid by withholding, instalment or assessment for which a tax credit is available under section 89 or 90; the amount of tax remaining to be paid for the year; and any other information that the Commissioner General may specify. Every person with taxable income consisting of a gain from the realisation of an investment asset shall file with the Commissioner General a capital gain tax return not later than one month after that realisation.",
+      "relevance_to_foreign_income_earner": "Sets the filing deadline (within 8 months of YOA end — i.e. 30 November) and the schedule of attachments. Anchors FIESTA's S14 attestation page and is cited in the audit pack as the legal basis for the filing itself."
+    },
+    {
+      "section": "94",
+      "title": "Return of income not required",
+      "heading_path": "PART I > CHAPTER VIII > Division IV: Tax Payable on Assessment > Section 94",
+      "pages": "99-100",
+      "text": "Subject to subsection (2), a return of income for a year of assessment shall not be required under section 93 from a resident individual who has no tax payable for the year; or whose tax payable relates exclusively to income from employment subject to withholding under section 83 prior to April 1, 2019; or an individual whose tax payable relates exclusively to income from employment where the employer has deducted Advance Personal Income Tax under section 83A. Notwithstanding subsection (1), the Commissioner General may serve a notice in writing on a person requiring the person to file a return.",
+      "relevance_to_foreign_income_earner": "Establishes the narrow class exempt from filing. Foreign-income earners almost always fall OUTSIDE §94 because their tax does not relate exclusively to APIT employment. The PDF cites this when explaining why the customer is required to file."
+    },
+    {
+      "section": "120",
+      "title": "Accounts and records (record-keeping for audit defence)",
+      "heading_path": "PART II > CHAPTER X > Section 120",
+      "pages": "115-117",
+      "text": "A taxpayer engaged in business or investment activity or required under this Act to make a return shall keep and maintain in Sri Lanka records and accounts sufficient to record all transactions and to ascertain the gains and profits made or the loss incurred in respect of those transactions. The records or books of accounts required by this section shall be kept at the place of business or investment activity of the person unless the Commissioner-General approves of them being kept at some other place. In addition to the records and accounts referred to in subsections (1) and (2), a taxpayer shall also retain source documents and underlying documentation utilized in the creation of the records and accounts. A person required to prepare or retain records of a transaction under this Act shall retain such records for a period of five years from the date on which the transaction took place; or for a period exceeding five years, until expiration of the time limit for assessment of tax for any tax period to which the records are relevant and until any related proceedings have been completed. For the purposes of this section, source documents include sales and purchase invoices, costing documents, bookings, diaries, purchase orders, delivery notes, bank statements, contracts, and other documents which relate to an element of a transaction.",
+      "relevance_to_foreign_income_earner": "THE canonical authority for the customer's evidence-retention obligation. §120(6)(a) sets the floor at FIVE years (not six). The audit pack closes with this section because it is the legal basis the audit pack is designed to satisfy."
+    },
+    {
+      "section": "195",
+      "title": "Disclosure of payments to associated persons",
+      "heading_path": "PART III (placeholder)",
+      "pages": "TODO",
+      "text": "[TODO — section text not yet retrieved from the IRA KG. The §195 disclosure regime requires taxpayers to identify and disclose payments made to associated persons exceeding statutory thresholds. FIESTA detects related-party service providers and rentals upstream (S6/S7); the PDF cites §195 when those flags are raised.]",
+      "relevance_to_foreign_income_earner": "Cited when a service-provider or rental counterparty is detected as a related party (family member, controlled entity) and the §195 disclosure must accompany the deduction.",
+      "todo": true
+    }
+  ]
+}
