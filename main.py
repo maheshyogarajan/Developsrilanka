@@ -186,6 +186,26 @@ try:
 except Exception as e:
     logger.error(f"Error loading analytics beacon routes: {str(e)}")
 
+# Tier D6 / A2 — UTM capture middleware (first-touch sticky, last-touch overwrite).
+# Must register BEFORE the pixels context processor so utm_first_touch is in scope
+# when pixels.html renders. See utm_capture.py for the data-flow contract.
+try:
+    import utm_capture
+    utm_capture.register(app)
+    logger.info("UTM capture loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading UTM capture: {str(e)}")
+
+# Tier D6 / A2 — Paid-acquisition pixels (Meta + LinkedIn + Twitter).
+# Context processor only — actual pixel JS lives in templates/components/pixels.html.
+# Default-OFF behind PIXELS_ENABLED env var; per-network IDs gate each pixel.
+try:
+    import pixels as _pixels
+    _pixels.register(app)
+    logger.info("Pixels context processor loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading pixels: {str(e)}")
+
 # Sprint 4 Tier D4 — in-app feedback widget endpoint (POST /api/feedback)
 try:
     from feedback_routes import register_routes as register_feedback_routes
@@ -731,6 +751,32 @@ with app.app_context():
         logger.error(
             f"Wave 6 admin migration failed (non-fatal — decorator + ORM gracefully "
             f"degrade): {e}"
+        )
+
+    # Tier D6 / A2 UTM columns — additive ALTER TABLE for user.utm_source +
+    # utm_medium + utm_campaign + utm_term + utm_content + partial index.
+    # Idempotent. Safe to re-run on every boot. Follows the same auto-apply
+    # pattern as the other additive migrations above so a fresh dev DB or
+    # test DB gets the columns without manual flyctl invocation.
+    try:
+        from migrations.add_utm_columns_to_user import upgrade as _run_utm_migration
+        _run_utm_migration()
+    except Exception as e:
+        logger.error(
+            f"Tier D6/A2 UTM migration failed (non-fatal — ORM-level columns "
+            f"would still surface, just without DB persistence): {e}"
+        )
+
+    # Tier D6 / A2 — partial expression index on events.payload->>'utm_source'.
+    # Lets the channel-breakdown analytics query the events table without a
+    # JSON probe per row. Idempotent CREATE INDEX IF NOT EXISTS.
+    try:
+        from migrations.add_utm_source_partial_index import upgrade as _run_utm_index_migration
+        _run_utm_index_migration()
+    except Exception as e:
+        logger.error(
+            f"Tier D6/A2 UTM events-index migration failed (non-fatal — "
+            f"queries still work, just without the partial index): {e}"
         )
 
 # Function to start Celery worker in a background thread

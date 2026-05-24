@@ -3034,7 +3034,13 @@ def register():
     except Exception as _ev_err:
         logging.debug(f"Event emit (signup_page_viewed) failed: {_ev_err}")
 
-    return render_template('register.html', signup_next=signup_next)
+    # Tier D6 / A2 — fire the signup_started conversion pixel on this
+    # legacy /register surface. The /signup alias below does the same.
+    return render_template(
+        'register.html',
+        signup_next=signup_next,
+        pixel_event='signup_started',
+    )
 
 
 @app.route('/signup')
@@ -3077,7 +3083,16 @@ def signup():
     except Exception as _ev_err:
         logging.debug(f"Event emit (signup_page_viewed) failed: {_ev_err}")
 
-    return render_template('register.html', signup_next=next_target)
+    # Tier D6 / A2 — fire the signup_started conversion pixel on this
+    # surface (renders register.html → extends layout.html → includes
+    # pixels.html). The competing /signup route registered by the FIESTA
+    # signup blueprint also passes this kwarg; whichever Flask resolves
+    # the URL to, the conversion event fires.
+    return render_template(
+        'register.html',
+        signup_next=next_target,
+        pixel_event='signup_started',
+    )
 
 @app.route('/verify-email/<token>')
 def verify_email(token):
@@ -3184,7 +3199,13 @@ def verify_email_reminder():
     # should NOT see the "please verify" page. Send them home.
     if getattr(current_user, 'is_email_verified', False):
         return redirect(url_for('home'))
-    return render_template('verify_email_reminder.html')
+    # Tier D6 / A2 — fire the signup_completed conversion event on this
+    # post-signup landing page. Passed via render_template kwargs so the
+    # pixels.html include (rendered inside the parent layout) sees it.
+    return render_template(
+        'verify_email_reminder.html',
+        pixel_event='signup_completed',
+    )
 
 @app.route('/onboarding', methods=['GET', 'POST'])
 @login_required
