@@ -382,6 +382,20 @@ try:
 except Exception as e:
     logger.error(f"Error loading Support Copilot: {str(e)}")
 
+# Tier D2 — Lightweight support ticketing (2026-05-24)
+# Distinct from Wave 3.2: D2 is a conversation thread (customer <-> staff/AI);
+# Wave 3.2 is single-shot Q&A. Coexist on /support prefix with different paths.
+try:
+    import support_models  # noqa: F401  (registers tables on import)
+    import support_tickets_routes
+    support_tickets_routes.register_routes(app)
+    logger.info(
+        "D2 Support Tickets registered at POST /api/support/ticket + "
+        "/support/tickets/*"
+    )
+except Exception as e:
+    logger.error(f"Error loading D2 Support Tickets: {str(e)}")
+
 # Wave 3.3 — Lanka.tax Cross-Sell (2026-05-18)
 try:
     import lankatax_models  # noqa: F401

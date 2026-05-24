@@ -207,6 +207,45 @@ def _build_feedback_view(csrf):
             # retry button instead of swallowing the user's words.
             return jsonify({"error": "could not save feedback"}), 503
 
+        # ---- Auto-bridge to D2 support ticket ---- #
+        # Categories that need a conversation, not just a drop-and-go note:
+        # bug (something broken) + confusion (I don't understand). 'praise' /
+        # 'feature' / 'other' stay drop-only — they don't deserve to clutter
+        # the CEO queue. NON-FATAL: bridge failure logs but does not change
+        # the 204 contract — the feedback itself is already saved.
+        if category in {"bug", "confusion"}:
+            try:
+                from support_tickets_routes import create_ticket_with_seed_message
+
+                # Subject from the first line (cap to a reasonable length);
+                # if the body is one long block, slice the first ~120 chars.
+                first_line = text.splitlines()[0] if text else ""
+                subject = (first_line or text)[:120].strip() or f"Feedback: {category}"
+                if len(subject) < 10 and len(text) > 10:
+                    subject = text[:120].strip()
+
+                tags = ["from_feedback_widget", f"feedback_category:{category}"]
+
+                ticket_id = create_ticket_with_seed_message(
+                    user_id=_current_user_id(),
+                    session_anon_id=_get_anon_id(),
+                    subject=subject,
+                    body=text,
+                    category=category,
+                    # Bugs are higher-signal than confusion; both above 'low'.
+                    priority="high" if category == "bug" else "normal",
+                    seed_author_role="customer",
+                    seed_author_user_id=_current_user_id(),
+                    tags=tags,
+                )
+                if ticket_id is None:
+                    log.info(
+                        "api/feedback: bridge to support ticket failed (feedback "
+                        "row %s saved; ticket not created)", row.id,
+                    )
+            except Exception as exc:
+                log.warning("api/feedback: bridge step failed: %s", exc)
+
         # 204 No Content — same shape as /api/event.
         return ("", 204)
 

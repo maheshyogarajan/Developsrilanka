@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block title %}My Support Tickets - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 960px;">
+  <div class="row mb-4">
+    <div class="col">
+      <span class="eyebrow">Support</span>
+      <h1 class="h2 mb-2">My Tickets</h1>
+      <p class="text-secondary mb-0">
+        Open a conversation with our team. We'll reply here as soon as we can.
+      </p>
+    </div>
+  </div>
+
+  {% with flashes = get_flashed_messages(with_categories=true) %}
+    {% if flashes %}
+      {% for category, message in flashes %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if tickets %}
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th scope="col" class="text-secondary small">#</th>
+              <th scope="col" class="text-secondary small">Subject</th>
+              <th scope="col" class="text-secondary small">Status</th>
+              <th scope="col" class="text-secondary small">Priority</th>
+              <th scope="col" class="text-secondary small">Opened</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in tickets %}
+              <tr>
+                <td class="text-secondary small">#{{ t.id }}</td>
+                <td>
+                  <a href="{{ url_for('support_tickets.view_ticket', ticket_id=t.id) }}">
+                    {{ t.subject }}
+                  </a>
+                </td>
+                <td>
+                  {% set status_class = {
+                    'open': 'primary',
+                    'awaiting_customer': 'warning',
+                    'resolved': 'success',
+                    'closed': 'secondary'
+                  } %}
+                  <span class="badge bg-{{ status_class.get(t.status, 'secondary') }}">
+                    {{ t.status.replace('_', ' ') }}
+                  </span>
+                </td>
+                <td>
+                  {% set pri_class = {
+                    'high': 'danger',
+                    'normal': 'secondary',
+                    'low': 'light text-dark'
+                  } %}
+                  <span class="badge bg-{{ pri_class.get(t.priority, 'secondary') }}">
+                    {{ t.priority }}
+                  </span>
+                </td>
+                <td class="text-secondary small">
+                  {{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '' }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="card-body text-center text-secondary py-5">
+        <p class="mb-2">You haven't filed any support tickets yet.</p>
+        <p class="small mb-0">
+          Use the feedback widget on any page, or report a problem from the
+          Copilot's escalation screen, to open a ticket.
+        </p>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
