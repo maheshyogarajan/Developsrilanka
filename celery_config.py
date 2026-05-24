@@ -93,6 +93,8 @@ app = Celery(
         'worker_heartbeat',
         # D5 / F-Feature-3.7 — CBSL daily rate pre-fetch
         'tasks.cbsl_rate_fetch',
+        # Tier D1 / F1 — Daily Fly PG backup → Tigris
+        'tasks.pg_backup',
     ]
 )
 
@@ -187,6 +189,19 @@ app.conf.beat_schedule.update({
     'cbsl-rate-daily-prefetch': {
         'task': 'tasks.cbsl_rate_fetch.fetch_today_task',
         'schedule': crontab(hour=7, minute=30),  # 07:30 UTC daily
+    },
+})
+
+# Tier D1 / F1 (2026-05-24) — Daily Fly Postgres backup → Tigris.
+# fiesta-pg-bom is unmanaged: no automatic snapshots. This task dumps
+# the cluster nightly via pg_dump --format=custom + uploads to a Tigris
+# S3-compatible bucket. Retention 14 daily + 12 monthly, pruned in-task.
+# Schedule: 20:30 UTC = 02:00 IST = lowest-traffic window.
+# Env requirements + DR runbook: _tier_d1_pg_backup/DR_RUNBOOK.md
+app.conf.beat_schedule.update({
+    'pg_backup-daily-2030-utc': {
+        'task': 'tasks.pg_backup.daily_backup_task',
+        'schedule': crontab(hour=20, minute=30),  # 02:00 IST daily
     },
 })
 
