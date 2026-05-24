@@ -104,6 +104,13 @@ app = Celery(
         # lazy-imports FAQEntry inside faq_autogen tasks and lookups need
         # the model metadata loaded first).
         'faq_models',
+        # Tier D4 / C2 (2026-05-24) — Year-over-year retention nudges.
+        # 3 calendar-anchored schedulers (Apr 1, Sep 1, Oct 31) + daily
+        # renewal-check + hourly dispatcher. v1 send is stubbed.
+        'tasks.yoy_nudges_run',
+        # Bootstrap-fix sibling per v18.1 pattern — task lazy-imports
+        # YoYNudge model inside dispatcher; metadata needs loading first.
+        'yoy_models',
     ]
 )
 
@@ -243,6 +250,44 @@ app.conf.beat_schedule.update({
     'faq_autogen-weekly-mon-0400-utc': {
         'task': 'faq_autogen.weekly_run',
         'schedule': crontab(day_of_week=1, hour=4, minute=0),
+    },
+})
+
+# Tier D4 / C2 (2026-05-24) — Year-over-year retention nudges.
+#
+# Four schedulers (3 calendar-anchored + 1 daily renewal-check) plus an
+# hourly dispatcher that drains scheduled rows via the stubbed send. Each
+# scheduler ONLY inserts yoy_nudge rows; the dispatcher is what (eventually)
+# fires the email — split so we can swap the stub for SendGrid without
+# touching the beat schedule.
+#
+# Times in UTC:
+#   * 04:00 UTC = 09:30 IST = good window: after backups (20:30 UTC prev
+#     night), before business-hours traffic. No clash with ai_crm (02:00),
+#     ai_org_score_engine (03:00), pg_backup (20:30), faq_autogen (Mon 04:00).
+#   * Schedulers fire at :00; dispatcher fires hourly at :12 to give the
+#     scheduler a 12-min lead so its rows exist by the first drain.
+#   * Renewal check daily at 04:30 to stay off the :00 spike.
+app.conf.beat_schedule.update({
+    'yoy-apr-1-yearly': {
+        'task': 'yoy_nudges.apr_1_run',
+        'schedule': crontab(month_of_year=4, day_of_month=1, hour=4, minute=0),
+    },
+    'yoy-payment-deadline-yearly': {
+        'task': 'yoy_nudges.payment_run',
+        'schedule': crontab(month_of_year=9, day_of_month=1, hour=4, minute=0),
+    },
+    'yoy-filing-deadline-yearly': {
+        'task': 'yoy_nudges.filing_run',
+        'schedule': crontab(month_of_year=10, day_of_month=31, hour=4, minute=0),
+    },
+    'yoy-renewal-check-daily': {
+        'task': 'yoy_nudges.renewal_check',
+        'schedule': crontab(hour=4, minute=30),
+    },
+    'yoy-dispatch-hourly': {
+        'task': 'yoy_nudges.dispatch',
+        'schedule': crontab(minute=12),
     },
 })
 

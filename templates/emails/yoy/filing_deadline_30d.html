@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.55; max-width: 600px;">
+    <h2 style="margin-bottom: 8px;">30 days to your tax filing deadline</h2>
+
+    <p>Hi {{ first_name | default('there') }},</p>
+
+    <p>
+      The IRD return-filing deadline (<strong>30 November</strong>) for tax
+      year {{ tax_year | default('') }} is one month away. Filing late triggers
+      automatic penalties and slows down any refund you're owed.
+    </p>
+
+    <p>
+      Most FIESTA users file in under 20 minutes once their income evidence
+      is in. If you haven't started:
+    </p>
+
+    <ul>
+      <li>Upload bank statements for the year.</li>
+      <li>Confirm your foreign remittances (FIESTA pulls CBSL rates automatically).</li>
+      <li>Review and submit.</li>
+    </ul>
+
+    <p>
+      <a href="{{ fiesta_url | default('https://fiesta.lanka.tax') }}/tax-bill"
+         style="background:#0a6ebd;color:#fff;padding:10px 18px;text-decoration:none;border-radius:6px;display:inline-block;">
+        File now in FIESTA
+      </a>
+    </p>
+
+    <p style="color:#666;font-size:13px;">
+      Active FIESTA subscriber for {{ tax_year | default('the current year') }}.
+      Reply to this email if you need a hand from the FIESTA team.
+    </p>
+  </body>
+</html>

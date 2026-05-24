@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <body style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.55; max-width: 600px;">
+    <h2 style="margin-bottom: 8px;">A new tax year just started</h2>
+
+    <p>Hi {{ first_name | default('there') }},</p>
+
+    <p>
+      The Sri Lankan tax year {{ tax_year | default('') }} began on
+      <strong>1 April</strong>. The earlier you start, the calmer the run-in
+      to the November filing deadline.
+    </p>
+
+    <p>What you can do this week, in 10 minutes:</p>
+    <ol>
+      <li>Sign in to FIESTA and confirm last year's filing closed cleanly.</li>
+      <li>Update your income sources for the new year (employment, foreign, FD, rental).</li>
+      <li>Set a reminder to log remittances monthly so November isn't a scramble.</li>
+    </ol>
+
+    <p>
+      <a href="{{ fiesta_url | default('https://fiesta.lanka.tax') }}"
+         style="background:#0a6ebd;color:#fff;padding:10px 18px;text-decoration:none;border-radius:6px;display:inline-block;">
+        Open FIESTA
+      </a>
+    </p>
+
+    <p style="color:#666;font-size:13px;">
+      You're receiving this because you filed with FIESTA before. If you'd
+      rather not get YoY reminders, reply to this email and we'll switch them off.
+    </p>
+  </body>
+</html>
