@@ -97,6 +97,8 @@ app = Celery(
         'tasks.pg_backup',
         # Tier D1 / E2 — Telegram ops alerts probes (2026-05-24)
         'tasks.ops_probes',
+        # Tier D4 / E3 — Funnel anomaly probe (2026-05-24)
+        'tasks.funnel_anomaly_probe',
         # Tier D3 (2026-05-24) — FAQ auto-gen from feedback corpus.
         # Weekly cluster + draft creation; staff publishes at /admin/faq.
         'faq_autogen',
@@ -232,6 +234,19 @@ app.conf.beat_schedule.update({
         'task': 'tasks.ops_probes.signup_drop_probe',
         # 09:00 IST = 03:30 UTC (IST is UTC+5:30)
         'schedule': crontab(hour=3, minute=30),
+    },
+})
+
+# Tier D4 / E3 (2026-05-24) — Funnel anomaly daily probe.
+# 5 metrics (signup_conversion, payment_conversion, landing_to_signup,
+# tax_bill_view_rate, evidence_upload_rate). Yesterday's ratio vs 7-day
+# rolling baseline. Alerts on 30% drop OR 100% spike. Routes via
+# ops_alerts.send_alert (MEDIUM severity). 04:00 UTC = 09:30 IST, after
+# the daily window closes.
+app.conf.beat_schedule.update({
+    'funnel-anomaly-daily-0400-utc': {
+        'task': 'tasks.funnel_anomaly_probe.daily_probe',
+        'schedule': crontab(hour=4, minute=0),
     },
 })
 
