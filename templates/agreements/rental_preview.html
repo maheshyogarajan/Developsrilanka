@@ -213,6 +213,49 @@
     display: inline-flex; align-items: center; gap: .4rem;
   }
   .s9-history-strip a:hover { text-decoration: underline; }
+
+  /* Tier C-5 mobile pass: 320-768 — collapse two-col grids to single column,
+     enforce 44px tap targets, prevent doc <dl> overflow at narrow widths. */
+  @media (max-width: 768px) {
+    .s9-page { padding: 0.75rem 0.75rem 3rem; }
+    .s9-pane { padding: 1.25rem 1rem 1rem; border-radius: 12px; }
+    .s9-doc { padding: 1.25rem 1rem 1rem; }
+    .s9-doc dl {
+      grid-template-columns: 1fr;
+      gap: 0.15rem 0;
+    }
+    .s9-doc dt {
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+    .s9-doc dt:first-of-type { margin-top: 0; }
+    .s9-pair-grid { grid-template-columns: 1fr !important; }
+    .s9-form-group input[type="date"],
+    .s9-form-group input[type="text"],
+    .s9-form-group input[type="number"],
+    .s9-form-group select,
+    .s9-form-group textarea {
+      min-height: 44px;
+      font-size: 16px;  /* prevents iOS auto-zoom on focus */
+    }
+    .s9-btn-generate {
+      min-height: 44px;
+      padding: 0.85rem 1.5rem;
+      width: 100%;
+    }
+    .s9-action-row { gap: 0.75rem; }
+    .s9-breadcrumb { flex-wrap: wrap; row-gap: 0.25rem; }
+  }
+
+  @media (max-width: 414px) {
+    .s9-page { padding: 0.5rem 0.5rem 3rem; }
+    .s9-pane { padding: 1rem 0.85rem 0.85rem; }
+    .s9-doc { padding: 1rem 0.85rem 0.85rem; }
+    .s9-fieldset-legend { font-size: 0.95rem; }
+    .s9-draft-banner,
+    .s9-gate-strip,
+    .s9-tax-savings-strip { padding: 0.75rem 0.85rem; font-size: 0.85rem; }
+  }
 </style>
 {% endblock %}
 
@@ -347,7 +390,7 @@
       {# -- Term --------------------------------------------------------- #}
       <fieldset class="s9-fieldset">
         <legend class="s9-fieldset-legend">Agreement term</legend>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.9rem;">
+        <div class="s9-pair-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:.9rem;">
           <div class="s9-form-group">
             <label for="start_date">Start date</label>
             <input type="date" id="start_date" name="start_date" required
@@ -364,7 +407,7 @@
       {# -- Rent --------------------------------------------------------- #}
       <fieldset class="s9-fieldset">
         <legend class="s9-fieldset-legend">Rent</legend>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.9rem;">
+        <div class="s9-pair-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:.9rem;">
           <div class="s9-form-group">
             <label for="monthly_rent_lkr">Monthly rent (LKR)</label>
             <input type="number" id="monthly_rent_lkr" name="monthly_rent_lkr"

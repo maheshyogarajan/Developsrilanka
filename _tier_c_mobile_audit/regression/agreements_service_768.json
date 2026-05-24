@@ -1,0 +1,53 @@
+{
+  "surface": "agreements_service",
+  "viewport": "768",
+  "scrollWidth": 768,
+  "innerWidth": 768,
+  "horizontalScroll": false,
+  "small": 7,
+  "total": 14,
+  "samples": [
+    {
+      "tag": "a",
+      "w": 166,
+      "h": 36,
+      "text": "FIESTA"
+    },
+    {
+      "tag": "input",
+      "w": 414,
+      "h": 42,
+      "text": "email"
+    },
+    {
+      "tag": "a",
+      "w": 41,
+      "h": 18,
+      "text": "Forgot?"
+    },
+    {
+      "tag": "input",
+      "w": 414,
+      "h": 42,
+      "text": "password"
+    },
+    {
+      "tag": "a",
+      "w": 414,
+      "h": 40,
+      "text": "Create a new account"
+    },
+    {
+      "tag": "a",
+      "w": 107,
+      "h": 19,
+      "text": "Terms of Service"
+    },
+    {
+      "tag": "a",
+      "w": 209,
+      "h": 40,
+      "text": "Privacy Policy"
+    }
+  ]
+}

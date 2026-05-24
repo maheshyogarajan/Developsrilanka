@@ -207,6 +207,42 @@
     display: inline-flex; align-items: center; gap: .4rem;
   }
   .s8-history-strip a:hover { text-decoration: underline; }
+
+  /* Tier C-5 mobile pass: 320-768 — tighter pane padding, stack date grid,
+     keep CTA buttons ≥44px touch target, prevent horizontal overflow. */
+  @media (max-width: 768px) {
+    .s8-page { padding: 0.75rem 0.75rem 3rem; }
+    .s8-pane { padding: 1.25rem 1rem 1rem; border-radius: 12px; }
+    .s8-date-grid { grid-template-columns: 1fr !important; }
+    .s8-form-group input[type="date"],
+    .s8-form-group input[type="text"],
+    .s8-form-group select,
+    .s8-form-group textarea {
+      min-height: 44px;
+      font-size: 16px;  /* prevents iOS auto-zoom on focus */
+    }
+    .s8-btn-generate {
+      min-height: 44px;
+      padding: 0.85rem 1.5rem;
+      width: 100%;
+    }
+    .s8-action-row { gap: 0.75rem; }
+    .s8-breadcrumb { flex-wrap: wrap; row-gap: 0.25rem; }
+    .s8-checkbox-row input[type="checkbox"],
+    .s8-radio-group input[type="radio"] {
+      width: 22px; height: 22px;  /* easier mobile tap */
+    }
+  }
+
+  @media (max-width: 414px) {
+    .s8-page { padding: 0.5rem 0.5rem 3rem; }
+    .s8-pane { padding: 1rem 0.85rem 0.85rem; }
+    .s8-fieldset-legend { font-size: 0.95rem; }
+    .s8-draft-banner,
+    .s8-gate-strip,
+    .s8-disclosure-strip,
+    .s8-tax-savings-strip { padding: 0.75rem 0.85rem; font-size: 0.85rem; }
+  }
 </style>
 {% endblock %}
 
@@ -281,7 +317,7 @@
       {# -- Term ----------------------------------------------------------- #}
       <fieldset class="s8-fieldset">
         <legend class="s8-fieldset-legend">Term</legend>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.9rem;">
+        <div class="s8-date-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:.9rem;">
           <div class="s8-form-group">
             <label for="start_date">Start date</label>
             <input type="date" id="start_date" name="start_date" required>

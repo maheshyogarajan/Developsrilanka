@@ -1,0 +1,506 @@
+[
+  {
+    "surface": "s0_landing",
+    "viewport": "320",
+    "horizontalScroll": false,
+    "scrollWidth": 320,
+    "innerWidth": 320,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "s0_landing",
+    "viewport": "375",
+    "horizontalScroll": false,
+    "scrollWidth": 375,
+    "innerWidth": 375,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "s0_landing",
+    "viewport": "414",
+    "horizontalScroll": false,
+    "scrollWidth": 414,
+    "innerWidth": 414,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "s0_landing",
+    "viewport": "768",
+    "horizontalScroll": false,
+    "scrollWidth": 768,
+    "innerWidth": 768,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "s5_hub",
+    "viewport": "320",
+    "horizontalScroll": false,
+    "scrollWidth": 320,
+    "innerWidth": 320,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "s5_hub",
+    "viewport": "375",
+    "horizontalScroll": false,
+    "scrollWidth": 375,
+    "innerWidth": 375,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "s5_hub",
+    "viewport": "414",
+    "horizontalScroll": false,
+    "scrollWidth": 414,
+    "innerWidth": 414,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "s5_hub",
+    "viewport": "768",
+    "horizontalScroll": false,
+    "scrollWidth": 768,
+    "innerWidth": 768,
+    "smallTapTargets": 0,
+    "totalInteractive": 16,
+    "smallSamples": []
+  },
+  {
+    "surface": "tax_bill",
+    "viewport": "320",
+    "horizontalScroll": false,
+    "scrollWidth": 320,
+    "innerWidth": 320,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 182,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 182,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 182,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 107,
+        "h": 19,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 86,
+        "h": 19,
+        "text": "Privacy Policy"
+      }
+    ]
+  },
+  {
+    "surface": "tax_bill",
+    "viewport": "375",
+    "horizontalScroll": false,
+    "scrollWidth": 375,
+    "innerWidth": 375,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 237,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 237,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 237,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 209,
+        "h": 40,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 86,
+        "h": 19,
+        "text": "Privacy Policy"
+      }
+    ]
+  },
+  {
+    "surface": "tax_bill",
+    "viewport": "414",
+    "horizontalScroll": false,
+    "scrollWidth": 414,
+    "innerWidth": 414,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 276,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 276,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 276,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 209,
+        "h": 40,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 86,
+        "h": 19,
+        "text": "Privacy Policy"
+      }
+    ]
+  },
+  {
+    "surface": "tax_bill",
+    "viewport": "768",
+    "horizontalScroll": false,
+    "scrollWidth": 768,
+    "innerWidth": 768,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 414,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 414,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 414,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 107,
+        "h": 19,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 209,
+        "h": 40,
+        "text": "Privacy Policy"
+      }
+    ]
+  },
+  {
+    "surface": "agreements_service",
+    "viewport": "320",
+    "horizontalScroll": false,
+    "scrollWidth": 320,
+    "innerWidth": 320,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 182,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 182,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 182,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 107,
+        "h": 19,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 86,
+        "h": 19,
+        "text": "Privacy Policy"
+      }
+    ]
+  },
+  {
+    "surface": "agreements_service",
+    "viewport": "375",
+    "horizontalScroll": false,
+    "scrollWidth": 375,
+    "innerWidth": 375,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 237,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 237,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 237,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 209,
+        "h": 40,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 86,
+        "h": 19,
+        "text": "Privacy Policy"
+      }
+    ]
+  },
+  {
+    "surface": "agreements_service",
+    "viewport": "414",
+    "horizontalScroll": false,
+    "scrollWidth": 414,
+    "innerWidth": 414,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 276,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 276,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 276,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 209,
+        "h": 40,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 86,
+        "h": 19,
+        "text": "Privacy Policy"
+      }
+    ]
+  },
+  {
+    "surface": "agreements_service",
+    "viewport": "768",
+    "horizontalScroll": false,
+    "scrollWidth": 768,
+    "innerWidth": 768,
+    "smallTapTargets": 7,
+    "totalInteractive": 14,
+    "smallSamples": [
+      {
+        "tag": "a",
+        "w": 166,
+        "h": 36,
+        "text": "FIESTA"
+      },
+      {
+        "tag": "input",
+        "w": 414,
+        "h": 42,
+        "text": "email"
+      },
+      {
+        "tag": "a",
+        "w": 41,
+        "h": 18,
+        "text": "Forgot?"
+      },
+      {
+        "tag": "input",
+        "w": 414,
+        "h": 42,
+        "text": "password"
+      },
+      {
+        "tag": "a",
+        "w": 414,
+        "h": 40,
+        "text": "Create a new account"
+      },
+      {
+        "tag": "a",
+        "w": 107,
+        "h": 19,
+        "text": "Terms of Service"
+      },
+      {
+        "tag": "a",
+        "w": 209,
+        "h": 40,
+        "text": "Privacy Policy"
+      }
+    ]
+  }
+]

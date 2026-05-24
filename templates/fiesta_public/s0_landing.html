@@ -263,6 +263,45 @@
     .x8a-landing .slider-row { grid-template-columns: 1fr; }
     .x8a-landing .slider-val { text-align: left; }
   }
+
+  /* Tier C-5 mobile pass: slider tap-target ≥44×44 (Apple HIG).
+     The visual track stays slim (6-8px), but the input element itself
+     is 44px tall with vertical padding so the touch zone is honoured.
+     Thumb bumped to 28px for finger accuracy. */
+  @media (max-width: 768px) {
+    .x8a-landing input[type=range] {
+      height: 44px;
+      background: transparent;          /* track painted via ::-runnable-track */
+      padding: 0;
+      cursor: pointer;
+    }
+    .x8a-landing input[type=range]::-webkit-slider-runnable-track {
+      height: 8px; background: var(--paper-edge); border-radius: 4px;
+    }
+    .x8a-landing input[type=range]::-moz-range-track {
+      height: 8px; background: var(--paper-edge); border-radius: 4px;
+    }
+    .x8a-landing input[type=range]::-webkit-slider-thumb {
+      width: 28px; height: 28px; margin-top: -10px;  /* center thumb on 8px track */
+    }
+    .x8a-landing input[type=range]::-moz-range-thumb {
+      width: 28px; height: 28px;
+    }
+  }
+
+  /* Tier C-5 mobile pass: tighter padding + readable hero at 320-414. */
+  @media (max-width: 414px) {
+    .x8a-landing { padding: 18px 12px 70px; }
+    .x8a-landing h1.display { font-size: 26px; line-height: 1.1; }
+    .x8a-landing .slider-row { padding: 16px; }
+    .x8a-landing .btn { padding: 14px 18px; min-height: 44px; }
+    .x8a-landing .btn.ghost { padding: 12px 16px; min-height: 44px; }
+    .x8a-landing .expense-grid {
+      grid-template-columns: 1fr;  /* one chip per row at narrow widths */
+    }
+    .x8a-landing .expense-chip { min-height: 48px; padding: 12px; }
+    .x8a-landing .expense-chip .name { font-size: 14px; }
+  }
 </style>
 {% endblock %}
 
