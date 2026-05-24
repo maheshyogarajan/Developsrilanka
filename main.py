@@ -373,6 +373,17 @@ try:
 except Exception as e:
     logger.error(f"Error loading Dunning recovery: {str(e)}")
 
+# Tier D4 / A5 — Lifecycle email drip (2026-05-24)
+# Registers LifecycleEmail model so signup + invoice.paid webhook hooks
+# can enroll users in the 5-email drip sequence. Send infra is stubbed;
+# tasks.lifecycle_drip_send beat task flushes pending rows every 15min.
+try:
+    from lifecycle_drip_models import register_lifecycle_drip_model
+    register_lifecycle_drip_model()
+    logger.info("Lifecycle email drip registered (lifecycle_email model)")
+except Exception as e:
+    logger.error(f"Error loading Lifecycle drip: {str(e)}")
+
 # Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
 try:
     import customer_brain_routes

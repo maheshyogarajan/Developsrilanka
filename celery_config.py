@@ -104,6 +104,13 @@ app = Celery(
         # lazy-imports FAQEntry inside faq_autogen tasks and lookups need
         # the model metadata loaded first).
         'faq_models',
+        # Tier D4 / A5 (2026-05-24) — Lifecycle email drip (5-email cap).
+        # Beat task scans pending rows every 15min and calls _send_stub()
+        # until SES/Mailgun is wired (see lifecycle_drip.py TODO).
+        'tasks.lifecycle_drip_send',
+        # Model-only sibling so worker can register LifecycleEmail before
+        # lifecycle_drip lazy-imports it (v18.1 bootstrap pattern).
+        'lifecycle_drip_models',
     ]
 )
 
@@ -243,6 +250,18 @@ app.conf.beat_schedule.update({
     'faq_autogen-weekly-mon-0400-utc': {
         'task': 'faq_autogen.weekly_run',
         'schedule': crontab(day_of_week=1, hour=4, minute=0),
+    },
+})
+
+# Tier D4 / A5 (2026-05-24) — Lifecycle email drip scan + send.
+# Every 15min: select pending rows with scheduled_at<=now() and call
+# lifecycle_drip.send(). Council cap = 5 emails total in the sequence.
+# Send infrastructure is STUBBED — TODO in lifecycle_drip.py covers the
+# SES/Mailgun (preferred: SendGrid first since it already runs) wire-up.
+app.conf.beat_schedule.update({
+    'lifecycle_drip-scan-every-15min': {
+        'task': 'tasks.lifecycle_drip_send.scan_and_send_task',
+        'schedule': crontab(minute='*/15'),
     },
 })
 
