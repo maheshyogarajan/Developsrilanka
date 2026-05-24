@@ -107,6 +107,29 @@
 {% endblock %}
 
 {% block content %}
+{# Sprint 4 Tier B: payment_completed beacon. Fires once on this surface
+   so the funnel dashboard sees a clean conversion event. The actual
+   Stripe webhook server-side event ('checkout_completed' on EVENT SPINE)
+   remains the source of truth; this is the client-side attribution
+   counterpart. #}
+<script>
+  (function () {
+    function fire() {
+      if (window.fiestaTrack) {
+        window.fiestaTrack('payment_completed', {
+          surface: 'checkout_success',
+          subscription_active: {{ 'true' if subscription_active else 'false' }},
+          tax_year: '{{ tax_year_display | default("") }}'
+        });
+      } else if (window.requestAnimationFrame) {
+        window.requestAnimationFrame(fire);
+      } else {
+        setTimeout(fire, 50);
+      }
+    }
+    fire();
+  })();
+</script>
 <div class="cs-page">
 
   <div class="cs-hero">

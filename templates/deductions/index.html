@@ -531,6 +531,17 @@
             evToggle.textContent = (next === 'collected' || next === 'submitted')
               ? "I haven't collected proofs yet"
               : 'I have my proofs ready';
+            // Sprint 4 Tier B beacon: emit evidence_uploaded when the user
+            // transitions INTO 'collected' (the funnel-relevant signal).
+            try {
+              if (window.fiestaTrack && (next === 'collected' || next === 'submitted')) {
+                window.fiestaTrack('evidence_uploaded', {
+                  category_id: catId,
+                  new_status: next,
+                  previous_status: current
+                });
+              }
+            } catch (_) { /* swallow */ }
             // The audit-defensibility ratio just changed -> refresh the tally
             // (which also re-syncs the topbar via the existing animateTo path).
             await refreshTally();

@@ -155,6 +155,14 @@ try:
 except Exception as e:
     logger.error(f"Error loading API routes: {str(e)}")
 
+# Sprint 4 Tier B — client-side analytics beacons (/api/event + session_anon_id cookie)
+try:
+    from analytics_beacon_routes import register_routes as register_beacon_routes
+    register_beacon_routes(app)
+    logger.info("Analytics beacon routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading analytics beacon routes: {str(e)}")
+
 # Import team management routes
 try:
     from blueprints.team import register_routes as register_team_routes

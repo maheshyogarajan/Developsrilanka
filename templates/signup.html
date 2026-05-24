@@ -496,6 +496,13 @@
     form.addEventListener('submit', function () {
       btn.disabled = true;
       btn.textContent = 'Setting up your trial…';
+      // Sprint 4 Tier B: beacon BEFORE the form serialises so a slow
+      // network doesn't drop it. fiestaTrack uses fetch keepalive.
+      try {
+        if (window.fiestaTrack) {
+          window.fiestaTrack('signup_started', { method: 'email_password_s2' });
+        }
+      } catch (e) { /* swallow — analytics never blocks signup */ }
     });
   })();
 </script>

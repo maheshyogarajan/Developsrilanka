@@ -727,9 +727,12 @@
     
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    
+
     <!-- CSRF Protection for AJAX calls -->
     <script src="{{ url_for('static', filename='js/fix-csrf.js') }}"></script>
+
+    <!-- Sprint 4 Tier B: FIESTA analytics beacon (window.fiestaTrack + autobinds data-track clicks) -->
+    <script src="{{ url_for('static', filename='js/beacon.js') }}" defer></script>
     
     <!-- Sidebar and Navigation JavaScript -->
     <script>

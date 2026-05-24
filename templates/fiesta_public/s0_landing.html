@@ -398,11 +398,15 @@
 
     <div class="cta-row">
       {% if current_user.is_authenticated %}
-        <a class="btn" href="{{ url_for('fiesta_triage.triage_form') }}">Continue &mdash; let's set this up properly</a>
-        <a class="btn ghost" href="{{ url_for('fiesta_tax_preview_page') }}">See the full 25/26 result</a>
+        <a class="btn" href="{{ url_for('fiesta_triage.triage_form') }}"
+           data-track="cta_click" data-track-cta-id="s0_continue_authed">Continue &mdash; let's set this up properly</a>
+        <a class="btn ghost" href="{{ url_for('fiesta_tax_preview_page') }}"
+           data-track="cta_click" data-track-cta-id="s0_full_result_authed">See the full 25/26 result</a>
       {% else %}
-        <a class="btn" href="{{ url_for('register', next=url_for('fiesta_triage.triage_form')) }}" id="ctaPrimary">Continue &mdash; let's set this up properly</a>
-        <a class="btn ghost" href="{{ url_for('fiesta_tax_preview_page') }}" id="ctaSecondary">See the full 25/26 result</a>
+        <a class="btn" href="{{ url_for('register', next=url_for('fiesta_triage.triage_form')) }}" id="ctaPrimary"
+           data-track="cta_click" data-track-cta-id="s0_primary_signup">Continue &mdash; let's set this up properly</a>
+        <a class="btn ghost" href="{{ url_for('fiesta_tax_preview_page') }}" id="ctaSecondary"
+           data-track="cta_click" data-track-cta-id="s0_full_result_anon">See the full 25/26 result</a>
       {% endif %}
     </div>
 
@@ -421,6 +425,28 @@
 {% endblock %}
 
 {% block scripts %}
+{# Sprint 4 Tier B: landing_view beacon (anon visitors only — the authed
+   /home variant renders fiesta_public/hub.html, where tax_bill_view fires). #}
+{% if not current_user.is_authenticated %}
+<script>
+  (function () {
+    function fire() {
+      if (window.fiestaTrack) {
+        window.fiestaTrack('landing_view', { surface: 's0_landing' });
+      } else {
+        // beacon.js loaded with defer; if we're still earlier than that,
+        // poll once on next animation frame.
+        if (window.requestAnimationFrame) {
+          window.requestAnimationFrame(fire);
+        } else {
+          setTimeout(fire, 50);
+        }
+      }
+    }
+    fire();
+  })();
+</script>
+{% endif %}
 <script>
 (function () {
   'use strict';
