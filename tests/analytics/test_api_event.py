@@ -258,6 +258,141 @@ def test_dual_read_fallback_for_payload_only_legacy_row(app, cleanup_events):
         assert roundtrip.anon_id == legacy_anon
 
 
+# --------------------------------------------------------------------------- #
+# 6. Tier D2 F8 — organization_id population from current_user
+# --------------------------------------------------------------------------- #
+def _make_user_with_org(db, suffix, *, with_org=True, is_default=True):
+    """Create a User (+ optional Organization + OrganizationUser membership).
+    Returns (user, organization_or_None). Caller deletes everything in teardown.
+    """
+    from datetime import datetime, timedelta
+    from werkzeug.security import generate_password_hash
+    from models import User, Organization, OrganizationUser, UserRole
+
+    u = User(
+        email=f"pytest_f8_{suffix}@fiesta.local",
+        password_hash=generate_password_hash("pytest-pw-not-real"),
+        name=f"Pytest F8 {suffix}",
+        role="user",
+        subscription_status="free_trial",
+        access_expiration_date=datetime.utcnow() + timedelta(days=365),
+        is_email_verified=True,
+        onboarding_completed=True,
+    )
+    db.session.add(u)
+    db.session.commit()
+
+    org = None
+    if with_org:
+        org = Organization(name=f"Pytest F8 Org {suffix}")
+        db.session.add(org)
+        db.session.commit()
+        membership = OrganizationUser(
+            user_id=u.id,
+            organization_id=org.id,
+            role=UserRole.OWNER.value,
+            is_default=is_default,
+        )
+        db.session.add(membership)
+        db.session.commit()
+    return u, org
+
+
+def _delete_user_with_org(db, user, org):
+    """Teardown helper — clear OrganizationUser + Organization + User."""
+    from models import User, Organization, OrganizationUser
+    OrganizationUser.query.filter(OrganizationUser.user_id == user.id).delete()
+    if org is not None:
+        Organization.query.filter(Organization.id == org.id).delete()
+    User.query.filter(User.id == user.id).delete()
+    db.session.commit()
+
+
+def test_authenticated_beacon_populates_organization_id(client, app, cleanup_events):
+    """Tier D2 F8: an authenticated user's default organization id must land
+    on Event.organization_id (the top-level FK column) for every beacon hit.
+
+    Proves the dual path: _current_organization_id() lifts the org via
+    User.get_default_organization() -> emit(organization_id=...) -> column.
+    """
+    from app import db
+    with app.app_context():
+        user, org = _make_user_with_org(db, "auth_org_populates")
+        user_id, org_id = user.id, org.id
+    try:
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(user_id)
+            sess["_fresh"] = True
+
+        resp = client.post(
+            "/api/event",
+            data=json.dumps({
+                "event": "audit_view",
+                "properties": {"surface": "s2_audit"},
+            }),
+            content_type="application/json",
+            headers={"Origin": "http://localhost"},
+        )
+        assert resp.status_code == 204, f"got {resp.status_code} body={resp.data!r}"
+
+        with app.app_context():
+            row = (
+                Event.query.filter(
+                    Event.event_type == "audit_view",
+                    Event.user_id == user_id,
+                )
+                .order_by(Event.id.desc())
+                .first()
+            )
+            assert row is not None, "beacon row should have been written"
+            assert row.user_id == user_id, "user_id should be populated from session"
+            assert row.organization_id == org_id, (
+                f"Expected Event.organization_id={org_id} (the user's default org), "
+                f"got {row.organization_id!r}"
+            )
+    finally:
+        with app.app_context():
+            from models import User
+            u_reload = User.query.get(user_id)
+            from models import Organization
+            o_reload = Organization.query.get(org_id) if org_id else None
+            _delete_user_with_org(db, u_reload, o_reload)
+
+
+def test_anonymous_beacon_leaves_organization_id_null(client, app, cleanup_events):
+    """Tier D2 F8: an anonymous request has no current_user, so the beacon
+    must write Event.organization_id IS NULL (no fabricated default org)."""
+    # Belt-and-braces: ensure no session cookie carries over from another test.
+    with client.session_transaction() as sess:
+        sess.clear()
+
+    resp = client.post(
+        "/api/event",
+        data=json.dumps({
+            "event": "landing_view",
+            "properties": {"surface": "s0_landing"},
+        }),
+        content_type="application/json",
+        headers={"Origin": "http://localhost"},
+    )
+    assert resp.status_code == 204, f"got {resp.status_code} body={resp.data!r}"
+
+    with app.app_context():
+        row = (
+            Event.query.filter(Event.event_type == "landing_view")
+            .order_by(Event.id.desc())
+            .first()
+        )
+        assert row is not None
+        assert row.user_id is None, (
+            f"Anonymous request should leave user_id NULL, got {row.user_id!r}"
+        )
+        assert row.organization_id is None, (
+            f"Anonymous request must NOT fabricate an org_id; "
+            f"got Event.organization_id={row.organization_id!r}"
+        )
+
+
 def test_query_by_top_level_session_anon_id_uses_index_path(client, app, cleanup_events):
     """A direct WHERE on the top-level column must return the row — proves the
     index path is reachable (this is the query shape Wave-2 dashboards will
