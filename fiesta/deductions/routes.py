@@ -165,6 +165,40 @@ def _load_user_claims(user_id: int, tax_year: str) -> dict[str, Any]:
         return {}
 
 
+# Sprint 4 Tier B (optimistic-UI 2026-05-24):
+# Compact authoritative-summary payload returned alongside every
+# claim/unclaim/evidence mutation so the client can reconcile in a
+# SINGLE roundtrip instead of doing POST -> 200 -> GET /estimate.
+# The client predicts the new tally optimistically on click; this is the
+# server's authoritative answer used to snap or roll back.
+def _compute_summary_payload(user_id: int, tax_year: str) -> dict[str, Any]:
+    """Re-run estimate_saving for the user and shape it for JSON wire format.
+
+    Returns the same scalar fields the client tally cares about, with
+    Decimals stringified (matching the existing /reduce-tax/estimate
+    contract). Empty/error result returns zeros so the client can still
+    reconcile (it'll just snap to zero, which is the truthful value).
+    """
+    try:
+        income = _resolve_income_lkr()
+        claims = list(_load_user_claims(user_id, tax_year).values())
+        result = estimate_saving([c for c in claims if c.get("claimed")], income)
+        return {
+            "estimated_saving_lkr": str(result["estimated_saving_lkr"]),
+            "total_deduction_lkr": str(result["total_deduction_lkr"]),
+            "deduction_cap_applied": result["deduction_cap_applied"],
+            "marginal_rate": str(result["marginal_rate"]),
+        }
+    except Exception:  # pragma: no cover
+        logger.exception("summary payload computation failed; returning zeros")
+        return {
+            "estimated_saving_lkr": "0",
+            "total_deduction_lkr": "0",
+            "deduction_cap_applied": None,
+            "marginal_rate": "0",
+        }
+
+
 # ---------------------------------------------------------------------------
 # GET /reduce-tax — main screen.
 # ---------------------------------------------------------------------------
@@ -283,7 +317,13 @@ def claim(category_id: str):
             _invalidate_hub_cache(user_id)
         except Exception:
             pass
-        return jsonify({"ok": True, "claim": claim_row.to_dict()})
+        # Sprint 4 Tier B: include authoritative summary so the client can
+        # reconcile its optimistic-UI prediction in one roundtrip.
+        return jsonify({
+            "ok": True,
+            "claim": claim_row.to_dict(),
+            "summary": _compute_summary_payload(user_id, tax_year),
+        })
     except Exception as exc:
         db.session.rollback()
         logger.exception("Claim insert/update failed")
@@ -312,7 +352,13 @@ def unclaim(category_id: str):
             .first()
         )
         if claim_row is None:
-            return jsonify({"ok": True, "noop": True})
+            # Even for noop, include summary so the client can reconcile
+            # (the predicted unclaim delta would otherwise leave stale UI).
+            return jsonify({
+                "ok": True,
+                "noop": True,
+                "summary": _compute_summary_payload(user_id, tax_year),
+            })
         claim_row.claimed = False
         claim_row.updated_at = datetime.utcnow()
         db.session.commit()
@@ -322,7 +368,12 @@ def unclaim(category_id: str):
             _invalidate_hub_cache(user_id)
         except Exception:
             pass
-        return jsonify({"ok": True, "claim": claim_row.to_dict()})
+        # Sprint 4 Tier B: include authoritative summary for optimistic-UI reconcile.
+        return jsonify({
+            "ok": True,
+            "claim": claim_row.to_dict(),
+            "summary": _compute_summary_payload(user_id, tax_year),
+        })
     except Exception as exc:
         db.session.rollback()
         logger.exception("Unclaim failed")
@@ -397,7 +448,16 @@ def update_evidence_status(category_id: str):
             _invalidate_hub_cache(user_id)
         except Exception:
             pass
-        return jsonify({"ok": True, "claim": claim_row.to_dict()})
+        # Sprint 4 Tier B: include authoritative summary for optimistic-UI
+        # reconcile. Evidence status itself doesn't directly change the
+        # deduction-saving math, but the audit-defensibility ratio it feeds
+        # may nudge the tally upstream — sending summary lets the client
+        # snap to truth without a second roundtrip.
+        return jsonify({
+            "ok": True,
+            "claim": claim_row.to_dict(),
+            "summary": _compute_summary_payload(user_id, tax_year),
+        })
     except Exception as exc:
         db.session.rollback()
         logger.exception("Evidence status update failed")

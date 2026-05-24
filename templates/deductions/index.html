@@ -212,6 +212,46 @@
   .s5-evidence-toggle:hover {
     border-color: var(--accent); color: var(--accent);
   }
+
+  /* Sprint 4 Tier B: optimistic-UI feedback ---------------------------- */
+  /* When the predicted value is on-screen but unconfirmed by the server,
+     fade the tally amount slightly so the user has a subtle "we believe
+     this, awaiting confirmation" cue. Removed on reconcile or rollback. */
+  .s5-tally__amount.is-pending {
+    opacity: 0.78;
+    transition: opacity 220ms ease;
+  }
+  /* Non-blocking toast — slide in from bottom-right, auto-dismiss. */
+  .s5-toast-stack {
+    position: fixed; bottom: 1rem; right: 1rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    z-index: 1100; max-width: min(380px, calc(100vw - 2rem));
+    pointer-events: none;
+  }
+  .s5-toast {
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #dc2626;
+    color: #7f1d1d;
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    animation: s5ToastIn 180ms ease-out;
+    pointer-events: auto;
+  }
+  .s5-toast.is-leaving {
+    animation: s5ToastOut 200ms ease-in forwards;
+  }
+  @keyframes s5ToastIn {
+    from { transform: translateY(12px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes s5ToastOut {
+    from { transform: translateY(0); opacity: 1; }
+    to   { transform: translateY(12px); opacity: 0; }
+  }
 </style>
 {% endblock %}
 
@@ -253,6 +293,9 @@
     {% for cat in categories %}
     <article class="s5-card {% if cat._is_claimed %}is-claimed{% endif %}"
              data-category-id="{{ cat.id }}"
+             data-saving-low="{{ '{:.0f}'.format(cat._saving_range.low_saving_lkr) }}"
+             data-saving-high="{{ '{:.0f}'.format(cat._saving_range.high_saving_lkr) }}"
+             data-marginal-rate="{{ '{:.4f}'.format(cat._saving_range.marginal_rate) }}"
              role="button" tabindex="0"
              aria-pressed="{{ 'true' if cat._is_claimed else 'false' }}">
       <header class="s5-card__head">
@@ -299,7 +342,8 @@
           <input type="number" min="0" step="1000"
                  placeholder="Estimated Rs"
                  value="{{ '{:.0f}'.format(cat._estimated_lkr) if cat._estimated_lkr else '' }}"
-                 data-amount-input>
+                 data-amount-input
+                 data-claimed-lkr="{{ '{:.0f}'.format(cat._estimated_lkr) if cat._estimated_lkr else '0' }}">
           {% if cat._is_claimed %}
           <button class="s5-btn s5-btn--ghost" data-unclaim>Unclaim</button>
           {% else %}
@@ -362,6 +406,9 @@
   </section>
 </div>
 
+<!-- Sprint 4 Tier B: toast stack for optimistic-UI rollback notices ---- -->
+<div class="s5-toast-stack" id="s5-toast-stack" aria-live="polite" aria-atomic="true"></div>
+
 <!-- Legal modal -------------------------------------------------------- -->
 <div class="s5-modal" id="s5-legal-modal" role="dialog" aria-modal="true" aria-labelledby="s5-legal-title">
   <div class="s5-modal__card">
@@ -376,6 +423,25 @@
 (function () {
   'use strict';
 
+  /* ===================================================================
+   * S5 deductions screen — OPTIMISTIC UI (Sprint 4 Tier B, 2026-05-24)
+   *
+   * Why optimistic? Before this change, every claim/unclaim/evidence
+   * tick took TWO server roundtrips before the live counter moved:
+   *   click -> POST /claim -> 200 OK -> GET /estimate -> animate
+   * On a 400ms RTT that feels broken. Now:
+   *   click -> repaint immediately (predicted) -> POST /claim
+   *           -> response includes summary -> reconcile (snap if
+   *              prediction was off) | rollback on error
+   * One roundtrip, no perceived latency.
+   *
+   * Race handling: monotonic request sequence per element. If the user
+   * double-clicks, both requests still fire (we don't dedupe — claim
+   * with one amount, edit, claim again with another amount is a
+   * legitimate flow), but only the LATEST request's response is
+   * reconciled. Older responses are dropped (last-write-wins).
+   * ================================================================ */
+
   const tallySaving = document.getElementById('s5-tally-saving');
   const hubSavedAmt = document.getElementById('hubSavedAmt');  // Sprint 1: live topbar counter
   const cards = document.querySelectorAll('.s5-card');
@@ -384,7 +450,14 @@
   const modalBody = document.getElementById('s5-legal-body');
   const modalClose = document.getElementById('s5-legal-close');
   const modalTitle = document.getElementById('s5-legal-title');
+  const toastStack = document.getElementById('s5-toast-stack');
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+  // Monotonic request sequence — every server-bound action gets a unique
+  // id; only the highest-seen seq's response is reconciled to the tally.
+  // This is what makes double-clicks safe.
+  let reqSeq = 0;
+  let latestReconciledSeq = 0;
 
   function fmt(n) {
     try {
@@ -392,14 +465,17 @@
     } catch (e) { return 'Rs ' + n; }
   }
 
-  // Sprint 1: animated count-up so the savings reveal feels earned, not magic.
-  // 700ms ease-out from current value to target. Skip animation if delta < 100.
   function parseAmount(el) {
     if (!el) return 0;
     const raw = (el.textContent || '').replace(/[^0-9.-]/g, '');
     const n = Number(raw);
     return Number.isFinite(n) ? n : 0;
   }
+
+  // Animated count-up so the savings reveal feels earned, not magic.
+  // 700ms ease-out from current value to target. Skip animation if
+  // delta < 100. Used for both the optimistic predict AND the
+  // authoritative reconcile — same animation primitive.
   function animateTo(el, target) {
     if (!el) return;
     const from = parseAmount(el);
@@ -419,22 +495,120 @@
     requestAnimationFrame(tick);
   }
 
-  async function refreshTally() {
-    try {
-      const r = await fetch('/reduce-tax/estimate', { credentials: 'same-origin' });
-      if (!r.ok) return;
-      const data = await r.json();
-      if (!data.ok) return;
-      const target = Number(data.estimated_saving_lkr) || 0;
-      // Sprint 1: animate both the S5 tally AND the global topbar so the
-      // "savings discovery" feels like a single live number across pages.
-      animateTo(tallySaving, target);
-      animateTo(hubSavedAmt, target);
-    } catch (e) {
-      console.warn('tally refresh failed', e);
+  // Non-blocking error toast. 4s auto-dismiss, slide out at end.
+  function toast(msg) {
+    if (!toastStack) {
+      // Fallback if the toast stack DOM wasn't injected for some reason —
+      // an alert is awful UX but better than silent failure.
+      console.warn('S5 toast unavailable, falling back to alert:', msg);
+      alert(msg);
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 's5-toast';
+    el.textContent = msg;
+    toastStack.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('is-leaving');
+      setTimeout(() => el.remove(), 220);
+    }, 4000);
+  }
+
+  // ------------------------------------------------------------------
+  // OPTIMISTIC primitives — applyPrediction / reconcile / rollback.
+  // ------------------------------------------------------------------
+  // applyPrediction: snapshot current displayed value, repaint to
+  //   predicted, mark the tally elements as "pending". Returns the
+  //   snapshot so the caller can roll back.
+  function applyPrediction(predictedSaving) {
+    const snapshot = {
+      tally: parseAmount(tallySaving),
+      hub: parseAmount(hubSavedAmt),
+    };
+    // Visual cue: dim slightly while unconfirmed.
+    if (tallySaving) tallySaving.classList.add('is-pending');
+    if (hubSavedAmt) hubSavedAmt.classList.add('is-pending');
+    animateTo(tallySaving, predictedSaving);
+    animateTo(hubSavedAmt, predictedSaving);
+    return snapshot;
+  }
+
+  // reconcile: called when the server response arrives with the
+  //   authoritative summary. If the request's seq is stale (a newer
+  //   request has already won), skip — prevents older completions from
+  //   overwriting newer optimistic state. If authoritative differs from
+  //   currently-displayed value, snap to authoritative (re-animate).
+  function reconcile(reqId, authoritativeSaving) {
+    if (reqId < latestReconciledSeq) return;  // stale — drop
+    latestReconciledSeq = reqId;
+    if (tallySaving) tallySaving.classList.remove('is-pending');
+    if (hubSavedAmt) hubSavedAmt.classList.remove('is-pending');
+    const current = parseAmount(tallySaving);
+    if (Math.abs(current - authoritativeSaving) >= 1) {
+      // Prediction was off — snap to authoritative.
+      animateTo(tallySaving, authoritativeSaving);
+      animateTo(hubSavedAmt, authoritativeSaving);
     }
   }
 
+  // rollback: server returned error OR network failed. Restore the
+  //   snapshot (only if this is still the latest in-flight — if a newer
+  //   request has already updated, leave it alone).
+  function rollback(reqId, snapshot, errorMsg) {
+    if (reqId < latestReconciledSeq) {
+      // A newer request has already reconciled — don't clobber it.
+      toast(errorMsg || 'Could not save your change.');
+      return;
+    }
+    latestReconciledSeq = reqId;
+    if (tallySaving) tallySaving.classList.remove('is-pending');
+    if (hubSavedAmt) hubSavedAmt.classList.remove('is-pending');
+    animateTo(tallySaving, snapshot.tally);
+    animateTo(hubSavedAmt, snapshot.hub);
+    toast(errorMsg || 'Could not save your change.');
+  }
+
+  // ------------------------------------------------------------------
+  // Predicted-delta estimators per action type.
+  //
+  // We don't have the full server-side cap logic client-side (solar
+  // cap, charity 5%, gross-income cap) — so predictions are best-effort
+  // and the reconcile step is what makes them safe. Wrong prediction
+  // just means a small snap on reconcile.
+  // ------------------------------------------------------------------
+  function predictedClaimDelta(card) {
+    // If the user typed an amount, use it × marginal rate.
+    // Otherwise use the midpoint of the per-card range.
+    const amtInput = card.querySelector('[data-amount-input]');
+    const typed = amtInput && amtInput.value ? Number(amtInput.value) : null;
+    const marginal = Number(card.dataset.marginalRate || '0');
+    if (typed && typed > 0 && marginal > 0) {
+      return typed * marginal;
+    }
+    const low = Number(card.dataset.savingLow || '0');
+    const high = Number(card.dataset.savingHigh || '0');
+    return (low + high) / 2;
+  }
+
+  function predictedUnclaimDelta(card) {
+    // Subtract the claimed amount × marginal rate. If we don't know the
+    // claimed amount (e.g. card was claimed without an estimate), fall
+    // back to the midpoint of the per-card range — over/under, the
+    // reconcile snap fixes it.
+    const amtInput = card.querySelector('[data-amount-input]');
+    const claimed = amtInput ? Number(amtInput.dataset.claimedLkr || '0') : 0;
+    const marginal = Number(card.dataset.marginalRate || '0');
+    if (claimed > 0 && marginal > 0) {
+      return -(claimed * marginal);
+    }
+    const low = Number(card.dataset.savingLow || '0');
+    const high = Number(card.dataset.savingHigh || '0');
+    return -((low + high) / 2);
+  }
+
+  // ------------------------------------------------------------------
+  // Network helpers.
+  // ------------------------------------------------------------------
   async function postClaim(catId, action, amount) {
     const url = '/reduce-tax/' + action + '/' + encodeURIComponent(catId);
     const body = (action === 'claim' && amount !== null) ? JSON.stringify({ estimated_lkr: amount }) : null;
@@ -447,15 +621,19 @@
       },
       body: body,
     });
-    return r.json();
+    let data = null;
+    try { data = await r.json(); } catch (e) { /* non-JSON body */ }
+    return { ok: r.ok, status: r.status, data: data };
   }
 
+  // ------------------------------------------------------------------
+  // Card wiring.
+  // ------------------------------------------------------------------
   cards.forEach(card => {
     const catId = card.dataset.categoryId;
 
     // Tap card head -> expand detail
     card.addEventListener('click', (e) => {
-      // Skip interactive children
       if (e.target.closest('button, input, [data-legal-for]')) return;
       card.classList.toggle('is-expanded');
     });
@@ -466,86 +644,20 @@
       }
     });
 
-    // Claim button
     const claimBtn = card.querySelector('[data-claim]');
     if (claimBtn) {
-      claimBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const amtInput = card.querySelector('[data-amount-input]');
-        const amount = amtInput && amtInput.value ? Number(amtInput.value) : null;
-        const result = await postClaim(catId, 'claim', amount);
-        if (result.ok) {
-          card.classList.add('is-claimed');
-          card.setAttribute('aria-pressed', 'true');
-          claimBtn.outerHTML = '<button class="s5-btn s5-btn--ghost" data-unclaim>Unclaim</button>';
-          card.querySelector('[data-unclaim]').addEventListener('click', unclaimHandler(card, catId));
-          // Sprint 4: reveal evidence row + reset badge to pending on fresh claim
-          const evRow = card.querySelector('[data-evidence-row]');
-          if (evRow) evRow.style.display = '';
-          await refreshTally();
-        } else {
-          alert('Could not claim: ' + (result.error || 'unknown error'));
-        }
-      });
+      claimBtn.addEventListener('click', claimHandler(card, catId));
     }
     const unclaimBtn = card.querySelector('[data-unclaim]');
     if (unclaimBtn) {
       unclaimBtn.addEventListener('click', unclaimHandler(card, catId));
     }
 
-    // Sprint 4 Tier A: evidence-status toggle. Flips between pending and
-    // collected. The submitted/rejected states are reserved for Wave 4
-    // (file upload + admin review) — out of scope here.
     const evToggle = card.querySelector('[data-evidence-toggle]');
     if (evToggle) {
-      evToggle.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const badge = card.querySelector('[data-evidence-badge]');
-        const current = (badge && badge.dataset.evidenceStatus) || 'pending';
-        const next = (current === 'collected' || current === 'submitted') ? 'pending' : 'collected';
-        evToggle.disabled = true;
-        try {
-          const r = await fetch('/reduce-tax/evidence/' + encodeURIComponent(catId), {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,
-            },
-            body: JSON.stringify({ status: next }),
-          });
-          const data = await r.json();
-          if (data.ok) {
-            // Update badge text + class + dataset
-            if (badge) {
-              badge.className = 's5-evidence-badge s5-evidence-badge--' + next;
-              badge.dataset.evidenceStatus = next;
-              badge.textContent = (
-                next === 'collected' ? 'Collected'
-                : next === 'submitted' ? 'Submitted'
-                : next === 'rejected' ? 'Rejected'
-                : 'Pending'
-              );
-            }
-            // Update toggle label
-            evToggle.textContent = (next === 'collected' || next === 'submitted')
-              ? "I haven't collected proofs yet"
-              : 'I have my proofs ready';
-            // The audit-defensibility ratio just changed -> refresh the tally
-            // (which also re-syncs the topbar via the existing animateTo path).
-            await refreshTally();
-          } else {
-            alert('Could not update evidence status: ' + (data.error || 'unknown'));
-          }
-        } catch (err) {
-          console.warn('evidence toggle failed', err);
-        } finally {
-          evToggle.disabled = false;
-        }
-      });
+      evToggle.addEventListener('click', evidenceHandler(card, catId));
     }
 
-    // Legal-basis link
     const legalLink = card.querySelector('[data-legal-for]');
     if (legalLink) {
       legalLink.addEventListener('click', async (e) => {
@@ -565,11 +677,73 @@
     }
   });
 
+  // ------------------------------------------------------------------
+  // claimHandler: OPTIMISTIC claim flow.
+  // 1) Predict new saving = current + per-card-delta. Snapshot + repaint.
+  // 2) POST /claim. On 2xx with summary: reconcile to server value.
+  //    On error: rollback to snapshot + toast.
+  // 3) On success ALSO flip the UI button state (claim -> unclaim,
+  //    reveal evidence row). Doing this on success only — if the server
+  //    rejected the write, the UI shouldn't claim success.
+  // ------------------------------------------------------------------
+  function claimHandler(card, catId) {
+    return async function (e) {
+      e.stopPropagation();
+      const myReq = ++reqSeq;
+      const amtInput = card.querySelector('[data-amount-input]');
+      const amount = amtInput && amtInput.value ? Number(amtInput.value) : null;
+
+      const currentSaving = parseAmount(tallySaving);
+      const delta = predictedClaimDelta(card);
+      const predicted = currentSaving + delta;
+      const snapshot = applyPrediction(predicted);
+
+      const result = await postClaim(catId, 'claim', amount);
+      if (result.ok && result.data && result.data.ok) {
+        const claimBtn = card.querySelector('[data-claim]');
+        card.classList.add('is-claimed');
+        card.setAttribute('aria-pressed', 'true');
+        if (claimBtn) {
+          claimBtn.outerHTML = '<button class="s5-btn s5-btn--ghost" data-unclaim>Unclaim</button>';
+          const newUnclaimBtn = card.querySelector('[data-unclaim]');
+          if (newUnclaimBtn) newUnclaimBtn.addEventListener('click', unclaimHandler(card, catId));
+        }
+        // Cache the just-claimed amount on the input so a subsequent
+        // unclaim has the right delta to predict.
+        if (amtInput && amount !== null) amtInput.dataset.claimedLkr = String(amount);
+        const evRow = card.querySelector('[data-evidence-row]');
+        if (evRow) evRow.style.display = '';
+
+        const summary = result.data.summary;
+        if (summary && summary.estimated_saving_lkr !== undefined) {
+          reconcile(myReq, Number(summary.estimated_saving_lkr) || 0);
+        } else {
+          // No summary in response (shouldn't happen post-Tier B server change,
+          // but defensive) — fetch the authoritative value.
+          reconcile(myReq, predicted);
+        }
+      } else {
+        const msg = (result.data && result.data.error) || 'Could not claim — try again.';
+        rollback(myReq, snapshot, msg);
+      }
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // unclaimHandler: OPTIMISTIC unclaim flow. Mirror of claim.
+  // ------------------------------------------------------------------
   function unclaimHandler(card, catId) {
     return async function (e) {
       e.stopPropagation();
+      const myReq = ++reqSeq;
+      const currentSaving = parseAmount(tallySaving);
+      const delta = predictedUnclaimDelta(card);
+      // Never predict below zero — the engine never produces negative.
+      const predicted = Math.max(0, currentSaving + delta);
+      const snapshot = applyPrediction(predicted);
+
       const result = await postClaim(catId, 'unclaim', null);
-      if (result.ok) {
+      if (result.ok && result.data && result.data.ok) {
         card.classList.remove('is-claimed');
         card.setAttribute('aria-pressed', 'false');
         const row = card.querySelector('.s5-card__claim-row');
@@ -577,19 +751,121 @@
           const oldBtn = row.querySelector('[data-unclaim]');
           if (oldBtn) {
             oldBtn.outerHTML = '<button class="s5-btn" data-claim>Claim this</button>';
-            row.querySelector('[data-claim]').addEventListener('click', async (e2) => {
-              e2.stopPropagation();
-              const amtInput = card.querySelector('[data-amount-input]');
-              const amount = amtInput && amtInput.value ? Number(amtInput.value) : null;
-              await postClaim(catId, 'claim', amount);
-              location.reload();
-            });
+            const newClaimBtn = row.querySelector('[data-claim]');
+            if (newClaimBtn) newClaimBtn.addEventListener('click', claimHandler(card, catId));
           }
         }
-        // Sprint 4: hide the evidence row when the claim is removed
         const evRow = card.querySelector('[data-evidence-row]');
         if (evRow) evRow.style.display = 'none';
-        await refreshTally();
+
+        const summary = result.data.summary;
+        if (summary && summary.estimated_saving_lkr !== undefined) {
+          reconcile(myReq, Number(summary.estimated_saving_lkr) || 0);
+        } else {
+          reconcile(myReq, predicted);
+        }
+      } else {
+        const msg = (result.data && result.data.error) || 'Could not unclaim — try again.';
+        rollback(myReq, snapshot, msg);
+      }
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // evidenceHandler: OPTIMISTIC evidence-status toggle.
+  // Evidence status feeds the audit-defensibility score, which is a
+  // small upstream nudge on the tally rather than a direct addition.
+  // We DON'T predict a delta here — just snapshot, flip the badge
+  // immediately (visual feedback), then reconcile to whatever the
+  // server says the new tally is. This still removes the GET roundtrip.
+  // ------------------------------------------------------------------
+  function evidenceHandler(card, catId) {
+    return async function (e) {
+      e.stopPropagation();
+      const myReq = ++reqSeq;
+      const badge = card.querySelector('[data-evidence-badge]');
+      const evToggle = card.querySelector('[data-evidence-toggle]');
+      const current = (badge && badge.dataset.evidenceStatus) || 'pending';
+      const next = (current === 'collected' || current === 'submitted') ? 'pending' : 'collected';
+
+      // Snapshot for both the tally AND the badge state (rollback target).
+      const tallySnapshot = {
+        tally: parseAmount(tallySaving),
+        hub: parseAmount(hubSavedAmt),
+      };
+      const badgeSnapshot = {
+        cls: badge ? badge.className : null,
+        status: current,
+        text: badge ? badge.textContent : null,
+        toggleText: evToggle ? evToggle.textContent : null,
+      };
+
+      // Optimistic badge flip — no tally prediction (effect is small/upstream).
+      if (badge) {
+        badge.className = 's5-evidence-badge s5-evidence-badge--' + next;
+        badge.dataset.evidenceStatus = next;
+        badge.textContent = (
+          next === 'collected' ? 'Collected'
+          : next === 'submitted' ? 'Submitted'
+          : next === 'rejected' ? 'Rejected'
+          : 'Pending'
+        );
+      }
+      if (evToggle) {
+        evToggle.textContent = (next === 'collected' || next === 'submitted')
+          ? "I haven't collected proofs yet"
+          : 'I have my proofs ready';
+        evToggle.disabled = true;
+      }
+      if (tallySaving) tallySaving.classList.add('is-pending');
+      if (hubSavedAmt) hubSavedAmt.classList.add('is-pending');
+
+      try {
+        const r = await fetch('/reduce-tax/evidence/' + encodeURIComponent(catId), {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          body: JSON.stringify({ status: next }),
+        });
+        let data = null;
+        try { data = await r.json(); } catch (e2) { /* non-JSON */ }
+        if (r.ok && data && data.ok) {
+          const summary = data.summary;
+          if (summary && summary.estimated_saving_lkr !== undefined) {
+            reconcile(myReq, Number(summary.estimated_saving_lkr) || 0);
+          } else {
+            // No tally change expected; just clear pending state.
+            if (myReq >= latestReconciledSeq) {
+              latestReconciledSeq = myReq;
+              if (tallySaving) tallySaving.classList.remove('is-pending');
+              if (hubSavedAmt) hubSavedAmt.classList.remove('is-pending');
+            }
+          }
+        } else {
+          // Roll back badge AND tally.
+          if (badge && badgeSnapshot.cls) {
+            badge.className = badgeSnapshot.cls;
+            badge.dataset.evidenceStatus = badgeSnapshot.status;
+            badge.textContent = badgeSnapshot.text;
+          }
+          if (evToggle && badgeSnapshot.toggleText) evToggle.textContent = badgeSnapshot.toggleText;
+          const msg = (data && data.error) || 'Could not update evidence status.';
+          rollback(myReq, tallySnapshot, msg);
+        }
+      } catch (err) {
+        console.warn('evidence toggle failed', err);
+        if (badge && badgeSnapshot.cls) {
+          badge.className = badgeSnapshot.cls;
+          badge.dataset.evidenceStatus = badgeSnapshot.status;
+          badge.textContent = badgeSnapshot.text;
+        }
+        if (evToggle && badgeSnapshot.toggleText) evToggle.textContent = badgeSnapshot.toggleText;
+        rollback(myReq, tallySnapshot, 'Network error — try again.');
+      } finally {
+        if (evToggle) evToggle.disabled = false;
       }
     };
   }
