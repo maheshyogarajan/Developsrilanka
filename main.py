@@ -385,15 +385,22 @@ except Exception as e:
     logger.error(f"Error loading Dunning recovery: {str(e)}")
 
 # Tier D4 / A5 — Lifecycle email drip (2026-05-24)
-# Registers LifecycleEmail model so signup + invoice.paid webhook hooks
-# can enroll users in the 5-email drip sequence. Send infra is stubbed;
-# tasks.lifecycle_drip_send beat task flushes pending rows every 15min.
 try:
     from lifecycle_drip_models import register_lifecycle_drip_model
     register_lifecycle_drip_model()
     logger.info("Lifecycle email drip registered (lifecycle_email model)")
 except Exception as e:
     logger.error(f"Error loading Lifecycle drip: {str(e)}")
+
+# Tier D4 A3 — One-sided referral loop (2026-05-24)
+try:
+    from referral_models import register_models as register_referral_models
+    register_referral_models()
+    from referral_routes import register_routes as register_referral_routes
+    register_referral_routes(app)
+    logger.info("Referral loop registered (/referrals, /r/<code>)")
+except Exception as e:
+    logger.error(f"Error loading Referral loop: {str(e)}")
 
 # Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
 try:

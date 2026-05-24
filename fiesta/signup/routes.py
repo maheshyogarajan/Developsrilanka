@@ -253,6 +253,16 @@ def signup_submit():
         )
         return redirect(url_for("signup.signup_form"))
 
+    # ---------- 4b. Tier D4/A3 referral capture ----------
+    # If the user landed via /r/<code>, we have a referral_code cookie set.
+    # Create a ReferralRedemption row. Never raises - signup must not fail
+    # because of a referral hiccup.
+    try:
+        from referral_routes import capture_referral_cookie_on_signup
+        capture_referral_cookie_on_signup(new_user.id)
+    except Exception as ref_exc:
+        log.debug("S2 signup: referral capture skipped: %s", ref_exc)
+
     # ---------- 5. Send verification email ---------- #
     try:
         from email_verification import send_verification_email

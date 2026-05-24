@@ -311,9 +311,7 @@ def _handle_invoice_paid(stripe_event: dict) -> None:
     except Exception as exc:
         log.debug("invoice.paid: dunning recovery skipped: %s", exc)
 
-    # Tier D4 / A5 — enroll user in lifecycle drip (payment_thanks +
-    # the deadline reminders). Best-effort; never breaks the webhook.
-    # cohort_id (YYYY-MM) makes this idempotent within a billing cycle.
+    # Tier D4 / A5 — lifecycle drip enrollment (payment_thanks + deadlines).
     try:
         if row.user_id:
             from models import User
@@ -324,6 +322,16 @@ def _handle_invoice_paid(stripe_event: dict) -> None:
                 _drip_enroll(u, "tax_year_cycle")
     except Exception as exc:
         log.debug("invoice.paid: lifecycle drip enroll skipped: %s", exc)
+
+    # Tier D4 / A3 — referral credit (20% off referrer's next invoice).
+    try:
+        from referral_hook import apply_referral_credit_on_invoice_paid
+        apply_referral_credit_on_invoice_paid(
+            referee_user_id=row.user_id,
+            stripe_subscription_id=stripe_subscription_id,
+        )
+    except Exception as exc:
+        log.debug("invoice.paid: referral credit skipped: %s", exc)
 
     emit_analytics_event(
         "subscription_invoice_paid",

@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+{% block title %}Your referrals - FIESTA{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      <h1 class="h2 mb-3">Refer a friend, earn {{ discount_percent }}% off</h1>
+      <p class="text-muted mb-4">
+        When a friend signs up via your link and pays, you get <strong>{{ discount_percent }}% off your next renewal</strong>.
+        One-time discount per referral, applied automatically.
+      </p>
+
+      {% if error %}
+        <div class="alert alert-warning">{{ error }}</div>
+      {% endif %}
+
+      {% if code %}
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Your unique link</h2>
+          <div class="input-group mb-2">
+            <input id="ref-link" type="text" class="form-control"
+                   value="{{ share_url }}" readonly>
+            <button class="btn btn-primary"
+                    onclick="navigator.clipboard.writeText(document.getElementById('ref-link').value);this.textContent='Copied';">
+              Copy
+            </button>
+          </div>
+          <small class="text-muted">
+            Code: <code>{{ code }}</code>
+            &nbsp;&middot;&nbsp;
+            Used {{ uses_count }} / {{ max_uses }} times
+            {% if not is_redeemable %}
+              <span class="text-danger">(no longer redeemable - contact support to refresh)</span>
+            {% endif %}
+          </small>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <div class="display-6">{{ pending|length }}</div>
+              <div class="text-muted">Signed up, not yet paid</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <div class="display-6">{{ paid|length }}</div>
+              <div class="text-muted">Paid (credit pending)</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <div class="display-6">{{ credited|length }}</div>
+              <div class="text-muted">Credits applied</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="h5 mb-2">How it works</h2>
+      <ol class="text-muted">
+        <li>Share your link with a friend who needs to file Sri Lanka tax.</li>
+        <li>They sign up and complete payment for their tax year.</li>
+        <li>FIESTA automatically attaches a {{ discount_percent }}% coupon to your account.</li>
+        <li>The coupon applies to your <strong>next</strong> renewal invoice.</li>
+      </ol>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
