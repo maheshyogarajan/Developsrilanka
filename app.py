@@ -485,6 +485,39 @@ def _ensure_additive_schema():
                 'CREATE INDEX IF NOT EXISTS ix_events_user_created_at '
                 'ON events (user_id, created_at DESC)'
             ))
+            # Tier D4 2026-05-24: in-app feedback widget. CREATE TABLE IF
+            # NOT EXISTS guarantees the table is present at every entry
+            # point (gunicorn, wsgi, celery) without needing an explicit
+            # migration run. The ORM model lives in feedback_models.py.
+            db.session.execute(_sql_text(
+                'CREATE TABLE IF NOT EXISTS feedback ('
+                '  id SERIAL PRIMARY KEY,'
+                '  user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL,'
+                '  session_anon_id VARCHAR(64),'
+                '  category VARCHAR(32) NOT NULL,'
+                '  body TEXT NOT NULL,'
+                '  url_at_submit VARCHAR(512),'
+                '  user_agent TEXT,'
+                '  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,'
+                "  CONSTRAINT feedback_category_check CHECK ("
+                "    category IN ('bug','feature','confusion','praise','other')"
+                '  )'
+                ')'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_feedback_user_id ON feedback (user_id)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_feedback_anon ON feedback (session_anon_id)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_feedback_created_at '
+                'ON feedback (created_at DESC)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_feedback_category_created_at '
+                'ON feedback (category, created_at DESC)'
+            ))
             db.session.commit()
     except Exception as _alter_err:
         logging.warning(f"Could not ensure additive schema columns: {_alter_err}")
