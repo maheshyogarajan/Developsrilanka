@@ -95,6 +95,8 @@ app = Celery(
         'tasks.cbsl_rate_fetch',
         # Tier D1 / F1 — Daily Fly PG backup → Tigris
         'tasks.pg_backup',
+        # Tier D1 / E2 — Telegram ops alerts probes (2026-05-24)
+        'tasks.ops_probes',
     ]
 )
 
@@ -202,6 +204,27 @@ app.conf.beat_schedule.update({
     'pg_backup-daily-2030-utc': {
         'task': 'tasks.pg_backup.daily_backup_task',
         'schedule': crontab(hour=20, minute=30),  # 02:00 IST daily
+    },
+})
+
+# Tier D1 / E2 — Telegram ops alerts probes (2026-05-24)
+# Healthz probe runs every 60s, latency probe every 5min, signup-drop
+# probe daily at 09:00 IST = 03:30 UTC. All three route to the CEO via
+# ops_alerts.send_alert (one-way Telegram). Per-alert dedup window is
+# 10 min so cascading failures don't spam.
+app.conf.beat_schedule.update({
+    'ops-probe-healthz-every-60s': {
+        'task': 'tasks.ops_probes.healthz_probe',
+        'schedule': 60.0,  # every 60 seconds (float schedule)
+    },
+    'ops-probe-latency-every-5min': {
+        'task': 'tasks.ops_probes.latency_probe',
+        'schedule': crontab(minute='*/5'),
+    },
+    'ops-probe-signup-drop-daily': {
+        'task': 'tasks.ops_probes.signup_drop_probe',
+        # 09:00 IST = 03:30 UTC (IST is UTC+5:30)
+        'schedule': crontab(hour=3, minute=30),
     },
 })
 
