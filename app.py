@@ -527,6 +527,42 @@ def _ensure_additive_schema():
                 'CREATE INDEX IF NOT EXISTS ix_feedback_category_created_at '
                 'ON feedback (category, created_at DESC)'
             ))
+            # Tier D3 2026-05-24: auto-generated FAQ / KB pages.
+            # CREATE TABLE IF NOT EXISTS guarantees the table is present at
+            # every entry point (gunicorn, wsgi, celery) without needing an
+            # explicit migration run. ORM lives in faq_models.py; routes
+            # in faq_routes.py (/help, /sitemap.xml, /admin/faq).
+            db.session.execute(_sql_text(
+                'CREATE TABLE IF NOT EXISTS faq_entries ('
+                '  id SERIAL PRIMARY KEY,'
+                '  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,'
+                '  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,'
+                '  slug VARCHAR(160) NOT NULL UNIQUE,'
+                '  question VARCHAR(200) NOT NULL,'
+                "  answer TEXT NOT NULL DEFAULT '',"
+                "  category VARCHAR(32) NOT NULL DEFAULT 'general',"
+                "  source VARCHAR(32) NOT NULL DEFAULT 'manual',"
+                '  view_count INTEGER NOT NULL DEFAULT 0,'
+                '  is_published BOOLEAN NOT NULL DEFAULT FALSE,'
+                '  CONSTRAINT faq_entries_category_check CHECK ('
+                "    category IN ('foreign_income','deductions','filing','payment','general')"
+                '  ),'
+                '  CONSTRAINT faq_entries_source_check CHECK ('
+                "    source IN ('manual','auto_from_feedback','auto_from_qa')"
+                '  )'
+                ')'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_faq_entries_slug ON faq_entries (slug)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_faq_entries_is_published '
+                'ON faq_entries (is_published)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_faq_entries_pub_category_created '
+                'ON faq_entries (is_published, category, created_at DESC)'
+            ))
             db.session.commit()
     except Exception as _alter_err:
         logging.warning(f"Could not ensure additive schema columns: {_alter_err}")

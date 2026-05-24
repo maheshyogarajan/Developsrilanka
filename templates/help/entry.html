@@ -1,0 +1,74 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ entry.question }} — FIESTA Help{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .fiesta-faq-entry {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 36px 24px 100px;
+    color: var(--ink, #1f2937);
+    font-family: var(--body, system-ui, -apple-system, "Segoe UI", sans-serif);
+    line-height: 1.6;
+  }
+  .fiesta-faq-entry nav.crumbs {
+    font-size: 13px;
+    color: var(--ink-soft, #6b7280);
+    margin-bottom: 18px;
+  }
+  .fiesta-faq-entry nav.crumbs a {
+    color: var(--forest, #064e3b);
+    text-decoration: none;
+  }
+  .fiesta-faq-entry nav.crumbs a:hover { text-decoration: underline; }
+  .fiesta-faq-entry h1 {
+    font-family: var(--display, inherit);
+    font-size: 30px;
+    margin: 0 0 12px;
+    color: var(--forest, #064e3b);
+  }
+  .fiesta-faq-entry .meta {
+    font-size: 12px;
+    color: var(--ink-soft, #6b7280);
+    margin-bottom: 24px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .fiesta-faq-entry .answer {
+    font-size: 16px;
+    white-space: pre-wrap;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<article class="fiesta-faq-entry">
+  <nav class="crumbs">
+    <a href="{{ url_for('faq_bp.help_index') }}">Help &amp; FAQ</a>
+    <span> &rsaquo; </span>
+    <span>{{ entry.category.replace('_', ' ') }}</span>
+  </nav>
+
+  <h1>{{ entry.question }}</h1>
+  <div class="meta">
+    Category: {{ entry.category.replace('_', ' ') }}
+    &middot; Updated {{ entry.updated_at.strftime('%Y-%m-%d') }}
+  </div>
+
+  <div class="answer">{{ entry.answer }}</div>
+</article>
+
+<!-- Schema.org single Question/Answer for richer per-page SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Question",
+  "name": {{ entry.question | tojson }},
+  "acceptedAnswer": {
+    "@type": "Answer",
+    "text": {{ entry.answer | tojson }}
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends 'layout.html' %}
+
+{% block title %}Help & FAQ — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .fiesta-faq {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 36px 24px 100px;
+    color: var(--ink, #1f2937);
+    font-family: var(--body, system-ui, -apple-system, "Segoe UI", sans-serif);
+  }
+  .fiesta-faq h1 {
+    font-family: var(--display, inherit);
+    font-size: 36px;
+    margin: 0 0 12px;
+    color: var(--forest, #064e3b);
+  }
+  .fiesta-faq p.lead {
+    font-size: 16px;
+    color: var(--ink-soft, #4b5563);
+    margin: 0 0 32px;
+    max-width: 720px;
+  }
+  .fiesta-faq h2.category {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 32px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--paper-edge, #e5e7eb);
+    color: var(--forest, #064e3b);
+    text-transform: capitalize;
+  }
+  .fiesta-faq ul.faq-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .fiesta-faq ul.faq-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--paper-edge, #f3f4f6);
+  }
+  .fiesta-faq ul.faq-list li a {
+    color: var(--ink, #1f2937);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .fiesta-faq ul.faq-list li a:hover { text-decoration: underline; }
+  .fiesta-faq .empty {
+    padding: 40px 0;
+    color: var(--ink-soft, #6b7280);
+    font-style: italic;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fiesta-faq">
+  <h1>Help &amp; FAQ</h1>
+  <p class="lead">
+    Common questions about filing your Sri Lankan tax return, foreign-income
+    remittance, deductions, and payments. Can't find your answer?
+    <a href="/contact">Contact us</a> or use the feedback button on any page.
+  </p>
+
+  {% if total == 0 %}
+    <div class="empty">
+      No FAQ entries published yet. Check back soon.
+    </div>
+  {% else %}
+    {% for category, entries in grouped.items() %}
+      {% if entries %}
+        <h2 class="category">{{ category.replace('_', ' ') }}</h2>
+        <ul class="faq-list">
+          {% for entry in entries %}
+            <li>
+              <a href="{{ url_for('faq_bp.help_entry', slug=entry.slug) }}">
+                {{ entry.question }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+</div>
+
+<!-- Schema.org FAQPage markup — read by Google Search + LLMs for citation -->
+<script type="application/ld+json">{{ schema_jsonld | safe }}</script>
+{% endblock %}
