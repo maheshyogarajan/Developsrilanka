@@ -107,6 +107,7 @@ def emit(
     payload: Optional[dict] = None,
     source: Optional[str] = None,
     organization_id: Optional[int] = None,
+    session_anon_id: Optional[str] = None,
 ) -> Optional[int]:
     """Best-effort emit one Event row. Returns the new event id on success,
     None on any failure. NEVER raises.
@@ -118,6 +119,14 @@ def emit(
         source: where the event was emitted from (route:..., webhook:...,
                 cron:..., ai:...). See event_models.Event.source docstring.
         organization_id: FK organization.id. Nullable.
+        session_anon_id: anonymous-session identifier (from session_anon_id
+                cookie). Promoted from payload JSON to top-level indexed
+                column on Tier C2 (2026-05-24). If caller also passes the
+                value inside `payload`, we honour the explicit kwarg first.
+                For backward compatibility, when the kwarg is None but
+                payload['session_anon_id'] is set, we lift it into the
+                top-level column (transitional dual-write — keeps any
+                pre-Tier-C2 caller's row queryable on the new index).
 
     Returns:
         The new Event.id on success, None on failure.
@@ -130,6 +139,18 @@ def emit(
 
         ctx = _safe_request_context()
 
+        # Dual-write reconciliation: prefer the explicit kwarg, fall back to
+        # whatever the caller embedded in payload. This keeps every existing
+        # call site (which passes session_anon_id INSIDE payload) writing to
+        # the indexed top-level column without any code change at the caller.
+        effective_anon = session_anon_id
+        if not effective_anon and isinstance(payload, dict):
+            v = payload.get("session_anon_id")
+            if isinstance(v, str) and v:
+                effective_anon = v
+        if effective_anon:
+            effective_anon = effective_anon[:64]  # column cap
+
         event = Event(
             event_type=event_type[:64],  # column cap
             user_id=user_id,
@@ -139,6 +160,7 @@ def emit(
             session_id=ctx.get("session_id"),
             ip_address=ctx.get("ip_address"),
             user_agent=ctx.get("user_agent"),
+            session_anon_id=effective_anon,
         )
         db.session.add(event)
         db.session.commit()
