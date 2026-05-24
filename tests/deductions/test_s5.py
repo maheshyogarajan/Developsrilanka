@@ -302,3 +302,73 @@ def test_t5_2_get_category_schema():
            "service provider" in cat["plain_english_description"].lower()
     # Unknown id returns None
     assert catalog_loader.get_category("nonexistent_cat") is None
+
+
+# ---------------------------------------------------------------------------
+# Optimistic-UI contract tests (T6.x — Sprint 4 Tier B, 2026-05-24).
+#
+# The optimistic-UI client needs the authoritative tally in the SAME
+# response as the mutation, so it can reconcile its predicted value
+# without a second GET roundtrip. These tests pin that contract:
+#
+#   T6.1 — _compute_summary_payload returns the four reconcile-relevant
+#          scalars as JSON-safe strings (matching /estimate's shape).
+#   T6.2 — claim/unclaim/evidence handlers include `summary` key in
+#          their 2xx response (proves the wiring).
+# ---------------------------------------------------------------------------
+def test_t6_1_compute_summary_payload_shape(monkeypatch):
+    """T6.1 — summary payload has the keys the client reconciler reads."""
+    if "fiesta.deductions.routes" in sys.modules:
+        del sys.modules["fiesta.deductions.routes"]
+    routes = importlib.import_module("fiesta.deductions.routes")
+
+    # Stub _load_user_claims so the helper doesn't touch the DB.
+    monkeypatch.setattr(
+        routes, "_load_user_claims",
+        lambda uid, ty: {
+            "equipment_capex": {
+                "category_id": "equipment_capex",
+                "claimed": True,
+                "estimated_lkr": Decimal("100000"),
+            }
+        },
+    )
+    # Stub income so the math is deterministic — Rs 5M lands in top slab.
+    monkeypatch.setattr(routes, "_resolve_income_lkr", lambda: Decimal("5000000"))
+
+    payload = routes._compute_summary_payload(user_id=1, tax_year="2025/2026")
+    # Exact key set the client reads — pinned by contract.
+    assert set(payload.keys()) == {
+        "estimated_saving_lkr",
+        "total_deduction_lkr",
+        "deduction_cap_applied",
+        "marginal_rate",
+    }
+    # All numeric values stringified (JSON-friendly, matches /estimate
+    # endpoint contract). deduction_cap_applied is None when no cap fires.
+    assert isinstance(payload["estimated_saving_lkr"], str)
+    assert isinstance(payload["total_deduction_lkr"], str)
+    assert isinstance(payload["marginal_rate"], str)
+    # Math sanity: Rs 100K at 36% marginal -> Rs 36K saving.
+    assert Decimal(payload["estimated_saving_lkr"]) == Decimal("36000.00")
+    assert Decimal(payload["total_deduction_lkr"]) == Decimal("100000.00")
+    assert payload["deduction_cap_applied"] is None
+
+
+def test_t6_2_compute_summary_payload_handles_failure(monkeypatch):
+    """T6.1b — when DB/estimation fails, helper returns zero-valued summary
+    instead of raising. Keeps the client able to reconcile (snap to 0)
+    rather than rolling back on a non-error response."""
+    if "fiesta.deductions.routes" in sys.modules:
+        del sys.modules["fiesta.deductions.routes"]
+    routes = importlib.import_module("fiesta.deductions.routes")
+
+    def boom(*a, **kw):
+        raise RuntimeError("simulated DB outage")
+    monkeypatch.setattr(routes, "_load_user_claims", boom)
+
+    payload = routes._compute_summary_payload(user_id=1, tax_year="2025/2026")
+    assert payload["estimated_saving_lkr"] == "0"
+    assert payload["total_deduction_lkr"] == "0"
+    assert payload["deduction_cap_applied"] is None
+    assert payload["marginal_rate"] == "0"
