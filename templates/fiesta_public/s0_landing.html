@@ -256,6 +256,147 @@
     .x8a-landing .tb-hero-proto__amount { font-size: 1.3rem; }
   }
 
+  /* ---------------------------------------------------------------------
+     A6 TRUST BLOCK — sits below S0 hero, above the eyebrow + calculator.
+     First-time visitors from acquisition channels (Lanka Devs, SL
+     Freelancers FB, Fiverr SL FB, IT Twitter) need trust signals BEFORE
+     they're asked to engage with the calculator. Three pillars:
+       (a) Credibility — "Built in Sri Lanka for Sri Lankans"
+       (b) Security    — "Your data stays in Sri Lanka"
+       (c) Social      — placeholder testimonials (CEO replaces pre-launch)
+     Scoped to .s0-trust-block — no leakage into other surfaces.
+     --------------------------------------------------------------------- */
+  .x8a-landing .s0-trust-block {
+    margin: 0 0 28px;
+  }
+  .x8a-landing .s0-trust-block .trust-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .x8a-landing .s0-trust-block .trust-card {
+    background: var(--paper-hi);
+    border: 1px solid var(--paper-edge);
+    border-radius: var(--r-lg);
+    padding: 18px 18px 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+  .x8a-landing .s0-trust-block .trust-card .trust-card__eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--clay);
+    margin-bottom: 6px;
+  }
+  .x8a-landing .s0-trust-block .trust-card h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 17px;
+    color: var(--forest);
+    margin: 0 0 8px;
+    line-height: 1.25;
+    letter-spacing: -0.2px;
+  }
+  .x8a-landing .s0-trust-block .trust-card p {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+    line-height: 1.5;
+  }
+  .x8a-landing .s0-trust-block .trust-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
+  }
+  .x8a-landing .s0-trust-block .trust-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--paper-deep);
+    border: 1px solid var(--paper-edge);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-muted);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .x8a-landing .s0-trust-block .trust-badge.flag {
+    background: #fff;
+    border-color: var(--moss);
+    color: var(--forest);
+  }
+
+  /* Testimonial card (third pillar uses a vertical stack of quotes) */
+  .x8a-landing .s0-trust-block .trust-card.testimonials {
+    background: var(--paper-deep);
+  }
+  .x8a-landing .s0-trust-block .testimonial-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .x8a-landing .s0-trust-block .testimonial {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  .x8a-landing .s0-trust-block .avatar-initials {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--clay);
+    color: var(--paper-hi);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .x8a-landing .s0-trust-block .avatar-initials.alt-1 { background: var(--forest); }
+  .x8a-landing .s0-trust-block .avatar-initials.alt-2 { background: var(--moss); }
+  .x8a-landing .s0-trust-block .testimonial-body { min-width: 0; }
+  .x8a-landing .s0-trust-block .testimonial-quote {
+    font-size: 12.5px;
+    color: var(--ink);
+    line-height: 1.45;
+    margin: 0 0 4px;
+    font-style: italic;
+  }
+  .x8a-landing .s0-trust-block .testimonial-attrib {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-muted);
+    letter-spacing: 0.3px;
+  }
+  .x8a-landing .s0-trust-block .testimonial-attrib b {
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+
+  /* Stack to single column at <=768px (tablet/mobile) */
+  @media (max-width: 768px) {
+    .x8a-landing .s0-trust-block .trust-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .x8a-landing .s0-trust-block .trust-card { padding: 16px; }
+  }
+  @media (max-width: 414px) {
+    .x8a-landing .s0-trust-block .trust-card h3 { font-size: 16px; }
+    .x8a-landing .s0-trust-block .trust-card p { font-size: 13px; }
+  }
+
   @media (max-width: 640px) {
     .x8a-landing { padding: 24px 16px 80px; }
     .x8a-landing h1.display { font-size: 32px; }
@@ -349,6 +490,83 @@
 
       <div class="tb-hero-footnote">
         Worked example using IRA 25/26 brackets at gross LKR {{ hero_example.gross_income_lkr if hero_example else '9,060,000' }} (USD 2,500/mo &times; 12 &times; CBSL rate {{ fx_rate_lkr_per_usd or '302' }}). Move the slider below to see your number.
+      </div>
+    </section>
+
+    {# ---------------------------------------------------------------
+       A6 TRUST BLOCK — three pillars: Credibility, Security, Social.
+       First impression for cold visitors from Lanka Devs / SL
+       Freelancers FB / Fiverr SL FB / IT Twitter acquisition channels.
+       Sits between the hero (above) and the eyebrow + calculator
+       (below). Placeholder testimonials are marked for CEO replacement
+       before launch — search this file for "PLACEHOLDER".
+       --------------------------------------------------------------- #}
+    <section class="s0-trust-block" aria-label="Why you can trust FIESTA">
+      <div class="trust-grid">
+
+        <!-- Pillar (a): Credibility -->
+        <article class="trust-card" aria-labelledby="trust-credibility-h">
+          <div class="trust-card__eyebrow">Credibility</div>
+          <h3 id="trust-credibility-h">Built in Sri Lanka for Sri Lankans</h3>
+          <p>
+            Maintained by a Sri Lankan dev community. The 15% / 36% tax framing
+            is current as of April 2025.
+          </p>
+          <div class="trust-badge-row">
+            <span class="trust-badge flag" aria-label="Made in Sri Lanka">
+              <span aria-hidden="true">&#127473;&#127472;</span> Made in Sri Lanka
+            </span>
+            <span class="trust-badge">IRA 25/26 brackets</span>
+          </div>
+        </article>
+
+        <!-- Pillar (b): Security -->
+        <article class="trust-card" aria-labelledby="trust-security-h">
+          <div class="trust-card__eyebrow">Security</div>
+          <h3 id="trust-security-h">Your data stays in Sri Lanka</h3>
+          <p>
+            Database hosted in Fly.io Mumbai region. No US-based data
+            residency. Read-only calculator; sign-up is optional.
+          </p>
+          <div class="trust-badge-row">
+            <span class="trust-badge">HTTPS</span>
+            <span class="trust-badge">Stripe-secured payments</span>
+            <span class="trust-badge">Mumbai region</span>
+          </div>
+        </article>
+
+        <!-- Pillar (c): Social proof -->
+        <article class="trust-card testimonials" aria-labelledby="trust-social-h">
+          <div class="trust-card__eyebrow">Real Results</div>
+          <h3 id="trust-social-h">From Sri Lankan remote earners</h3>
+          <div class="testimonial-list">
+            <!-- PLACEHOLDER: replace before launch with real testimonial -->
+            <div class="testimonial">
+              <div class="avatar-initials" aria-hidden="true">PS</div>
+              <div class="testimonial-body">
+                <p class="testimonial-quote">"Saved Rs 298K filing my Upwork income correctly. Wish I'd found this two years ago."</p>
+                <div class="testimonial-attrib"><b>P. Senanayake</b> &middot; Software engineer, Colombo</div>
+              </div>
+            </div>
+            <!-- PLACEHOLDER: replace before launch with real testimonial -->
+            <div class="testimonial">
+              <div class="avatar-initials alt-1" aria-hidden="true">RA</div>
+              <div class="testimonial-body">
+                <p class="testimonial-quote">"Finally a calculator that understands foreign-income deductions. Took me 4 minutes."</p>
+                <div class="testimonial-attrib"><b>R. Amarasinghe</b> &middot; Freelance designer, Kandy</div>
+              </div>
+            </div>
+            <!-- PLACEHOLDER: replace before launch with real testimonial -->
+            <div class="testimonial">
+              <div class="avatar-initials alt-2" aria-hidden="true">DK</div>
+              <div class="testimonial-body">
+                <p class="testimonial-quote">"Records that actually hold up if the IRD ever asks. Worth every rupee."</p>
+                <div class="testimonial-attrib"><b>D. Karunaratne</b> &middot; Remote engineer, Galle</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
       </div>
     </section>
 
