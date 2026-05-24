@@ -373,6 +373,22 @@ try:
 except Exception as e:
     logger.error(f"Error loading Dunning recovery: {str(e)}")
 
+# Tier D4 A3 — One-sided referral loop (2026-05-24)
+# Referrer shares /r/<code>; new user signs up + pays; referrer gets
+# 20% off NEXT renewal via auto-attached Stripe coupon. See referral_models.py,
+# referral_routes.py, referral_hook.py, migrations/add_referrals.py.
+try:
+    from referral_models import register_models as register_referral_models
+    register_referral_models()
+    from referral_routes import register_routes as register_referral_routes
+    register_referral_routes(app)
+    logger.info(
+        "Referral loop registered "
+        "(/referrals, /api/referrals/generate, /r/<code>)"
+    )
+except Exception as e:
+    logger.error(f"Error loading Referral loop: {str(e)}")
+
 # Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
 try:
     import customer_brain_routes

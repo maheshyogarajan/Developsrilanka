@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}You've been invited to FIESTA{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 text-center">
+      {% if valid %}
+        <h1 class="h2 mb-3">You're invited to FIESTA</h1>
+        {% if referrer_email %}
+          <p class="text-muted">
+            <strong>{{ referrer_email }}</strong> thought you'd find this useful.
+          </p>
+        {% endif %}
+        <p class="lead mb-4">
+          FIESTA is the fastest way to file your Sri Lankan personal income
+          tax return. Sign up below to get started.
+        </p>
+        <a href="{{ signup_url }}" class="btn btn-primary btn-lg">
+          Create my account
+        </a>
+        <p class="text-muted mt-3 small">
+          Your friend will get a {{ discount_percent }}% credit on their next
+          renewal once you complete signup and payment.
+        </p>
+      {% else %}
+        <h1 class="h2 mb-3">Welcome to FIESTA</h1>
+        <p class="text-muted mb-4">
+          This referral link is no longer active, but you can still sign up
+          and try FIESTA - the fastest way to file your Sri Lankan tax return.
+        </p>
+        <a href="{{ signup_url }}" class="btn btn-primary btn-lg">
+          Create my account
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

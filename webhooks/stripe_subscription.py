@@ -311,6 +311,19 @@ def _handle_invoice_paid(stripe_event: dict) -> None:
     except Exception as exc:
         log.debug("invoice.paid: dunning recovery skipped: %s", exc)
 
+    # Tier D4 / A3 — referral credit application. If this paying user has a
+    # pending ReferralRedemption row, mark it paid + attach a one-off coupon
+    # to the REFERRER's Stripe customer so their next invoice gets the
+    # discount. Best-effort; never raises out of the webhook.
+    try:
+        from referral_hook import apply_referral_credit_on_invoice_paid
+        apply_referral_credit_on_invoice_paid(
+            referee_user_id=row.user_id,
+            stripe_subscription_id=stripe_subscription_id,
+        )
+    except Exception as exc:
+        log.debug("invoice.paid: referral credit skipped: %s", exc)
+
     emit_analytics_event(
         "subscription_invoice_paid",
         user_id=row.user_id,
