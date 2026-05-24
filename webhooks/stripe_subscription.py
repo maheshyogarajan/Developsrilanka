@@ -295,6 +295,22 @@ def _handle_invoice_paid(stripe_event: dict) -> None:
     from app import db
     db.session.commit()
 
+    # Tier D3 / C5 — close any open dunning rows for this invoice. The same
+    # invoice can fail multiple times before succeeding; mark all of them as
+    # recovered so should_show_banner flips off for the user.
+    try:
+        from dunning_sequence import mark_invoice_paid
+        invoice_id = invoice.get("id") or ""
+        if invoice_id:
+            n = mark_invoice_paid(invoice_id)
+            if n:
+                log.info(
+                    "invoice.paid: closed %s dunning row(s) for invoice=%s",
+                    n, invoice_id[:32],
+                )
+    except Exception as exc:
+        log.debug("invoice.paid: dunning recovery skipped: %s", exc)
+
     emit_analytics_event(
         "subscription_invoice_paid",
         user_id=row.user_id,
@@ -339,6 +355,30 @@ def _handle_payment_failed(stripe_event: dict) -> None:
     from app import db
     db.session.commit()
 
+    # Tier D3 / C5 — record the failure + alert CEO via Telegram. The
+    # webhook's state-flip above stays the source of truth for Stripe
+    # subscription status; the Dunning row is the per-invoice audit + banner
+    # gate.
+    attempt_count = invoice.get("attempt_count") or 1
+    next_retry_unix = invoice.get("next_payment_attempt")
+    next_retry_at = None
+    if next_retry_unix:
+        try:
+            next_retry_at = datetime.utcfromtimestamp(next_retry_unix)
+        except Exception:
+            next_retry_at = None
+    try:
+        from dunning_sequence import record_failed_payment
+        record_failed_payment(
+            user_id=row.user_id,
+            subscription_id=row.id,
+            stripe_invoice_id=invoice.get("id") or "",
+            attempt_count=attempt_count,
+            next_retry_at=next_retry_at,
+        )
+    except Exception as exc:
+        log.warning("invoice.payment_failed: dunning record failed: %s", exc)
+
     emit_analytics_event(
         "subscription_payment_failed",
         user_id=row.user_id,
@@ -347,12 +387,13 @@ def _handle_payment_failed(stripe_event: dict) -> None:
             "stripe_subscription_id": stripe_subscription_id,
             "stripe_invoice_id": invoice.get("id"),
             "amount_due": invoice.get("amount_due"),
-            "attempt_count": invoice.get("attempt_count"),
-            "next_payment_attempt": invoice.get("next_payment_attempt"),
-            # NOTE: C5 Wave 3 will read this event and trigger the actual
-            # customer-facing dunning email. This handler intentionally
-            # stops at state-flip + analytics emission.
-            "email_send_stubbed_for_c5": True,
+            "attempt_count": attempt_count,
+            "next_payment_attempt": next_retry_unix,
+            # C5 Wave 3 now records a Dunning row + fires Telegram via
+            # dunning_sequence.record_failed_payment above. SES/Mailgun
+            # customer-email delivery is the remaining follow-up (see
+            # dunning_sequence.py TODO).
+            "dunning_recorded": True,
         },
         source="webhook:stripe_subscription.payment_failed",
     )

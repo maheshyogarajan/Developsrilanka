@@ -347,6 +347,8 @@
 </head>
 {% endblock %}
 <body class="{% if not current_user.is_authenticated %}is-anonymous{% endif %}">
+    {# Tier D3 / C5 — Dunning banner (above everything else; clears when Stripe retry succeeds). #}
+    {% include 'components/dunning_banner.html' %}
     {# E4 — Bookkeeping deprecation banner. Show for authenticated non-FIESTA personas only.
        Hidden for sl_foreign_income (FIESTA persona) and for anonymous users. #}
     {% if current_user.is_authenticated and current_user.persona != 'sl_foreign_income' %}

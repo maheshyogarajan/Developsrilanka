@@ -294,6 +294,8 @@
 {% endblock %}
 
 <body class="fiesta-hub-body">
+  {# Tier D3 / C5 — Dunning banner (above the hub chrome; clears when Stripe retry succeeds). #}
+  {% include 'components/dunning_banner.html' %}
   <div class="fiesta-hub" id="fiestaHub">
 
     {# ---------- TOPBAR ---------- #}
