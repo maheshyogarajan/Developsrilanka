@@ -59,6 +59,15 @@ db = SQLAlchemy(model_class=Base)
 # Initialize Flask app
 app = Flask(__name__)
 
+# Tier D3 / E4 — per-route latency + per-DB-query timing. Attaches Flask
+# before/after_request hooks, SQLAlchemy cursor listeners, and the
+# admin-gated /healthz/perf route. Sentry (E1) provides deep flame graphs
+# at 10% sample; this module provides 100%-sample shallow telemetry as
+# response headers (X-Response-Time-Ms, X-DB-Query-Count, X-DB-Time-Ms)
+# plus Telegram slow-request alerts via ops_alerts (E2).
+from perf_monitoring import init_perf_monitoring
+init_perf_monitoring(app, db)
+
 # Configure template auto-reload and disable caching
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
