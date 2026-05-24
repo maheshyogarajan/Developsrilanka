@@ -58,6 +58,32 @@ STRIPE_SECRET_KEY=sk_live_XXXXXXXXXXXXXXXX
 STRIPE_PAYWALL_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXX
 STRIPE_LIVE_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXX
 STRIPE_LIVE_KEYS_REQUIRED=1
+
+# Paid-acquisition pixels (Tier D6 / A2, added 2026-05-24)
+#
+# All three pixel networks are env-gated. The master switch is
+# PIXELS_ENABLED; default-OFF means a deploy without these values set is
+# risk-free. See docs/PIXELS.md for the full operational guide.
+#
+#   PIXELS_ENABLED         Master kill switch. Default: false.
+#                          Set to "true" to enable any pixel rendering.
+#   META_PIXEL_ID          Meta (Facebook/Instagram) Pixel ID.
+#                          Obtain from Meta Business -> Events Manager.
+#   LINKEDIN_PARTNER_ID    LinkedIn Insight Tag partner ID.
+#                          Obtain from LinkedIn Campaign Manager -> Insight Tag.
+#   TWITTER_PIXEL_ID       Twitter/X Pixel ID (uwt).
+#                          Obtain from Twitter Ads -> Conversion tracking.
+#
+# Optional knobs:
+#   PIXELS_ALLOW_IN_DEV    Set to "1" to fire pixels in FLASK_ENV=development.
+#                          Default: pixels suppressed in dev to avoid polluting
+#                          ad-network analytics with developer traffic.
+#   PIXELS_DISABLE_IN_TEST Set to "1" to force suppression even outside pytest.
+#                          (Pytest is already auto-detected.)
+PIXELS_ENABLED=false
+META_PIXEL_ID=
+LINKEDIN_PARTNER_ID=
+TWITTER_PIXEL_ID=
 ```
 
 ## Deployment Steps
