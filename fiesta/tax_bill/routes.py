@@ -462,6 +462,55 @@ def export_audit_pack(tax_year: str):
     )
 
 
+@bp.route("/<tax_year>/compare", methods=["GET"])
+@login_required
+@paywall_required(min_tier="self_file", screen_id="S12", action="yoy_compare")
+def yoy_compare(tax_year: str):
+    """Tier D5 C3: side-by-side year-over-year comparison.
+
+    Builds a comparison across every year the user has data for (intersected
+    with engine-supported years). The `tax_year` URL parameter is the year
+    the user currently has open; we use it only to decide which year to
+    highlight as `selected_year` in the rendered template.
+    """
+    user_id = _current_user_id()
+    if not user_id:
+        abort(401)
+
+    tax_year_s4 = normalise_tax_year_to_s4_format(tax_year)
+
+    # available_years comes back newest-first; YoY wants oldest-first so the
+    # delta arrows read left-to-right with time.
+    available_newest_first = _available_years_for_user(user_id)
+    available_oldest_first = list(reversed(available_newest_first))
+
+    # Defensive import: keep this route healthy even if multi_year_view
+    # raises during test scaffolding.
+    try:
+        from multi_year_view import compute_yoy_comparison
+        comparison = compute_yoy_comparison(user_id, available_oldest_first)
+        comparison_error = None
+    except Exception as exc:
+        logger.exception("yoy_compare failed: %s", exc)
+        comparison = {
+            "user_id": int(user_id),
+            "years": available_oldest_first,
+            "per_year": [],
+            "deltas": [],
+        }
+        comparison_error = f"{type(exc).__name__}: {exc}"
+
+    return render_template(
+        "tax_bill/compare.html",
+        user_id=user_id,
+        comparison=comparison,
+        comparison_error=comparison_error,
+        available_years=available_newest_first,
+        selected_year=tax_year_s4,
+        tax_year_s4=tax_year_s4,
+    )
+
+
 @bp.route("/<tax_year>/finalize", methods=["POST"])
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S12", action="finalize")
