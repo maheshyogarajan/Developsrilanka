@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+
+{% block title %}Ticket #{{ ticket.id }} - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px;">
+  <div class="row mb-3">
+    <div class="col">
+      <a href="{{ url_for('support_tickets.list_tickets') }}" class="text-decoration-none small text-secondary">
+        &larr; Back to my tickets
+      </a>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col">
+      <span class="eyebrow">Ticket #{{ ticket.id }}</span>
+      <h1 class="h3 mb-2">{{ ticket.subject }}</h1>
+      <div class="d-flex gap-2 align-items-center small text-secondary">
+        {% set status_class = {
+          'open': 'primary',
+          'awaiting_customer': 'warning',
+          'resolved': 'success',
+          'closed': 'secondary'
+        } %}
+        <span class="badge bg-{{ status_class.get(ticket.status, 'secondary') }}">
+          {{ ticket.status.replace('_', ' ') }}
+        </span>
+        {% set pri_class = {
+          'high': 'danger',
+          'normal': 'secondary',
+          'low': 'light text-dark'
+        } %}
+        <span class="badge bg-{{ pri_class.get(ticket.priority, 'secondary') }}">
+          {{ ticket.priority }} priority
+        </span>
+        {% if ticket.category %}
+          <span class="badge bg-info text-dark">{{ ticket.category }}</span>
+        {% endif %}
+        <span>opened {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else '' }}</span>
+      </div>
+    </div>
+  </div>
+
+  {% with flashes = get_flashed_messages(with_categories=true) %}
+    {% if flashes %}
+      {% for category, message in flashes %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if messages %}
+    <div class="d-flex flex-column gap-3 mb-4">
+      {% for m in messages %}
+        {% set is_customer = (m.author_role == 'customer') %}
+        {% set is_system = (m.author_role == 'system') %}
+        <div class="card border-{{ 'primary' if is_customer else ('light' if is_system else 'success') }}">
+          <div class="card-header py-2 d-flex justify-content-between align-items-center small bg-light">
+            <span>
+              {% if is_customer %}
+                <strong>You</strong>
+              {% elif m.author_role == 'staff' %}
+                <strong>FIESTA team</strong>
+              {% elif m.author_role == 'ai' %}
+                <strong>AI Copilot</strong>
+              {% else %}
+                <strong>System</strong>
+              {% endif %}
+            </span>
+            <span class="text-secondary">
+              {{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at else '' }}
+            </span>
+          </div>
+          <div class="card-body" style="white-space: pre-wrap;">{{ m.body }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if ticket.status != 'closed' %}
+    <div class="card">
+      <div class="card-header">
+        <strong>Add a reply</strong>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('support_tickets.reply_ticket', ticket_id=ticket.id) }}">
+          {% if csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% endif %}
+          <div class="mb-3">
+            <label for="body" class="form-label visually-hidden">Your reply</label>
+            <textarea class="form-control" id="body" name="body" rows="5"
+                      maxlength="8000" required
+                      placeholder="Type your reply..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Send reply</button>
+        </form>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-secondary">
+      This ticket is closed. Open a new ticket if you need further help.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
