@@ -115,6 +115,9 @@ app = Celery(
         # 3 calendar-anchored schedulers + daily renewal-check + hourly dispatcher.
         'tasks.yoy_nudges_run',
         'yoy_models',
+        # Tier D5 / F4 (2026-05-24) — 90-day secret rotation reminder probe.
+        # Tracking + Telegram alerts only (no auto-rotation).
+        'tasks.secret_rotation_probe',
     ]
 )
 
@@ -284,6 +287,19 @@ app.conf.beat_schedule.update({
     'lifecycle_drip-scan-every-15min': {
         'task': 'tasks.lifecycle_drip_send.scan_and_send_task',
         'schedule': crontab(minute='*/15'),
+    },
+})
+
+# Tier D5 / F4 (2026-05-24) — 90-day secret rotation reminder.
+# Loads _tier_d5_secret_rotation/secret_inventory.yaml, computes days
+# since each secret was last rotated, alerts CEO via ops_alerts.send_alert
+# for WARN (>= rotation_days - 15) and URGENT (>= rotation_days) buckets.
+# Mon 06:00 UTC = 11:30 IST — after self-audit (03:35), before signup
+# probe (next day), and off-cycle from every other Monday beat task.
+app.conf.beat_schedule.update({
+    'secret-rotation-probe-mon-0600-utc': {
+        'task': 'tasks.secret_rotation_probe.run_probe',
+        'schedule': crontab(day_of_week=1, hour=6, minute=0),
     },
 })
 
