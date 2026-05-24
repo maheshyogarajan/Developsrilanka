@@ -1,0 +1,687 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\tests\\mobile\\playwright.config.ts",
+    "rootDir": "C:/Users/mahes/fiesta_phase_a/worktrees/tier-c5-mobile/tests/mobile",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/mahes/fiesta_phase_a/worktrees/tier-c5-mobile/tests/playwright/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/mahes/fiesta_phase_a/worktrees/tier-c5-mobile/tests/mobile",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\playwright_results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 7,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "capture_snapshots.spec.ts",
+      "file": "capture_snapshots.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "before s0_landing @ 320",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6855,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s0_landing_320.png (scroll=320/320 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:50:12.350Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-871433f39b17c6501b99",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before s0_landing @ 375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9069,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s0_landing_375.png (scroll=375/375 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:50:19.306Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-55ab4532d2c88ddd985d",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before s0_landing @ 414",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5424,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s0_landing_414.png (scroll=414/414 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:50:28.385Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-3db39319c92cc9d0bee9",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before s0_landing @ 768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5540,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s0_landing_768.png (scroll=768/768 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:50:33.819Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-7c030e6b8613c8c56892",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before s5_hub @ 320",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15413,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s5_hub_320.png (scroll=320/320 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:50:39.366Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-bf4ccf0a81ecc4d6dc6f",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before s5_hub @ 375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15168,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s5_hub_375.png (scroll=375/375 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:50:54.790Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-ccaf8cd84ff04aa53213",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before s5_hub @ 414",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15498,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s5_hub_414.png (scroll=414/414 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:51:09.965Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-e3cc57f30fb09465650d",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before s5_hub @ 768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15609,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\s5_hub_768.png (scroll=768/768 tap_targets_small=1/16)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:51:25.471Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-0afca75aa3ed97c4641a",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before tax_bill @ 320",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13257,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\tax_bill_320.png (scroll=320/320 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:51:41.089Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-851293e4f8802b2abe26",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before tax_bill @ 375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 14197,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\tax_bill_375.png (scroll=375/375 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:51:54.354Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-02e4298589a80a244603",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before tax_bill @ 414",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13541,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\tax_bill_414.png (scroll=414/414 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:52:08.559Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-d208d304d21cacd519fa",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before tax_bill @ 768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13613,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\tax_bill_768.png (scroll=768/768 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:52:22.109Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-186f4f4e69792450b00e",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before agreements_service @ 320",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13788,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\agreements_service_320.png (scroll=320/320 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:52:35.731Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-1d6a3f3cc99feba77550",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before agreements_service @ 375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 14033,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\agreements_service_375.png (scroll=375/375 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:52:49.529Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-2151b53b7f5283d18a97",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before agreements_service @ 414",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13462,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\agreements_service_414.png (scroll=414/414 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:53:03.571Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-3057ae2e5831bcb0a6ff",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        },
+        {
+          "title": "before agreements_service @ 768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13419,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "captured C:\\Users\\mahes\\fiesta_phase_a\\worktrees\\tier-c5-mobile\\_tier_c_mobile_audit\\before\\agreements_service_768.png (scroll=768/768 tap_targets_small=7/14)\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-24T08:53:17.037Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6a67f923a3c83ac70619-538cf501de3b625bca14",
+          "file": "capture_snapshots.spec.ts",
+          "line": 111,
+          "column": 9
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-24T08:50:11.817Z",
+    "duration": 198859.592,
+    "expected": 16,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

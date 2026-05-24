@@ -141,6 +141,36 @@
     .hub-page .slider-row { grid-template-columns: 1fr; }
     .hub-page .slider-val { text-align: left; }
   }
+
+  /* Tier C-5 mobile pass: same slider tap-target rule as x8a-landing. */
+  @media (max-width: 768px) {
+    .hub-page input[type=range] {
+      height: 44px;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+    }
+    .hub-page input[type=range]::-webkit-slider-runnable-track {
+      height: 8px; background: var(--paper-edge, #d8cab4); border-radius: 4px;
+    }
+    .hub-page input[type=range]::-moz-range-track {
+      height: 8px; background: var(--paper-edge, #d8cab4); border-radius: 4px;
+    }
+    .hub-page input[type=range]::-webkit-slider-thumb {
+      width: 28px; height: 28px; margin-top: -10px;
+    }
+    .hub-page input[type=range]::-moz-range-thumb {
+      width: 28px; height: 28px;
+    }
+  }
+
+  /* Tier C-5 mobile pass: tighter spacing + tap-target compliance at 320-414. */
+  @media (max-width: 414px) {
+    .hub-page h1.display { font-size: 26px; line-height: 1.1; }
+    .hub-page .slider-row { padding: 16px; }
+    .hub-page .cta-row .btn,
+    .hub-page .cta-row .btn.ghost { min-height: 44px; padding: 14px 18px; }
+  }
 </style>
 {% endblock %}
 

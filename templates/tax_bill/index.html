@@ -430,11 +430,70 @@
         .tb-ira-row { grid-template-columns: 1fr; }
         .tb-ira-row__cite { padding-top: 0; }
     }
+
+    /* Tier C-5 mobile pass: 320-414 viewport — shrink hero, allow horizontal table
+       scroll for line-item breakdowns, ensure CTAs meet 44px tap target. */
+    @media (max-width: 480px) {
+        .tb-hero { padding: 1.5rem 1rem; }
+        .tb-hero h1 { font-size: 1rem; }
+        .tb-hero-proto__amount { font-size: 1.25rem; }
+        .tb-hero-saved__amount { font-size: 2.5rem; line-height: 1.05; }
+        .tb-hero-bill__amount { font-size: 1.15rem; }
+        .tb-hero .tb-final { font-size: 1.75rem; }
+
+        .tb-section { padding: 0.85rem; }
+        .tb-section summary { font-size: 1rem; }
+        .tb-section .tb-section-total {
+            display: block;
+            margin-left: 0;
+            margin-top: 0.25rem;
+        }
+
+        /* Tables must not force horizontal page scroll — wrap them. */
+        .tb-section-content { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .tb-table { font-size: 0.8rem; min-width: 100%; }
+        .tb-table th, .tb-table td { padding: 0.4rem 0.3rem; }
+
+        .tb-defensibility {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 1rem;
+            gap: 0.5rem;
+        }
+        .tb-defensibility .tb-def-score { font-size: 2rem; min-width: 0; }
+
+        .tb-projected-savings { padding: 0.75rem 1rem; }
+        .tb-projected-savings__amount { font-size: 1.1rem; }
+        .tb-projected-savings__note { margin-left: 0; flex-basis: 100%; }
+
+        .tb-ira-panel summary { padding: 1rem 1rem; font-size: 1rem; }
+        .tb-ira-panel__body { padding: 0 1rem 1rem; }
+
+        .tb-ctas { flex-direction: column; gap: 0.5rem; }
+        .tb-cta-primary, .tb-cta-secondary {
+            min-height: 44px;
+            padding: 0.85rem 1.25rem;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* Container padding squeeze for the narrowest devices. */
+    }
+
+    @media (max-width: 414px) {
+        /* Override inline padding via class — keeps the inline max-width but trims
+           horizontal padding so 320px viewports get more usable width. */
+        .tb-container { padding: 0.75rem 0.75rem !important; }
+        .tb-finalized-banner,
+        .tb-engine-error,
+        .tb-gate-block,
+        .tb-gate-warn { padding: 0.75rem 0.85rem; font-size: 0.85rem; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="max-width: 1080px; padding: 1rem 1.5rem;">
+<div class="container-fluid tb-container" style="max-width: 1080px; padding: 1rem 1.5rem;">
 
     {% if report.is_finalized %}
         <div class="tb-finalized-banner">
