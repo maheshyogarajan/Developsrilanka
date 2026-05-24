@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{# Tier D5 C3 -- side-by-side YoY tax comparison.
+   No chart; HTML table only per scope cap. #}
+
+{% block title %}Year-over-Year Comparison · FIESTA{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Year-over-Year Comparison</h1>
+    <a href="{{ url_for('fiesta_tax_bill.show_tax_bill', tax_year=selected_year) }}"
+       class="btn btn-outline-secondary btn-sm">
+      &larr; Back to {{ selected_year }} tax bill
+    </a>
+  </div>
+
+  {% if comparison_error %}
+    <div class="alert alert-danger" role="alert">
+      <strong>Comparison unavailable.</strong>
+      <div class="small mt-1 font-monospace">{{ comparison_error }}</div>
+    </div>
+  {% endif %}
+
+  {% if comparison.per_year %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Metric</th>
+                {% for row in comparison.per_year %}
+                  <th scope="col"
+                      class="text-end {% if row.tax_year_s4 == selected_year %}table-primary{% endif %}">
+                    {{ row.tax_year_s5 }}
+                  </th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Gross income (LKR)</th>
+                {% for row in comparison.per_year %}
+                  <td class="text-end font-monospace">{{ row.gross_income_lkr }}</td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <th scope="row">Total deductions (LKR)</th>
+                {% for row in comparison.per_year %}
+                  <td class="text-end font-monospace">{{ row.total_deductions_lkr }}</td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <th scope="row">Taxable income (LKR)</th>
+                {% for row in comparison.per_year %}
+                  <td class="text-end font-monospace">{{ row.taxable_income_lkr }}</td>
+                {% endfor %}
+              </tr>
+              <tr class="table-warning">
+                <th scope="row">Net tax payable (LKR)</th>
+                {% for row in comparison.per_year %}
+                  <td class="text-end font-monospace fw-bold">{{ row.net_tax_payable_lkr }}</td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <th scope="row">Audit-defensibility</th>
+                {% for row in comparison.per_year %}
+                  <td class="text-end">
+                    <span class="badge bg-secondary">{{ row.audit_defensibility_score }}/100</span>
+                    <span class="small text-muted">{{ row.audit_defensibility_label }}</span>
+                  </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <th scope="row">
+                  Rental loss carried forward into this year (LKR)
+                  <span class="text-muted small d-block">
+                    Reduces this year's rental income before tax.
+                  </span>
+                </th>
+                {% for row in comparison.per_year %}
+                  <td class="text-end font-monospace">
+                    {{ row.rental_loss_carried_forward_lkr }}
+                  </td>
+                {% endfor %}
+              </tr>
+              {% for row in comparison.per_year %}
+                {% if row.engine_error %}
+                  <tr class="table-danger">
+                    <th scope="row">Engine error</th>
+                    {% for r in comparison.per_year %}
+                      <td class="small font-monospace">
+                        {% if r.tax_year_s4 == row.tax_year_s4 %}{{ r.engine_error }}{% endif %}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% if comparison.deltas %}
+      <h2 class="h5">Year-over-year deltas</h2>
+      <div class="card shadow-sm">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Period</th>
+                  <th class="text-end">Income delta (LKR)</th>
+                  <th class="text-end">Deductions delta (LKR)</th>
+                  <th class="text-end">Net tax delta (LKR)</th>
+                  <th class="text-end">Score delta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in comparison.deltas %}
+                  <tr>
+                    <td class="font-monospace">{{ d.from_year_s4 }} &rarr; {{ d.to_year_s4 }}</td>
+                    <td class="text-end font-monospace">{{ d.gross_income_delta_lkr }}</td>
+                    <td class="text-end font-monospace">{{ d.deductions_delta_lkr }}</td>
+                    <td class="text-end font-monospace">{{ d.net_tax_delta_lkr }}</td>
+                    <td class="text-end font-monospace">{{ d.score_delta }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% elif not comparison_error %}
+    <div class="alert alert-info" role="alert">
+      Not enough data to compare yet. Add data for at least one tax year.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

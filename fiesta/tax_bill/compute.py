@@ -104,6 +104,13 @@ class TaxBillReport:
     # Finalize state -- writable by /finalize endpoint.
     is_finalized: bool = False
 
+    # Tier D5 C3: rental loss carry-forward from prior year (v1 -- rental only).
+    # `rental_loss_carried_forward_lkr` is what the caller passed in;
+    # `rental_loss_applied_lkr` is how much was actually consumed against this
+    # year's rental income (capped by the income, never negative).
+    rental_loss_carried_forward_lkr: Decimal = Decimal("0")
+    rental_loss_applied_lkr: Decimal = Decimal("0")
+
     # Computation engine error (if any) for graceful UI degradation.
     engine_error: Optional[str] = None
 
@@ -449,6 +456,7 @@ def compute_tax_bill(
     tax_year: str,
     pre_assembled: Optional[TaxInputs] = None,
     use_cache: bool = True,
+    prior_year_rental_loss_lkr: Optional[Decimal] = None,
 ) -> TaxBillReport:
     """Compute the full S12 outcome for one user, one tax year.
 
@@ -461,17 +469,39 @@ def compute_tax_bill(
                         deterministically).
         use_cache:      defaults True. Tests asserting query counts pass
                         False to measure cache-miss behaviour repeatably.
+        prior_year_rental_loss_lkr:
+                        Tier D5 C3 (multi-year filing v1) -- rental loss
+                        carried forward from the immediately-prior tax year.
+                        When set to a positive Decimal, the engine's rental
+                        income kwarg is reduced by this amount (floored at 0)
+                        BEFORE compute_tax. Cache is bypassed when this kwarg
+                        is non-None to avoid serving a cached row from a prior
+                        compute that didn't apply the offset. Scope cap: ONLY
+                        rental losses (not business / capital / FTC).
 
     Returns:
         TaxBillReport. If the tax engine fails to import or compute,
         `engine_error` is populated and the engine-derived fields stay at
         their defaults so the UI can still render a partial breakdown.
     """
+    # Normalise prior-year carry-forward arg early.
+    _carry = Decimal("0")
+    if prior_year_rental_loss_lkr is not None:
+        try:
+            _carry = Decimal(str(prior_year_rental_loss_lkr))
+        except Exception:
+            _carry = Decimal("0")
+        if _carry < Decimal("0"):
+            _carry = Decimal("0")
+    _carry_active = _carry > Decimal("0")
+
     # Cache check -- only when we will be doing the full assembly path
     # (pre_assembled bypasses cache because the caller has constructed
     # a possibly-test TaxInputs that may differ from what we'd assemble).
+    # Carry-forward also bypasses cache: a cached entry would reflect the
+    # zero-carry path and silently override the caller's offset.
     cache_key = None
-    if pre_assembled is None and use_cache:
+    if pre_assembled is None and use_cache and not _carry_active:
         try:
             ty_s4 = normalise_tax_year_to_s4_format(tax_year)
             cache_key = (int(user_id), ty_s4)
@@ -500,9 +530,26 @@ def compute_tax_bill(
         report.engine_error = "Tax engine import failed or unsupported tax year."
         return report
 
+    # Apply carry-forward rental loss to engine kwargs (immutable on inputs).
+    # We build a fresh dict so we never mutate the aggregator's cached output.
+    income_kwargs = dict(inputs.engine_income_kwargs)
+    if _carry_active:
+        current_rental = income_kwargs.get("rental_lkr", Decimal("0")) or Decimal("0")
+        if not isinstance(current_rental, Decimal):
+            try:
+                current_rental = Decimal(str(current_rental))
+            except Exception:
+                current_rental = Decimal("0")
+        adjusted = current_rental - _carry
+        if adjusted < Decimal("0"):
+            adjusted = Decimal("0")
+        income_kwargs["rental_lkr"] = adjusted
+        report.rental_loss_carried_forward_lkr = _carry
+        report.rental_loss_applied_lkr = current_rental - adjusted
+
     try:
         comp_with = _run_engine(
-            inputs.engine_income_kwargs,
+            income_kwargs,
             inputs.engine_deductions_kwargs,
             ty_enum,
             inputs.senior_citizen,
@@ -514,7 +561,7 @@ def compute_tax_bill(
 
     try:
         comp_without = _run_engine(
-            inputs.engine_income_kwargs,
+            income_kwargs,
             _zeroed_deductions_kwargs(),
             ty_enum,
             inputs.senior_citizen,
