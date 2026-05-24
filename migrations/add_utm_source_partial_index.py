@@ -48,8 +48,13 @@ log = logging.getLogger(__name__)
 ADD_INDEX_DDL = """
 CREATE INDEX IF NOT EXISTS ix_events_utm_source
 ON events ((payload->>'utm_source'))
-WHERE payload ? 'utm_source';
+WHERE (payload->>'utm_source') IS NOT NULL;
 """
+# Note: events.payload is `json` (not `jsonb`). The `?` existence operator
+# only exists on jsonb, so we use the `IS NOT NULL` form on the expression
+# itself. Identical semantic for a non-null utm_source key; PostgreSQL is
+# smart enough to use this index for queries that filter on
+# `payload->>'utm_source' = 'foo'` or `IS NOT NULL` directly.
 
 DROP_INDEX_DDL = """
 DROP INDEX IF EXISTS ix_events_utm_source;
