@@ -1,0 +1,24 @@
+{# Tier D3 / C5 — Dunning banner.
+
+Renders a yellow alert at the top of every authenticated page when the user
+has at least one open paywall_dunning row (state='pending').
+
+`should_show_dunning_banner` is injected by
+dunning_sequence.register_context_processor (called from main.py at app
+wire-time). The check is auth-gated on the processor side, so this partial
+is safe to include unconditionally.
+
+Scope cap: NO dismiss button. The banner clears automatically when Stripe's
+next retry succeeds (invoice.paid -> mark_invoice_paid -> state='recovered').
+#}
+{% if should_show_dunning_banner %}
+<div class="dunning-banner"
+     style="background:#fff4cc;border-bottom:1px solid #e0b800;color:#664400;
+            padding:10px 16px;text-align:center;font-size:14px;
+            position:relative;z-index:1000;">
+  <strong>We couldn't charge your card.</strong>
+  Please update your payment method at
+  <a href="/billing" style="color:#664400;text-decoration:underline;font-weight:600;">/billing</a>
+  to keep your subscription active.
+</div>
+{% endif %}

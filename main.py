@@ -357,6 +357,22 @@ try:
 except Exception as e:
     logger.error(f"Error loading Stripe subscription: {str(e)}")
 
+# Tier D3 C5 — Dunning recovery (2026-05-24)
+# Records Stripe invoice.payment_failed events into paywall_dunning, fires
+# Telegram alert to CEO, and injects should_show_dunning_banner into every
+# template render so layouts can show a yellow "update your card" banner.
+try:
+    from dunning_sequence import (
+        register_dunning_model, register_context_processor,
+    )
+    register_dunning_model()
+    register_context_processor(app)
+    logger.info(
+        "Dunning recovery registered (paywall_dunning + banner context proc)"
+    )
+except Exception as e:
+    logger.error(f"Error loading Dunning recovery: {str(e)}")
+
 # Wave 2.3 — AI CRM / Customer Memory (2026-05-17)
 try:
     import customer_brain_routes
