@@ -1,0 +1,37 @@
+# Prod deploy — MANUAL gate. Runs only via workflow_dispatch (the "Run
+# workflow" button on GitHub Actions UI) so production never deploys without
+# an explicit human click.
+# Created by tier-d5/f3-cicd (SUB-D5 INFRA, 2026-05-24).
+
+name: Deploy (prod)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DEPLOY" to confirm prod deploy'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    name: flyctl deploy → prod (fiesta-mvp)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'DEPLOY' }}
+    timeout-minutes: 25
+
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to prod (rolling)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy --config fly.toml --app fiesta-mvp --strategy rolling --remote-only
