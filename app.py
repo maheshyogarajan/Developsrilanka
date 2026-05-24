@@ -44,6 +44,12 @@ from receipt_schema import Receipt, ReceiptItem
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
+# Tier D1 / E1 — Sentry error tracking. No-op when SENTRY_DSN is unset
+# (local dev). Must be called BEFORE Flask app creation so FlaskIntegration
+# can hook the WSGI lifecycle on first request.
+from sentry_init import init_sentry
+init_sentry()
+
 # Database setup
 class Base(DeclarativeBase):
     pass

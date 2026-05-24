@@ -38,6 +38,11 @@ dependencies = [
     # PyYAML: tax engine slabs.yaml loader, S5 catalog.yaml, market_rates_table.yaml.
     "reportlab>=4.5.1",
     "pyyaml>=6.0.3",
+    # Tier D1/E1 — Sentry error tracking + 10% perf traces (added 2026-05-24).
+    # FlaskIntegration + SqlalchemyIntegration cover ~90% of breadcrumbs; no
+    # custom instrumentation needed. Init gated on SENTRY_DSN env presence so
+    # local dev runs are no-ops. PII shipping is OFF (send_default_pii=False).
+    "sentry-sdk[flask]>=2.18.0",
 ]
 
 [[tool.uv.index]]
