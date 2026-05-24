@@ -1,0 +1,733 @@
+# FIESTA AI Q&A corpus — Tier D3 / D1 (2026-05-24)
+#
+# 40 Q&A entries grounded in:
+#  - PN/IT/2025/01 (foreign income 15% rule, effective 1 April 2025)
+#  - Inland Revenue (Amendment) Act 2025 (residency, brackets, qualifying payments)
+#  - Personal relief Rs 1.8M, progressive brackets to 36%
+#  - FIESTA-specific flows (calculator, evidence pack, A&L, return PDF)
+#  - DTA basics + foreign tax credit
+#
+# Entry schema:
+#   - q:           customer-phrased question (string)
+#   - a:           direct answer in plain English (string, ~80-300 words)
+#   - tags:        retrieval keywords (list)
+#   - source_refs: support_kb files OR section refs the answer was derived from
+#
+# AUTHOR NOTE: This file is hand-curated. The retrieval layer (ai_qa.py)
+# treats q + tags as the search space. Edit the corpus when an answer is
+# wrong — do not edit the retrieval logic.
+
+- q: "I'm a Sri Lankan dev earning $2,500/mo from a US client. How much tax will I pay?"
+  a: |
+    Under the new rules effective 1 April 2025, if you remit your foreign earnings
+    through a licensed Sri Lankan bank, you pay a flat 15% final tax on the
+    remitted amount. So on roughly Rs 9.0L/month (Rs 108L/yr at ~Rs 300/USD),
+    your tax would be around Rs 16.2L/yr after applying the Rs 1.8M personal
+    relief — about Rs 241K. If you instead keep the money offshore or in a
+    Payoneer card and don't remit through a bank, the income falls under the
+    standard progressive brackets that go up to 36%, and the bill rises to
+    roughly Rs 540K. The "remit via SL bank" path saves roughly Rs 299K/yr.
+    Use the FIESTA calculator to model your exact remittance pattern — these
+    numbers shift based on your actual monthly amounts and FX rates.
+  tags: [foreign income, 15%, dev, USD, US client, calculator, remittance, bank]
+  source_refs: [pn_it_2025_01_overview.md]
+
+- q: "What's the 15% foreign income tax rule?"
+  a: |
+    Practice Note IT/2025/01, effective 1 April 2025, applies a 15% final
+    withholding tax on foreign-sourced income that is remitted to Sri Lanka
+    through a licensed commercial bank. "Final" means once that 15% is paid,
+    the income is not added to your other income for progressive-bracket
+    calculation. The rule was designed to encourage remittance through formal
+    banking channels (vs. offshore wallets or Payoneer cards). To qualify,
+    the income must be (a) foreign-sourced (paid by a non-resident, for
+    services rendered or assets located outside SL), (b) remitted via an SL
+    bank account in your name, and (c) declared in your annual return.
+    Income NOT remitted through banks falls under standard progressive
+    rates up to 36%.
+  tags: [15%, foreign income, PN IT 2025 01, final tax, remittance, rule]
+  source_refs: [pn_it_2025_01_overview.md]
+
+- q: "What's the difference between remitted and non-remitted foreign income?"
+  a: |
+    Remitted = the foreign currency arrives in a Sri Lankan bank account in
+    your name. Non-remitted = the money stays offshore (foreign bank,
+    Payoneer card, crypto wallet) or is converted in-country via informal
+    channels. Tax treatment is very different:
+    - REMITTED via SL bank: flat 15% final tax (PN/IT/2025/01).
+    - NON-REMITTED or routed outside the banking system: standard
+      progressive rates up to 36%, plus the income is added to your other
+      income for bracket calculation.
+    The bank's inward-remittance certificate is the evidence IRD wants.
+    Without it, IRD's default position is to treat the income as
+    non-remitted and apply progressive rates.
+  tags: [remitted, non-remitted, foreign income, 15%, progressive, Payoneer, bank]
+  source_refs: [pn_it_2025_01_overview.md]
+
+- q: "Am I a Sri Lankan tax resident? What's the 183-day rule?"
+  a: |
+    Under the Inland Revenue Act, you are a Sri Lankan tax resident for a
+    year of assessment if you are physically present in Sri Lanka for 183
+    days or more in any rolling 12-month period that ends in that year.
+    Days of arrival and departure both count. Residency is determined per
+    year of assessment (1 April to 31 March in SL).
+    Consequences of residency:
+    - Resident: taxed on WORLDWIDE income, with reliefs (personal relief
+      Rs 1.8M, qualifying payment deductions, DTA credits).
+    - Non-resident: taxed only on Sri Lanka-sourced income; no personal
+      relief; flat or withholding rates on certain income classes.
+    If you're a returnee crossing the 183-day threshold mid-year, plan the
+    timing carefully — once you tip into resident status, your foreign
+    income for the FULL year of assessment becomes taxable.
+  tags: [residency, 183 days, resident, non-resident, returnee, worldwide income]
+  source_refs: []
+
+- q: "What is the personal relief?"
+  a: |
+    Personal relief is a flat Rs 1,800,000 (Rs 1.8M) deduction available
+    to every Sri Lankan tax resident, applied against total assessable
+    income before tax brackets are computed. This means the first Rs 1.8M
+    of your income is effectively tax-free.
+    It applies once per taxpayer per year of assessment. You don't claim it
+    separately — it's automatic if you're a resident filing a return.
+    Non-residents do not get personal relief.
+  tags: [personal relief, 1.8M, deduction, resident, tax free, threshold]
+  source_refs: []
+
+- q: "What are the current tax brackets?"
+  a: |
+    Sri Lanka progressive personal income tax brackets (Year of Assessment
+    2025/26, after personal relief of Rs 1.8M):
+    - First Rs 1,000,000 of taxable income: 6%
+    - Next Rs 500,000: 18%
+    - Next Rs 500,000: 24%
+    - Next Rs 500,000: 30%
+    - Balance: 36%
+    Foreign income remitted via licensed SL bank is taxed at a flat 15%
+    final rate, OUTSIDE the progressive brackets above (PN/IT/2025/01).
+    Brackets are applied to your taxable income (gross income LESS personal
+    relief LESS qualifying payment deductions).
+  tags: [brackets, rates, progressive, 6%, 18%, 24%, 30%, 36%, 2025/26]
+  source_refs: []
+
+- q: "What are qualifying payments?"
+  a: |
+    Qualifying payments are specific categories of expenditure the Inland
+    Revenue Act lets you deduct from your assessable income BEFORE applying
+    tax brackets. The most common ones are:
+    - Approved donations (registered charities, certain government funds).
+    - Solar panel installation expenses (subject to limits and conditions).
+    - Life insurance premiums (capped).
+    - Medical insurance premiums (capped).
+    - Certain housing loan interest payments (subject to caps and
+      eligibility).
+    - Contributions to approved provident funds beyond mandatory.
+    Documentation is required (receipts, registration certificates of the
+    payee, bank statement showing the payment). FIESTA's deductions module
+    walks you through which payments qualify and what evidence to upload.
+  tags: [qualifying payments, deductions, donations, solar, insurance, evidence]
+  source_refs: [evidence_pack_requirements.md]
+
+- q: "What is the A&L declaration?"
+  a: |
+    A&L (Assets and Liabilities) is a separate IRD declaration listing
+    everything you own (assets — property, vehicles, bank balances,
+    investments, etc.) and everything you owe (liabilities — loans,
+    mortgages, outstanding tax) as at the end of the year of assessment.
+    The A&L is required for high-income individuals and for anyone whose
+    return triggers IRD's threshold rules. It is filed alongside (but
+    separate from) the income tax return. The A&L is a STATEMENT, not a
+    tax calculation — it doesn't add to or reduce your tax liability
+    directly. Its purpose is wealth-tracking for IRD audit selection.
+    FIESTA will pre-populate your A&L draft from data already in the
+    profile (bank statements, property records) so you only have to
+    verify and add anything missing.
+  tags: [A&L, assets, liabilities, declaration, high income, IRD filing, wealth]
+  source_refs: []
+
+- q: "When is the tax return filing deadline?"
+  a: |
+    The Sri Lankan personal income tax return is due by 30 November
+    following the end of the year of assessment (1 April to 31 March).
+    So for Year of Assessment 2025/26 (period 1 April 2025 to 31 March
+    2026), the return is due 30 November 2026.
+    Tax payment deadlines are separate:
+    - Quarterly installment dates: 15 August, 15 November, 15 February,
+      15 May (for the year of assessment that ends 31 March of the
+      payment year).
+    - Final balance payment: by 30 September following the year-end.
+    Late filing or late payment triggers penalties (typically a percentage
+    of the tax due plus interest). File the return on time even if you
+    cannot pay in full — penalties for late filing are heavier than
+    penalties for late payment.
+  tags: [deadline, filing date, 30 November, return due, quarterly, payment dates]
+  source_refs: []
+
+- q: "How do I file my return through FIESTA?"
+  a: |
+    FIESTA walks you through filing in four steps:
+    1. Complete your profile (personal info, residency, employer details).
+    2. Upload your evidence pack (bank statements, foreign tax certificates,
+       qualifying payment receipts) via the documents section.
+    3. Review the auto-computed tax bill — FIESTA shows your taxable income,
+       applied brackets, qualifying payment deductions, and final tax due.
+    4. Download the IRD-ready PDF return and submit it to IRD via your
+       RAMIS portal (or hand off to a Lanka.tax filer who can submit on
+       your behalf).
+    FIESTA does NOT submit directly to IRD on your behalf in MVP — you
+    download the PDF and submit yourself, or hand off to Lanka.tax. We're
+    building the direct-submit integration for a later release.
+  tags: [how to file, FIESTA, return, PDF, RAMIS, IRD, submit, four steps]
+  source_refs: [lanka_tax_handoff.md]
+
+- q: "What evidence does IRD need?"
+  a: |
+    For a complete return, IRD expects evidence for every income and
+    deduction line item. The standard evidence pack:
+    - Income: bank statements (inward remittances), foreign tax
+      certificates (if claiming DTA credit), employer tax certificates
+      (T-10 for employment income), invoices (for business income), rental
+      agreements, broker statements (for investment income).
+    - Deductions: receipts for qualifying payments (donations, insurance
+      premiums, solar installation, etc.), registration certificates of
+      the payee.
+    - Identity: NIC, PIN certificate, TIN registration confirmation.
+    - A&L (if required): bank balance confirmations, vehicle registration,
+      property deeds, investment account statements.
+    FIESTA's evidence module tells you exactly which docs are missing
+    based on your profile. Upload them once, reference them across years.
+  tags: [evidence, IRD, documents, T-10, bank statement, qualifying payment, A&L]
+  source_refs: [evidence_pack_requirements.md]
+
+- q: "What is a DTA and can I claim foreign tax credit?"
+  a: |
+    A Double Taxation Avoidance (DTA) agreement is a bilateral treaty that
+    prevents the same income from being taxed twice — once in the source
+    country and again in Sri Lanka. SL has DTAs with ~40 countries including
+    the US, UK, Australia, Canada, UAE, Singapore, Germany, Netherlands,
+    India, Malaysia.
+    If foreign tax was WITHHELD AT SOURCE on income that is also taxable in
+    SL, you may claim that foreign tax as a credit against your SL tax
+    liability on the same income — up to the SL tax on that income (excess
+    foreign tax is NOT refundable in SL).
+    Evidence needed: foreign tax certificate (US W-2 / 1099, UK P60/P45,
+    Australian PAYG summary, etc.) plus the relevant DTA article.
+    Self-employed / freelance income usually has NO foreign tax withheld —
+    if no foreign tax was paid, there's nothing to credit. DTA questions
+    are fact-specific; FIESTA will route DTA queries to a human at
+    Lanka.tax.
+  tags: [DTA, double taxation, foreign tax credit, withholding, treaty]
+  source_refs: [dta_credit_basics.md]
+
+- q: "I work for an Upwork client and they don't withhold tax. What do I do?"
+  a: |
+    This is the most common case for Sri Lankan freelancers. If no foreign
+    tax was withheld, then full Sri Lankan tax applies — there is no foreign
+    credit to claim (you can't credit tax you didn't pay).
+    Tax path depends on remittance:
+    - Remit Upwork payments via SL bank: 15% final tax under PN/IT/2025/01.
+    - Keep on Payoneer / offshore / informal channels: progressive rates
+      up to 36%.
+    Either way, you must declare the gross income (the amount your client
+    paid you, not the post-Upwork-fee amount) on your return.
+    Recommended: have Upwork wire payments to your SL commercial bank
+    account. The 15% path is strongly more favourable, and the bank's
+    inward-remittance certificate is the evidence IRD wants.
+  tags: [Upwork, freelance, no withholding, foreign income, 15%, remittance]
+  source_refs: [pn_it_2025_01_overview.md]
+
+- q: "I get paid in crypto. How is that taxed?"
+  a: |
+    Cryptocurrency income is treated as foreign-sourced income if the
+    payer is non-resident. The hard question is REMITTANCE: until the
+    crypto is converted to LKR and arrives in an SL bank account, it
+    cannot benefit from the 15% PN/IT/2025/01 path. While it sits in a
+    crypto wallet, it's "non-remitted" — progressive rates apply on the
+    LKR-equivalent value at the date you became entitled to it.
+    To claim 15%: (1) convert crypto to USD/EUR via a regulated exchange,
+    (2) wire to your SL bank account, (3) keep the exchange statement plus
+    the bank's inward-remittance certificate as evidence.
+    Crypto tax in SL is an evolving area. FIESTA routes crypto-specific
+    questions to a human at Lanka.tax for a fact-specific opinion.
+  tags: [crypto, cryptocurrency, bitcoin, ethereum, foreign income, remittance, 15%]
+  source_refs: []
+
+- q: "I'm a returnee from Dubai. What do I owe?"
+  a: |
+    The trigger is the 183-day test: once you've been physically present in
+    SL for 183 days in any rolling 12-month period ending in the year of
+    assessment, you become a SL tax resident for that whole year — and your
+    WORLDWIDE income for that year becomes taxable in SL.
+    Specific to UAE returnees: the UAE has no personal income tax, so any
+    UAE-source income you bring back will not have foreign tax credit
+    attached (nothing to credit). However, the UAE-SL DTA still affects
+    classification of the income.
+    Strategy points:
+    - If you can defer SL re-entry to AFTER 1 April (start of new year of
+      assessment), do it — your UAE income before re-entry stays
+      non-SL-taxable.
+    - Plan remittance carefully: bringing accumulated UAE savings into an
+      SL bank account post-residency triggers the 15% on the income
+      portion (NOT on capital — only on income earned after you became
+      resident).
+    - Document your residency clearly: visa stamps, ticket dates, UAE
+      employment contracts, account statements.
+    FIESTA's diaspora module is designed for exactly this case. Returnees
+    often have the highest savings under FIESTA's optimization — typically
+    Rs millions, not thousands.
+  tags: [returnee, diaspora, Dubai, UAE, 183 days, residency, worldwide income]
+  source_refs: []
+
+- q: "Is FIESTA free?"
+  a: |
+    The FIESTA MVP calculator (https://fiesta-mvp.fly.dev) is free to use,
+    no signup required for the calculator. Computing your tax bill,
+    modeling remittance scenarios, and previewing the savings under the
+    new 15% rule — all free.
+    Paid tiers cover:
+    - Filing-ready PDF generation (IRD-formatted return).
+    - Evidence pack management (upload, organize, reuse year-over-year).
+    - Lanka.tax handoff (a human filer submits to IRD on your behalf).
+    See fiesta-mvp.fly.dev/pricing for current tier details. MVP pricing
+    is preferential — locks in for users who join during the MVP phase.
+  tags: [pricing, free, FIESTA, cost, tiers, MVP]
+  source_refs: [fiesta_pricing_tiers.md]
+
+- q: "Do I need a TIN to file?"
+  a: |
+    Yes. Every Sri Lankan tax filer needs a Taxpayer Identification Number
+    (TIN), issued by IRD. Without a TIN you cannot file a return.
+    To register: visit ird.gov.lk or your nearest IRD office with your
+    NIC and proof of address. New TIN issuance typically takes 7-14 days.
+    You also need a PIN (Personal Identification Number) to log into the
+    RAMIS portal for online filing.
+    FIESTA can prepare your return without a TIN (for calculator
+    purposes), but you'll need both TIN and PIN to actually submit to
+    IRD. If you don't have either, Lanka.tax can help with the
+    registration as a separate engagement.
+  tags: [TIN, PIN, registration, RAMIS, IRD, filing, prerequisite]
+  source_refs: []
+
+- q: "What is RAMIS?"
+  a: |
+    RAMIS is the Revenue Administration Management Information System —
+    IRD's online portal for tax filing, payment, and account management.
+    You log in with your TIN + PIN at https://ramis.ird.gov.lk.
+    From RAMIS you can: file returns electronically, pay tax online,
+    check your tax account history, generate tax clearance certificates,
+    and download IRD-issued forms.
+    FIESTA produces an IRD-ready PDF return that you upload to RAMIS
+    (or print and submit physically at an IRD office). Direct RAMIS
+    integration is on the FIESTA roadmap.
+  tags: [RAMIS, portal, IRD, online filing, TIN, PIN]
+  source_refs: []
+
+- q: "What if I have employment income AND foreign income?"
+  a: |
+    Each income stream is taxed under its own regime, then totalled for
+    your return:
+    - Employment income (from an SL employer): standard progressive
+      rates up to 36%, after personal relief (Rs 1.8M) is applied
+      against TOTAL income (not per stream).
+    - Foreign income REMITTED via SL bank: flat 15% final tax. Does NOT
+      enter the progressive bracket calculation.
+    - Foreign income NOT remitted: progressive rates, added to your
+      employment income for bracket purposes.
+    Personal relief is applied once, against your total non-foreign-15%
+    income. So you don't "double-dip" the relief, but you DO get the
+    benefit of the 15% final rate on your foreign-remitted portion AND
+    the bracket structure on your employment portion.
+    FIESTA's calculator handles the split automatically — enter both
+    income streams and it shows the combined tax.
+  tags: [employment, foreign, mixed income, T-10, calculator, brackets, 15%]
+  source_refs: [pn_it_2025_01_overview.md]
+
+- q: "Can I deduct solar panel installation costs?"
+  a: |
+    Yes, solar panel installation for your residence is a qualifying
+    payment under the Inland Revenue Act, subject to limits and conditions:
+    - The system must be installed at your primary residence (not a
+      rental or commercial property).
+    - Deduction is capped (current cap: confirm against the latest IRD
+      guidance — FIESTA shows the live figure in the deductions module).
+    - Evidence required: invoice from a registered installer, payment
+      proof (bank transfer or card receipt), and the connection
+      certificate from CEB or LECO confirming the system is operational
+      and grid-connected.
+    Upload these documents in FIESTA's deductions module and the
+    deduction will be applied automatically to your tax computation.
+  tags: [solar, qualifying payment, deduction, panels, residence, evidence]
+  source_refs: []
+
+- q: "How do bank statements get into FIESTA?"
+  a: |
+    Three options:
+    1. Upload PDF statements directly from your online banking. FIESTA
+       parses them and extracts inward remittances, deductible payments,
+       and balance data.
+    2. CSV export from your bank's online portal. Most SL banks (Sampath,
+       Commercial, HNB, DFCC, NDB) export CSV — upload it and FIESTA
+       maps the columns.
+    3. Manual entry for one-off transactions (e.g. a single inward
+       remittance you want to declare without uploading a full statement).
+    Foreign-currency statements (USD, EUR, GBP) are supported — FIESTA
+    converts at the relevant CBSL middle rate for the transaction date.
+    See the bank statement import help in the support kb for details on
+    each bank's export format.
+  tags: [bank statement, import, upload, PDF, CSV, manual, CBSL]
+  source_refs: [bank_statement_import_help.md, cbsl_middle_rate_rule.md]
+
+- q: "Which exchange rate does FIESTA use?"
+  a: |
+    FIESTA uses the Central Bank of Sri Lanka (CBSL) daily middle rate
+    for each transaction date — this is the rate IRD requires for tax
+    computation. CBSL publishes daily middle rates on cbsl.gov.lk.
+    For example, a USD inward remittance on 15 May 2026 is converted at
+    the CBSL middle rate published on 15 May 2026 (not the rate your bank
+    actually gave you, and not today's rate).
+    If the CBSL rate is unavailable for a specific date (weekend, public
+    holiday), FIESTA uses the next available trading day's rate. The
+    rate basis is shown alongside each remittance in the audit module so
+    you can verify it before filing.
+  tags: [exchange rate, CBSL, middle rate, FX, conversion, USD]
+  source_refs: [cbsl_middle_rate_rule.md, cbsl_rate_lookup_failure.md]
+
+- q: "What is the difference between gross and net income for tax purposes?"
+  a: |
+    For Sri Lankan tax purposes:
+    - GROSS income = total amount earned before any deductions.
+      For employment: full salary BEFORE PAYE / EPF / ETF / advance tax.
+      For freelance: full client invoice amount BEFORE platform fees
+      (Upwork / Fiverr commissions), payment processor fees, etc.
+    - NET income = gross less certain allowable expenses (for business
+      income) OR gross less specific statutory items.
+    For PERSONAL income tax (employment, foreign income), you declare
+    GROSS. Platform fees and payment-processor fees on freelance income
+    are NOT deductible at the personal-income-tax level.
+    For BUSINESS income (where you're operating as a sole proprietor or
+    company), you declare net of allowable business expenses (cost of
+    sales, operating expenses, etc.) — different rules apply, see business
+    tax guides.
+  tags: [gross, net, income, freelance, Upwork fees, deductions]
+  source_refs: []
+
+- q: "I'm a salaried employee in Sri Lanka. Do I even need to file?"
+  a: |
+    If your only income is employment income from a single SL employer who
+    operates the APIT (Advance Personal Income Tax) system correctly, your
+    tax is withheld at source and you may not need to file a return — IRD
+    treats the APIT as final for many salaried employees below specific
+    income thresholds.
+    However, you SHOULD file (and probably MUST file) if any of these apply:
+    - Total income (employment + other) exceeds Rs 1.8M annually.
+    - You have foreign income, even small amounts.
+    - You have rental income, investment income, freelance income, or
+      consultancy income.
+    - You want to claim qualifying payment deductions (insurance,
+      donations, solar, etc.) that weren't applied by your employer.
+    - You changed jobs mid-year (APIT may not be correctly aggregated).
+    - Your employer is foreign or doesn't operate APIT.
+    When in doubt, file. The penalty for NOT filing when you should is
+    much harsher than the cost of filing.
+  tags: [salaried, employee, APIT, do I need to file, threshold, employment only]
+  source_refs: []
+
+- q: "What if I missed the deadline?"
+  a: |
+    Late filing of an income tax return triggers a penalty: typically a
+    percentage of the tax due (current statutory penalty — check IRD's
+    latest schedule via FIESTA's compliance module for the live figure),
+    plus interest on any unpaid tax accruing from the original due date.
+    File ASAP even if you're already past the deadline — penalties compound
+    over time, and a filed return (even late) stops the clock on the
+    most punitive "non-filer" classification.
+    If you have a reasonable cause for the late filing (medical emergency,
+    bereavement, IRD system outage with documentation, etc.), you can
+    submit a written request for penalty waiver alongside the return.
+    IRD considers these case by case.
+    FIESTA can prepare and file a late return the same as an on-time one.
+    The penalty calculation is shown separately in your tax bill so you
+    know what to expect.
+  tags: [late filing, penalty, missed deadline, interest, waiver]
+  source_refs: []
+
+- q: "Can FIESTA file my return with IRD directly?"
+  a: |
+    Not in MVP. FIESTA prepares an IRD-ready PDF that you (or a Lanka.tax
+    filer) upload to RAMIS or submit physically at an IRD office.
+    Roadmap items toward direct submission:
+    - RAMIS API integration (depends on IRD opening the API for
+      third-party software — work in progress with IRD's tech team).
+    - Lanka.tax handoff: for users who don't want to submit themselves,
+      we offer a paid handoff where a Lanka.tax filer submits on your
+      behalf using their TIN-PIN authorisation. See lanka_tax_handoff.md
+      in the support kb for the process.
+    For now, the PDF download is your filing artifact — print it, sign
+    it, and submit by 30 November.
+  tags: [auto file, direct submit, RAMIS API, Lanka.tax, handoff, PDF]
+  source_refs: [lanka_tax_handoff.md]
+
+- q: "I run a small business. Does FIESTA cover business tax?"
+  a: |
+    FIESTA MVP focuses on PERSONAL income tax — employment income,
+    foreign-sourced personal income, freelance / consultancy income
+    declared in your personal name, investment income, rental income.
+    Business income for the FIESTA scope means sole-proprietor income
+    you declare on your personal return (Schedule II equivalent). For
+    incorporated companies, partnerships, or businesses with VAT
+    registration, you need a corporate/business tax solution — FIESTA
+    will route you to Lanka.tax for a separate engagement, or you can
+    use IRD's RAMIS portal directly.
+    Specifically out of scope for FIESTA MVP:
+    - Corporate income tax filings.
+    - VAT returns.
+    - SSCL returns.
+    - Withholding tax returns (where you're the withholder).
+    - Payroll / APIT operation (as an employer).
+  tags: [business, corporate, sole proprietor, VAT, scope, FIESTA limits]
+  source_refs: []
+
+- q: "How does FIESTA handle multiple foreign clients?"
+  a: |
+    FIESTA aggregates all foreign-sourced income across all clients into
+    a single foreign-income line on your return. You can:
+    - Upload bank statements showing all inward remittances together —
+      FIESTA classifies each by counterparty.
+    - Tag each remittance with the source client name (for your records
+      and audit trail; IRD only sees the total).
+    - Mix currencies: USD client + EUR client + GBP client all coexist
+      in your foreign-income summary, each converted at the relevant
+      CBSL middle rate on its remittance date.
+    The 15% final tax (if you remitted via SL bank) applies to the total
+    foreign-remitted amount — not per client.
+  tags: [multiple clients, aggregation, foreign income, multiple currencies]
+  source_refs: []
+
+- q: "Where is my data stored?"
+  a: |
+    FIESTA stores your data on infrastructure hosted in the EU (Fly.io
+    region: cdg). Your tax data, uploaded documents, and account
+    information are encrypted at rest and in transit. Access is limited
+    to your account (logged-in user) and authorised support staff acting
+    on a CEO-approved audit ticket.
+    We do NOT share your data with IRD or any third party without your
+    explicit consent — you generate the PDF return and you submit it.
+    See the privacy policy at fiesta-mvp.fly.dev/privacy for the full
+    data handling statement.
+  tags: [data, storage, privacy, security, GDPR, hosting]
+  source_refs: []
+
+- q: "Can I edit my answer after I've submitted?"
+  a: |
+    Within FIESTA, yes — your profile and uploaded evidence are editable
+    at any time before you generate the final PDF. Once you regenerate
+    the PDF, the new version replaces the previous one and your tax
+    computation updates.
+    Once you've SUBMITTED to IRD (either via RAMIS or physically), to
+    change the return you must file an AMENDED return through IRD's
+    official amendment process. FIESTA can prepare an amended version
+    showing the original and the corrected figures, but the actual
+    amendment submission goes through IRD.
+  tags: [edit, amend, change, after filing, RAMIS, amended return]
+  source_refs: []
+
+- q: "What does 'audit trail' mean in FIESTA?"
+  a: |
+    Every income line, deduction, and tax computation in FIESTA is backed
+    by source evidence (a bank statement line item, an uploaded receipt, a
+    foreign tax certificate, etc.). The audit trail is the linkage:
+    given any number on your return, you can click through to see exactly
+    which source documents and which transaction lines produced it.
+    Why it matters: if IRD audits your return (random selection or
+    triggered audit), the auditor will ask "where did this Rs X come
+    from?". With an audit trail, the answer is one click away — you
+    show them the bank line, the FX rate, the conversion. Without an
+    audit trail, you're rebuilding the calculation from raw records
+    months or years after the fact.
+    FIESTA's audit trail is a free feature on all tiers, including the
+    MVP calculator.
+  tags: [audit, audit trail, evidence, lineage, source, IRD audit]
+  source_refs: []
+
+- q: "What is APIT?"
+  a: |
+    APIT = Advance Personal Income Tax. It's the Sri Lankan equivalent of
+    PAYE (pay-as-you-earn). Your employer withholds APIT from your salary
+    each month and remits it to IRD on your behalf, based on tables
+    published by IRD.
+    APIT is an ADVANCE on your annual income tax — when you file your
+    return, the total APIT withheld is credited against your total tax
+    liability. If APIT > tax due, you get a refund (slow, via IRD). If
+    APIT < tax due (because of other income, e.g. foreign income), you
+    pay the balance.
+    Common cause of APIT under-withholding:
+    - You have a second job or freelance income on the side.
+    - You have qualifying payments your employer didn't apply.
+    - Your employer doesn't operate APIT correctly (foreign employer, or
+      a small employer).
+    FIESTA reconciles your APIT (from your T-10 certificate) against
+    total tax due and shows the balance to pay or refund to claim.
+  tags: [APIT, PAYE, withholding, employer, T-10, advance tax]
+  source_refs: []
+
+- q: "Where is the calculator?"
+  a: |
+    The FIESTA calculator is the home page: https://fiesta-mvp.fly.dev.
+    No signup required — enter your foreign monthly income, remittance
+    pattern, and any other income, and you'll get an immediate tax bill
+    estimate with the breakdown by income type and bracket.
+    To save your scenarios, upload evidence, and generate a filing-ready
+    PDF, you sign up — but the calculator itself is open.
+  tags: [calculator, home page, FIESTA, no signup, where is it]
+  source_refs: []
+
+- q: "How do I pay tax to IRD?"
+  a: |
+    Payment options (all routed via IRD):
+    1. RAMIS portal: log in with TIN + PIN, navigate to "Pay Tax",
+       select the relevant return type and year, enter amount, and pay
+       via debit/credit card or fund transfer.
+    2. Online banking: most major SL banks (Sampath, Commercial, HNB,
+       DFCC, BOC) have an IRD bill-payment option — use your TIN as
+       the reference.
+    3. Bank branch: walk into any branch with your TIN, ask for an IRD
+       payment slip, pay cash or by cheque.
+    4. IRD office: pay directly at any IRD office.
+    Keep the payment receipt — you may need to attach it to your return
+    (especially if there's a payment dispute later). Quarterly installment
+    payment dates are 15 August, 15 November, 15 February, 15 May; final
+    balance is due 30 September following year-end.
+  tags: [pay, payment, IRD, RAMIS, bank, quarterly, deadline]
+  source_refs: []
+
+- q: "What is the GIG worker provision?"
+  a: |
+    There is no specific "gig worker" provision in the current Sri Lankan
+    Inland Revenue Act — gig / freelance / platform-based income is
+    treated as either:
+    - Foreign-sourced personal income (if the platform / client is
+      foreign), taxed under the 15% rule if remitted via SL bank, or
+      progressive rates otherwise.
+    - Sri Lankan business income (if you have a registered business),
+      taxed under the business income provisions with allowable expenses.
+    For most individual gig workers (Upwork, Fiverr, Toptal, Uber Eats
+    delivery, PickMe driver), the simplest classification is "personal
+    foreign income" if it's USD-denominated platform income, or "personal
+    business income" if it's LKR-denominated SL gig income.
+    FIESTA classifies based on your inputs and routes ambiguous cases to
+    Lanka.tax for a human opinion.
+  tags: [gig, freelance, Uber, PickMe, Upwork, Fiverr, classification]
+  source_refs: []
+
+- q: "What if my income drops mid-year? Can I revise installments?"
+  a: |
+    Yes. Quarterly installment payments are estimates based on the prior
+    year's tax or your own projected income for the current year. If
+    your income drops materially mid-year, you can revise the remaining
+    installments downward.
+    Two paths:
+    1. Reduce the next installment payment proactively — calculate your
+       revised expected annual tax and pay 1/4 of it (or the residual)
+       at each remaining installment date.
+    2. File a revised estimate with IRD (via RAMIS) to formalise the
+       reduction and avoid an "under-installment" penalty enquiry.
+    Conversely, if income RISES mid-year, you should top up installments
+    upward — under-payment of installments can attract a penalty even
+    if your final annual return is correct and paid on time.
+    FIESTA's tax bill module shows your projected annual tax and the
+    installment schedule that aligns to it.
+  tags: [installment, quarterly, revise, income drop, projection]
+  source_refs: []
+
+- q: "How do I know if FIESTA's answer is right for my specific case?"
+  a: |
+    FIESTA's calculator and copilot apply the published Sri Lankan tax
+    law to the inputs you provide. For mainstream cases (employment +
+    standard foreign income + standard deductions), the computation
+    matches IRD's own logic.
+    For complex / unusual cases — DTA application, mixed residency years,
+    cryptocurrency, partnership/JV income, multi-jurisdiction property,
+    inherited assets — there's no substitute for a human tax adviser.
+    FIESTA's copilot will flag complex cases and route them to a human
+    at Lanka.tax via the in-app handoff. You can also submit the
+    feedback widget (bottom-right of every page) with "confusion" if you
+    feel an answer doesn't match your situation — we review every
+    feedback within 1 business day.
+    The lawyerly version: FIESTA is decision-support software, not legal
+    or tax advice. Final responsibility for the return you submit rests
+    with you.
+  tags: [accuracy, advice, complex case, human, escalate, disclaimer]
+  source_refs: [lanka_tax_handoff.md]
+
+- q: "Why is the foreign income 15% rate 'final'?"
+  a: |
+    "Final" in tax means: once the 15% has been paid (via withholding or
+    direct payment to IRD), the income is not added to your other income
+    for further tax computation. It does NOT flow through your
+    progressive brackets.
+    Why this matters in practice:
+    - Without "final" treatment, foreign income would be added to your
+      employment / domestic income, potentially pushing you into the
+      36% top bracket on the combined amount.
+    - With "final" 15%, the foreign income is taxed at exactly 15%
+      regardless of how much other income you have. This is the
+      core benefit PN/IT/2025/01 created.
+    The trade-off: you cannot then claim qualifying payment deductions
+    against the 15%-taxed foreign income. Deductions only reduce the
+    progressive-bracket portion of your income.
+  tags: [final tax, 15%, PN IT 2025 01, foreign income, brackets, deductions]
+  source_refs: [pn_it_2025_01_overview.md]
+
+- q: "Can I get a tax refund?"
+  a: |
+    Yes, in two main scenarios:
+    1. Over-withholding via APIT: your employer withheld more than your
+       actual annual tax liability. The excess is refunded via IRD.
+    2. Quarterly installments exceeded your final tax: same principle —
+       the excess paid is refunded.
+    Process: file your return showing the refund due. IRD processes
+    refunds via direct credit to the bank account on your TIN file. The
+    process can take several months (sometimes longer) — refunds are
+    not IRD's priority.
+    To accelerate: ensure your TIN file has up-to-date bank details,
+    file as early as possible after the year-end, and follow up via
+    RAMIS messages if a refund is overdue beyond 90 days.
+  tags: [refund, over withholding, APIT, installments, claim, RAMIS]
+  source_refs: []
+
+- q: "What if I switched bank accounts mid-year?"
+  a: |
+    No tax consequence. The bank account is just a conduit for the
+    inward remittance — what matters for tax is (a) the income is
+    foreign-sourced, (b) it was remitted into a Sri Lankan licensed
+    commercial bank account in your name, (c) you have the inward-
+    remittance certificate.
+    For FIESTA practical purposes: upload statements from BOTH the old
+    and new account covering the year of assessment. The system
+    aggregates remittances across all your accounts into one foreign
+    income figure. You don't need to consolidate the accounts at the
+    bank — keep them open through the filing year so you can pull
+    historic statements if IRD audits later.
+  tags: [bank account, change account, switch bank, multiple accounts]
+  source_refs: []
+
+- q: "Does Sri Lanka have a tax on cryptocurrency capital gains?"
+  a: |
+    The tax treatment of cryptocurrency gains in Sri Lanka is still
+    evolving and not yet specifically codified. Current practice under
+    the Inland Revenue Act:
+    - Crypto trading gains (buy low, sell high) by an individual are
+      generally treated as "investment income" or "business income"
+      depending on frequency / scale.
+    - Crypto received as payment for services is "income from services"
+      taxed in the year received (at LKR-equivalent value on the
+      receipt date).
+    - Crypto gifts and inherited crypto: separate rules; depend on
+      donor / deceased's residency.
+    There is no specific "capital gains tax on crypto" in SL at this
+    time, but IRD has signalled that crypto-related rules will be
+    clarified in upcoming amendments. FIESTA routes crypto-specific
+    questions to a human at Lanka.tax — the area is too fact-specific
+    and too fast-changing for AI to give definitive answers.
+  tags: [crypto, capital gains, bitcoin, tax, investment]
+  source_refs: []

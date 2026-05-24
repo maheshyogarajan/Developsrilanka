@@ -1,0 +1,226 @@
+{% extends "layout.html" %}
+
+{% block title %}AI Q&A — FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 780px;">
+  <div class="row mb-3">
+    <div class="col">
+      <span class="eyebrow">Support</span>
+      <h1 class="h2 mb-2">Ask FIESTA</h1>
+      <p class="text-secondary mb-0">
+        Quick answers on Sri Lankan tax — foreign income, deadlines, A&amp;L,
+        deductions, filing. If the AI isn't confident, it routes you to a human
+        instead of guessing.
+      </p>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form id="qa-form" novalidate>
+        <label for="qa-query" class="form-label fw-semibold">Your question</label>
+        <textarea
+          id="qa-query"
+          class="form-control"
+          rows="3"
+          maxlength="500"
+          placeholder="e.g. I'm a Sri Lankan dev earning $2,500/mo from a US client — what tax do I pay?"
+          required
+        ></textarea>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <small class="text-muted" id="qa-char-count">0 / 500</small>
+          <button type="submit" id="qa-submit" class="btn btn-primary">
+            Ask
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <small class="text-muted d-block mb-2">Try a sample question:</small>
+    {% for ex in examples %}
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm me-2 mb-2 qa-example"
+        data-query="{{ ex }}"
+      >{{ ex }}</button>
+    {% endfor %}
+  </div>
+
+  <div id="qa-answer-panel" class="d-none">
+    <div class="card border-primary mb-3">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <strong>Answer</strong>
+        <small id="qa-confidence" class="text-muted"></small>
+      </div>
+      <div class="card-body">
+        <div id="qa-matched" class="text-secondary small mb-2"></div>
+        <div id="qa-answer-text" style="white-space: pre-wrap;"></div>
+        <div id="qa-sources-block" class="mt-3 d-none">
+          <small class="text-muted">Sources:</small>
+          <ul id="qa-sources-list" class="small mb-0"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="qa-alternatives-block" class="d-none">
+      <small class="text-muted d-block mb-2">You may have also meant:</small>
+      <ul id="qa-alternatives-list" class="list-unstyled small"></ul>
+    </div>
+
+    <div id="qa-fallback-help" class="d-none">
+      <div class="alert alert-info small mb-0">
+        Still didn't get what you need? Use the feedback widget at the
+        bottom-right of any page, or email
+        <a href="mailto:tax@lanka.tax">tax@lanka.tax</a>.
+      </div>
+    </div>
+  </div>
+
+  <div id="qa-error" class="alert alert-warning d-none" role="alert"></div>
+</div>
+
+<script>
+(function() {
+  "use strict";
+
+  const form        = document.getElementById('qa-form');
+  const queryEl     = document.getElementById('qa-query');
+  const charCountEl = document.getElementById('qa-char-count');
+  const submitBtn   = document.getElementById('qa-submit');
+  const panelEl     = document.getElementById('qa-answer-panel');
+  const matchedEl   = document.getElementById('qa-matched');
+  const answerEl    = document.getElementById('qa-answer-text');
+  const confEl      = document.getElementById('qa-confidence');
+  const srcBlock    = document.getElementById('qa-sources-block');
+  const srcList     = document.getElementById('qa-sources-list');
+  const altBlock    = document.getElementById('qa-alternatives-block');
+  const altList     = document.getElementById('qa-alternatives-list');
+  const fallbackEl  = document.getElementById('qa-fallback-help');
+  const errorEl     = document.getElementById('qa-error');
+
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.classList.remove('d-none');
+    panelEl.classList.add('d-none');
+  }
+
+  function clearError() {
+    errorEl.classList.add('d-none');
+    errorEl.textContent = '';
+  }
+
+  function renderAnswer(data) {
+    clearError();
+    panelEl.classList.remove('d-none');
+
+    if (data.matched_question) {
+      matchedEl.textContent = 'Matched: "' + data.matched_question + '"';
+      matchedEl.classList.remove('d-none');
+    } else {
+      matchedEl.classList.add('d-none');
+    }
+
+    answerEl.textContent = data.answer || '';
+
+    if (typeof data.confidence === 'number') {
+      const pct = Math.round(data.confidence * 100);
+      confEl.textContent = 'confidence: ' + pct + '%';
+    } else {
+      confEl.textContent = '';
+    }
+
+    if (data.sources && data.sources.length > 0) {
+      srcList.innerHTML = '';
+      data.sources.forEach(function(s) {
+        const li = document.createElement('li');
+        li.textContent = s;
+        srcList.appendChild(li);
+      });
+      srcBlock.classList.remove('d-none');
+    } else {
+      srcBlock.classList.add('d-none');
+    }
+
+    if (data.alternatives && data.alternatives.length > 0) {
+      altList.innerHTML = '';
+      data.alternatives.forEach(function(a) {
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-link btn-sm p-0 text-start';
+        btn.textContent = a.question;
+        btn.addEventListener('click', function() {
+          queryEl.value = a.question;
+          updateCharCount();
+          form.dispatchEvent(new Event('submit'));
+        });
+        li.appendChild(btn);
+        altList.appendChild(li);
+      });
+      altBlock.classList.remove('d-none');
+    } else {
+      altBlock.classList.add('d-none');
+    }
+
+    if (data.fallback) {
+      fallbackEl.classList.remove('d-none');
+    } else {
+      fallbackEl.classList.add('d-none');
+    }
+  }
+
+  async function submitQuery(query) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Thinking…';
+    try {
+      const resp = await fetch('/api/qa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ query: query }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(function() { return {}; });
+        showError(err.error || ('Request failed: ' + resp.status));
+        return;
+      }
+      const data = await resp.json();
+      renderAnswer(data);
+    } catch (e) {
+      showError('Network error — please try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Ask';
+    }
+  }
+
+  function updateCharCount() {
+    const n = queryEl.value.length;
+    charCountEl.textContent = n + ' / 500';
+  }
+
+  queryEl.addEventListener('input', updateCharCount);
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const q = (queryEl.value || '').trim();
+    if (!q) {
+      showError('Please enter a question.');
+      return;
+    }
+    submitQuery(q);
+  });
+
+  document.querySelectorAll('.qa-example').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      queryEl.value = btn.dataset.query || '';
+      updateCharCount();
+      form.dispatchEvent(new Event('submit'));
+    });
+  });
+})();
+</script>
+{% endblock %}

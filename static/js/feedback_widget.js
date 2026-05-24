@@ -215,8 +215,20 @@
       postFeedback(categorySelect.value, body, statusEl, sendBtn, cancelBtn);
     });
 
+    // Tier D3 / D1: surface an "Ask AI first" link so users with a quick
+    // question route to the FAQ retrieval (free, instant) instead of the
+    // feedback queue (human, slower). Pure progressive enhancement — the
+    // widget still works without it for users who just want to leave
+    // feedback.
+    var askAi = el('a', {
+      href: '/support/qa',
+      class: 'fiesta-fb-ai-link',
+      style: { display: 'block', marginBottom: '12px', fontSize: '13px', color: '#2b5fff', textDecoration: 'none' }
+    }, 'Have a question? Try Ask FIESTA first →');
+
     var modal = el('div', { class: 'fiesta-fb-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Send feedback' }, [
       el('h3', null, 'Send feedback'),
+      askAi,
       el('label', { for: 'fiesta-fb-category' }, 'Category'),
       categorySelect,
       el('label', { for: 'fiesta-fb-body' }, 'Your message'),
