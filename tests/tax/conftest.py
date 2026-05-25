@@ -66,7 +66,14 @@ def session(app_ctx):
 
 @pytest.fixture
 def user(session):
-    """A throw-away User row for tests that need a valid user_id FK target."""
+    """A throw-away User row for tests that need a valid user_id FK target.
+
+    SQLite-on-Flask-SQLAlchemy doesn't honour FK CASCADE by default (PRAGMA
+    foreign_keys is OFF) so we explicitly purge child rows on teardown to
+    keep test isolation. Without this purge, AssetDisposal / CryptoPosition
+    rows written by test N leak into test N+1's queries via user_id=1
+    (auto-increment reuses the ID after DELETE on plain INTEGER PRIMARY KEY).
+    """
     from datetime import datetime, timedelta
     from models import User
     u = User(
@@ -81,5 +88,19 @@ def user(session):
     session.add(u)
     session.commit()
     yield u
+    # Purge per-user fiesta.tax rows BEFORE deleting the user (CASCADE FK is
+    # off on SQLite). Catch + ignore for tests that don't load these models.
+    try:
+        from fiesta.tax.models import (
+            AssetDisposal, CryptoPosition, Income, RSUVestingEvent,
+        )
+        for _cls in (Income, AssetDisposal, CryptoPosition, RSUVestingEvent):
+            try:
+                _cls.query.filter_by(user_id=u.id).delete(synchronize_session=False)
+            except Exception:
+                session.rollback()
+        session.commit()
+    except Exception:
+        session.rollback()
     session.delete(u)
     session.commit()
