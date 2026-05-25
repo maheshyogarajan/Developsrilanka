@@ -129,6 +129,14 @@ class Income(db.Model):
         nullable=True,
         index=True,
     )
+    # B12 (MS3) — soft-link to business_income_entries.id. Nullable for non-
+    # business sources. Schema added by migration M3-001.
+    business_income_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_income_entries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(
