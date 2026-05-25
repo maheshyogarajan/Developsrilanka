@@ -134,6 +134,22 @@ service_providers_bp = Blueprint(
 # ---------------------------------------------------------------------------
 # Helpers.
 # ---------------------------------------------------------------------------
+def _invalidate_agreement_cache_for(user_id: Optional[int], sp_id: Optional[int]) -> None:
+    """Tier D6 / D8 — drop the cached `protected_deductions_lkr` + SP-object
+    entries used by `/agreements/service/<sp_id>` after any SP write.
+    Best-effort, never raises.
+    """
+    if not user_id:
+        return
+    try:
+        from fiesta.agreements.service_routes import invalidate_service_agreement_cache
+        invalidate_service_agreement_cache(
+            user_id, str(sp_id) if sp_id is not None else None
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("agreement cache invalidate skipped: %s", exc)
+
+
 def _current_user_id() -> Optional[int]:
     if not _HAS_LOGIN or current_user is None:
         return None
@@ -327,6 +343,7 @@ def create():
         db.session.add(rel)
 
     db.session.commit()
+    _invalidate_agreement_cache_for(user_id, sp.id)
 
     if _wants_json():
         return jsonify({
@@ -429,6 +446,7 @@ def update(sp_id: int):
         rel = ServiceProviderRelationship.query.filter_by(sp_id=sp.id).first()
 
     db.session.commit()
+    _invalidate_agreement_cache_for(user_id, sp.id)
 
     if _wants_json():
         return jsonify({
@@ -454,6 +472,7 @@ def archive(sp_id: int):
         abort(404)
     sp.archived = True
     db.session.commit()
+    _invalidate_agreement_cache_for(user_id, sp.id)
     if _wants_json():
         return jsonify({"ok": True, "archived": True})
     flash("Service provider archived.", "success")
@@ -475,6 +494,7 @@ def re_detect(sp_id: int):
     result = run_detection_for_sp(sp, payments=None)
     rel = persist_detection_result(sp, result, db_session=db.session)
     db.session.commit()
+    _invalidate_agreement_cache_for(user_id, sp.id)
 
     if _wants_json():
         return jsonify({
@@ -583,6 +603,7 @@ def override_disclosure(sp_id: int):
     # Re-sync the denormalised flag on the SP.
     sp.requires_disclosure = rel.effective_disclosure_required
     db.session.commit()
+    _invalidate_agreement_cache_for(user_id, sp.id)
 
     if _wants_json():
         return jsonify({

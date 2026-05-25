@@ -101,12 +101,35 @@ def effective_tier(user) -> str:
 
     Returns the highest-rank active tier, or ``'free_trial'`` for anon users
     and users with no active row. Never raises.
+
+    Tier D6 / D8 (2026-05-25): cached via fiesta.perf_cache (60s TTL, per-user).
+    The /agreements/* warm-path latency was eating 2-3 cross-region Neon
+    roundtrips per request from this lookup. Invalidated explicitly by
+    `invalidate_subscription_cache(user_id)` on Subscription writes (Stripe
+    webhook, manual grants).
     """
     from .models import TIER_FREE_TRIAL
-    sub = active_subscription(user)
-    if sub is None:
+
+    user_id = getattr(user, "id", None) if user else None
+    if not user_id:
         return TIER_FREE_TRIAL
-    return sub.tier
+
+    # Per-user TTL cache. Cold path runs the original lookup; warm path
+    # skips the DB entirely.
+    try:
+        from fiesta.perf_cache import get as _cache_get, set as _cache_set
+        cache_key = f"paywall:effective_tier:{int(user_id)}"
+        hit, value = _cache_get(cache_key)
+        if hit:
+            return value
+        sub = active_subscription(user)
+        tier = TIER_FREE_TRIAL if sub is None else sub.tier
+        _cache_set(cache_key, tier, seconds=60)
+        return tier
+    except Exception as exc:  # noqa: BLE001
+        log.debug("effective_tier cache path failed: %s — direct lookup", exc)
+        sub = active_subscription(user)
+        return TIER_FREE_TRIAL if sub is None else sub.tier
 
 
 def is_tier_active(user, required_tier: str) -> bool:
@@ -120,6 +143,25 @@ def is_tier_active(user, required_tier: str) -> bool:
         return True
     user_rank = TIER_ORDER.get(effective_tier(user), 0)
     return user_rank >= required_rank
+
+
+def invalidate_subscription_cache(user_id) -> None:
+    """Drop the per-user paywall tier cache. Call after any Subscription
+    INSERT/UPDATE/DELETE for this user (Stripe webhook, manual grant, expiry
+    sweep). No-op if user_id is falsy or the cache module is unavailable.
+
+    Tier D6 / D8 (2026-05-25): keeps the cache from masking a freshly-purchased
+    tier upgrade. The natural 60s TTL is the worst-case stale window when this
+    is not called; calling it makes the upgrade visible on the very next render.
+    """
+    if not user_id:
+        return
+    try:
+        from fiesta.perf_cache import invalidate as _invalidate
+        _invalidate(f"paywall:effective_tier:{int(user_id)}")
+    except Exception as exc:  # noqa: BLE001
+        log.debug("invalidate_subscription_cache failed for user=%s: %s",
+                  user_id, exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -296,6 +338,7 @@ __all__ = [
     "active_subscription",
     "effective_tier",
     "is_tier_active",
+    "invalidate_subscription_cache",
     "FREE_TIER_SCREENS",
     "SELF_FILE_SCREENS",
     "AUTO_FILE_SCREENS",

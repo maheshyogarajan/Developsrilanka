@@ -186,6 +186,18 @@ def _after_request(response):
 
         _record_sample(route_rule, method, duration_ms, db_count, db_time_ms)
 
+        # Tier D6 / D8 — agreement-specific SLO log line. The agreement
+        # generate/preview paths MUST stay <3s cold (target <1s warm).
+        # Emit a WARNING (not a Telegram alert — that's reserved for the
+        # global 5s threshold) when an /agreements/* route exceeds 3s so
+        # regressions show up in the Fly logs immediately.
+        if duration_ms >= 3000 and route_rule.startswith("/agreements/"):
+            logger.warning(
+                "agreement perf SLO breach: %s %s took %.0fms "
+                "(%d queries / %.0fms DB)",
+                method, route_rule, duration_ms, db_count, db_time_ms,
+            )
+
         # Slow-request alert. Imported lazily so test envs without Telegram
         # config / network never pay the import cost on the hot path.
         threshold_ms = _slow_request_threshold_ms()
@@ -341,7 +353,32 @@ def init_perf_monitoring(app: Flask, db) -> None:
     @app.route("/healthz/perf")
     @admin_required
     def healthz_perf():
-        return jsonify(_build_perf_summary())
+        summary = _build_perf_summary()
+        # Tier D6 / D8 (2026-05-25) — surface the perf_cache stats too so
+        # admins can confirm warm vs cold hit rates on /agreements/* without
+        # adding a second admin route.
+        try:
+            from fiesta import perf_cache as _pc
+            summary["cache"] = _pc.stats()
+        except Exception as e:  # pragma: no cover — defensive
+            summary["cache"] = {"error": str(e)}
+        # Also flag any /agreements/* route exceeding the agreement-specific
+        # 3000ms threshold (tighter than the global 5000ms slow threshold —
+        # agreements MUST stay <3s cold / <1s warm per D8 SLO).
+        agreement_breaches = [
+            r for r in summary.get("routes", [])
+            if r.get("route", "").startswith("/agreements/")
+            and r.get("p95_ms", 0) >= 3000
+        ]
+        summary["agreement_slo_breaches"] = agreement_breaches
+        return jsonify(summary)
+
+    # /admin/perf — convenience alias for the D8 brief. Identical payload to
+    # /healthz/perf; lets us link from the admin nav without exposing /healthz.
+    @app.route("/admin/perf")
+    @admin_required
+    def admin_perf():
+        return healthz_perf()
 
     logger.info(
         "perf_monitoring: initialized (buffer=%d, slow_threshold=%dms)",

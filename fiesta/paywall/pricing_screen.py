@@ -565,6 +565,14 @@ def _handle_checkout_completed(stripe_event: dict) -> None:
 
     db.session.commit()
 
+    # Tier D6 / D8 — bust the per-user paywall tier cache so the freshly
+    # purchased tier is visible immediately on the next request.
+    try:
+        from fiesta.paywall.gate import invalidate_subscription_cache
+        invalidate_subscription_cache(user_id)
+    except Exception as exc:
+        log.debug("pricing_screen: paywall cache invalidate skipped: %s", exc)
+
     emit_analytics_event(
         "paywall_checkout_completed",
         user_id=user_id,

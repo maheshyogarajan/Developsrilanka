@@ -62,6 +62,16 @@ from flask_login import current_user, login_required
 
 from fiesta.paywall.gate import paywall_required
 
+# Tier D6 / D8 (2026-05-25) — module-level imports for hot-path helpers.
+# Previously these were lazy-imported inside `preview()` (6+ imports per
+# request), which made cold renders pay the full pydantic-model + SQLAlchemy
+# DDL walk cost on every cold Fly worker boot. Moving them up shifts the
+# cost to process boot, which Fly amortises across all requests served by
+# that worker.
+from fiesta.compliance.gate import gate_check
+from fiesta.agreements.disclosure import decide_disclosure, DisclosureDecisionInput
+from fiesta.agreements.helpers import compute_protected_deductions_lkr
+
 logger = logging.getLogger(__name__)
 
 
@@ -347,14 +357,28 @@ def index():
 @login_required
 @paywall_required(min_tier="self_file", screen_id="S8", action="preview")
 def preview(sp_id: str):
-    """Preview / parameter-input screen for the Service Agreement."""
-    from fiesta.compliance import gate_check  # late import
-    from fiesta.agreements.disclosure import decide_disclosure, DisclosureDecisionInput
-    from fiesta.agreements.helpers import compute_protected_deductions_lkr  # B4 F5.5
+    """Preview / parameter-input screen for the Service Agreement.
+
+    Tier D6 / D8 (2026-05-25) — perf refactor:
+      - hoisted lazy imports to module top (gate_check, decide_disclosure,
+        DisclosureDecisionInput, compute_protected_deductions_lkr) so cold
+        worker boots don't pay them per request
+      - cached the per-(user, sp) `protected_deductions_lkr` value for 60s;
+        invalidated when the SP row mutates (see service_providers.save
+        handlers / `invalidate_service_agreement_cache`)
+      - cached the ServiceProvider ORM lookup the same way
+
+    Pre-fix warm-path latency: 5-6s. Cold: up to 14s. Target after fix:
+    <1s warm P95, <3s cold.
+    """
+    user_id = int(getattr(current_user, "id", -1))
 
     customer = _customer_dict_from_user(current_user)
     service_provider = _service_provider_dict(sp_id)
 
+    # Compliance gate + disclosure decision: pure-function, no I/O, ~few ms.
+    # Not cached — inputs are derived from `current_user` (per-request) and
+    # the cache key would be too fine-grained to amortise.
     gate = gate_check("S8", {**customer, "service_provider": service_provider}, "preview")
 
     decision = decide_disclosure(
@@ -365,17 +389,15 @@ def preview(sp_id: str):
     )
 
     # B4 — resolve SP ORM object for the savings projection (best-effort).
-    sp_obj = None
-    try:
-        from fiesta.service_providers.models import ServiceProvider  # type: ignore[import-not-found]
-        sp_obj = ServiceProvider.query.filter_by(
-            id=sp_id, user_id=int(getattr(current_user, "id", -1))
-        ).first()
-    except Exception:  # noqa: BLE001
-        pass  # SP model unavailable in test context — helper returns 0
+    # Cached per (user_id, sp_id) for 60s; invalidated by SP save handlers.
+    sp_obj = _resolve_sp_cached(sp_id, user_id)
 
-    protected_lkr = compute_protected_deductions_lkr(
-        current_user, sp_obj, is_property=False
+    # The projection itself is cached too — same key window.
+    protected_lkr = _protected_deductions_cached(
+        user_id=user_id,
+        sp_id=sp_id,
+        user_obj=current_user,
+        sp_obj=sp_obj,
     )
 
     return render_template(
@@ -387,6 +409,104 @@ def preview(sp_id: str):
         gate_blocks=gate.blocks,
         protected_deductions_lkr=protected_lkr,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Tier D6 / D8 — cache helpers + invalidator.
+# --------------------------------------------------------------------------- #
+
+
+def _resolve_sp_cached(sp_id: str, user_id: int):
+    """Cached ServiceProvider lookup. None on miss / model unavailable.
+
+    Cache key: ``sp_obj:{user_id}:{sp_id}``. TTL 60s. Invalidate via
+    `invalidate_service_agreement_cache(user_id, sp_id)` from any SP write
+    handler (edit, delete) so the next render reflects the change.
+    """
+    try:
+        from fiesta.perf_cache import get as _get, set as _set
+        key = f"sp_obj:{user_id}:{sp_id}"
+        hit, value = _get(key)
+        if hit:
+            return value
+    except Exception:  # noqa: BLE001
+        _get = None
+        _set = None
+        key = None
+
+    sp_obj = None
+    try:
+        from fiesta.service_providers.models import ServiceProvider  # type: ignore[import-not-found]
+        sp_obj = ServiceProvider.query.filter_by(
+            id=sp_id, user_id=user_id
+        ).first()
+    except Exception:  # noqa: BLE001
+        pass  # SP model unavailable in test context
+
+    if _set is not None and key is not None:
+        try:
+            _set(key, sp_obj, seconds=60)
+        except Exception:  # noqa: BLE001
+            pass
+    return sp_obj
+
+
+def _protected_deductions_cached(*, user_id: int, sp_id: str, user_obj, sp_obj) -> int:
+    """Cached LKR-protected-by-agreement projection.
+
+    Key: ``sp_protected_lkr:{user_id}:{sp_id}``. TTL 60s. The underlying
+    `compute_protected_deductions_lkr` is pure but reads several user
+    attributes + does Decimal arithmetic; on the agreement hot path we
+    don't need to recompute it per request.
+    """
+    try:
+        from fiesta.perf_cache import get as _get, set as _set
+        key = f"sp_protected_lkr:{user_id}:{sp_id}"
+        hit, value = _get(key)
+        if hit:
+            return int(value)
+    except Exception:  # noqa: BLE001
+        _get = None
+        _set = None
+        key = None
+
+    try:
+        val = compute_protected_deductions_lkr(user_obj, sp_obj, is_property=False)
+    except Exception:  # noqa: BLE001
+        val = 0
+
+    if _set is not None and key is not None:
+        try:
+            _set(key, int(val), seconds=60)
+        except Exception:  # noqa: BLE001
+            pass
+    return int(val)
+
+
+def invalidate_service_agreement_cache(user_id, sp_id: str | None = None) -> int:
+    """Drop the cached SP-projection entries for a user.
+
+    Call from ServiceProvider write handlers (edit, delete, fee change) so
+    the next render of `/agreements/service/<id>` shows the fresh
+    `protected_deductions_lkr`.
+
+    If ``sp_id`` is None, drops EVERY cached SP entry for the user
+    (prefix-based). Returns the count dropped.
+    """
+    if not user_id:
+        return 0
+    try:
+        from fiesta.perf_cache import invalidate as _inv, invalidate_prefix as _inv_pre
+        if sp_id is not None:
+            _inv(f"sp_obj:{int(user_id)}:{sp_id}")
+            _inv(f"sp_protected_lkr:{int(user_id)}:{sp_id}")
+            return 2
+        return _inv_pre(f"sp_obj:{int(user_id)}:") + _inv_pre(
+            f"sp_protected_lkr:{int(user_id)}:"
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("invalidate_service_agreement_cache failed: %s", exc)
+        return 0
 
 
 @bp.route("/<sp_id>/generate", methods=["POST"])
