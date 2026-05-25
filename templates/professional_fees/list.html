@@ -1,0 +1,67 @@
+{% extends layout_template %}
+{% block page_title %}Professional fees — FIESTA{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0 0 0.4rem;">Professional fees</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Track LKR professional-fee invoices (IRA &sect;6). &sect;85 WHT withheld by the
+    paying client is captured as a credit against your IIT liability. &sect;85(1C)
+    applies at 5% for resident independent professionals (lawyer, accountant,
+    doctor, engineer, software developer, &hellip;) when the monthly payment
+    exceeds Rs 100,000.
+  </p>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1.6rem;">
+    <a href="{{ url_for('fiesta_professional_fees.new_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      + Add invoice
+    </a>
+    <a href="{{ url_for('fiesta_professional_fees.import_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:#fff;color:var(--color-accent-700,#7c3aed);border:1px solid var(--color-accent-700,#7c3aed);border-radius:8px;text-decoration:none;font-weight:600;">
+      Import invoices CSV
+    </a>
+  </div>
+
+  {% if summary %}
+    <div style="margin-bottom:1.4rem;padding:0.9rem 1.1rem;background:#eef2ff;border-left:3px solid #4338ca;border-radius:0 6px 6px 0;">
+      <div style="font-weight:600;">Tax year {{ summary.tax_year }}</div>
+      <div style="font-size:0.92rem;color:var(--color-ink-700,#4b525c);">
+        Gross fees Rs {{ "{:,.2f}".format(summary.gross_total_lkr) }} &middot;
+        &sect;85 WHT credit Rs {{ "{:,.2f}".format(summary.wht_credit_total_lkr) }}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if not fee_rows %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No invoices logged yet. Add your first invoice above &mdash; or bulk-import a CSV.
+    </p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Client</th>
+          <th style="padding:0.5rem 0.6rem;">Invoice date</th>
+          <th style="padding:0.5rem 0.6rem;">Tax year</th>
+          <th style="padding:0.5rem 0.6rem;text-align:right;">WHT credit</th>
+          <th style="padding:0.5rem 0.6rem;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in fee_rows %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;font-weight:600;">{{ f.client_name }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ f.invoice_date }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ f.tax_year }}</td>
+            <td style="padding:0.5rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(f.wht_credit_lkr) }}</td>
+            <td style="padding:0.5rem 0.6rem;">
+              <a href="{{ url_for('fiesta_professional_fees.detail', meta_id=f.id) }}"
+                 style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">View</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

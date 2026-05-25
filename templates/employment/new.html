@@ -1,0 +1,103 @@
+{% extends layout_template %}
+{% block page_title %}Add employment — FIESTA{% endblock %}
+{% block content %}
+<div style="max-width:780px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.8rem;margin:0 0 0.4rem;">Add employment</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    One row per (employer &middot; period_start). Multiple employers / non-overlapping stints
+    each get their own row. Updating is non-destructive on identity (employer + period_start).
+  </p>
+
+  {% if error %}
+  <div style="margin-bottom:1rem;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;color:#7f1d1d;border-radius:0 6px 6px 0;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_employment.new_submit') }}" style="display:grid;gap:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Employer name</span>
+      <input type="text" name="employer_name" required maxlength="128"
+             value="{{ form.employer_name or '' }}"
+             placeholder="e.g. Acme PLC"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <label style="display:grid;gap:0.3rem;">
+        <span style="font-weight:600;">Period start</span>
+        <input type="date" name="period_start" required
+               value="{{ form.period_start or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span style="font-weight:600;">Period end</span>
+        <input type="date" name="period_end" required
+               value="{{ form.period_end or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </div>
+
+    <fieldset style="display:grid;gap:0.6rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">Gross employment income</legend>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Amount</span>
+        <input type="number" name="gross_amount" required step="0.01" min="0"
+               value="{{ form.gross_amount or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Currency (ISO-4217)</span>
+        <input type="text" name="currency" maxlength="3"
+               value="{{ form.currency or 'LKR' }}" pattern="[A-Za-z]{3}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>FX rate <small style="color:var(--color-ink-500,#6e7682);">(leave blank to auto-resolve)</small></span>
+        <input type="number" name="fx_rate" step="0.0001" min="0"
+               value="{{ form.fx_rate or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <fieldset style="display:grid;gap:0.6rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">APIT withheld (credit)</legend>
+      <p style="margin:0 0 0.4rem;font-size:0.85rem;color:var(--color-ink-700,#4b525c);">
+        Total APIT shown on your employer's APIT certificate for this period. Leave blank if none.
+      </p>
+      <label style="display:grid;gap:0.3rem;">
+        <span>APIT amount</span>
+        <input type="number" name="apit_amount" step="0.01" min="0"
+               value="{{ form.apit_amount or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>APIT certificate reference</span>
+        <input type="text" name="apit_certificate_ref" maxlength="128"
+               value="{{ form.apit_certificate_ref or '' }}"
+               placeholder="e.g. APIT-2025-26-ACME-001"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Tax year <small style="color:var(--color-ink-500,#6e7682);">(YYYY/YY) &mdash; leave blank to derive from period start</small></span>
+      <input type="text" name="tax_year" maxlength="7"
+             value="{{ form.tax_year or '' }}" placeholder="2025/26"
+             pattern="\d{4}/\d{2}"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <div style="display:flex;gap:0.6rem;align-items:center;margin-top:0.4rem;">
+      <button type="submit"
+              style="padding:0.7rem 1.3rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+        Save employment
+      </button>
+      <a href="{{ url_for('fiesta_employment.list_view') }}"
+         style="color:var(--color-ink-700,#4b525c);">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

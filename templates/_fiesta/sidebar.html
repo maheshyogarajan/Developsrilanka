@@ -102,6 +102,28 @@
         <span>Business income</span>
       </a>
       {% endif %}
+      {# G3.1 (MS4 W3b): Employment income (LKR + APIT). Surfaced once a user has
+         'employment_lkr' in income_sources. #}
+      {% if current_user.is_authenticated
+            and current_user.income_sources is defined
+            and 'employment_lkr' in (current_user.income_sources or []) %}
+      <a href="/income/employment/"
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_employment', path_prefix='/income/employment') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9788;</span>
+        <span>Employment income</span>
+      </a>
+      {% endif %}
+      {# G3.2 (MS4 W3b): Professional fees (LKR + §85 WHT). Surfaced once a user has
+         'professional_fees_lkr' in income_sources. #}
+      {% if current_user.is_authenticated
+            and current_user.income_sources is defined
+            and 'professional_fees_lkr' in (current_user.income_sources or []) %}
+      <a href="/income/professional-fees/"
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_professional_fees', path_prefix='/income/professional-fees') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9874;</span>
+        <span>Professional fees</span>
+      </a>
+      {% endif %}
     </div>
 
     {# ============ Bookkeeping (G1.4 — MS4 W2 Agent 2) ============

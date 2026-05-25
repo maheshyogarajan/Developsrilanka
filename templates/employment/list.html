@@ -1,0 +1,68 @@
+{% extends layout_template %}
+{% block page_title %}Employment income — FIESTA{% endblock %}
+{% block content %}
+<div class="employment-page" style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0 0 0.4rem;">Employment income</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Track salaried employment income (IRA &sect;5). APIT (Advance Personal Income Tax)
+    withheld by your employer is captured as a credit against your final IIT liability
+    &mdash; when your bracket tax is lower than APIT withheld, you are due a refund.
+  </p>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1.6rem;">
+    <a href="{{ url_for('fiesta_employment.new_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      + Add employment
+    </a>
+    <a href="{{ url_for('fiesta_employment.import_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:#fff;color:var(--color-accent-700,#7c3aed);border:1px solid var(--color-accent-700,#7c3aed);border-radius:8px;text-decoration:none;font-weight:600;">
+      Import payslips CSV
+    </a>
+  </div>
+
+  {% if summary %}
+    <div style="margin-bottom:1.4rem;padding:0.9rem 1.1rem;background:#eef2ff;border-left:3px solid #4338ca;border-radius:0 6px 6px 0;">
+      <div style="font-weight:600;">Tax year {{ summary.tax_year }}</div>
+      <div style="font-size:0.92rem;color:var(--color-ink-700,#4b525c);">
+        Gross employment Rs {{ "{:,.2f}".format(summary.gross_total_lkr) }} &middot;
+        APIT credit Rs {{ "{:,.2f}".format(summary.apit_credit_total_lkr) }}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if not employment_rows %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No employment income logged yet. Add your first employer above &mdash; you can also
+      bulk-import a CSV of monthly payslips.
+    </p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Employer</th>
+          <th style="padding:0.5rem 0.6rem;">Tax year</th>
+          <th style="padding:0.5rem 0.6rem;">Period</th>
+          <th style="padding:0.5rem 0.6rem;text-align:right;">APIT credit</th>
+          <th style="padding:0.5rem 0.6rem;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in employment_rows %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;font-weight:600;">{{ e.employer_name }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ e.tax_year }}</td>
+            <td style="padding:0.5rem 0.6rem;font-size:0.88rem;color:var(--color-ink-700,#4b525c);">
+              {{ e.period_start }} &rarr; {{ e.period_end }}
+            </td>
+            <td style="padding:0.5rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(e.apit_credit_lkr) }}</td>
+            <td style="padding:0.5rem 0.6rem;">
+              <a href="{{ url_for('fiesta_employment.detail', meta_id=e.id) }}"
+                 style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">View</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}
