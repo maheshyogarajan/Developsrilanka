@@ -23,18 +23,21 @@
 
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Operations</div>
-      <a href="/admin/users"
-         class="fiesta-nav-link {% if _p.startswith('/admin/users') %}fiesta-nav-active{% endif %}">
+      {# Stage C4 wiring: real routes registered via the
+         fiesta_admin / customer_brain / fiesta_admin_autoreply / support_admin
+         blueprints (verified in app.url_map). #}
+      <a href="/admin/fie/users"
+         class="fiesta-nav-link {% if _p.startswith('/admin/fie/users') %}fiesta-nav-active{% endif %}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9786;</span>
         <span>Users</span>
       </a>
-      <a href="/admin/360"
-         class="fiesta-nav-link {% if _p.startswith('/admin/360') %}fiesta-nav-active{% endif %}">
+      <a href="/admin/customer"
+         class="fiesta-nav-link {% if _p.startswith('/admin/customer') %}fiesta-nav-active{% endif %}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#8635;</span>
         <span>Per-user 360</span>
       </a>
-      <a href="/admin/autoreply"
-         class="fiesta-nav-link {% if _p.startswith('/admin/autoreply') %}fiesta-nav-active{% endif %}">
+      <a href="/admin/fie/autoreply"
+         class="fiesta-nav-link {% if _p.startswith('/admin/fie/autoreply') %}fiesta-nav-active{% endif %}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9993;</span>
         <span>Autoreply</span>
       </a>
@@ -43,12 +46,17 @@
         <span class="fiesta-nav-ico" aria-hidden="true">&#8981;</span>
         <span>PCSE Inspector</span>
       </a>
+      <a href="/admin/submissions"
+         class="fiesta-nav-link {% if _p.startswith('/admin/submissions') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9993;</span>
+        <span>Submissions</span>
+      </a>
     </div>
 
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Intelligence</div>
-      <a href="/admin/ai-org"
-         class="fiesta-nav-link {% if _p.startswith('/admin/ai-org') %}fiesta-nav-active{% endif %}">
+      <a href="/admin/scores"
+         class="fiesta-nav-link {% if _p.startswith('/admin/scores') or _p.startswith('/admin/ai_org') %}fiesta-nav-active{% endif %}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
         <span>AI-Org</span>
       </a>
@@ -68,9 +76,14 @@
 
     <div class="fiesta-nav-group">
       <a href="/admin/settings"
-         class="fiesta-nav-link {% if _p.startswith('/admin/settings') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {% if _p == '/admin/settings' %}fiesta-nav-active{% endif %}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
-        <span>Settings</span>
+        <span>Settings (legacy)</span>
+      </a>
+      <a href="/admin/fie/settings"
+         class="fiesta-nav-link {% if _p.startswith('/admin/fie/settings') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
+        <span>System Settings (DB)</span>
       </a>
       <a href="/admin/logs"
          class="fiesta-nav-link {% if _p.startswith('/admin/logs') %}fiesta-nav-active{% endif %}">

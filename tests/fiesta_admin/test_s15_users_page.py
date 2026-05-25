@@ -68,17 +68,26 @@ def test_s15_unauth_redirected_to_login(client):
     assert "/login" in resp.headers.get("Location", "")
 
 
-def test_s15_non_admin_redirected_to_index(client, non_admin_user, login_as):
-    """Signed-in non-admins do NOT see the S15 table."""
+def test_s15_non_admin_gets_403(client, non_admin_user, login_as):
+    """Signed-in non-admins do NOT see the S15 table.
+
+    F8.3 (Stage C4): updated from the Wave-6 302-with-flash contract.
+    The canonical decorator now returns a styled 403 HTML page; JSON
+    callers receive the canonical JSON shape. Either contract counts
+    as "non-admin blocked" for this regression test.
+    """
     login_as(client, non_admin_user)
     resp = client.get(S15_PATH, follow_redirects=False)
-    assert resp.status_code in (301, 302)
-    # Wrapped page body MUST NOT leak.
-    assert b"FIESTA Admin" not in resp.data
-    # Flash must be queued.
-    with client.session_transaction() as sess:
-        flashes = sess.get("_flashes", [])
-    assert any(msg == "Admin access required." for (_, msg) in flashes)
+    assert resp.status_code == 403, (
+        f"Expected 403; got {resp.status_code}. body[:300]={resp.data[:300]!r}"
+    )
+    # The S15 page body MUST NOT leak — the 403 page is a different surface.
+    # Use S15-specific markers: filter form fields the happy-path test (just
+    # below) asserts ARE present on the S15 page. "FIESTA Admin" appears on
+    # both surfaces (it's the topbar wordmark) so it can't gate this test.
+    assert b'name="search"' not in resp.data
+    assert b'name="tier"' not in resp.data
+    assert b'name="audit"' not in resp.data
 
 
 # --------------------------------------------------------------------------- #

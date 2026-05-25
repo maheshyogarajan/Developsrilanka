@@ -456,8 +456,15 @@ def submissions_view():
     tax_year_normalised = tax_year_raw  # fallback: pass through as-is
     if tax_year_raw:
         try:
-            from fiesta.tax_bill.aggregator import normalise_tax_year_to_s4_format
-            tax_year_normalised = normalise_tax_year_to_s4_format(tax_year_raw)
+            # D4 fix (Stage C4 admin consolidation): Submission.tax_year is
+            # persisted in S5 form ("YYYY/YYYY", e.g. "2025/2026") — see
+            # fiesta/submit/models.py docstring. The S4 normaliser returns
+            # "YYYY-YY" which never matches the column and crashes if the
+            # underlying enum coercion fails. Use the S5 normaliser so that
+            # any accepted input form (25/26, 2025/26, 2025/2026, 25_26, ...)
+            # round-trips to the canonical S5 string the column actually holds.
+            from fiesta.tax_bill.aggregator import normalise_tax_year_to_s5_format
+            tax_year_normalised = normalise_tax_year_to_s5_format(tax_year_raw)
             q = q.filter(Submission.tax_year == tax_year_normalised)
         except Exception:
             # If normaliser fails (bad input), filter on the raw string so the

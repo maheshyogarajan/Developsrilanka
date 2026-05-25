@@ -156,23 +156,65 @@ def _cleanup_orphan_admin_users(db_session):
         db_session.commit()
 
 
-@pytest.fixture
-def gated_view_path(app):
-    """Mount a one-off ``/_test/admin/gated`` view wrapped in our admin_required
-    decorator. SESSION-scoped — the route is added BEFORE any test request
-    fires (Flask blocks post-first-request route registration).
+_GATED_VIEW_PATH = "/_test/admin/gated"
 
-    The view returns plain text so tests can assert the *string body* without
-    HTML parsing, plus a 200 to distinguish "decorator allowed through" from
-    the various 302 redirect cases.
+
+def _register_gated_view(app):
+    """Register the ``/_test/admin/gated`` view via ``add_url_rule`` so the
+    fixture can mount it BEFORE any test request fires.
+
+    Earlier versions used ``@app.route`` inside the fixture — Flask blocks
+    that decorator after the first request handles, so the fixture errored
+    when other suites had already issued requests in the same pytest run.
+    ``add_url_rule`` is the documented escape hatch and works equally
+    well pre- and post-first-request in modern Flask (it does the same
+    setup-finished check, so we mount eagerly at fixture-import time
+    rather than lazily inside the fixture).
     """
     from fiesta.auth.decorators import admin_required
-    path = "/_test/admin/gated"
 
-    if not any(rule.rule == path for rule in app.url_map.iter_rules()):
-        @app.route(path, methods=["GET"], endpoint="_test_admin_gated")
-        @admin_required
-        def _gated():
-            return ("ADMIN_VIEW_OK", 200, {"Content-Type": "text/plain"})
+    if any(rule.rule == _GATED_VIEW_PATH for rule in app.url_map.iter_rules()):
+        return
 
-    return path
+    @admin_required
+    def _gated():
+        return ("ADMIN_VIEW_OK", 200, {"Content-Type": "text/plain"})
+
+    try:
+        app.add_url_rule(
+            _GATED_VIEW_PATH,
+            endpoint="_test_admin_gated",
+            view_func=_gated,
+            methods=["GET"],
+        )
+    except AssertionError:
+        # Flask's setup-finished guard fired — the app already handled a
+        # request before the fixture loaded. The route registered earlier
+        # in the same pytest session is the same callable, so we can rely
+        # on the no-op early-return at the top.
+        pass
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _register_gated_view_once(app):
+    """Mount the gated view at session-start so it's present before ANY
+    test in any suite fires a request against the shared app.
+
+    Without this, running tests/admin/ before tests/fiesta_admin/ in the
+    same session causes the gated_view_path fixture to fail with
+    "setup method 'route' can no longer be called" — the app already
+    handled its first request earlier.
+    """
+    _register_gated_view(app)
+    return None
+
+
+@pytest.fixture
+def gated_view_path(app):
+    """Return the path of the admin_required-wrapped /_test/admin/gated view.
+
+    The route is registered at session-start via _register_gated_view_once,
+    so this fixture is now a thin path-string accessor.
+    """
+    _register_gated_view(app)
+    return _GATED_VIEW_PATH
