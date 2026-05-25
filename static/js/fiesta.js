@@ -147,6 +147,61 @@
     });
   }
 
+  // F-Platform-5 (MS1 Stage C1, 2026-05-25): pending-events drain.
+  // The server queues `fiesta:*` events in the session after a redirect-
+  // driven write (remittance/new, property/setup, SP form POST); the shell
+  // emits them as a <meta name="fiesta-pending-events" content="fiesta:X,fiesta:Y">
+  // tag. We drain + dispatch on boot so the topbar counter refreshes after
+  // the redirect lands the user back on a hub/dashboard page.
+  function drainPendingEvents() {
+    var meta = document.querySelector('meta[name="fiesta-pending-events"]');
+    if (!meta) return;
+    var raw = (meta.getAttribute('content') || '').trim();
+    if (!raw) return;
+    var names = raw.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    names.forEach(function (n) {
+      // Defensive: only dispatch contract-locked names.
+      if (EVENT_NAMES.indexOf(n) === -1) return;
+      dispatchUpdate(n);
+    });
+    // Remove the meta tag so a same-page client rerender doesn't fire twice.
+    try { meta.parentNode && meta.parentNode.removeChild(meta); } catch (e) {}
+  }
+
+  // F-Platform-5 (MS1 Stage C1): fetch interceptor.
+  // Wrap window.fetch so any same-origin POST/PUT/PATCH/DELETE response
+  // carrying an `X-Fiesta-Event: fiesta:<name>` header auto-dispatches the
+  // matching custom event. Page-level fetch callers (e.g. the deductions
+  // claim/unclaim AJAX in templates/deductions/index.html) need zero changes.
+  // We never break the original fetch: errors in the header-scan path are
+  // swallowed and the original response is always returned to the caller.
+  function wireFetchInterceptor() {
+    if (typeof window.fetch !== 'function') return;
+    if (window.fetch.__fiestaWrapped) return; // idempotent (re-boot safe)
+    var orig = window.fetch.bind(window);
+    function wrapped() {
+      var args = Array.prototype.slice.call(arguments);
+      return orig.apply(null, args).then(function (resp) {
+        try {
+          if (resp && resp.headers && typeof resp.headers.get === 'function') {
+            var ev = resp.headers.get('X-Fiesta-Event');
+            if (ev) {
+              // Server may emit either "fiesta:remittance-added" or just
+              // "remittance-added"; normalise.
+              if (ev.indexOf('fiesta:') !== 0) ev = 'fiesta:' + ev;
+              if (EVENT_NAMES.indexOf(ev) !== -1) {
+                dispatchUpdate(ev);
+              }
+            }
+          }
+        } catch (e) { /* never interfere with the response chain */ }
+        return resp;
+      });
+    }
+    wrapped.__fiestaWrapped = true;
+    window.fetch = wrapped;
+  }
+
   function wireMobileToggle() {
     var toggle = document.getElementById('fiesta-mobile-toggle');
     if (!toggle) return;
@@ -198,6 +253,8 @@
     wireMobileToggle();
     wireUserMenu();
     wireSavingsEvents();
+    wireFetchInterceptor();   // F-Platform-5: intercept AJAX → X-Fiesta-Event
+    drainPendingEvents();     // F-Platform-5: drain redirect-survived events
     fetchSavings();
   }
 

@@ -13,7 +13,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from sqlalchemy import desc
 
-from app import db
+from app import db, invalidate_savings_projection, queue_fiesta_event
 from models import AuditLog
 from remittance_models import (
     RemittanceEntry, RemittanceImportBatch,
@@ -268,6 +268,15 @@ def new():
                 )
         except Exception as _ev_err:
             log.debug("emit(remittance_ird_ready) failed for entry %s: %s", entry.id, _ev_err)
+
+        # F-Platform-5: bust the per-user savings cache + queue the
+        # `fiesta:remittance-added` event so the topbar counter refreshes
+        # on the redirected GET landing page.
+        try:
+            invalidate_savings_projection(current_user.id)
+            queue_fiesta_event('remittance-added')
+        except Exception as _q_err:
+            log.debug("F-Platform-5 event queue failed: %s", _q_err)
 
         flash("Remittance entry saved.", "success")
         return redirect(url_for("remittance.detail", entry_id=entry.id))

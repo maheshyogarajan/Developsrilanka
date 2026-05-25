@@ -325,13 +325,27 @@ def claim(category_id: str):
             _invalidate_tax_bill_cache(user_id, tax_year)
         except Exception:
             pass
+        # F-Platform-5: bust the savings-projection cache + flag the
+        # `fiesta:deduction-toggled` event on the JSON response so
+        # fiesta.js refreshes the topbar counter.
+        try:
+            from app import invalidate_savings_projection, fiesta_event_response
+            invalidate_savings_projection(user_id)
+        except Exception:
+            fiesta_event_response = None  # type: ignore[assignment]
         # Sprint 4 Tier B: include authoritative summary so the client can
         # reconcile its optimistic-UI prediction in one roundtrip.
-        return jsonify({
+        resp = jsonify({
             "ok": True,
             "claim": claim_row.to_dict(),
             "summary": _compute_summary_payload(user_id, tax_year),
         })
+        if fiesta_event_response is not None:
+            try:
+                resp = fiesta_event_response(resp, 'deduction-toggled')
+            except Exception:
+                pass
+        return resp
     except Exception as exc:
         db.session.rollback()
         logger.exception("Claim insert/update failed")
@@ -362,11 +376,19 @@ def unclaim(category_id: str):
         if claim_row is None:
             # Even for noop, include summary so the client can reconcile
             # (the predicted unclaim delta would otherwise leave stale UI).
-            return jsonify({
+            # F-Platform-5: still emit deduction-toggled — UI may have been
+            # optimistic, the counter needs to reconcile.
+            resp = jsonify({
                 "ok": True,
                 "noop": True,
                 "summary": _compute_summary_payload(user_id, tax_year),
             })
+            try:
+                from app import fiesta_event_response
+                resp = fiesta_event_response(resp, 'deduction-toggled')
+            except Exception:
+                pass
+            return resp
         claim_row.claimed = False
         claim_row.updated_at = datetime.utcnow()
         db.session.commit()
@@ -382,12 +404,24 @@ def unclaim(category_id: str):
             _invalidate_tax_bill_cache(user_id, tax_year)
         except Exception:
             pass
+        # F-Platform-5: bust the savings cache + emit X-Fiesta-Event for unclaim too.
+        try:
+            from app import invalidate_savings_projection, fiesta_event_response
+            invalidate_savings_projection(user_id)
+        except Exception:
+            fiesta_event_response = None  # type: ignore[assignment]
         # Sprint 4 Tier B: include authoritative summary for optimistic-UI reconcile.
-        return jsonify({
+        resp = jsonify({
             "ok": True,
             "claim": claim_row.to_dict(),
             "summary": _compute_summary_payload(user_id, tax_year),
         })
+        if fiesta_event_response is not None:
+            try:
+                resp = fiesta_event_response(resp, 'deduction-toggled')
+            except Exception:
+                pass
+        return resp
     except Exception as exc:
         db.session.rollback()
         logger.exception("Unclaim failed")

@@ -345,12 +345,28 @@ def create():
     db.session.commit()
     _invalidate_agreement_cache_for(user_id, sp.id)
 
+    # F-Platform-5: bust the savings cache + emit the `fiesta:sp-added` event.
+    # JSON callers see the X-Fiesta-Event header; HTML-form (redirect) callers
+    # see the session-queued event on their landing page.
+    try:
+        from app import invalidate_savings_projection, queue_fiesta_event, fiesta_event_response
+        invalidate_savings_projection(user_id)
+    except Exception:
+        fiesta_event_response = None  # type: ignore[assignment]
+        queue_fiesta_event = None  # type: ignore[assignment]
+
     if _wants_json():
-        return jsonify({
+        resp = jsonify({
             "ok": True,
             "sp": sp.to_dict(),
             "relationship": rel.to_dict() if rel else None,
         }), 201
+        if fiesta_event_response is not None:
+            try:
+                resp = fiesta_event_response(resp, 'sp-added')
+            except Exception:
+                pass
+        return resp
 
     if sp.requires_disclosure:
         flash(
@@ -360,6 +376,11 @@ def create():
         )
     else:
         flash("Service provider added.", "success")
+    if queue_fiesta_event is not None:
+        try:
+            queue_fiesta_event('sp-added')
+        except Exception:
+            pass
     return redirect(url_for("fiesta_service_providers.index"))
 
 

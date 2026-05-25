@@ -546,6 +546,99 @@ def invalidate_savings_projection(user_id) -> None:
         pass
 
 
+# X9 F-Platform-5 (MS1 Stage C1, 2026-05-25): savings-counter event wiring.
+# The persistent counter in the topbar (static/js/fiesta.js + #fiesta-savings-counter)
+# already listens for these JS custom events and refetches on each:
+#   fiesta:remittance-added
+#   fiesta:deduction-toggled
+#   fiesta:sp-added
+#   fiesta:property-added
+#   fiesta:income-source-added
+#   fiesta:savings-counter-refresh
+#
+# F-Platform-5 dispatches them from two paths:
+#   (a) AJAX/JSON endpoints (deductions claim/unclaim, SP create JSON,
+#       property API): a small response-header (`X-Fiesta-Event: <name>`)
+#       wrapped by `fiesta_event_response(resp, event)`. Frontend's fetch
+#       wrapper in fiesta.js reads it and dispatches.
+#   (b) HTML form POSTs that 302-redirect (remittance/new, SP HTML form,
+#       property/setup): a session-keyed pending-events list. The shell's
+#       <meta name="fiesta-pending-events"> tag exposes the queue on the
+#       NEXT page render; fiesta.js drains + dispatches on DOMContentLoaded.
+#
+# Both paths ALSO call `invalidate_savings_projection(user_id)` server-side
+# so the next `/api/fiesta/savings-projection` fetch returns fresh data.
+_FIESTA_EVENT_NAMES = frozenset({
+    'remittance-added',
+    'deduction-toggled',
+    'sp-added',
+    'property-added',
+    'income-source-added',
+    'savings-counter-refresh',
+})
+
+
+def _normalise_event_name(name: str) -> str | None:
+    """Strip optional `fiesta:` prefix; return canonical short name or None."""
+    if not name:
+        return None
+    n = name.strip()
+    if n.startswith('fiesta:'):
+        n = n[len('fiesta:'):]
+    return n if n in _FIESTA_EVENT_NAMES else None
+
+
+def queue_fiesta_event(event_name: str) -> None:
+    """Queue a `fiesta:*` event to dispatch on the NEXT page render via the
+    session-backed pending-events list. Use this from POST handlers that
+    redirect (rather than respond with JSON). Idempotent + bounded (last
+    10 events kept). Safe to call outside a request context (no-op)."""
+    from flask import session as _session, has_request_context
+    short = _normalise_event_name(event_name)
+    if not short or not has_request_context():
+        return
+    try:
+        q = list(_session.get('_fiesta_pending_events') or [])
+        q.append(short)
+        # Cap to last 10 to bound cookie size; the JS dispatches all in order.
+        _session['_fiesta_pending_events'] = q[-10:]
+    except Exception:
+        pass
+
+
+def fiesta_event_response(resp, event_name: str):
+    """Attach the `X-Fiesta-Event: <name>` response header to a Flask
+    response/JSON tuple so the fiesta.js fetch wrapper dispatches the
+    matching custom event. Returns the (possibly wrapped) response.
+    Accepts either a Response object or a (body, status) tuple."""
+    from flask import make_response
+    short = _normalise_event_name(event_name)
+    if not short:
+        return resp
+    try:
+        wrapped = make_response(resp)
+        wrapped.headers['X-Fiesta-Event'] = f'fiesta:{short}'
+        return wrapped
+    except Exception:
+        return resp
+
+
+@app.context_processor
+def _expose_fiesta_pending_events():
+    """Drain the session-queued pending events into the template context
+    so layout_fiesta.html can render them into a <meta> tag. We DRAIN
+    (pop) on read so events fire exactly once."""
+    from flask import session as _session, has_request_context
+    if not has_request_context():
+        return {'fiesta_pending_events': []}
+    try:
+        q = _session.pop('_fiesta_pending_events', None) or []
+        # Normalise back to fully-qualified names for the JS dispatch path.
+        return {'fiesta_pending_events': [f'fiesta:{e}' for e in q if e in _FIESTA_EVENT_NAMES]}
+    except Exception:
+        return {'fiesta_pending_events': []}
+
+
 # X9 F-Platform-4 (MS1 Stage C1, 2026-05-25): hub extras computation.
 # The hub template (`templates/fiesta_home.html`) needs three things on top of
 # the context the `inject_fiesta_hub_context` processor already supplies:
