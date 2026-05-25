@@ -15,6 +15,7 @@ surfaces coexist; new work lands here and benefits from
 """
 from .routes import register_routes as _register_users_routes
 from .autoreply_routes import register_routes as _register_autoreply_routes
+from .cron_routes import register_routes as _register_cron_routes
 
 
 def register_routes(app):
@@ -22,6 +23,7 @@ def register_routes(app):
     main.py wiring stays a one-liner."""
     _register_users_routes(app)
     _register_autoreply_routes(app)
+    _register_cron_routes(app)
 
 
 __all__ = ["register_routes"]
