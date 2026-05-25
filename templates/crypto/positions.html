@@ -1,0 +1,47 @@
+{% extends layout_template %}
+{% block title %}Open crypto positions — FIESTA{% endblock %}
+{% block content %}
+<div class="crypto-page" style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0 0 0.4rem;">Open crypto positions</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Per-asset summary of open acquisition lots. FIFO consumes lots oldest-first on sell.
+  </p>
+
+  <p style="margin-bottom:1rem;">
+    <a href="{{ url_for('fiesta_crypto.history') }}"
+       style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">← Back to history</a>
+  </p>
+
+  {% if not by_asset %}
+    <p style="color:var(--color-ink-500,#6e7682);">No open positions.</p>
+  {% else %}
+    {% for asset, agg in by_asset.items() %}
+    <div style="margin-bottom:1.6rem;padding:1rem 1.2rem;background:#f9fafb;border-radius:8px;">
+      <h2 style="margin:0 0 0.6rem;font-size:1.15rem;">{{ asset }}</h2>
+      <p style="margin:0.2rem 0;">Total open: <strong>{{ agg.shares_open }}</strong> shares across {{ agg.lots|length }} lot{{ '' if agg.lots|length == 1 else 's' }}</p>
+      <p style="margin:0.2rem 0;">Cost basis (LKR): <strong>{{ "{:,.2f}".format(agg.cost_basis_lkr) }}</strong></p>
+      <table style="width:100%;margin-top:0.6rem;border-collapse:collapse;">
+        <thead>
+          <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <th style="padding:0.4rem 0.5rem;">Acquired</th>
+            <th style="padding:0.4rem 0.5rem;">Total / Open</th>
+            <th style="padding:0.4rem 0.5rem;">Cost LKR/share</th>
+            <th style="padding:0.4rem 0.5rem;">Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in agg.lots %}
+            <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+              <td style="padding:0.4rem 0.5rem;">{{ p.acquisition_date }}</td>
+              <td style="padding:0.4rem 0.5rem;">{{ p.shares }} / {{ p.shares_remaining }}</td>
+              <td style="padding:0.4rem 0.5rem;">{{ "{:,.2f}".format(p.acq_amount_lkr_per_share) }}</td>
+              <td style="padding:0.4rem 0.5rem;">{{ p.source_country or '—' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

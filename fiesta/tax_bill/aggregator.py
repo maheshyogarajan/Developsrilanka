@@ -219,6 +219,25 @@ class TaxInputs:
     rsu_cgt_total_lkr: Decimal = Decimal("0")
     rsu_dtaa_deferred: bool = False
 
+    # Crypto / CGT (B13, MS3) ----------------------------------------------
+    # Read from canonical AssetDisposal(asset_type='crypto') for the year.
+    # Aggregated via fiesta.tax.crypto_cgt.compute_crypto_cgt which also
+    # computes loss carry-forward + DTAA seam.
+    # crypto_cgt_lines: per-disposal dicts {asset_identifier, disposal_date,
+    #                                       acquisition_date, gain_lkr,
+    #                                       acq_amount_lkr, disp_amount_lkr,
+    #                                       source_country}.
+    # crypto_by_asset: {asset: {gain_lkr, loss_lkr, net_lkr, rows}}.
+    crypto_cgt_lines: list[dict[str, Any]] = field(default_factory=list)
+    crypto_cgt_gross_gain_lkr: Decimal = Decimal("0")
+    crypto_cgt_gross_loss_lkr: Decimal = Decimal("0")
+    crypto_cgt_net_pre_carry_lkr: Decimal = Decimal("0")
+    crypto_cgt_loss_carry_in_lkr: Decimal = Decimal("0")
+    crypto_cgt_net_after_carry_lkr: Decimal = Decimal("0")
+    crypto_cgt_loss_carry_out_lkr: Decimal = Decimal("0")
+    crypto_by_asset: dict[str, dict[str, Any]] = field(default_factory=dict)
+    crypto_dtaa_deferred: bool = False
+
     # Engine-shaped inputs (pydantic) --------------------------------------
     # These are computed at the end of assemble_tax_inputs; the compute layer
     # passes them directly to compute_tax_25_26.
@@ -841,6 +860,47 @@ def _load_rsu(inputs: TaxInputs) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Crypto / CGT loader (B13, MS3)
+# ---------------------------------------------------------------------------
+
+
+def _load_crypto(inputs: TaxInputs) -> None:
+    """Section B13: crypto realised gains/losses + carry-forward.
+
+    Delegates the heavy lifting to fiesta.tax.crypto_cgt.compute_crypto_cgt
+    which handles per-asset aggregation, loss carry-forward across years,
+    and the DTAA seam (apply_foreign_tax_credit for every foreign-source
+    disposal — stub returns None pre-Wave-X).
+    """
+    try:
+        from fiesta.tax.crypto_cgt import compute_crypto_cgt
+    except Exception:
+        inputs.sources_missing.append("fiesta.tax.crypto")
+        return
+
+    # Synthesise a stand-in user object — compute_crypto_cgt only needs .id.
+    class _U:
+        id = inputs.user_id
+    try:
+        result = compute_crypto_cgt(_U(), inputs.tax_year_s4_format)
+    except Exception as exc:
+        logger.warning("compute_crypto_cgt failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.crypto")
+        return
+
+    inputs.sources_loaded.append("fiesta.tax.crypto")
+    inputs.crypto_cgt_lines = result.get("disposals") or []
+    inputs.crypto_cgt_gross_gain_lkr = _to_decimal(result.get("gross_gain_lkr"))
+    inputs.crypto_cgt_gross_loss_lkr = _to_decimal(result.get("gross_loss_lkr"))
+    inputs.crypto_cgt_net_pre_carry_lkr = _to_decimal(result.get("net_gain_lkr_pre_carry"))
+    inputs.crypto_cgt_loss_carry_in_lkr = _to_decimal(result.get("loss_carry_forward_in"))
+    inputs.crypto_cgt_net_after_carry_lkr = _to_decimal(result.get("net_gain_lkr_after_carry"))
+    inputs.crypto_cgt_loss_carry_out_lkr = _to_decimal(result.get("loss_carry_forward_out"))
+    inputs.crypto_by_asset = result.get("by_asset") or {}
+    inputs.crypto_dtaa_deferred = bool(result.get("dtaa_deferred"))
+
+
+# ---------------------------------------------------------------------------
 # Engine-shape composition
 # ---------------------------------------------------------------------------
 
@@ -888,6 +948,25 @@ def _compose_engine_inputs(inputs: TaxInputs) -> None:
         inputs.income_by_category_lkr["rsu_vesting"] = (
             inputs.income_by_category_lkr.get("rsu_vesting", Decimal("0"))
             + inputs.rsu_vesting_total_lkr
+        )
+
+    # B13 (MS3): Crypto CGT (IRA §36 — gains from realisation of investment
+    # assets, §7(2)(b)). Net-after-carry-forward feeds the engine via
+    # investment_lkr (Phase-1 engine doesn't yet have a dedicated CGT slab;
+    # this is the conservative routing — gains tax under the investment
+    # bracket schedule until Phase-3 separates CGT). Per IRA Chapter IV the
+    # taxable base is the NET (gross gain less in-year losses less
+    # loss-carry-forward), so we use net_after_carry not gross.
+    if inputs.crypto_cgt_net_after_carry_lkr and inputs.crypto_cgt_net_after_carry_lkr > 0:
+        income_kwargs["investment_lkr"] = (
+            income_kwargs.get("investment_lkr", Decimal("0"))
+            + inputs.crypto_cgt_net_after_carry_lkr
+        )
+        # Synthetic category for the bill UI breakdown.
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["crypto_cgt"] = (
+            inputs.income_by_category_lkr.get("crypto_cgt", Decimal("0"))
+            + inputs.crypto_cgt_net_after_carry_lkr
         )
 
     # Roll the "everything else" categories into other_lkr.
@@ -1294,6 +1373,9 @@ def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
 
     # B11 (MS2 E.1): RSU vesting + CGT — canonical schema (Design Lock 2).
     _load_rsu(inputs)
+
+    # B13 (MS3): Crypto / CGT — AssetDisposal(asset_type='crypto').
+    _load_crypto(inputs)
 
     _compose_engine_inputs(inputs)
 

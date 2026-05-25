@@ -1,0 +1,79 @@
+{% extends layout_template %}
+{% block title %}Log a crypto sell — FIESTA{% endblock %}
+{% block content %}
+<div class="crypto-page" style="max-width:720px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.7rem;margin:0 0 0.4rem;">Log a crypto sell</h1>
+  <p style="color:var(--color-ink-700,#4b525c);margin:0 0 1.4rem;">
+    A sell triggers FIFO matching against your open lots. Each matched lot becomes one
+    capital-gain row (IRA §36 — gain = consideration − cost). Losses are allowed and offset
+    gains in the same year; net losses carry forward.
+  </p>
+
+  {% if error %}
+    <div style="margin-bottom:1.2rem;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;border-radius:0 6px 6px 0;">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  {% if disposals %}
+    <div style="margin-bottom:1.4rem;padding:0.9rem 1.1rem;background:#dcfce7;border-left:3px solid #166534;border-radius:0 6px 6px 0;">
+      <strong>Recorded {{ disposals|length }} disposal row{{ '' if disposals|length == 1 else 's' }}</strong> (one per lot matched):
+      <ul style="margin:0.4rem 0 0;padding-left:1.2rem;">
+        {% for d in disposals %}
+          <li>
+            {{ d.asset_identifier }} — acquired {{ d.acquisition_date }} —
+            cost LKR {{ "{:,.2f}".format(d.acq_amount_lkr) }},
+            proceeds LKR {{ "{:,.2f}".format(d.disp_amount_lkr) }},
+            <strong>gain LKR {{ "{:,.2f}".format(d.gain_lkr) }}</strong>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if open_assets %}
+    <p style="margin-bottom:1rem;color:var(--color-ink-700,#4b525c);font-size:0.9rem;">
+      You have open positions in: <strong>{{ open_assets|join(', ') }}</strong>
+    </p>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_crypto.sell_submit') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Asset (e.g. BTC, ETH)</label>
+    <input type="text" name="asset" required maxlength="16" placeholder="BTC"
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Disposal date (YYYY-MM-DD)</label>
+    <input type="date" name="disposal_date" required
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Shares sold</label>
+    <input type="text" name="shares" required placeholder="0.05"
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Total received</label>
+    <input type="text" name="total" required placeholder="2000"
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Currency</label>
+    <select name="currency" style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+      <option value="USD">USD</option>
+      <option value="LKR">LKR</option>
+      <option value="GBP">GBP</option>
+      <option value="EUR">EUR</option>
+      <option value="AUD">AUD</option>
+    </select>
+
+    <button type="submit"
+            style="margin-top:1.2rem;padding:0.7rem 1.2rem;background:#b45309;color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer;">
+      Record sell (FIFO match)
+    </button>
+  </form>
+
+  <p style="margin-top:1.2rem;">
+    <a href="{{ url_for('fiesta_crypto.history') }}"
+       style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">← Back to history</a>
+  </p>
+</div>
+{% endblock %}

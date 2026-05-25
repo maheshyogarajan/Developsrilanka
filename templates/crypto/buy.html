@@ -1,0 +1,68 @@
+{% extends layout_template %}
+{% block title %}Log a crypto buy — FIESTA{% endblock %}
+{% block content %}
+<div class="crypto-page" style="max-width:720px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.7rem;margin:0 0 0.4rem;">Log a crypto buy</h1>
+  <p style="color:var(--color-ink-700,#4b525c);margin:0 0 1.4rem;">
+    Each buy opens a new acquisition lot. Sells will pair against the oldest open lot first (FIFO).
+    Acquisitions are not taxable — only sales realise a gain or loss.
+  </p>
+
+  {% if error %}
+    <div style="margin-bottom:1.2rem;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;border-radius:0 6px 6px 0;">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  {% if position %}
+    <div style="margin-bottom:1.4rem;padding:0.9rem 1.1rem;background:#dcfce7;border-left:3px solid #166534;border-radius:0 6px 6px 0;">
+      <strong>Recorded:</strong> {{ position.shares }} {{ position.asset_identifier }} on
+      {{ position.acquisition_date }}. Cost basis LKR {{ "{:,.2f}".format(position.acq_amount_lkr) }}
+      (LKR {{ "{:,.2f}".format(position.acq_amount_lkr_per_share) }}/share).
+    </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_crypto.buy_submit') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Asset (e.g. BTC, ETH)</label>
+    <input type="text" name="asset" required maxlength="16" placeholder="BTC"
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Acquisition date (YYYY-MM-DD)</label>
+    <input type="date" name="acquisition_date" required
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Shares (fractional OK)</label>
+    <input type="text" name="shares" required placeholder="0.05"
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Total spent</label>
+    <input type="text" name="total" required placeholder="1500"
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Currency</label>
+    <select name="currency" style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+      <option value="USD">USD</option>
+      <option value="LKR">LKR</option>
+      <option value="GBP">GBP</option>
+      <option value="EUR">EUR</option>
+      <option value="AUD">AUD</option>
+    </select>
+
+    <label style="display:block;font-weight:600;margin:0.8rem 0 0.3rem;">Source country (exchange jurisdiction — ISO-3166, optional)</label>
+    <input type="text" name="source_country" maxlength="2" placeholder="US"
+           style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;">
+
+    <button type="submit"
+            style="margin-top:1.2rem;padding:0.7rem 1.2rem;background:#0f766e;color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer;">
+      Record buy
+    </button>
+  </form>
+
+  <p style="margin-top:1.2rem;">
+    <a href="{{ url_for('fiesta_crypto.history') }}"
+       style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">← Back to history</a>
+  </p>
+</div>
+{% endblock %}

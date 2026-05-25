@@ -1,0 +1,136 @@
+{% extends layout_template %}
+{% block title %}Crypto / CGT — FIESTA{% endblock %}
+{% block content %}
+<div class="crypto-page" style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0 0 0.4rem;">Crypto holdings + capital gains</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Track your crypto positions. Acquisitions open a lot; sales pair against the oldest
+    open lot (FIFO) and produce a capital-gain row under SL IRA §36-§37 / §7(2)(b).
+    Only realised gains are taxable — unrealised holdings are not.
+  </p>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1.6rem;flex-wrap:wrap;">
+    <a href="{{ url_for('fiesta_crypto.import_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      Bulk-import CSV
+    </a>
+    <a href="{{ url_for('fiesta_crypto.buy_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:#0f766e;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      Log a buy
+    </a>
+    <a href="{{ url_for('fiesta_crypto.sell_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:#b45309;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      Log a sell
+    </a>
+    <a href="{{ url_for('fiesta_crypto.positions') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:#1f2937;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      View open positions
+    </a>
+  </div>
+
+  {% if summary %}
+  <div style="margin-bottom:1.8rem;padding:1rem 1.2rem;background:var(--color-accent-50,#f3efff);border-radius:8px;">
+    <h2 style="margin:0 0 0.6rem;font-size:1.15rem;">Current tax year — {{ summary.tax_year }}</h2>
+    <p style="margin:0.2rem 0;">Realised gain (gross): <strong>LKR {{ "{:,.2f}".format(summary.gross_gain_lkr) }}</strong></p>
+    <p style="margin:0.2rem 0;">Realised loss (gross): <strong>LKR {{ "{:,.2f}".format(summary.gross_loss_lkr) }}</strong></p>
+    <p style="margin:0.2rem 0;">Net before carry: <strong>LKR {{ "{:,.2f}".format(summary.net_gain_lkr_pre_carry) }}</strong></p>
+    {% if summary.loss_carry_forward_in > 0 %}
+      <p style="margin:0.2rem 0;color:#0f766e;">Loss carry-forward IN (from prior years): <strong>LKR {{ "{:,.2f}".format(summary.loss_carry_forward_in) }}</strong></p>
+    {% endif %}
+    <p style="margin:0.4rem 0 0;font-size:1.05rem;">
+      Net taxable gain (after offsets): <strong>LKR {{ "{:,.2f}".format(summary.net_gain_lkr_after_carry) }}</strong>
+    </p>
+    {% if summary.loss_carry_forward_out > 0 %}
+      <p style="margin:0.4rem 0 0;color:#b45309;font-size:0.95rem;">
+        Loss carry-forward OUT (to next year): LKR {{ "{:,.2f}".format(summary.loss_carry_forward_out) }}
+      </p>
+    {% endif %}
+    {% if summary.dtaa_deferred %}
+      <p style="margin:0.6rem 0 0;color:#b45309;font-size:0.9rem;">
+        DTAA treaty relief (capital-gains articles, e.g. US-SL Art 13) is coming
+        in a future update — your projection shows the gross SL liability before
+        any foreign tax credit.
+      </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# -------- Open positions -------- #}
+  <h2 style="font-size:1.2rem;margin:1.2rem 0 0.6rem;">Open positions</h2>
+  {% if not positions %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No positions yet. Import a CSV or log a buy above.
+    </p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Acquisition</th>
+          <th style="padding:0.5rem 0.6rem;">Asset</th>
+          <th style="padding:0.5rem 0.6rem;">Shares (open / total)</th>
+          <th style="padding:0.5rem 0.6rem;">Cost LKR/share</th>
+          <th style="padding:0.5rem 0.6rem;">Source</th>
+          <th style="padding:0.5rem 0.6rem;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in positions %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;">{{ p.acquisition_date }}</td>
+            <td style="padding:0.5rem 0.6rem;font-weight:600;">{{ p.asset_identifier }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ p.shares_remaining }} / {{ p.shares }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ "{:,.2f}".format(p.acq_amount_lkr_per_share) }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ p.source_country or '—' }}</td>
+            <td style="padding:0.5rem 0.6rem;">
+              {% if p.closed_at %}
+                <span style="color:#9ca3af;">closed</span>
+              {% else %}
+                <span style="color:#0f766e;">open</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {# -------- Disposals -------- #}
+  <h2 style="font-size:1.2rem;margin:1.8rem 0 0.6rem;">Disposals (realised gains / losses)</h2>
+  {% if not disposals %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No disposals logged for any tax year yet.
+    </p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Disposal</th>
+          <th style="padding:0.5rem 0.6rem;">Asset</th>
+          <th style="padding:0.5rem 0.6rem;">Acquired</th>
+          <th style="padding:0.5rem 0.6rem;">Cost LKR</th>
+          <th style="padding:0.5rem 0.6rem;">Proceeds LKR</th>
+          <th style="padding:0.5rem 0.6rem;">Gain / Loss LKR</th>
+          <th style="padding:0.5rem 0.6rem;">Tax year</th>
+          <th style="padding:0.5rem 0.6rem;">Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in disposals %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;">{{ d.disposal_date }}</td>
+            <td style="padding:0.5rem 0.6rem;font-weight:600;">{{ d.asset_identifier }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ d.acquisition_date }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ "{:,.2f}".format(d.acq_amount_lkr) }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ "{:,.2f}".format(d.disp_amount_lkr) }}</td>
+            <td style="padding:0.5rem 0.6rem;color:{% if d.gain_lkr >= 0 %}#0f766e{% else %}#b91c1c{% endif %};font-weight:600;">
+              {{ "{:,.2f}".format(d.gain_lkr) }}
+            </td>
+            <td style="padding:0.5rem 0.6rem;">{{ d.tax_year }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ d.source_country or '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

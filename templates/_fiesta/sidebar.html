@@ -80,6 +80,18 @@
         <span>RSU vesting + sales</span>
       </a>
       {% endif %}
+      {# B13 (MS3): Crypto / CGT — conditional on User.income_sources containing 'crypto'.
+         Same surfacing pattern as RSU; appears once user has imported any crypto
+         buy/sell or self-declared 'crypto' as an income source. #}
+      {% if current_user.is_authenticated
+            and current_user.income_sources is defined
+            and 'crypto' in (current_user.income_sources or []) %}
+      <a href="/income/crypto"
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_crypto', path_prefix='/income/crypto') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9826;</span>
+        <span>Crypto / CGT</span>
+      </a>
+      {% endif %}
     </div>
 
     {# ============ Deduct ============ #}

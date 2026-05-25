@@ -741,6 +741,14 @@ try:
 except Exception as e:
     logger.error(f'FIESTA MS2 E.1 B11 RSU load failed: {e}')
 
+# MS3 B13 — Crypto / CGT classifier (positions + disposals at /income/crypto/*)
+try:
+    from fiesta.crypto.routes import register_blueprint as register_crypto
+    register_crypto(app)
+    logger.info('FIESTA MS3 B13 Crypto/CGT classifier registered at /income/crypto')
+except Exception as e:
+    logger.error(f'FIESTA MS3 B13 Crypto/CGT load failed: {e}')
+
 # FIESTA Wave 6 — X4 Consultant booking (/consultant/book)
 try:
     from fiesta.consultant import register_routes as register_consultant
@@ -865,6 +873,27 @@ with app.app_context():
         logger.error(
             f"MS2 E.1 B10 NRR migration failed (non-fatal — ORM-level "
             f"columns still work via db.create_all on fresh DBs): {e}"
+        )
+
+    # MS3 B13 — Crypto / CGT classifier (M3-002).
+    # Creates crypto_positions table + indexes. AssetDisposal rows reuse
+    # the table from M2-001 with asset_type='crypto'. Idempotent +
+    # dialect-aware (Postgres prod, SQLite test).
+    try:
+        import importlib.util as _importlib_util
+        from pathlib import Path as _Path
+        _b13_spec_path = _Path(__file__).resolve().parent / "migrations" / "20260525_140200_f_b13_crypto.py"
+        _b13_spec = _importlib_util.spec_from_file_location(
+            "_b13_crypto_migration_loader", str(_b13_spec_path)
+        )
+        if _b13_spec is not None and _b13_spec.loader is not None:
+            _b13_mod = _importlib_util.module_from_spec(_b13_spec)
+            _b13_spec.loader.exec_module(_b13_mod)
+            _b13_mod.upgrade()
+    except Exception as e:
+        logger.error(
+            f"MS3 B13 Crypto/CGT migration failed (non-fatal — ORM-level "
+            f"columns/tables still work via db.create_all on fresh DBs): {e}"
         )
 
 # Function to start Celery worker in a background thread
