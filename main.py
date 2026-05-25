@@ -44,6 +44,17 @@ try:
 except Exception as e:
     logger.error(f"Error loading ab_test harness: {str(e)}")
 
+# MS2 E.0 / Design Lock 2 — register canonical tax models (incomes,
+# asset_disposals, parsed_bank_statements, rsu_vesting_events) with
+# SQLAlchemy metadata so db.create_all() creates them on a fresh DB.
+# The same tables are ALSO created via raw DDL in the migration
+# (migrations/20260525_130100_e_b8_schema.py) for prod (Postgres on Fly).
+try:
+    import fiesta.tax.models  # noqa: F401
+    logger.info("Canonical tax models loaded (incomes, asset_disposals, parsed_bank_statements, rsu_vesting_events)")
+except Exception as e:
+    logger.error(f"Error loading fiesta.tax.models: {str(e)}")
+
 # Import model event listeners (for auto-creating Personal Finances organization)
 try:
     import models_event_listener
@@ -792,6 +803,30 @@ with app.app_context():
         logger.error(
             f"Tier D6/A2 UTM events-index migration failed (non-fatal — "
             f"queries still work, just without the partial index): {e}"
+        )
+
+    # MS2 E.0 — B8 schema-first / Design Lock 2.
+    # Creates incomes, asset_disposals, parsed_bank_statements,
+    # rsu_vesting_events tables + adds user.residency_status +
+    # user.income_sources + remittance_entries.income_id +
+    # backfills one Income row per existing RemittanceEntry.
+    # Idempotent + dialect-aware (Postgres prod, SQLite test).
+    # NB: file name starts with a digit so we load it by path.
+    try:
+        import importlib.util as _importlib_util
+        from pathlib import Path as _Path
+        _b8_spec_path = _Path(__file__).resolve().parent / "migrations" / "20260525_130100_e_b8_schema.py"
+        _b8_spec = _importlib_util.spec_from_file_location(
+            "_b8_schema_migration_loader", str(_b8_spec_path)
+        )
+        if _b8_spec is not None and _b8_spec.loader is not None:
+            _b8_mod = _importlib_util.module_from_spec(_b8_spec)
+            _b8_spec.loader.exec_module(_b8_mod)
+            _b8_mod.upgrade()
+    except Exception as e:
+        logger.error(
+            f"MS2 E.0 B8 schema migration failed (non-fatal — ORM-level "
+            f"columns + tables still work via db.create_all on fresh DBs): {e}"
         )
 
 # Function to start Celery worker in a background thread
