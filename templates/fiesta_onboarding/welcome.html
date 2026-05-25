@@ -1,0 +1,141 @@
+{# templates/fiesta_onboarding/welcome.html — MS4 W3e G4 step 1.
+
+   Welcome / value-prop. Single "Get started" CTA that navigates to
+   /onboarding/income-sources (step 2 — the G3.6 picker).
+
+   Rendered inside the universal FIESTA shell (layout_template) so it
+   matches the rest of the post-signup chrome. Mirrors the visual
+   language of /fie/income-sources/page.html.
+#}
+{% extends layout_template %}
+
+{% block page_title %}Welcome · FIESTA{% endblock %}
+{% block title %}Welcome · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .fo-shell {
+    max-width: 720px; margin: 0 auto;
+    padding: 56px 20px 80px;
+    color: var(--ink, #1a1f17);
+    font-family: var(--body, 'Manrope', sans-serif);
+  }
+  .fo-eyebrow {
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 12px; letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-soft, #4a4f43);
+    margin: 0 0 12px;
+  }
+  .fo-h1 {
+    font-family: var(--display, 'Fraunces', serif);
+    font-weight: 600;
+    font-size: 38px; line-height: 1.1; letter-spacing: -0.5px;
+    color: var(--forest, #1F3A2E);
+    margin: 0 0 18px;
+  }
+  .fo-sub {
+    font-size: 17px; line-height: 1.55;
+    color: var(--ink-soft, #4a4f43);
+    margin: 0 0 28px;
+    max-width: 560px;
+  }
+  .fo-pillars {
+    display: grid; grid-template-columns: 1fr; gap: 14px;
+    margin: 28px 0 36px;
+    padding: 18px 22px;
+    background: var(--paper, #FAF6EE);
+    border: 1px solid var(--paper-edge, #E5DBC9);
+    border-radius: 12px;
+  }
+  @media (min-width: 700px) {
+    .fo-pillars { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  .fo-pillar { display: flex; gap: 10px; align-items: flex-start; }
+  .fo-pillar-icon {
+    width: 28px; height: 28px; flex-shrink: 0;
+    background: var(--forest, #1F3A2E); color: var(--paper-hi, #FAF6EE);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .fo-pillar-body { font-size: 13.5px; line-height: 1.45; }
+  .fo-pillar-body strong { display: block; margin-bottom: 2px; font-size: 14px; }
+  .fo-pillar-body span { color: var(--ink-soft, #4a4f43); }
+
+  .fo-cta-row {
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .fo-cta-primary {
+    background: var(--clay, #C84E2E); color: var(--paper-hi, #FAF6EE);
+    border: 0; border-radius: 8px;
+    padding: 14px 28px;
+    font-family: var(--body, 'Manrope', sans-serif);
+    font-weight: 600; font-size: 15px;
+    text-decoration: none; display: inline-block;
+    min-height: 48px; line-height: 20px;
+    cursor: pointer;
+  }
+  .fo-cta-primary:hover {
+    background: var(--clay-deep, #8e3f22); color: var(--paper-hi, #FAF6EE);
+  }
+  .fo-cta-secondary {
+    font-size: 13.5px;
+    color: var(--ink-soft, #4a4f43);
+    text-decoration: underline;
+  }
+  .fo-cta-secondary:hover { color: var(--ink, #1a1f17); }
+  .fo-time-est {
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 12px; color: var(--ink-soft, #4a4f43);
+    margin-top: 18px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fo-shell" data-fiesta-onboarding-step="welcome">
+  <p class="fo-eyebrow">Welcome to FIESTA</p>
+  <h1 class="fo-h1">Let&rsquo;s set you up.</h1>
+  <p class="fo-sub">
+    FIESTA is a Sri Lankan tax engine for real-life income mixes &mdash;
+    salary, fees, business, foreign remittance, RSU, crypto, rental,
+    investments. The next step is a 30-second income picker so we
+    surface the right modules and the right calculator for you.
+  </p>
+
+  <div class="fo-pillars">
+    <div class="fo-pillar">
+      <div class="fo-pillar-icon">1</div>
+      <div class="fo-pillar-body">
+        <strong>Pick your income</strong>
+        <span>Tick anything that applies. You can change this any time.</span>
+      </div>
+    </div>
+    <div class="fo-pillar">
+      <div class="fo-pillar-icon">2</div>
+      <div class="fo-pillar-body">
+        <strong>Right modules light up</strong>
+        <span>Sidebar adapts. No foreign-income UI for a local-only earner.</span>
+      </div>
+    </div>
+    <div class="fo-pillar">
+      <div class="fo-pillar-icon">3</div>
+      <div class="fo-pillar-body">
+        <strong>You see your first action</strong>
+        <span>One concrete next step &mdash; not a tutorial maze.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="fo-cta-row">
+    <a href="{{ url_for('fiesta_onboarding.income_sources_step') }}"
+       class="fo-cta-primary"
+       data-fiesta-onboarding-cta="get-started">Get started &rarr;</a>
+    <a href="/" class="fo-cta-secondary"
+       data-fiesta-onboarding-cta="skip-welcome">Skip for now</a>
+  </div>
+  <p class="fo-time-est">Takes about 30 seconds.</p>
+</div>
+{% endblock %}

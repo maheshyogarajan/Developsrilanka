@@ -1,0 +1,108 @@
+{# templates/fiesta_onboarding/income_sources.html — MS4 W3e G4 step 2.
+
+   Full-page render of the reusable G3.6 picker partial. The picker JS
+   handles the AJAX save to /api/fiesta/income-sources on Save click.
+   When the user clicks "Continue", we navigate to /onboarding/confirm
+   via a plain link — the picker's prior Save already persisted.
+
+   No duplication of picker markup or styles — we include the canonical
+   partial. The Continue CTA below is the only onboarding-specific UI
+   on this page.
+#}
+{% extends layout_template %}
+
+{% block page_title %}Tell us about your income · FIESTA{% endblock %}
+{% block title %}Tell us about your income · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .fo-progress {
+    max-width: 760px; margin: 24px auto 0;
+    padding: 0 20px;
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-soft, #4a4f43);
+  }
+  .fo-progress .step {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    border: 1px solid var(--paper-edge, #E5DBC9);
+    border-radius: 999px;
+    background: var(--paper, #FAF6EE);
+  }
+  .fo-progress .step.is-done {
+    color: var(--forest, #1F3A2E);
+    border-color: var(--forest, #1F3A2E);
+  }
+  .fo-progress .step.is-current {
+    background: var(--forest, #1F3A2E);
+    color: var(--paper-hi, #FAF6EE);
+    border-color: var(--forest, #1F3A2E);
+  }
+  .fo-progress .sep { color: var(--paper-edge, #E5DBC9); }
+
+  .fo-onboarding-actions {
+    max-width: 760px; margin: 24px auto 60px;
+    padding: 0 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .fo-continue {
+    background: var(--clay, #C84E2E); color: var(--paper-hi, #FAF6EE);
+    border: 0; border-radius: 8px;
+    padding: 12px 24px;
+    font-family: var(--body, 'Manrope', sans-serif);
+    font-weight: 600; font-size: 14.5px;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .fo-continue:hover {
+    background: var(--clay-deep, #8e3f22); color: var(--paper-hi, #FAF6EE);
+  }
+  .fo-back {
+    font-size: 13.5px; color: var(--ink-soft, #4a4f43);
+    text-decoration: underline;
+  }
+  .fo-onboarding-hint {
+    max-width: 760px; margin: -10px auto 12px;
+    padding: 0 20px;
+    font-size: 12.5px; color: var(--ink-soft, #4a4f43);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fo-progress" aria-label="Onboarding progress">
+  <span class="step is-done">1 &middot; Welcome</span>
+  <span class="sep">&rsaquo;</span>
+  <span class="step is-current">2 &middot; Income</span>
+  <span class="sep">&rsaquo;</span>
+  <span class="step">3 &middot; Confirm</span>
+</div>
+
+{# Render the canonical G3.6 picker — DO NOT duplicate. The picker
+   partial owns its own form, save button, styles, and JS hook. #}
+{% set picker_standalone = True %}
+{% set picker_modal_id = 'fiestaOnboardingPicker' %}
+{# Hide the partial's built-in skip link — onboarding uses its own
+   Continue + Back row below. #}
+{% set picker_show_skip = False %}
+{% include '_fiesta/income_source_picker.html' %}
+
+<p class="fo-onboarding-hint">
+  Tip: hit <strong>Save</strong> first, then click Continue to see which
+  modules just lit up for you.
+</p>
+
+<div class="fo-onboarding-actions" data-fiesta-onboarding-step="income-sources">
+  <a href="{{ url_for('fiesta_onboarding.welcome') }}" class="fo-back"
+     data-fiesta-onboarding-cta="back">&larr; Back</a>
+  <a href="{{ url_for('fiesta_onboarding.confirm_step') }}"
+     class="fo-continue"
+     data-fiesta-onboarding-cta="continue">Continue &rarr;</a>
+</div>
+
+<script src="{{ url_for('static', filename='js/fiesta_income_picker.js') }}" defer></script>
+{% endblock %}
