@@ -47,13 +47,13 @@
   {% set _home_label = 'Back to your dashboard' %}
 {% endif %}
 
-{# Help/search entry point. consultant.book_landing is the only shipped
-   help surface; if the blueprint is somehow not registered, fall back to
-   a mailto so the page always renders something useful. #}
-{% set _help_href = '' %}
-{% if 'consultant.book_landing' in current_app.view_functions %}
-  {% set _help_href = url_for('consultant.book_landing') %}
-{% endif %}
+{# Help/search entry point. The handler in app.py resolves this and passes
+   error_help_href + error_help_label (consultant.book_landing when the
+   blueprint is registered, mailto fallback otherwise). Keeping the lookup
+   in Python rather than Jinja avoids depending on `current_app` or other
+   context globals that may be undefined during paranoid 500 renders. #}
+{% set _help_href = error_help_href if error_help_href is defined and error_help_href else '' %}
+{% set _help_label = error_help_label if error_help_label is defined and error_help_label else 'Email tax@lanka.tax' %}
 
 <div class="container mt-5">
   <div class="row justify-content-center">
@@ -74,15 +74,14 @@
             {% block error_actions %}{% endblock %}
           </div>
 
-          {% if _help_href %}
           <p class="small mb-0">
-            Need a human? <a href="{{ _help_href }}" data-fiesta-help-link>Talk to a consultant</a>.
+            Need a human?
+            {% if _help_href %}
+              <a href="{{ _help_href }}" data-fiesta-help-link>{{ _help_label }}</a>.
+            {% else %}
+              <a href="mailto:tax@lanka.tax" data-fiesta-help-link>Email tax@lanka.tax</a>.
+            {% endif %}
           </p>
-          {% else %}
-          <p class="small mb-0">
-            Need a human? <a href="mailto:tax@lanka.tax" data-fiesta-help-link>Email tax@lanka.tax</a>.
-          </p>
-          {% endif %}
         </div>
       </div>
     </div>
