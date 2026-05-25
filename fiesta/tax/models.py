@@ -319,11 +319,111 @@ class RSUVestingEvent(db.Model):
         )
 
 
+# ---------------------------------------------------------------------------
+# CryptoPosition — open crypto holdings ledger (B13, MS3)
+# ---------------------------------------------------------------------------
+class CryptoPosition(db.Model):
+    """Open crypto position (acquisition lot) tracked for FIFO cost-basis matching.
+
+    Design Lock 2 §8 forbids a parallel ``CryptoDisposal`` table — disposals
+    are recorded as ``AssetDisposal(asset_type='crypto', ...)`` rows. This
+    model fills the OTHER side of the ledger: an acquisition that has not yet
+    been fully disposed.
+
+    Lifecycle:
+      1. ``record_crypto_acquisition(...)`` INSERTs one row with
+         shares=total acquired, shares_remaining=shares.
+      2. ``record_crypto_disposal(...)`` runs the FIFO matcher: oldest open
+         position for the asset is consumed first; shares_remaining is
+         decremented; once it reaches zero the position is "closed" (kept on
+         row for audit, with closed_at set).
+      3. ``compute_crypto_cgt(...)`` reads AssetDisposal rows for the tax year
+         — open positions are NOT taxed (no realisation event).
+
+    FIFO is the default per spec; LIFO + specific-identification deferred to
+    a future iteration (see TODO at top of fiesta/tax/crypto_cgt.py).
+
+    Provenance: Inventory §B13 + Design Lock 2 §5/§8 (Council 2026-05-25).
+    """
+
+    __tablename__ = "crypto_positions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Asset identifier (e.g. "BTC" / "ETH" / "SOL" / "USDC").
+    # Locked vocabulary lives at the crypto_cgt engine, not here — symbol
+    # strings are user-supplied and stored as-is (uppercased + trimmed to 16
+    # chars). Matching for FIFO is by exact-string equality on this column.
+    asset_identifier = db.Column(db.String(16), nullable=False, index=True)
+
+    acquisition_date = db.Column(db.Date, nullable=False)
+
+    # Total shares acquired (immutable after insert; track consumption via
+    # shares_remaining). Fractional shares supported.
+    shares = db.Column(db.Numeric(28, 12), nullable=False)
+    shares_remaining = db.Column(db.Numeric(28, 12), nullable=False)
+
+    # Acquisition Money (flat columns, mirror Money value object).
+    acq_amount = db.Column(db.Numeric(20, 4), nullable=False)
+    acq_currency = db.Column(db.String(3), nullable=False, default="LKR")
+    acq_fx_rate = db.Column(db.Numeric(20, 8), nullable=False, default=Decimal("1.0"))
+    acq_fx_source = db.Column(db.String(32), nullable=False, default="lkr_native")
+    acq_fx_date = db.Column(db.Date, nullable=False)
+    acq_amount_lkr = db.Column(db.Numeric(20, 2), nullable=False)
+
+    # Per-share LKR cost basis — denormalised for fast FIFO matching.
+    # Equal to (acq_amount_lkr / shares), quantised to 8 dp (sub-cent
+    # precision needed because crypto shares are often fractional and a
+    # cent-quantised per-share basis loses material precision on small lots).
+    acq_amount_lkr_per_share = db.Column(db.Numeric(28, 8), nullable=False)
+
+    # DTAA source attribution (e.g. 'US' for a Coinbase / Kraken lot).
+    source_country = db.Column(db.String(2), nullable=True)
+
+    evidence_refs = db.Column(db.JSON, nullable=False, default=list)
+
+    # Set when shares_remaining reaches 0 (fully disposed). NULL means open.
+    closed_at = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        db.Index(
+            "ix_crypto_positions_user_asset_date",
+            "user_id", "asset_identifier", "acquisition_date",
+        ),
+        db.Index(
+            "ix_crypto_positions_user_asset_open",
+            "user_id", "asset_identifier", "closed_at",
+        ),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return (
+            f"<CryptoPosition id={self.id} user_id={self.user_id} "
+            f"asset={self.asset_identifier!r} shares={self.shares} "
+            f"remaining={self.shares_remaining}>"
+        )
+
+
 __all__ = [
     "Income",
     "AssetDisposal",
     "ParsedBankStatement",
     "RSUVestingEvent",
+    "CryptoPosition",
     "INCOME_SOURCE_TYPES",
     "ASSET_DISPOSAL_TYPES",
     "BANK_PARSE_STATUSES",
