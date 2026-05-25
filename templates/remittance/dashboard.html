@@ -1,27 +1,42 @@
-{% extends layout_template %}
+{# F-Platform-1 (MS1 Stage B, 2026-05-25) canary migration.
 
-{% block title %}Foreign Income Remittances - FIESTA{% endblock %}
+   Previously this template extended `layout_template` (the per-request
+   variable that resolved to layout_fiesta.html for sl_foreign_income
+   users and layout.html for legacy). Per Design Lock 1 we now extend
+   layout_fiesta.html directly so this surface is the F-Platform-4
+   canary that proves the new shell renders end-to-end. F-Platform-4
+   will migrate the rest of the FIESTA pages following this pattern.
+
+   Bootstrap utility classes (.container, .row, .col, .btn, .table) are
+   retained because the dashboard ships with the legacy Bootstrap CSS
+   loaded by the surrounding stack; layout_fiesta.html does NOT auto-load
+   Bootstrap, so the page-level look will be Tailwind-free. Restyling
+   is a follow-up; the canary's goal is shell wiring, not visual rebuild.
+#}
+{% extends "layout_fiesta.html" %}
+
+{% block page_title %}Remittance Ledger{% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="row mb-5 align-items-center">
-    <div class="col">
-      <span class="eyebrow">Foreign Income · Sri Lanka</span>
-      <h1 class="h2 mb-2">Remittance Ledger</h1>
-      <p class="text-secondary mb-0">
+<div class="fiesta-page fiesta-page-remittance">
+  <header class="fiesta-page-hero">
+    <div>
+      <span class="fiesta-eyebrow">Foreign Income &middot; Sri Lanka</span>
+      <h1>Remittance Ledger</h1>
+      <p>
         Track every inward remittance to your SL bank, at CBSL middle rate, with the
         evidence IRD asks for. Year of Assessment {{ tax_year }}.
       </p>
     </div>
-    <div class="col-auto">
-      <a href="{{ url_for('remittance.import_upload') }}" class="btn btn-outline-primary me-2">
+    <div class="fiesta-page-hero-actions">
+      <a href="{{ url_for('remittance.import_upload') }}" class="btn btn-outline-primary">
         Import from bank statement
       </a>
       <a href="{{ url_for('remittance.new') }}" class="btn btn-primary">
         Add inward remittance
       </a>
     </div>
-  </div>
+  </header>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -158,4 +173,21 @@
     </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts_extra %}
+{# After a successful /remittance/new POST upstream, fire the contract
+   event so the topbar counter refreshes without a hard reload. The new
+   handler dispatches client-side; this is the canary wiring pattern
+   F-Platform-4 + Wave 7 follow. #}
+<script>
+  (function () {
+    // Idempotent: only fire once per page render.
+    if (window.__fiestaRemittanceFiredOnce) return;
+    window.__fiestaRemittanceFiredOnce = true;
+    // No-op on the dashboard itself — the dispatcher lives on the
+    // /remittance/new success path, not here. This block is a hook
+    // F-Platform-4 may extend later for hub-prefill integration.
+  })();
+</script>
 {% endblock %}

@@ -1,0 +1,512 @@
+/* ============================================================================
+   FIESTA shell — F-Platform-1 (X9 MS1 Stage B).
+
+   ONE CSS file (Design Lock 1 constraint). Defines:
+     - palette tokens (cream / clay / forest / spanish red / muted) — LOCKED
+     - typography (Fraunces / Manrope / JetBrains Mono) — LOCKED
+     - .fiesta-shell + .fiesta-layout + .fiesta-main grid — LOCKED
+     - topbar / sidebar / footer / counter / user-menu styles
+     - flash + alert styling
+     - mobile breakpoint (<= 768px) collapses sidebar to hamburger drawer
+
+   Block names + element ids referenced from layout_fiesta.html and
+   _fiesta/*.html include partials are contract-locked. CSS class names
+   are NOT contract-locked (consumers should use Jinja blocks, not
+   re-style this shell), but renaming them would be unnecessary churn.
+
+   Authored 2026-05-25.
+   ============================================================================ */
+
+/* ---------- 0. Tokens (BINDING per Design Lock 1) ---------- */
+:root {
+  /* Palette — exact hex values from _shell_contract.md */
+  --fiesta-cream:       #FAF6EE;
+  --fiesta-clay:        #C84E2E;
+  --fiesta-clay-deep:   #A6391E;
+  --fiesta-forest:      #1F3A2E;
+  --fiesta-forest-deep: #132619;
+  --fiesta-spanish-red: #C8102E;
+  --fiesta-muted:       #E5DBC9;
+
+  /* Tinted surfaces derived from cream */
+  --fiesta-paper:       #FAF6EE;
+  --fiesta-paper-hi:    #FFFEF9;
+  --fiesta-paper-deep:  #F1EADA;
+
+  /* Text scale */
+  --fiesta-ink:         #1F3A2E;
+  --fiesta-ink-soft:    #3D5749;
+  --fiesta-ink-muted:   #6A7B71;
+  --fiesta-ink-faint:   #9AA7A0;
+
+  /* Status accents */
+  --fiesta-success:     #5C8B5A;
+  --fiesta-warning:     #C58A2E;
+  --fiesta-danger:      #C8102E;
+  --fiesta-info:        #4E7B7E;
+
+  /* Typography — LOCKED */
+  --fiesta-serif:       "Fraunces", Georgia, serif;
+  --fiesta-sans:        "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --fiesta-mono:        "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Layout dimensions */
+  --fiesta-sidebar-w:   240px;
+  --fiesta-topbar-h:    64px;
+  --fiesta-content-max: 920px;
+
+  /* Shadow tokens */
+  --fiesta-shadow-soft: 0 1px 2px rgba(31,58,46,0.06);
+  --fiesta-shadow-lift: 0 8px 24px rgba(31,58,46,0.10);
+}
+
+/* ---------- 1. Reset + base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body.fiesta-shell {
+  background: var(--fiesta-cream);
+  color: var(--fiesta-ink);
+  font-family: var(--fiesta-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.fiesta-shell h1,
+.fiesta-shell h2 {
+  font-family: var(--fiesta-serif);
+  font-weight: 500;
+  color: var(--fiesta-forest);
+  letter-spacing: -0.3px;
+  line-height: 1.18;
+  margin: 0 0 0.5em 0;
+}
+.fiesta-shell h1 { font-size: 2.0rem; }
+.fiesta-shell h2 { font-size: 1.45rem; }
+.fiesta-shell h3,
+.fiesta-shell h4 {
+  font-family: var(--fiesta-sans);
+  font-weight: 600;
+  color: var(--fiesta-forest);
+  margin: 0 0 0.5em 0;
+}
+.fiesta-shell h3 { font-size: 1.18rem; }
+.fiesta-shell h4 { font-size: 1.05rem; }
+
+.fiesta-shell a {
+  color: var(--fiesta-clay);
+  text-decoration: none;
+}
+.fiesta-shell a:hover { color: var(--fiesta-clay-deep); }
+
+.fiesta-shell em {
+  font-style: italic;
+  color: var(--fiesta-clay);
+}
+
+.fiesta-shell .fiesta-numeric,
+.fiesta-shell .fiesta-mono {
+  font-family: var(--fiesta-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.fiesta-eyebrow {
+  font-family: var(--fiesta-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--fiesta-ink-muted);
+  margin: 0;
+  display: inline-block;
+}
+
+/* ---------- 2. Shell grid layout (BINDING) ---------- */
+.fiesta-layout {
+  display: grid;
+  grid-template-columns: var(--fiesta-sidebar-w) 1fr;
+  min-height: calc(100vh - var(--fiesta-topbar-h));
+  padding-top: var(--fiesta-topbar-h);
+}
+
+.fiesta-main {
+  flex: 1;
+  padding: 32px 32px 64px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.fiesta-main > * {
+  max-width: var(--fiesta-content-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ---------- 3. Topbar ---------- */
+.fiesta-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--fiesta-topbar-h);
+  background: var(--fiesta-paper-hi);
+  border-bottom: 1px solid var(--fiesta-muted);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 22px;
+}
+
+.fiesta-topbar-toggle {
+  display: none;
+  background: transparent;
+  border: 0;
+  color: var(--fiesta-forest);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.fiesta-wordmark {
+  font-family: var(--fiesta-serif);
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--fiesta-forest);
+  letter-spacing: -0.4px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.fiesta-wordmark em {
+  font-style: italic;
+  color: var(--fiesta-clay);
+  font-weight: 500;
+}
+
+.fiesta-admin-badge {
+  font-family: var(--fiesta-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  background: var(--fiesta-spanish-red);
+  color: var(--fiesta-paper-hi);
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.fiesta-topbar-year {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.fiesta-topbar-year label {
+  margin: 0;
+}
+.fiesta-topbar-year select {
+  font-family: var(--fiesta-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fiesta-forest);
+  background: transparent;
+  border: 1px solid var(--fiesta-muted);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.fiesta-topbar-year select:focus {
+  outline: none;
+  border-color: var(--fiesta-clay);
+}
+
+.fiesta-counter {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--fiesta-forest);
+  color: var(--fiesta-paper-hi);
+  padding: 8px 16px;
+  border-radius: 999px;
+  box-shadow: var(--fiesta-shadow-soft);
+}
+.fiesta-counter-lead {
+  font-family: var(--fiesta-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--fiesta-cream);
+  line-height: 1;
+}
+#fiesta-savings-counter {
+  font-family: var(--fiesta-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fiesta-cream);
+  letter-spacing: -0.3px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.fiesta-counter-ya {
+  font-family: var(--fiesta-mono);
+  font-size: 10.5px;
+  color: var(--fiesta-cream);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.fiesta-user {
+  position: relative;
+}
+.fiesta-user-btn {
+  background: transparent;
+  border: 1px solid var(--fiesta-muted);
+  border-radius: 999px;
+  padding: 6px 14px 6px 6px;
+  font-family: var(--fiesta-sans);
+  font-size: 13px;
+  color: var(--fiesta-ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.fiesta-user-btn:hover {
+  border-color: var(--fiesta-clay);
+  background: var(--fiesta-paper);
+}
+.fiesta-user-av {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--fiesta-clay);
+  color: var(--fiesta-paper-hi);
+  font-family: var(--fiesta-sans);
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fiesta-user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: var(--fiesta-paper-hi);
+  border: 1px solid var(--fiesta-muted);
+  border-radius: 10px;
+  box-shadow: var(--fiesta-shadow-lift);
+  padding: 8px;
+  display: none;
+  z-index: 250;
+}
+.fiesta-user.open .fiesta-user-menu { display: block; }
+.fiesta-user-menu a {
+  display: block;
+  padding: 8px 12px;
+  font-family: var(--fiesta-sans);
+  font-size: 13.5px;
+  color: var(--fiesta-ink-soft);
+  text-decoration: none;
+  border-radius: 6px;
+}
+.fiesta-user-menu a:hover {
+  background: var(--fiesta-paper);
+  color: var(--fiesta-forest);
+}
+.fiesta-user-menu-danger { color: var(--fiesta-clay-deep) !important; }
+.fiesta-user-menu-danger:hover { background: rgba(200,78,46,0.08) !important; }
+
+/* ---------- 4. Sidebar ---------- */
+.fiesta-sidebar {
+  position: fixed;
+  top: var(--fiesta-topbar-h);
+  left: 0;
+  width: var(--fiesta-sidebar-w);
+  height: calc(100vh - var(--fiesta-topbar-h));
+  background: var(--fiesta-paper-hi);
+  border-right: 1px solid var(--fiesta-muted);
+  overflow-y: auto;
+  padding: 24px 16px 32px;
+  z-index: 100;
+}
+
+.fiesta-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.fiesta-nav-group { margin-bottom: 18px; }
+
+.fiesta-nav-label {
+  font-family: var(--fiesta-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--fiesta-ink-faint);
+  padding: 0 10px 6px;
+}
+
+.fiesta-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-family: var(--fiesta-sans);
+  font-size: 14px;
+  color: var(--fiesta-ink-soft);
+  text-decoration: none;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+  margin-left: -10px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.fiesta-nav-link:hover {
+  background: var(--fiesta-paper);
+  color: var(--fiesta-forest);
+}
+.fiesta-nav-active {
+  background: var(--fiesta-paper-deep);
+  color: var(--fiesta-forest);
+  border-left-color: var(--fiesta-clay);
+  font-weight: 600;
+}
+.fiesta-nav-ico {
+  width: 18px;
+  text-align: center;
+  color: var(--fiesta-ink-faint);
+  font-size: 14px;
+}
+.fiesta-nav-active .fiesta-nav-ico { color: var(--fiesta-clay); }
+.fiesta-nav-primary {
+  background: var(--fiesta-forest);
+  color: var(--fiesta-paper-hi);
+  border-left-color: var(--fiesta-clay);
+}
+.fiesta-nav-primary:hover {
+  background: var(--fiesta-forest-deep);
+  color: var(--fiesta-paper-hi);
+}
+.fiesta-nav-primary .fiesta-nav-ico { color: var(--fiesta-cream); }
+.fiesta-nav-signout { color: var(--fiesta-clay-deep); }
+.fiesta-nav-signout:hover {
+  background: rgba(200,78,46,0.08);
+  color: var(--fiesta-clay-deep);
+}
+.fiesta-nav-divider {
+  height: 1px;
+  background: var(--fiesta-muted);
+  margin: 14px 4px;
+}
+
+/* ---------- 5. Flashes / alerts ---------- */
+.fiesta-flashes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 auto 18px;
+}
+
+.fiesta-alert {
+  font-family: var(--fiesta-sans);
+  font-size: 14px;
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: var(--fiesta-paper-hi);
+  border: 1px solid var(--fiesta-muted);
+  color: var(--fiesta-ink-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fiesta-alert-success { border-left: 3px solid var(--fiesta-success); }
+.fiesta-alert-warning { border-left: 3px solid var(--fiesta-warning); }
+.fiesta-alert-danger  { border-left: 3px solid var(--fiesta-danger); }
+.fiesta-alert-info    { border-left: 3px solid var(--fiesta-info); }
+.fiesta-alert-error   { border-left: 3px solid var(--fiesta-danger); }
+.fiesta-alert-close {
+  background: transparent;
+  border: 0;
+  color: var(--fiesta-ink-faint);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ---------- 6. Footer ---------- */
+.fiesta-footer {
+  margin-left: var(--fiesta-sidebar-w);
+  padding: 16px 32px 24px;
+  border-top: 1px solid var(--fiesta-muted);
+  background: var(--fiesta-paper-hi);
+}
+.fiesta-footer-inner {
+  max-width: var(--fiesta-content-max);
+  margin: 0 auto;
+  font-family: var(--fiesta-mono);
+  font-size: 11.5px;
+  color: var(--fiesta-ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fiesta-footer a {
+  color: var(--fiesta-ink-muted);
+  text-decoration: none;
+}
+.fiesta-footer a:hover { color: var(--fiesta-clay); }
+.fiesta-footer-sep { color: var(--fiesta-ink-faint); }
+
+/* ---------- 7. Mobile (<= 768px) ---------- */
+@media (max-width: 768px) {
+  .fiesta-topbar-toggle { display: inline-flex; }
+  .fiesta-wordmark { font-size: 19px; }
+  .fiesta-topbar-year { display: none; }
+  .fiesta-counter-lead { display: none; }
+  .fiesta-counter-ya { display: none; }
+  .fiesta-counter { padding: 6px 12px; gap: 6px; }
+  .fiesta-user-name { display: none; }
+
+  .fiesta-layout {
+    grid-template-columns: 1fr;
+  }
+  .fiesta-sidebar {
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(0.4,0,0.2,1);
+    width: 84%;
+    max-width: 320px;
+    box-shadow: var(--fiesta-shadow-lift);
+  }
+  body.fiesta-shell.fiesta-sidebar-open .fiesta-sidebar {
+    transform: translateX(0);
+  }
+  body.fiesta-shell.fiesta-sidebar-open::after {
+    content: "";
+    position: fixed;
+    inset: var(--fiesta-topbar-h) 0 0 0;
+    background: rgba(20,35,24,0.36);
+    z-index: 50;
+  }
+  .fiesta-main {
+    padding: 24px 18px 48px;
+  }
+  .fiesta-footer {
+    margin-left: 0;
+    padding: 16px 20px 24px;
+  }
+}
+
+@media (max-width: 375px) {
+  .fiesta-topbar { gap: 12px; padding: 0 12px; }
+  .fiesta-wordmark { font-size: 17px; }
+  .fiesta-counter { padding: 4px 10px; }
+  #fiesta-savings-counter { font-size: 14px; }
+  .fiesta-main { padding: 18px 14px 36px; }
+}

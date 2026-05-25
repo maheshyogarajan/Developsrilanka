@@ -1,557 +1,62 @@
+{# F-Platform-1 (X9, MS1 Stage B): Unified FIESTA shell.
+
+   BINDING shell for every authenticated sl_foreign_income surface, per
+   `_shell_contract.md` (Design Lock 1, 2026-05-25).
+
+   Block names, child includes (_fiesta/topbar.html, _fiesta/sidebar.html,
+   _fiesta/footer.html), CSS class names (.fiesta-shell, .fiesta-layout,
+   .fiesta-main), the savings-counter element id (#fiesta-savings-counter),
+   and the JS event names (fiesta:*) consumed by static/js/fiesta.js are
+   LOCKED. F-Platform-2/4/5/6 + the admin consolidator (C4) extend this
+   shell by overriding blocks or swapping included partials — they MUST
+   NOT rename a block, replace a top-level include path, or change the
+   /api/fiesta/savings-projection contract.
+
+   Migration pattern for consumer pages: extend this template, override
+   `page_title` and `content`. Admin pages use layout_fiesta_admin.html
+   which only swaps the topbar + sidebar blocks.
+#}
 <!DOCTYPE html>
 <html lang="en">
-{% block head %}
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    {# Tier D6 A4 (2026-05-24): centralised SEO surface (mirror of layout.html). #}
-    <title>{% block title %}{{ seo_title if seo_title else 'FIESTA — Foreign Income Earner Saving & Tax Advisor' }}{% endblock %}</title>
-    <meta name="description" content="{{ seo_description if seo_description else 'FIESTA — Cut your tax bill. Keep the records clean.' }}">
-    {% if seo_keywords %}<meta name="keywords" content="{{ seo_keywords | join(', ') }}">{% endif %}
-    {% if seo_canonical %}<link rel="canonical" href="{{ seo_canonical }}">{% endif %}
-    <meta property="og:title" content="{{ seo_title if seo_title else self.title() }}">
-    <meta property="og:description" content="{{ seo_description if seo_description else 'FIESTA — Cut your tax bill. Keep the records clean.' }}">
-    <meta property="og:type" content="{{ seo_og_type if seo_og_type else 'website' }}">
-    {% if seo_canonical %}<meta property="og:url" content="{{ seo_canonical }}">{% endif %}
-    <meta property="og:site_name" content="FIESTA">
-    {% if seo_og_image %}<meta property="og:image" content="{{ seo_og_image }}">{% endif %}
-    <meta name="twitter:card" content="{{ 'summary_large_image' if seo_og_image else 'summary' }}">
-    <meta name="twitter:title" content="{{ seo_title if seo_title else self.title() }}">
-    <meta name="twitter:description" content="{{ seo_description if seo_description else 'FIESTA — Cut your tax bill. Keep the records clean.' }}">
-    {% if seo_og_image %}<meta name="twitter:image" content="{{ seo_og_image }}">{% endif %}
-    <meta name="application-name" content="FIESTA">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-    <link rel="alternate icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
-    {% block seo_jsonld %}
-    {% if seo_schemas %}
-      {% from "_seo_macros.html" import jsonld_block %}
-      {% for s in seo_schemas %}{{ jsonld_block(s) }}{% endfor %}
-    {% endif %}
-    {% endblock %}
-
-    {# Editorial-fintech typography: Fraunces display serif + Manrope body sans + JetBrains Mono for numerics. #}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..700,30..100;1,9..144,400..700,30..100&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    {# Existing FIESTA tokens (cream/ink/brand/copper) — same as layout.html so component CSS stays compatible. #}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-tokens.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-components.css') }}">
-    {# E5: Consolidated scoped design-token definitions for all FIESTA scopes. #}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-hub-design.css') }}">
-
-    {% block additional_styles %}{% endblock %}
-
-    <style>
-      /*
-       * FIESTA Hub Shell — F-Platform-1 (X9).
-       *
-       * Scoped under `.fiesta-hub` so it cannot leak into the legacy bookkeeping layout.
-       * The paper/forest/clay/sage/mustard palette is the same conceptual language as
-       * the X8a S0 landing — authenticated users feel like they walked into the same
-       * house they saw from the curb.
-       */
-      /* Token variables consolidated in fiesta-hub-design.css (E5). */
-      .fiesta-hub {
-        background: var(--paper);
-        color: var(--ink);
-        font-family: var(--body);
-        font-size: 15px;
-        line-height: 1.55;
-        min-height: 100vh;
-      }
-      .fiesta-hub * { box-sizing: border-box; }
-
-      /* ---------- TOPBAR ---------- */
-      .fiesta-hub .topbar {
-        position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
-        background: var(--paper-hi);
-        border-bottom: 1px solid var(--paper-edge);
-        z-index: 200;
-        display: flex; align-items: center;
-        padding: 0 20px 0 20px;
-        gap: 22px;
-      }
-      .fiesta-hub .topbar-wordmark {
-        font-family: var(--display); font-weight: 600; font-size: 22px;
-        color: var(--forest); letter-spacing: -0.4px;
-        text-decoration: none;
-        display: inline-flex; align-items: baseline; gap: 8px;
-      }
-      .fiesta-hub .topbar-wordmark em {
-        font-style: italic; color: var(--clay); font-weight: 600;
-      }
-      .fiesta-hub .topbar-divider {
-        width: 1px; height: 28px; background: var(--paper-edge);
-      }
-      .fiesta-hub .topbar-year {
-        display: inline-flex; align-items: center; gap: 8px;
-      }
-      .fiesta-hub .topbar-year label {
-        font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.5px;
-        text-transform: uppercase; color: var(--ink-muted); margin: 0;
-      }
-      .fiesta-hub .topbar-year select {
-        font-family: var(--mono); font-size: 13px; font-weight: 500;
-        color: var(--forest);
-        background: transparent;
-        border: 1px solid var(--paper-edge); border-radius: 6px;
-        padding: 4px 8px; cursor: pointer;
-      }
-      .fiesta-hub .topbar-year select:focus {
-        outline: none; border-color: var(--clay);
-      }
-      .fiesta-hub .counter-pill {
-        margin-left: auto;
-        display: inline-flex; align-items: center; gap: 12px;
-        background: var(--forest); color: var(--paper-hi);
-        padding: 8px 16px; border-radius: 999px;
-        box-shadow: var(--shadow-soft);
-      }
-      .fiesta-hub .counter-pill .lead {
-        font-family: var(--display); font-style: italic; font-size: 13px;
-        color: var(--sage); line-height: 1;
-      }
-      .fiesta-hub .counter-pill .amt {
-        font-family: var(--mono); font-size: 17px; font-weight: 600;
-        color: var(--mustard); letter-spacing: -0.4px; line-height: 1;
-      }
-      .fiesta-hub .counter-pill .yr {
-        font-family: var(--mono); font-size: 10.5px;
-        color: var(--sage); letter-spacing: 1px; text-transform: uppercase;
-      }
-      .fiesta-hub .topbar-user {
-        position: relative;
-      }
-      .fiesta-hub .topbar-user-btn {
-        background: transparent; border: 1px solid var(--paper-edge);
-        border-radius: 999px; padding: 6px 14px 6px 10px;
-        font-family: var(--body); font-size: 13px; color: var(--ink-soft);
-        cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-        transition: border-color 0.15s, background 0.15s;
-      }
-      .fiesta-hub .topbar-user-btn:hover { border-color: var(--clay); background: var(--paper); }
-      .fiesta-hub .topbar-user-btn .av {
-        width: 26px; height: 26px; border-radius: 50%; background: var(--clay);
-        color: var(--paper-hi); font-family: var(--body); font-weight: 600;
-        font-size: 12px; display: inline-flex; align-items: center; justify-content: center;
-      }
-      .fiesta-hub .topbar-user-menu {
-        position: absolute; top: calc(100% + 8px); right: 0;
-        min-width: 200px; background: var(--paper-hi);
-        border: 1px solid var(--paper-edge); border-radius: 10px;
-        box-shadow: var(--shadow-lift);
-        padding: 8px;
-        display: none;
-      }
-      .fiesta-hub .topbar-user.open .topbar-user-menu { display: block; }
-      .fiesta-hub .topbar-user-menu a {
-        display: block; padding: 8px 12px;
-        font-family: var(--body); font-size: 13.5px; color: var(--ink-soft);
-        text-decoration: none; border-radius: 6px;
-      }
-      .fiesta-hub .topbar-user-menu a:hover { background: var(--paper); color: var(--forest); }
-      .fiesta-hub .topbar-user-menu .danger { color: var(--clay-deep); }
-      .fiesta-hub .topbar-user-menu .danger:hover { background: rgba(184,84,47,0.08); color: var(--clay-deep); }
-
-      .fiesta-hub .topbar-mobile-toggle {
-        display: none;
-        background: transparent; border: 0; color: var(--forest);
-        font-size: 22px; cursor: pointer; padding: 4px 8px;
-      }
-
-      /* ---------- SIDEBAR (LEFT RAIL) ---------- */
-      .fiesta-hub .rail {
-        position: fixed; top: var(--topbar-h); left: 0;
-        width: var(--rail-w); height: calc(100vh - var(--topbar-h));
-        background: var(--paper-hi);
-        border-right: 1px solid var(--paper-edge);
-        overflow-y: auto;
-        padding: 24px 16px 32px;
-        z-index: 100;
-      }
-      .fiesta-hub .rail-group {
-        margin-bottom: 22px;
-      }
-      .fiesta-hub .rail-group-label {
-        font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
-        text-transform: uppercase; color: var(--ink-faint);
-        padding: 0 10px 6px;
-      }
-      .fiesta-hub .rail-link {
-        display: flex; align-items: center; gap: 10px;
-        padding: 8px 10px;
-        font-family: var(--body); font-size: 14px; color: var(--ink-soft);
-        text-decoration: none; border-radius: 6px;
-        border-left: 2px solid transparent;
-        margin-left: -10px;
-        transition: background 0.15s, color 0.15s, border-color 0.15s;
-      }
-      .fiesta-hub .rail-link:hover {
-        background: var(--paper); color: var(--forest);
-      }
-      .fiesta-hub .rail-link.active {
-        background: var(--paper-deep); color: var(--forest);
-        border-left-color: var(--clay);
-        font-weight: 600;
-      }
-      .fiesta-hub .rail-link .ico {
-        width: 18px; text-align: center; color: var(--ink-faint);
-      }
-      .fiesta-hub .rail-link.active .ico { color: var(--clay); }
-      .fiesta-hub .rail-link.is-primary {
-        background: var(--forest); color: var(--paper-hi);
-        border-left-color: var(--clay);
-      }
-      .fiesta-hub .rail-link.is-primary .ico { color: var(--mustard); }
-      .fiesta-hub .rail-link.is-primary:hover { background: var(--forest-deep); color: var(--paper-hi); }
-      .fiesta-hub .rail-divider {
-        height: 1px; background: var(--paper-edge); margin: 18px 0;
-      }
-      .fiesta-hub .rail-signout {
-        color: var(--clay-deep);
-      }
-      .fiesta-hub .rail-signout:hover { background: rgba(184,84,47,0.08); color: var(--clay-deep); }
-
-      /* ---------- MAIN CANVAS ---------- */
-      .fiesta-hub .canvas {
-        margin-left: var(--rail-w);
-        padding: calc(var(--topbar-h) + 28px) 32px 64px;
-        min-height: 100vh;
-      }
-      .fiesta-hub .canvas-inner {
-        max-width: 920px; margin: 0 auto;
-      }
-
-      /* ---------- ALERTS ---------- */
-      .fiesta-hub .alert {
-        font-family: var(--body); font-size: 14px;
-        border-radius: 8px; padding: 12px 16px;
-        margin-bottom: 16px;
-        background: var(--paper-hi); border: 1px solid var(--paper-edge);
-        color: var(--ink-soft);
-        display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      }
-      .fiesta-hub .alert.alert-success { border-left: 3px solid var(--success); }
-      .fiesta-hub .alert.alert-warning { border-left: 3px solid var(--mustard); }
-      .fiesta-hub .alert.alert-danger  { border-left: 3px solid var(--clay-deep); }
-      .fiesta-hub .alert.alert-info    { border-left: 3px solid var(--moss); }
-      .fiesta-hub .alert .btn-close {
-        background: transparent; border: 0; color: var(--ink-faint); cursor: pointer;
-        font-size: 16px;
-      }
-
-      /* ---------- FOOTER ---------- */
-      .fiesta-hub .footer {
-        margin: 48px auto 0; max-width: 920px;
-        padding: 16px 0 0;
-        border-top: 1px solid var(--paper-edge);
-        font-family: var(--mono); font-size: 11.5px; color: var(--ink-muted);
-        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
-      }
-      .fiesta-hub .footer a { color: var(--ink-muted); text-decoration: none; margin-right: 14px; }
-      .fiesta-hub .footer a:hover { color: var(--clay); }
-
-      /* ---------- MOBILE ---------- */
-      @media (max-width: 920px) {
-        .fiesta-hub .topbar-mobile-toggle { display: inline-flex; }
-        .fiesta-hub .topbar-wordmark { font-size: 19px; }
-        .fiesta-hub .topbar-year { display: none; }
-        .fiesta-hub .counter-pill .lead { display: none; }
-        .fiesta-hub .counter-pill .yr { display: none; }
-        .fiesta-hub .counter-pill { padding: 6px 12px; gap: 6px; }
-        .fiesta-hub .rail {
-          transform: translateX(-100%);
-          transition: transform 220ms cubic-bezier(0.4,0,0.2,1);
-          width: 84%; max-width: 320px;
-          box-shadow: var(--shadow-lift);
-        }
-        .fiesta-hub.rail-open .rail { transform: translateX(0); }
-        .fiesta-hub.rail-open::after {
-          content: ""; position: fixed; inset: var(--topbar-h) 0 0 0;
-          background: rgba(20,35,24,0.36); z-index: 50;
-        }
-        .fiesta-hub .canvas {
-          margin-left: 0; padding-left: 20px; padding-right: 20px;
-        }
-      }
-
-      /* ---------- LEGACY BOOTSTRAP COMPAT FOR MIGRATED TEMPLATES ---------- */
-      /* Migrated templates still author with Bootstrap btn/btn-primary/btn-outline-primary.
-         Inside .fiesta-hub, retune them to the paper/clay/forest language so they read as FIESTA. */
-      .fiesta-hub .btn-primary {
-        background: var(--clay); border-color: var(--clay); color: var(--paper-hi);
-        font-family: var(--body); font-weight: 600;
-      }
-      .fiesta-hub .btn-primary:hover,
-      .fiesta-hub .btn-primary:focus { background: var(--clay-deep); border-color: var(--clay-deep); color: var(--paper-hi); }
-      .fiesta-hub .btn-outline-primary {
-        background: transparent; border-color: var(--paper-edge); color: var(--clay);
-        font-family: var(--body); font-weight: 500;
-      }
-      .fiesta-hub .btn-outline-primary:hover,
-      .fiesta-hub .btn-outline-primary:focus { background: var(--paper-deep); border-color: var(--clay); color: var(--clay-deep); }
-      .fiesta-hub .eyebrow {
-        font-family: var(--mono); font-size: 11px; text-transform: uppercase;
-        letter-spacing: 2px; color: var(--clay); display: inline-block; margin-bottom: 4px;
-      }
-      .fiesta-hub h1, .fiesta-hub h2, .fiesta-hub h3 {
-        font-family: var(--display); font-weight: 600; color: var(--forest);
-        letter-spacing: -0.3px;
-      }
-      .fiesta-hub h1 em, .fiesta-hub h2 em, .fiesta-hub h3 em {
-        font-style: italic; color: var(--clay); font-weight: 600;
-      }
-      .fiesta-hub .text-secondary { color: var(--ink-soft) !important; }
-      .fiesta-hub .text-muted { color: var(--ink-muted) !important; }
-    </style>
-
-    {# Tier D6 / A2 — Paid-acquisition pixels (Meta + LinkedIn + Twitter).
-       All three are env-gated; default-OFF behind PIXELS_ENABLED. See pixels.py. #}
-    {% include 'components/pixels.html' %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% block head_meta %}{% endblock %}
+  {% block head_title %}<title>{% block page_title %}FIESTA{% endblock %} · FIESTA</title>{% endblock %}
+  {% block head_styles %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta.css') }}">
+  {% endblock %}
+  {% block head_extra %}{% endblock %}
 </head>
-{% endblock %}
-
-<body class="fiesta-hub-body">
-  {# Tier D3 / C5 — Dunning banner (above the hub chrome; clears when Stripe retry succeeds). #}
-  {% include 'components/dunning_banner.html' %}
-  <div class="fiesta-hub" id="fiestaHub">
-
-    {# ---------- TOPBAR ---------- #}
-    <header class="topbar" role="banner">
-      <button class="topbar-mobile-toggle" id="hubMobileToggle" aria-label="Open navigation">
-        <i class="fas fa-bars"></i>
-      </button>
-      <a href="{{ url_for('home') }}" class="topbar-wordmark">
-        FIESTA<em>·</em>
-      </a>
-      <span class="topbar-divider"></span>
-      <div class="topbar-year">
-        <label for="hubTaxYear">Year of Assessment</label>
-        <select id="hubTaxYear" onchange="(function(v){try{document.cookie='hub_ya='+encodeURIComponent(v)+';path=/;max-age=31536000';}catch(e){}})(this.value)">
-          {% set ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
-          {% for ty in (hub_tax_years if hub_tax_years is defined else ['2025/26','2024/25','2023/24','2022/23']) %}
-            <option value="{{ ty }}" {% if ty == ya_default %}selected{% endif %}>{{ ty }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="counter-pill" aria-live="polite" title="Projected tax savings for this YA based on your data so far.">
-        <span class="lead">You're saving</span>
-        <span class="amt" id="hubSavedAmt">Rs {{ '{:,.0f}'.format(hub_projected_savings_lkr) if (hub_projected_savings_lkr is defined and hub_projected_savings_lkr) else '0' }}</span>
-        <span class="yr">YA {{ ya_default }}</span>
-      </div>
-
-      <div class="topbar-user" id="hubUser">
-        <button class="topbar-user-btn" id="hubUserBtn" aria-haspopup="true" aria-expanded="false">
-          <span class="av">{{ (current_user.name or current_user.email or '?')[0]|upper }}</span>
-          <span>{{ (current_user.name.split(' ')[0] if current_user.name else current_user.email.split('@')[0]) }}</span>
-          <i class="fas fa-chevron-down" style="font-size:10px;"></i>
-        </button>
-        <div class="topbar-user-menu" role="menu">
-          <a href="{{ url_for('profile') }}"><i class="fas fa-user-cog me-2"></i>Profile</a>
-          <a href="{{ url_for('logout') }}" class="danger"><i class="fas fa-sign-out-alt me-2"></i>Sign out</a>
-        </div>
-      </div>
-    </header>
-
-    {# ---------- LEFT RAIL ---------- #}
-    <aside class="rail" id="hubRail" aria-label="FIESTA navigation">
-      <div class="rail-group">
-        <a href="{{ url_for('home') }}"
-           class="rail-link is-primary {% if request.path == '/' %}active{% endif %}">
-          <i class="ico fas fa-house"></i>
-          <span>Hub</span>
-        </a>
-      </div>
-
-      <div class="rail-group">
-        <div class="rail-group-label">Earn-in</div>
-        <a href="{{ url_for('remittance.dashboard') }}"
-           class="rail-link {% if request.path.startswith('/remittance') and not request.path.startswith('/remittance/new') and not request.path.startswith('/remittance/import') %}active{% endif %}">
-          <i class="ico fas fa-list-ul"></i>
-          <span>Remittance Ledger</span>
-        </a>
-        <a href="{{ url_for('remittance.new') }}"
-           class="rail-link {% if request.path.startswith('/remittance/new') %}active{% endif %}">
-          <i class="ico fas fa-plus"></i>
-          <span>Add a remittance</span>
-        </a>
-        <a href="{{ url_for('remittance.import_upload') }}"
-           class="rail-link {% if request.path.startswith('/remittance/import') %}active{% endif %}">
-          <i class="ico fas fa-file-arrow-up"></i>
-          <span>Import bank statement</span>
-        </a>
-      </div>
-
-      <div class="rail-group">
-        <div class="rail-group-label">Deduct</div>
-        <a href="/reduce-tax/"
-           class="rail-link {% if request.path.startswith('/reduce-tax') or request.path == '/deductions' %}active{% endif %}">
-          <i class="ico fas fa-receipt"></i>
-          <span>Reduce your tax</span>
-        </a>
-        <a href="/service-providers"
-           class="rail-link {% if request.path.startswith('/service-providers') %}active{% endif %}">
-          <i class="ico fas fa-people-arrows"></i>
-          <span>Your support team</span>
-        </a>
-        <a href="/property"
-           class="rail-link {% if request.path.startswith('/property') %}active{% endif %}">
-          <i class="ico fas fa-house-chimney"></i>
-          <span>Home-office rent</span>
-        </a>
-      </div>
-
-      <div class="rail-group">
-        <div class="rail-group-label">Generate</div>
-        <a href="/agreements/service"
-           class="rail-link {% if request.path.startswith('/agreements/service') %}active{% endif %}">
-          <i class="ico fas fa-file-signature"></i>
-          <span>Service agreements</span>
-        </a>
-        <a href="/agreements/rental"
-           class="rail-link {% if request.path.startswith('/agreements/rental') %}active{% endif %}">
-          <i class="ico fas fa-file-contract"></i>
-          <span>Rental agreement</span>
-        </a>
-        {# Sprint 1 fix: was pointing at /cosign/pending which 404'd. The
-           /cosign index route added in batch 2 (058d5fe) lists pending
-           workflows + empty state, so we redirect the sidebar there. #}
-        <a href="/cosign"
-           class="rail-link {% if request.path.startswith('/cosign') %}active{% endif %}">
-          <i class="ico fas fa-handshake"></i>
-          <span>Co-sign agreements</span>
-        </a>
-      </div>
-
-      <div class="rail-group">
-        <div class="rail-group-label">Outcome</div>
-        <a href="/tax-bill/{{ ya_default | replace('/', '-') }}"
-           class="rail-link {% if request.path.startswith('/tax-bill') %}active{% endif %}">
-          <i class="ico fas fa-scale-balanced"></i>
-          <span>Your tax bill</span>
-        </a>
-        <a href="/submit/"
-           class="rail-link {% if request.path.startswith('/submit') %}active{% endif %}">
-          <i class="ico fas fa-paper-plane"></i>
-          <span>Submit</span>
-        </a>
-      </div>
-
-      <div class="rail-divider"></div>
-
-      <div class="rail-group">
-        <div class="rail-group-label">Help</div>
-        <a href="/consultant/book"
-           class="rail-link {% if request.path.startswith('/consultant') %}active{% endif %}">
-          <i class="ico fas fa-headset"></i>
-          <span>Book a consultation</span>
-        </a>
-        <a href="/tax-preview"
-           class="rail-link {% if request.path == '/tax-preview' %}active{% endif %}">
-          <i class="ico fas fa-calculator"></i>
-          <span>Tax preview</span>
-        </a>
-      </div>
-
-      <div class="rail-divider"></div>
-
-      <div class="rail-group">
-        <a href="{{ url_for('profile') }}"
-           class="rail-link {% if request.path == '/profile' or request.path.startswith('/fie/profile') or request.path.startswith('/fiesta/profile') %}active{% endif %}">
-          <i class="ico fas fa-user"></i>
-          <span>Profile</span>
-        </a>
-        {% if current_user.is_authenticated and current_user.role == 'admin' %}
-        <a href="{{ url_for('admin_dashboard') }}"
-           class="rail-link {% if request.path.startswith('/admin/') %}active{% endif %}">
-          <i class="ico fas fa-shield-halved"></i>
-          <span>Admin</span>
-        </a>
-        {% endif %}
-        <a href="{{ url_for('logout') }}" class="rail-link rail-signout">
-          <i class="ico fas fa-sign-out-alt"></i>
-          <span>Sign out</span>
-        </a>
-      </div>
-    </aside>
-
-    {# ---------- MAIN CANVAS ---------- #}
-    <main class="canvas" id="hubCanvas">
-      <div class="canvas-inner">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
+<body class="fiesta-shell">
+  {% block topbar %}{% include "_fiesta/topbar.html" %}{% endblock %}
+  <div class="fiesta-layout">
+    {% block sidebar %}{% include "_fiesta/sidebar.html" %}{% endblock %}
+    <main class="fiesta-main" id="fiesta-main">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="fiesta-flashes" role="region" aria-label="Notifications">
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }}" role="alert">
+              <div class="fiesta-alert fiesta-alert-{{ category }}" role="alert">
                 <span>{{ message }}</span>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" onclick="this.parentElement.style.display='none'">
-                  <i class="fas fa-times"></i>
-                </button>
+                <button type="button" class="fiesta-alert-close" aria-label="Dismiss"
+                        onclick="this.parentElement.style.display='none'">&times;</button>
               </div>
             {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        {% block content %}{% endblock %}
-
-        <footer class="footer">
-          <div>
-            Refunds within 14 days · <a href="/legal/privacy">Privacy</a><a href="/legal/tos">Terms</a>
           </div>
-          <div>
-            Built in Colombo &middot; &copy; 2026 FIESTA
-          </div>
-        </footer>
-      </div>
+        {% endif %}
+      {% endwith %}
+      {% block page_header %}{% endblock %}
+      {% block content %}{% endblock %}
     </main>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    (function () {
-      var hub = document.getElementById('fiestaHub');
-      var toggle = document.getElementById('hubMobileToggle');
-      if (toggle) {
-        toggle.addEventListener('click', function () {
-          hub.classList.toggle('rail-open');
-        });
-      }
-      var userWrap = document.getElementById('hubUser');
-      var userBtn = document.getElementById('hubUserBtn');
-      if (userBtn) {
-        userBtn.addEventListener('click', function (e) {
-          e.stopPropagation();
-          userWrap.classList.toggle('open');
-          userBtn.setAttribute('aria-expanded', userWrap.classList.contains('open'));
-        });
-        document.addEventListener('click', function (e) {
-          if (!userWrap.contains(e.target)) {
-            userWrap.classList.remove('open');
-            userBtn.setAttribute('aria-expanded', 'false');
-          }
-        });
-      }
-      var hubRail = document.getElementById('hubRail');
-      if (hubRail) {
-        hubRail.addEventListener('click', function (e) {
-          var link = e.target.closest('a.rail-link');
-          if (link) { hub.classList.remove('rail-open'); }
-        });
-      }
-    })();
-  </script>
-
-  <!-- Sprint 4 Tier B: FIESTA analytics beacon (window.fiestaTrack) -->
-  <script src="{{ url_for('static', filename='js/beacon.js') }}" defer></script>
-  <!-- Sprint 4 Tier D4: FIESTA in-app feedback widget -->
-  <script src="{{ url_for('static', filename='js/feedback_widget.js') }}" defer></script>
-
-  {% block scripts %}{% endblock %}
+  {% block footer %}{% include "_fiesta/footer.html" %}{% endblock %}
+  {% block scripts %}<script src="{{ url_for('static', filename='js/fiesta.js') }}" defer></script>{% endblock %}
+  {% block scripts_extra %}{% endblock %}
 </body>
 </html>
