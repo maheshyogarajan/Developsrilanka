@@ -1,0 +1,201 @@
+{# templates/fiesta_onboarding/confirm.html — MS4 W3e G4 step 3.
+
+   Confirmation card. Shows the income_sources the user picked, a count
+   of "enabled modules" (= len(income_sources)), and a single
+   recommended next-step CTA driven by the same precedence the hub
+   funnel-state recommender uses.
+
+   POST to /onboarding/confirm marks User.onboarding_completed=True and
+   redirects to the recommended next-step URL.
+#}
+{% extends layout_template %}
+
+{% block page_title %}You&rsquo;re set up · FIESTA{% endblock %}
+{% block title %}You&rsquo;re set up · FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+  .fo-shell {
+    max-width: 720px; margin: 0 auto;
+    padding: 56px 20px 80px;
+    color: var(--ink, #1a1f17);
+    font-family: var(--body, 'Manrope', sans-serif);
+  }
+  .fo-progress {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 24px;
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-soft, #4a4f43);
+  }
+  .fo-progress .step {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    border: 1px solid var(--paper-edge, #E5DBC9);
+    border-radius: 999px;
+    background: var(--paper, #FAF6EE);
+  }
+  .fo-progress .step.is-done {
+    color: var(--forest, #1F3A2E);
+    border-color: var(--forest, #1F3A2E);
+  }
+  .fo-progress .step.is-current {
+    background: var(--forest, #1F3A2E);
+    color: var(--paper-hi, #FAF6EE);
+    border-color: var(--forest, #1F3A2E);
+  }
+  .fo-progress .sep { color: var(--paper-edge, #E5DBC9); }
+
+  .fo-h1 {
+    font-family: var(--display, 'Fraunces', serif);
+    font-weight: 600;
+    font-size: 32px; line-height: 1.15; letter-spacing: -0.4px;
+    color: var(--forest, #1F3A2E);
+    margin: 0 0 12px;
+  }
+  .fo-sub {
+    font-size: 16px; line-height: 1.5;
+    color: var(--ink-soft, #4a4f43);
+    margin: 0 0 28px;
+    max-width: 560px;
+  }
+
+  .fo-card {
+    padding: 22px 24px;
+    background: var(--paper, #FAF6EE);
+    border: 1px solid var(--paper-edge, #E5DBC9);
+    border-radius: 12px;
+    margin-bottom: 24px;
+  }
+  .fo-card h2 {
+    margin: 0 0 12px;
+    font-family: var(--display, 'Fraunces', serif);
+    font-weight: 600; font-size: 18px;
+    color: var(--forest, #1F3A2E);
+  }
+  .fo-card .count {
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-soft, #4a4f43);
+    margin-bottom: 12px;
+  }
+  .fo-source-list { margin: 0; padding-left: 18px; }
+  .fo-source-list li {
+    font-size: 14px; line-height: 1.55; margin-bottom: 4px;
+  }
+  .fo-empty-note {
+    font-size: 13.5px;
+    color: var(--ink-soft, #4a4f43);
+    font-style: italic;
+  }
+
+  .fo-next {
+    padding: 22px 24px;
+    background: var(--forest, #1F3A2E);
+    color: var(--paper-hi, #FAF6EE);
+    border-radius: 12px;
+    margin-bottom: 24px;
+  }
+  .fo-next h2 {
+    margin: 0 0 8px;
+    font-family: var(--display, 'Fraunces', serif);
+    font-weight: 600; font-size: 18px;
+    color: var(--paper-hi, #FAF6EE);
+  }
+  .fo-next p {
+    margin: 0 0 14px;
+    font-size: 14px; line-height: 1.5;
+    color: var(--paper, #FAF6EE);
+    opacity: 0.92;
+  }
+
+  .fo-cta-row {
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .fo-cta-primary {
+    background: var(--clay, #C84E2E); color: var(--paper-hi, #FAF6EE);
+    border: 0; border-radius: 8px;
+    padding: 14px 28px;
+    font-family: var(--body, 'Manrope', sans-serif);
+    font-weight: 600; font-size: 15px;
+    text-decoration: none; display: inline-block;
+    min-height: 48px; line-height: 20px;
+    cursor: pointer;
+  }
+  .fo-cta-primary:hover {
+    background: var(--clay-deep, #8e3f22); color: var(--paper-hi, #FAF6EE);
+  }
+  .fo-cta-secondary {
+    font-size: 13.5px;
+    color: var(--ink-soft, #4a4f43);
+    text-decoration: underline;
+  }
+  .fo-cta-secondary:hover { color: var(--ink, #1a1f17); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fo-shell" data-fiesta-onboarding-step="confirm">
+  <div class="fo-progress" aria-label="Onboarding progress">
+    <span class="step is-done">1 &middot; Welcome</span>
+    <span class="sep">&rsaquo;</span>
+    <span class="step is-done">2 &middot; Income</span>
+    <span class="sep">&rsaquo;</span>
+    <span class="step is-current">3 &middot; Confirm</span>
+  </div>
+
+  <h1 class="fo-h1">You&rsquo;re set up.</h1>
+  <p class="fo-sub">
+    Here&rsquo;s what FIESTA will surface for you based on your income
+    mix. You can change this any time from your Profile page.
+  </p>
+
+  <div class="fo-card">
+    <h2>Enabled modules</h2>
+    <p class="count" data-fiesta-onboarding-module-count>
+      {{ income_sources|length }}
+      module{% if income_sources|length != 1 %}s{% endif %} enabled
+    </p>
+    {% if income_sources %}
+    <ul class="fo-source-list" data-fiesta-onboarding-source-list>
+      {% for s in income_sources %}
+      <li data-source-id="{{ s }}">{{ s|replace('_', ' ')|title }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="fo-empty-note">
+      You didn&rsquo;t pick any income types &mdash; we&rsquo;ll prompt
+      you again on the hub. You can revisit
+      <a href="{{ url_for('fiesta_onboarding.income_sources_step') }}">the income picker</a>
+      from here.
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="fo-next" data-fiesta-onboarding-recommended>
+    <h2>Your first step</h2>
+    <p>{{ recommended.rationale }}</p>
+    <p style="font-size:13px; opacity:0.7; margin:0 0 6px;">
+      Recommended: <code>{{ recommended.href }}</code>
+    </p>
+  </div>
+
+  <form method="POST"
+        action="{{ url_for('fiesta_onboarding.confirm_submit') }}"
+        class="fo-confirm-form">
+    {% if csrf_token is defined %}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% endif %}
+    <div class="fo-cta-row">
+      <button type="submit"
+              class="fo-cta-primary"
+              data-fiesta-onboarding-cta="finish">
+        {{ recommended.label }} &rarr;
+      </button>
+      <a href="/" class="fo-cta-secondary"
+         data-fiesta-onboarding-cta="finish-skip-to-hub">Just take me to the hub</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

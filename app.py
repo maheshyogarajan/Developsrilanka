@@ -584,8 +584,12 @@ def _compute_non_remittance_next_step(user, income_sources, current_sl_tax_year_
     if not income_sources:
         return (
             {
+                # MS4 W3e G4 (2026-05-25): point at the unified onboarding
+                # welcome screen so the no-income-sources hub card flows
+                # through the new 3-step flow instead of the legacy
+                # business-org wizard.
                 "label": "Tell us about your income",
-                "href": "/onboarding",
+                "href": "/onboarding/welcome",
                 "rationale": (
                     "We don't know what you earn yet — answer a 30-second "
                     "income picker so we can show you the right deductions, "
@@ -3984,23 +3988,45 @@ def verify_email_reminder():
 @app.route('/onboarding', methods=['GET', 'POST'])
 @login_required
 def onboarding_wizard():
-    """Onboarding wizard for new users to set up their business organization."""
+    """Onboarding wizard for new users to set up their business organization.
+
+    MS4 W3e G4 (2026-05-25): this legacy entry point is now a router. The
+    primary onboarding flow lives at `/onboarding/welcome` (G4 unified
+    flow). The legacy business-org wizard is preserved as an escape
+    hatch reachable via:
+      - GET  /onboarding?legacy=1
+      - POST /onboarding              (legacy POST handler — preserved
+                                       so `/onboarding/legacy` form can
+                                       submit back here unchanged)
+      - GET  /onboarding/legacy       (via fiesta.onboarding blueprint)
+
+    All other GETs to /onboarding redirect to /onboarding/welcome if the
+    user is mid-flow (onboarding_completed=False AND income_sources=[]),
+    or to '/' if onboarding is already complete.
+    """
     from models import Organization, OrganizationUser
 
-    # X9 F2.2 — bypass the business-org wizard for sl_foreign_income personas.
-    # Foreign-income earners don't run a business; their Personal Finances org
-    # was auto-created at signup (models_event_listener). Mark onboarding
-    # complete and route them straight to /fie/triage so the funnel is:
-    #   /verify-email -> intercepted /onboarding -> /fie/triage -> FIESTA hub
-    # No "set up your business organization" screen ever appears for them.
-    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+    # X9 F2.2 / G4 — bypass the business-org wizard for sl_foreign_income
+    # personas. Foreign-income earners don't run a business; their
+    # Personal Finances org was auto-created at signup
+    # (models_event_listener). Mark onboarding-stage advanced and route
+    # them straight to the G4 unified flow so they can pick income types
+    # (including foreign_remittance) explicitly.
+    if (
+        getattr(current_user, 'persona', None) == 'sl_foreign_income'
+        and request.method == 'GET'
+        and request.args.get('legacy') != '1'
+    ):
         if not current_user.onboarding_completed:
-            current_user.onboarding_completed = True
-            db.session.commit()
-            logging.info(
-                f"User {current_user.id} (sl_foreign_income) auto-completed "
-                f"onboarding; routing to /fie/triage."
-            )
+            _src = list(getattr(current_user, 'income_sources', None) or [])
+            if not _src:
+                # G4: route into the unified flow welcome screen.
+                logging.info(
+                    f"User {current_user.id} (sl_foreign_income, empty "
+                    f"income_sources) routed to /onboarding/welcome "
+                    f"(G4 unified flow)."
+                )
+                return redirect('/onboarding/welcome')
         return redirect(url_for('fiesta_triage.triage_form'))
 
     # If already completed onboarding, redirect to dashboard
@@ -4011,6 +4037,20 @@ def onboarding_wizard():
     if not current_user.is_email_verified:
         flash('Please verify your email before completing setup.', 'warning')
         return redirect(url_for('verify_email_reminder'))
+
+    # G4 (2026-05-25): for GET requests that aren't explicitly asking for
+    # the legacy wizard, route to the unified onboarding flow. The legacy
+    # POST handler (further down this function) keeps working for
+    # /onboarding/legacy form submissions which 307-forward to here with
+    # `?legacy=1` so the legacy business-org creation logic stays
+    # available for one sprint as an escape hatch.
+    if request.method == 'GET' and request.args.get('legacy') != '1':
+        logging.info(
+            f"User {current_user.id} routed from legacy /onboarding to "
+            f"G4 /onboarding/welcome (income_sources="
+            f"{list(getattr(current_user, 'income_sources', None) or [])})."
+        )
+        return redirect('/onboarding/welcome')
     
     if request.method == 'POST':
         business_name = request.form.get('business_name', '').strip()

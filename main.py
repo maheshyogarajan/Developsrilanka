@@ -650,6 +650,24 @@ try:
 except Exception as e:
     logger.error(f"G3.6 income-source picker load failed: {e}")
 
+# MS4 W3e — G4 Unified Onboarding (2026-05-25)
+# Replaces the legacy `/onboarding` business-org wizard + `/fie/triage`
+# 3-question triage with ONE flow: /onboarding/welcome →
+# /onboarding/income-sources → /onboarding/confirm. Reuses the G3.6
+# picker partial verbatim. Sets User.onboarding_completed=True on
+# successful confirm POST. Legacy wizard preserved at /onboarding/legacy
+# as a one-sprint escape hatch.
+try:
+    from fiesta.onboarding import register_blueprint as register_onboarding
+    register_onboarding(app)
+    logger.info(
+        "G4 unified onboarding registered: /onboarding/welcome + "
+        "/onboarding/income-sources + /onboarding/confirm + "
+        "/api/fiesta/onboarding-state"
+    )
+except Exception as e:
+    logger.error(f"G4 unified onboarding load failed: {e}")
+
 # FIESTA S5 — "Reduce your tax — 10 ways" (Wave 3, 2026-05-20)
 try:
     from fiesta.deductions import models as fiesta_deductions_models  # noqa: F401
@@ -966,6 +984,30 @@ with app.app_context():
         logger.error(
             f"MS4 W3b G3.1/G3.2 LKR engine migration failed (non-fatal — "
             f"ORM-level columns still work via db.create_all on fresh DBs): {e}"
+        )
+
+    # MS4 W3e G4 — Unified-onboarding backfill (MG-004).
+    # No schema changes; backfills income_sources for users with
+    # onboarding_completed=True + empty income_sources, inferred from
+    # persona + observed activity (RemittanceEntry, RSU, Crypto,
+    # Business, canonical Income rows, rental/fd/dividend side tables).
+    # Idempotent + dialect-aware. Safe on every boot.
+    try:
+        import importlib.util as _importlib_util
+        from pathlib import Path as _Path
+        _g4_spec_path = _Path(__file__).resolve().parent / "migrations" / "20260525_150500_g_onboarding_unified.py"
+        _g4_spec = _importlib_util.spec_from_file_location(
+            "_g4_onboarding_unified_migration_loader", str(_g4_spec_path)
+        )
+        if _g4_spec is not None and _g4_spec.loader is not None:
+            _g4_mod = _importlib_util.module_from_spec(_g4_spec)
+            _g4_spec.loader.exec_module(_g4_mod)
+            _g4_mod.upgrade()
+    except Exception as e:
+        logger.error(
+            f"MS4 W3e G4 unified-onboarding backfill failed (non-fatal — "
+            f"new users still flow through the G4 picker; only existing "
+            f"users with empty income_sources are affected): {e}"
         )
 
 # Function to start Celery worker in a background thread
