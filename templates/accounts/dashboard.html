@@ -1,6 +1,9 @@
-{% extends "layout.html" %}
+{# G2.3 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Accounts dashboard extends the universal FIESTA shell via
+   `layout_template` (Design Lock 3 §D5). Pure chrome migration. #}
+{% extends layout_template %}
 
-{% block title %}Accounts Dashboard{% endblock %}
+{% block page_title %}Accounts{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
