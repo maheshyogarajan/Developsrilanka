@@ -58,6 +58,18 @@ class RemittanceEntry(db.Model):
     # Premortem T6 mitigation. Defaults False; flipped by a staff-only endpoint (TBD Wave I).
     ird_ready_staff_reviewed = db.Column(db.Boolean, nullable=False, default=False)
 
+    # MS2 E.0 / Design Lock 2 §4 — soft-link to canonical Income row.
+    # Nullable initially; backfill migration 20260525_130100_e_b8_schema.py
+    # creates one Income row per existing RemittanceEntry and populates this
+    # FK. New remittances should create an Income row in the same transaction.
+    # ondelete='SET NULL' so the Income row outlives a remittance deletion.
+    income_id = db.Column(
+        db.Integer,
+        db.ForeignKey("incomes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 

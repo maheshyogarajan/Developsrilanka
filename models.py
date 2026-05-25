@@ -395,7 +395,33 @@ class User(UserMixin, db.Model):
     show_in_trust_ranking = db.Column(db.Boolean, nullable=False, default=False)
     trust_points = db.Column(db.Integer, nullable=False, default=0)
     trust_ranking_consent_at = db.Column(db.DateTime, nullable=True)
-    
+
+    # MS2 E.0 / Design Lock 2 §2 — SL tax-residency classification.
+    # Locked vocab: 'resident' | 'nrr' | 'nonresident' | 'unknown'.
+    # B10 NRR classifier writes this column. Section G G1/G4 reads it.
+    # Defaults to 'unknown' for legacy + new users; treat as RESIDENT for
+    # computation but flag in UI per Design Lock 2 §2.
+    # Migration: 20260525_130100_e_b8_schema.py
+    residency_status = db.Column(
+        db.String(16),
+        nullable=False,
+        server_default='unknown',
+        default='unknown',
+    )
+
+    # MS2 E.0 / Design Lock 2 §3 — recognised income source list.
+    # JSON array of strings drawn from INCOME_SOURCE_TYPES locked vocab.
+    # Owned by Section G G4 (income-source picker); seeded here so MS2
+    # classifiers can write into it without waiting for G4 to ship.
+    # Defaults to '[]' (empty list).
+    # Migration: 20260525_130100_e_b8_schema.py
+    income_sources = db.Column(
+        db.JSON,
+        nullable=False,
+        server_default='[]',
+        default=list,
+    )
+
     # Relationships
     organizations = db.relationship('OrganizationUser', back_populates='user', lazy=True, cascade='all, delete-orphan')
     receipts = db.relationship('Receipt', backref='user', lazy=True)
