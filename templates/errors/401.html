@@ -1,0 +1,27 @@
+{# F-Platform-6 — 401 Unauthorized.
+
+   Differs from 403 — 401 means "you need to sign in", 403 means "you're
+   signed in but not allowed". The "Sign in" CTA preserves the originally
+   requested URL via ?next= so the user lands back where they started
+   after authenticating. We compute it here (not in the base) because it's
+   401-specific.
+#}
+{% extends "errors/_base.html" %}
+
+{% set error_code = '401' %}
+
+{% block error_headline %}You need to sign in to continue{% endblock %}
+
+{% block error_message %}
+This page requires you to be signed in. Sign in and we'll bring you
+back here automatically.
+{% endblock %}
+
+{% block error_actions %}
+{% set _next = error_next_url if error_next_url is defined and error_next_url else request.url %}
+<a href="{{ url_for('login', next=_next) }}"
+   class="btn btn-success btn-lg px-4"
+   data-fiesta-signin-link>
+  <i class="fas fa-arrow-right-to-bracket me-2"></i> Sign in
+</a>
+{% endblock %}

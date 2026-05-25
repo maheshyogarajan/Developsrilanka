@@ -1,0 +1,29 @@
+{# F-Platform-6 — 500 Internal Server Error.
+
+   Paranoid defaults: this template must NEVER raise an error itself
+   (an exception while rendering a 500 page produces a hard-to-debug
+   Werkzeug stacktrace for the user). Keep markup minimal, do not
+   reference optional context vars, and rely only on _base.html
+   primitives. The errorhandler in app.py forces
+   error_layout_template='layout.html' so we never depend on
+   g.layout_template being populated (it may not be if the 500
+   originated inside check_authentication itself).
+#}
+{% extends "errors/_base.html" %}
+
+{% set error_code = '500' %}
+
+{% block error_headline %}Something went wrong on our side{% endblock %}
+
+{% block error_message %}
+We've logged it and we're looking into it. You can try again in a
+moment, or head back to the hub.
+{% endblock %}
+
+{% block error_actions %}
+<a href="{{ request.url }}"
+   class="btn btn-outline-secondary btn-lg px-4"
+   data-fiesta-retry-link>
+  <i class="fas fa-rotate-right me-2"></i> Try again
+</a>
+{% endblock %}

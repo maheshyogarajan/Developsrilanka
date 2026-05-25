@@ -1,0 +1,11 @@
+{# F-Platform-6 — 404 Not Found. #}
+{% extends "errors/_base.html" %}
+
+{% set error_code = '404' %}
+
+{% block error_headline %}This page isn't here{% endblock %}
+
+{% block error_message %}
+We couldn't find what you were looking for. The link may be old, or the
+page may have moved. Head back to your hub and try again from there.
+{% endblock %}
