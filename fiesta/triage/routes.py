@@ -216,10 +216,34 @@ def triage_form():
     ?next=/fie/triage preserved. This honours the v4-demo S2 narrative
     where signup is the funnel surface for unauthenticated visitors. The
     legacy @login_required would have 302'd to /login.
+
+    MS4 W3e G4 (2026-05-25): for sl_foreign_income personas with empty
+    income_sources AND no completed triage yet, route them to the
+    unified onboarding welcome screen so they don't see two parallel
+    onboarding surfaces. Users who want to update their tax profile
+    can still reach /fie/triage directly (e.g. via the profile-page
+    "Tax profile" tab); the redirect only fires for the post-signup
+    cold-start path. Bypass with `?force=1` for testing.
     """
     if not current_user.is_authenticated:
         from flask import url_for as _url_for
         return redirect(_url_for("signup", next="/fie/triage"))
+
+    # G4 routing: redirect cold-start sl_foreign_income personas into
+    # the unified flow. Once they've picked at least one income source
+    # OR explicitly hit `?force=1`, leave them on /fie/triage.
+    if (
+        request.args.get("force") != "1"
+        and getattr(current_user, "persona", None) == "sl_foreign_income"
+        and not getattr(current_user, "onboarding_completed", False)
+        and not list(getattr(current_user, "income_sources", None) or [])
+    ):
+        log.info(
+            "G4 triage→onboarding redirect: user %s (sl_foreign_income, "
+            "cold-start) routed to /onboarding/welcome.",
+            current_user.id,
+        )
+        return redirect("/onboarding/welcome")
 
     # If the user has already completed triage, don't loop them. Bounce to ?next
     # or the dashboard.
