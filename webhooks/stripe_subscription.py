@@ -295,6 +295,15 @@ def _handle_invoice_paid(stripe_event: dict) -> None:
     from app import db
     db.session.commit()
 
+    # Tier D6 / D8 — bust the per-user paywall tier cache so the freshly
+    # paid/renewed tier is visible on the very next render (without waiting
+    # for the natural 60s TTL).
+    try:
+        from fiesta.paywall.gate import invalidate_subscription_cache
+        invalidate_subscription_cache(row.user_id)
+    except Exception as exc:
+        log.debug("invoice.paid: paywall cache invalidate skipped: %s", exc)
+
     # Tier D3 / C5 — close any open dunning rows for this invoice. The same
     # invoice can fail multiple times before succeeding; mark all of them as
     # recovered so should_show_banner flips off for the user.
@@ -376,6 +385,15 @@ def _handle_payment_failed(stripe_event: dict) -> None:
 
     from app import db
     db.session.commit()
+
+    # Tier D6 / D8 — bust the per-user paywall tier cache (status moved to
+    # dunning => downstream gating should re-evaluate; access stays valid until
+    # expires_at so this is mostly a freshness signal).
+    try:
+        from fiesta.paywall.gate import invalidate_subscription_cache
+        invalidate_subscription_cache(row.user_id)
+    except Exception as exc:
+        log.debug("invoice.payment_failed: paywall cache invalidate skipped: %s", exc)
 
     # Tier D3 / C5 — record the failure + alert CEO via Telegram. The
     # webhook's state-flip above stays the source of truth for Stripe
@@ -468,6 +486,13 @@ def _handle_subscription_updated(stripe_event: dict) -> None:
     from app import db
     db.session.commit()
 
+    # Tier D6 / D8 — bust the per-user paywall tier cache.
+    try:
+        from fiesta.paywall.gate import invalidate_subscription_cache
+        invalidate_subscription_cache(row.user_id)
+    except Exception as exc:
+        log.debug("subscription.updated: paywall cache invalidate skipped: %s", exc)
+
     emit_analytics_event(
         "subscription_updated",
         user_id=row.user_id,
@@ -512,6 +537,14 @@ def _handle_subscription_deleted(stripe_event: dict) -> None:
 
     from app import db
     db.session.commit()
+
+    # Tier D6 / D8 — bust the per-user paywall tier cache. Access stays valid
+    # until expires_at; clearing the cache makes future lookups re-check status.
+    try:
+        from fiesta.paywall.gate import invalidate_subscription_cache
+        invalidate_subscription_cache(row.user_id)
+    except Exception as exc:
+        log.debug("subscription.deleted: paywall cache invalidate skipped: %s", exc)
 
     emit_analytics_event(
         "subscription_cancelled",
