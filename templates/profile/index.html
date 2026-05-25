@@ -80,7 +80,7 @@
      isp-open=1); falls back to /fie/income-sources (the standalone
      page) for no-JS. The income types the user picks here drive which
      sidebar modules + which tax-bill rows are surfaced. #}
-  <div class="fp-income-types-row">
+  <div class="fp-income-types-row" data-fiesta-profile-income-row>
     <div>
       <strong>Income types</strong>
       {% set _src = (current_user.income_sources or []) %}
@@ -88,6 +88,14 @@
       <span style="color:var(--color-ink-500,#6b7280); font-size:.9rem; margin-left:.5rem">
         {{ _src|length }} type{% if _src|length != 1 %}s{% endif %} on file
       </span>
+      {# MS4 W3e G4: read-only summary list of current income types
+         (Design Lock 3 §G4 "Profile shows current income_sources"). The
+         "Edit income types" button next to it opens the picker. #}
+      <ul class="fp-income-types-summary" data-fiesta-profile-income-list>
+        {% for s in _src %}
+        <li data-source-id="{{ s }}">{{ s|replace('_', ' ')|title }}</li>
+        {% endfor %}
+      </ul>
       {% else %}
       <span style="color:var(--color-ink-500,#6b7280); font-size:.9rem; margin-left:.5rem">
         not set yet
@@ -99,6 +107,42 @@
        data-fiesta-isp-open="1"
        role="button">Edit income types &rarr;</a>
   </div>
+  {# MS4 W3e G4: restart-onboarding link. Uses a confirm() dialog
+     because re-running onboarding flips onboarding_completed back to
+     False (server-side via the /restart-onboarding handler). #}
+  <div class="fp-restart-onboarding-row" data-fiesta-profile-restart-row>
+    <a href="/onboarding/welcome?restart=1"
+       class="fp-restart-onboarding-link"
+       data-fiesta-profile-restart-onboarding="1"
+       onclick="return confirm('Restart the onboarding flow? This won&apos;t delete any data, but you&apos;ll see the welcome + income picker again.');"
+       role="button">Restart onboarding</a>
+    <span class="fp-restart-onboarding-hint">
+      Shows the 3-step welcome flow again. Useful if your income mix changed.
+    </span>
+  </div>
+  <style>
+    .fp-income-types-summary {
+      list-style: disc; margin: 8px 0 0 18px; padding: 0;
+      font-size: .85rem; color: var(--color-ink-700, #374151);
+      max-width: 480px;
+    }
+    .fp-income-types-summary li { margin-bottom: 2px; }
+    .fp-restart-onboarding-row {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: .55rem 1.25rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .fp-restart-onboarding-link {
+      font-size: .85rem; color: var(--color-ink-600, #6b7280);
+      text-decoration: underline;
+    }
+    .fp-restart-onboarding-link:hover {
+      color: var(--color-ink-900, #111827);
+    }
+    .fp-restart-onboarding-hint {
+      font-size: .8rem; color: var(--color-ink-500, #9ca3af);
+    }
+  </style>
   <style>
     .fp-income-types-row {
       display: flex; align-items: center; justify-content: space-between;
