@@ -228,6 +228,11 @@ def triage_form():
         except Exception as _exc:
             log.debug(f"triage_started emit failed: {_exc}")
 
+    # D2 SEV-1 fix: only echo the server-safelisted next URL. Raw
+    # request.args.get("next") flows into a hidden form input on
+    # triage/index.html — echoing the unsafelisted value is an XSS /
+    # open-redirect vector (same defect class as register.html). If the
+    # safelist rejects the URL, emit None and the template omits the input.
     return render_template(
         "triage/index.html",
         question=question,
@@ -235,7 +240,7 @@ def triage_form():
         position=progress_idx,
         total=total,
         already_picked=state["answers"].get(current_qid),
-        next_url=request.args.get("next"),
+        next_url=_safe_next_url(request.args.get("next")),
     )
 
 
