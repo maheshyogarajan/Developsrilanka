@@ -430,12 +430,18 @@
       </fieldset>
 
       {# -- Tax-savings framing (B4 — F5.5) --------------------------------- #}
+      {# D9 (Tier-D6 minor, 2026-05-25): always render the strip. When the SP
+         has no fee/expense configured we cannot compute an annual deduction,
+         so we surface a coachmark prompting the user to add one rather than
+         silently hiding the framing entirely. #}
       {% set _protected = protected_deductions_lkr | default(0) %}
-      {% if _protected and _protected > 0 %}
-      <div class="s8-tax-savings-strip" role="note" aria-label="Tax savings estimate">
+      <div class="s8-tax-savings-strip" role="note" aria-label="Tax savings estimate"
+           data-testid="b4-protected-strip">
+        {% if _protected and _protected > 0 %}
         <strong>
           This protects approximately
-          <span class="s8-savings-amount">Rs {{ '{:,.0f}'.format(_protected) }}</span>
+          <span class="s8-savings-amount"
+                data-testid="b4-protected-amount">Rs {{ '{:,.0f}'.format(_protected) }}</span>
           in deductions across the tax year.
         </strong>
         <span class="s8-savings-ira-note">
@@ -443,8 +449,17 @@
           this Service Provider. A signed agreement is your audit-defence under
           IRA §6(1).
         </span>
+        {% else %}
+        <strong data-testid="b4-protected-zero">
+          Add a fee/expense for this SP to see the deduction protection projection.
+        </strong>
+        <span class="s8-savings-ira-note">
+          Once a monthly retainer (or annualisable rate) is on file we will show
+          the LKR you protect at audit time. Without a documented agreement, the
+          IRD can disallow expenses paid to this Service Provider (IRA §6(1)).
+        </span>
+        {% endif %}
       </div>
-      {% endif %}
 
       {# -- Action row ------------------------------------------------------ #}
       <div class="s8-action-row">
