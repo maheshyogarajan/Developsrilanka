@@ -1,5 +1,8 @@
-{% extends "layout.html" %}
-{% block title %}Validation Rules Configuration{% endblock %}
+{# G2.3 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Validation Rules Configuration extends the universal FIESTA shell via
+   `layout_template` (Design Lock 3 §D5). Pure chrome migration. #}
+{% extends layout_template %}
+{% block page_title %}Validation rules configuration{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

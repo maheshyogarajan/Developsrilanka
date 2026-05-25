@@ -1,5 +1,8 @@
-{% extends "layout.html" %}
-{% block title %}Bank Statement Processing Results{% endblock %}
+{# G2.3 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Bank statement processing-results view extends the universal FIESTA
+   shell via `layout_template` (Design Lock 3 §D5). Pure chrome migration. #}
+{% extends layout_template %}
+{% block page_title %}Bank statement processing results{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
