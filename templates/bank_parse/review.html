@@ -1,0 +1,131 @@
+{% extends layout_template %}
+
+{% block title %}Review parsed remittances - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1100px;">
+  <div class="row mb-3">
+    <div class="col">
+      <span class="eyebrow">Foreign Income · Bank Parse</span>
+      <h1 class="h2 mb-1">Review {{ row_count }} candidate remittance row{{ '' if row_count == 1 else 's' }}</h1>
+      <p class="text-secondary mb-0">
+        From <strong>{{ filename }}</strong> ({{ kind|upper }}).
+        Edit any field, untick rows you don't want, then confirm to create
+        canonical income rows.
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if row_count == 0 %}
+  <div class="card">
+    <div class="card-body">
+      <p class="mb-3">No rows were extracted. The file may be image-only, low-quality, or contain no inward foreign remittances.</p>
+      <a href="{{ url_for('bank_parse.upload') }}" class="btn btn-primary">Upload another file</a>
+      <a href="{{ url_for('remittance.new') }}" class="btn btn-outline-secondary ms-2">Enter manually</a>
+    </div>
+  </div>
+  {% else %}
+  <form method="POST" action="{{ url_for('bank_parse.confirm', parse_id=pbs.id) }}">
+    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+
+    <div class="card mb-3">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 40px;">Keep</th>
+              <th style="width: 130px;">Date</th>
+              <th style="width: 90px;">Currency</th>
+              <th style="width: 130px;">Amount</th>
+              <th style="width: 130px;">CBSL rate</th>
+              <th>Sender</th>
+              <th style="width: 90px;">Country</th>
+              <th style="width: 100px;">SWIFT</th>
+              <th style="width: 90px;">Confidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>
+                <input type="checkbox" class="form-check-input"
+                       name="include[{{ r.row_index }}]" value="1" checked>
+              </td>
+              <td>
+                <input type="date" class="form-control form-control-sm"
+                       name="date[{{ r.row_index }}]" value="{{ r.date }}">
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm text-uppercase"
+                       name="currency[{{ r.row_index }}]" value="{{ r.currency }}"
+                       maxlength="3" style="width: 80px;">
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm text-end"
+                       name="amount[{{ r.row_index }}]" value="{{ r.amount }}"
+                       inputmode="decimal">
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm text-end"
+                       name="cbsl_rate[{{ r.row_index }}]"
+                       value="{{ r.cbsl_rate or '' }}"
+                       inputmode="decimal"
+                       title="{{ r.cbsl_rate_source or 'manual' }}">
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm"
+                       name="sender[{{ r.row_index }}]"
+                       value="{{ r.sender or '' }}">
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm text-uppercase"
+                       name="country[{{ r.row_index }}]"
+                       value="{{ r.source_country or '' }}"
+                       maxlength="2" style="width: 70px;">
+              </td>
+              <td>
+                <small class="text-muted">{{ r.swift_code or '' }}</small>
+              </td>
+              <td>
+                <span class="badge bg-{% if r.confidence == 'high' %}success{% elif r.confidence == 'medium' %}warning{% else %}secondary{% endif %}">
+                  {{ r.confidence }}
+                </span>
+              </td>
+            </tr>
+            {% if r.narration %}
+            <tr>
+              <td></td>
+              <td colspan="8" class="small text-muted pt-0">
+                <em>narration:</em> {{ r.narration }}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <a href="{{ url_for('bank_parse.upload') }}" class="btn btn-outline-secondary">
+        Back to upload
+      </a>
+      <button type="submit" class="btn btn-primary">
+        Confirm + create {{ row_count }} remittance entr{{ 'y' if row_count == 1 else 'ies' }}
+      </button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -337,6 +337,16 @@ try:
 except Exception as e:
     logger.error(f"Error loading remittance routes: {str(e)}")
 
+# MS2 E.1 / B8 — canonical bank-parse routes (BANK_PARSE_ENABLED feature flag,
+# default false). Mounted at /remittance/import/parse/* parallel to the legacy
+# /remittance/import flow; legacy flow remains the default for non-beta users.
+try:
+    import bank_parse_routes
+    bank_parse_routes.register_routes(app)
+    logger.info("Bank-parse (canonical) routes loaded successfully")
+except Exception as e:
+    logger.error(f"Error loading bank-parse routes: {str(e)}")
+
 # Wave 3 / S4 — Connect-earnings 'drop in statements' screen (2026-05-20)
 try:
     import fiesta.earnings.models  # noqa: F401  (registers Statement + IncomeEntry tables)
