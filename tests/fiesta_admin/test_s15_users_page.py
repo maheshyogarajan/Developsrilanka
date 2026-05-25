@@ -82,10 +82,12 @@ def test_s15_non_admin_gets_403(client, non_admin_user, login_as):
         f"Expected 403; got {resp.status_code}. body[:300]={resp.data[:300]!r}"
     )
     # The S15 page body MUST NOT leak — the 403 page is a different surface.
-    # Look for an S15-specific marker (the users-table heading) rather than
-    # the generic "FIESTA Admin" string which IS present on the 403 page.
-    assert b"id=\"s15-users-table\"" not in resp.data
-    assert b"S15 fiesta_admin" not in resp.data
+    # Use S15-specific markers: filter form fields the happy-path test (just
+    # below) asserts ARE present on the S15 page. "FIESTA Admin" appears on
+    # both surfaces (it's the topbar wordmark) so it can't gate this test.
+    assert b'name="search"' not in resp.data
+    assert b'name="tier"' not in resp.data
+    assert b'name="audit"' not in resp.data
 
 
 # --------------------------------------------------------------------------- #
