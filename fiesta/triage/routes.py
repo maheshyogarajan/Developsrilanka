@@ -132,25 +132,21 @@ def _safe_next_url(raw: Optional[str]) -> Optional[str]:
 def _post_complete_redirect() -> str:
     """Where to send the user after they finish triage.
 
+    MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D2, 2026-05-25): triage always
+    routes to the universal FIESTA hub (`/`) post-completion. The hub's
+    funnel-state recommender picks the right next step based on the
+    user's income mix; we no longer need a persona-aware branch here.
+
     Priority:
       1. ?next=... if it's a safe relative path
-      2. X9 F2.5 -- if persona == 'sl_foreign_income', send to /
-         (which auto-redirects to /remittance/dashboard, the FIESTA hub
-         entry for foreign-income earners). Otherwise the legacy /scan
-         page via url_for('index').
+      2. url_for('home') — universal FIESTA hub
       3. Fall back to '/'
     """
     nxt = _safe_next_url(request.args.get("next") or request.form.get("next"))
     if nxt:
         return nxt
     try:
-        from flask_login import current_user
-        if (
-            current_user.is_authenticated
-            and getattr(current_user, "persona", None) == "sl_foreign_income"
-        ):
-            return url_for("home")
-        return url_for("index")
+        return url_for("home")
     except Exception:
         return "/"
 
