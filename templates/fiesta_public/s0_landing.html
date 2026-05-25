@@ -256,6 +256,39 @@
     .x8a-landing .tb-hero-proto__amount { font-size: 1.3rem; }
   }
 
+  /* D11 (Tier-D6 minor, 2026-05-25) — hero primary CTA. Server-rendered, not
+     JS-deferred, with stable data-testid so e2e/DOM probes can find it
+     without scrolling to the bottom cta-row. */
+  .x8a-landing .tb-hero-cta-row {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-top: 1.1rem;
+    padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .x8a-landing .tb-hero-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--clay, #B8542F); color: #fff;
+    padding: 14px 26px;
+    font-family: 'Manrope', sans-serif; font-weight: 700;
+    font-size: 15px; letter-spacing: 0.2px;
+    border-radius: 10px; border: 0; cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 2px 10px rgba(184,84,47,0.25);
+    transition: background .15s, transform .05s;
+    min-height: 48px;
+  }
+  .x8a-landing .tb-hero-cta:hover { background: var(--clay-deep, #8e3f22); color: #fff; }
+  .x8a-landing .tb-hero-cta:active { transform: translateY(1px); }
+  .x8a-landing .tb-hero-cta.ghost {
+    background: transparent; color: var(--clay, #B8542F);
+    border: 1px solid var(--paper-edge, #d8cab4); box-shadow: none;
+    font-weight: 600;
+  }
+  .x8a-landing .tb-hero-cta.ghost:hover {
+    background: var(--paper-deep, #f0ead9); color: var(--clay-deep, #8e3f22);
+  }
+  @media (max-width: 414px) {
+    .x8a-landing .tb-hero-cta { width: 100%; justify-content: center; }
+  }
+
   /* ---------------------------------------------------------------------
      A6 TRUST BLOCK — sits below S0 hero, above the eyebrow + calculator.
      First-time visitors from acquisition channels (Lanka Devs, SL
@@ -447,7 +480,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="x8a-landing">
+{# D12 (Tier-D6 minor, 2026-05-25) — expose auth state to the inline JS so
+   runCalc() can skip the server fetch for anon visitors (who used to trip
+   intermittent CSRF errors and pollute the console). #}
+<div class="x8a-landing"
+     data-user-authenticated="{{ '1' if current_user.is_authenticated else '0' }}">
   <div class="container-narrow">
 
     {# ---------------------------------------------------------------
@@ -490,6 +527,34 @@
 
       <div class="tb-hero-footnote">
         Worked example using IRA 25/26 brackets at gross LKR {{ hero_example.gross_income_lkr if hero_example else '9,060,000' }} (USD 2,500/mo &times; 12 &times; CBSL rate {{ fx_rate_lkr_per_usd or '302' }}). Move the slider below to see your number.
+      </div>
+
+      {# D11 (Tier-D6 minor, 2026-05-25) — server-rendered hero CTA. Anon
+         visitors land on /; the primary "Get started" CTA was previously
+         only at the bottom cta-row (~line 660) and not detectable by DOM
+         probes without scrolling. Adding stable data-testid selectors here. #}
+      <div class="tb-hero-cta-row" role="group" aria-label="Get started with FIESTA">
+        {% if current_user.is_authenticated %}
+        <a class="tb-hero-cta"
+           data-testid="hero-cta-signup"
+           data-track="cta_click" data-track-cta-id="s0_hero_continue_authed"
+           href="{{ url_for('fiesta_triage.triage_form') }}">
+          Continue your setup &rarr;
+        </a>
+        {% else %}
+        <a class="tb-hero-cta"
+           data-testid="hero-cta-signup"
+           data-track="cta_click" data-track-cta-id="s0_hero_signup"
+           href="{{ url_for('register', next=url_for('fiesta_triage.triage_form')) }}">
+          Get started — sign up free &rarr;
+        </a>
+        <a class="tb-hero-cta ghost"
+           data-testid="hero-cta-secondary"
+           data-track="cta_click" data-track-cta-id="s0_hero_secondary"
+           href="{{ url_for('fiesta_tax_preview_page') }}">
+          See the full 25/26 result
+        </a>
+        {% endif %}
       </div>
     </section>
 
@@ -724,6 +789,14 @@
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
   var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
+  // D12 (Tier-D6 minor, 2026-05-25) — anon visitors compute client-side. The
+  // /preview/calc endpoint IS CSRF-exempt but intermittent edge-cache stripping
+  // of the meta tag was producing CSRF failures + a noisy console for anon
+  // sessions. Server-issued data attribute is the source of truth.
+  var IS_AUTHENTICATED =
+    (document.querySelector('.x8a-landing') || {}).dataset &&
+    (document.querySelector('.x8a-landing').dataset.userAuthenticated === '1');
+
   if (!slider) return;
 
   function fmtLKR(n) {
@@ -759,10 +832,42 @@
   var debounceTimer = null;
   var lastInputEventEmitted = 0;
 
+  // D12 — client-side approximation matching fiesta.tax.preview.quick_preview
+  // for anon visitors. Uses the published 25/26 brackets: 6% on the first
+  // ~1.2M, then 15% flat on foreign income above that (the engine's
+  // foreign-income flat-rate path). Net adds the deductible chips at
+  // marginal-rate uplift (30% fallback). Numbers are rounded to nearest 100.
+  function localApprox(annualLkr, spFee) {
+    var FIRST_BAND = 1200000;
+    var FIRST_RATE = 0.06;
+    var FOREIGN_RATE = 0.15;
+    var MARGINAL = 0.30;
+    var firstBandTax = Math.min(annualLkr, FIRST_BAND) * FIRST_RATE;
+    var foreignTax = Math.max(0, annualLkr - FIRST_BAND) * FOREIGN_RATE;
+    var naive = firstBandTax + foreignTax;
+    var deduction = Math.min(spFee, annualLkr) * MARGINAL;
+    var fiesta = Math.max(0, naive - deduction);
+    var saving = Math.max(0, naive - fiesta);
+    var pct = naive > 0 ? Math.round((saving / naive) * 1000) / 10 : 0;
+    return {
+      naive_tax_lkr: Math.round(naive / 100) * 100,
+      fiesta_tax_lkr: Math.round(fiesta / 100) * 100,
+      saving_lkr: Math.round(saving / 100) * 100,
+      saving_pct: pct
+    };
+  }
+
   function runCalc() {
     if (bigCounter) bigCounter.classList.add('calc-loading');
     var annualLkr = paintLocal();
     var spFee = getSpFeeLkr();
+
+    // D12 — anon visitors: client-side only, no fetch, no CSRF risk.
+    if (!IS_AUTHENTICATED) {
+      applyCalc(localApprox(annualLkr, spFee));
+      if (bigCounter) bigCounter.classList.remove('calc-loading');
+      return;
+    }
 
     var headers = { 'Content-Type': 'application/json' };
     if (csrfToken) headers['X-CSRFToken'] = csrfToken;

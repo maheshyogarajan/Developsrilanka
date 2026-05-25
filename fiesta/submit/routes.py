@@ -445,16 +445,31 @@ def _load_walkthrough_steps() -> list[dict[str, Any]]:
                     )
                     return _WALKTHROUGH_FALLBACK
                 out: list[dict[str, Any]] = []
+                # D14 (Tier-D6 minor, 2026-05-25): the YAML schema uses
+                # `step` (number), `screenshot_url` (path), and `ira_citation`.
+                # The Jinja template (templates/submit/walkthrough.html) reads
+                # `step.step`, `step.image_filename`, and `step.ira_citation`.
+                # We bridge both naming conventions so the loader's output is
+                # template-compatible AND backward-compatible with any other
+                # consumer that still expects the original keys.
                 for i, s in enumerate(steps_raw, start=1):
+                    step_num = s.get("step") or s.get("step_number") or i
+                    screenshot_url = s.get("screenshot_url") or ""
+                    image_filename = ""
+                    if screenshot_url:
+                        # /static/fiesta_ird_walkthrough/step_07.png → step_07.png
+                        image_filename = screenshot_url.rsplit("/", 1)[-1]
                     out.append(
                         {
-                            "step_number": s.get("step_number") or i,
+                            "step": step_num,
+                            "step_number": step_num,
                             "title": s.get("title") or f"Step {i}",
                             "what_customer_does": s.get("what_customer_does") or "(annotation pending)",
                             "what_can_go_wrong": s.get("what_can_go_wrong") or "(annotation pending)",
                             "how_fiesta_helps": s.get("how_fiesta_helps") or "(annotation pending)",
                             "ira_citation": s.get("ira_citation") or "",
-                            "screenshot_url": s.get("screenshot_url") or "",
+                            "screenshot_url": screenshot_url,
+                            "image_filename": image_filename,
                         }
                     )
                 logger.info("Loaded %d walkthrough steps from %s", len(out), candidate)
@@ -842,7 +857,14 @@ def get_walkthrough():
         )
         return redirect(url_for("fiesta_submit.show_submit", tax_year=tax_year))
 
-    steps = _walkthrough_step_data()
+    # D14 (Tier-D6 minor, 2026-05-25): prefer the YAML loader (which sources
+    # real IRA citations + step text from fiesta_ird_walkthrough/annotations.yaml)
+    # over the hardcoded `_walkthrough_step_data()` placeholders. The loader
+    # falls back to the original placeholder list if the YAML is missing or
+    # unparseable, so behaviour degrades gracefully.
+    steps = _load_walkthrough_steps()
+    if not steps:
+        steps = _walkthrough_step_data()
     return render_template(
         "submit/walkthrough.html",
         submission=sub,
