@@ -30,10 +30,19 @@ Downgrade reverses every component (use only if reverting Stage C4 work)::
 from __future__ import annotations
 
 import logging
+import os
 import sys
 
-from app import app, db
-from sqlalchemy import text
+# Allow `python migrations/20260525_120700_a_admin_consolidated.py upgrade`
+# from the repo root by ensuring the repo root is on sys.path. The existing
+# raw-SQL migrations rely on the caller having already set CWD to the repo
+# root + sys.path[0] = ''; this two-line guard makes the script self-bootstrap.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from app import app, db  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("M1-007")
