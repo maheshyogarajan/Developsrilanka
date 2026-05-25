@@ -107,6 +107,20 @@ property_bp = Blueprint(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _invalidate_rental_cache_for(user_id: int | None, property_id: int | None) -> None:
+    """Tier D6 / D8 — drop the cached rental-bundle + projection entries
+    used by `/agreements/rental/<property_id>` after any Property / Landlord /
+    RentalAgreement write. Best-effort, never raises.
+    """
+    if not user_id:
+        return
+    try:
+        from fiesta.agreements.rental_routes import invalidate_rental_agreement_cache
+        invalidate_rental_agreement_cache(user_id, property_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("rental agreement cache invalidate skipped: %s", exc)
+
+
 def _current_user_id() -> int | None:
     if not _HAS_LOGIN or current_user is None:
         return None
@@ -291,6 +305,7 @@ def create():
         prop.recompute_home_office_percentage()
         db.session.add(prop)
         db.session.commit()
+        _invalidate_rental_cache_for(_current_user_id(), prop.id)
         return jsonify({"ok": True, "property": prop.to_dict()})
     except Exception as exc:
         db.session.rollback()
@@ -419,6 +434,7 @@ def update(property_id: int):
 
     try:
         db.session.commit()
+        _invalidate_rental_cache_for(_current_user_id(), prop.id)
         return jsonify({"ok": True, "property": prop.to_dict()})
     except Exception as exc:
         db.session.rollback()
@@ -556,6 +572,7 @@ def landlord_save(property_id: int):
         db.session.add(det)
 
         db.session.commit()
+        _invalidate_rental_cache_for(user_id, property_id)
         return jsonify({
             "ok": True,
             "landlord": landlord.to_dict(),
@@ -711,6 +728,7 @@ def rental_save(property_id: int):
 
         rental.apply_defaults(prop)
         db.session.commit()
+        _invalidate_rental_cache_for(user_id, property_id)
         return jsonify({"ok": True, "rental": rental.to_dict()})
     except Exception as exc:
         db.session.rollback()

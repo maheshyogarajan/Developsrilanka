@@ -72,6 +72,26 @@ from fiesta.agreements.models import (
 )
 from fiesta.agreements.rental_pdf import render_rental_agreement
 
+# Tier D6 / D8 (2026-05-25) — module-level imports for hot-path helpers.
+# Lazy-imports inside preview() (Property, Landlord, RentalAgreement,
+# compute_protected_deductions_lkr) made cold worker boots pay the full
+# SQLAlchemy DDL walk per request. Hoisted here.
+try:
+    from fiesta.property.models import (  # type: ignore[import-not-found]
+        Property as _Property,
+        Landlord as _Landlord,
+        RentalAgreement as _RentalAgreement,
+    )
+except Exception:  # pragma: no cover -- import-time tolerance
+    _Property = None  # type: ignore[assignment]
+    _Landlord = None  # type: ignore[assignment]
+    _RentalAgreement = None  # type: ignore[assignment]
+
+try:
+    from fiesta.agreements.helpers import compute_protected_deductions_lkr as _compute_protected_deductions_lkr
+except Exception:  # pragma: no cover -- import-time tolerance
+    _compute_protected_deductions_lkr = None  # type: ignore[assignment]
+
 
 logger = logging.getLogger(__name__)
 
@@ -225,52 +245,28 @@ def preview(property_id: int) -> Any:
     """
     user_id = getattr(current_user, "id", None)
 
-    # Resolve the property; cross-tenant access returns 404 by design.
-    try:
-        from fiesta.property.models import Property  # type: ignore[import-not-found]
-        from fiesta.agreements.helpers import compute_protected_deductions_lkr
-    except Exception as _e:  # pragma: no cover -- import-time tolerance
-        logger.warning("rental.preview model imports failed: %s", _e)
-        Property = None  # type: ignore[assignment]
-        compute_protected_deductions_lkr = None  # type: ignore[assignment]
+    # Tier D6 / D8 — fetch the Property + Landlord + most-recent RentalAgreement
+    # via a cached bundle helper. Cold path runs the DB queries; warm path
+    # serves from the per-(user, property) in-memory cache (60s TTL).
+    # Invalidated by Property / Landlord / RentalAgreement write handlers via
+    # `invalidate_rental_agreement_cache(user_id, property_id)`.
+    bundle = _resolve_property_bundle_cached(property_id, user_id)
+    prop = bundle.get("property")
+    landlord = bundle.get("landlord")
+    rental = bundle.get("rental")
 
-    prop = None
-    if Property is not None:
-        prop = Property.query.filter_by(id=property_id, user_id=user_id).first()
-        if prop is None:
-            # 404 (not 403) to avoid leaking the existence of other users' rows.
-            abort(404)
+    if _Property is not None and prop is None:
+        # Property model is wired but the row doesn't exist OR isn't owned
+        # by this user — 404 (not 403) to avoid leaking existence.
+        abort(404)
 
     # B4 F5.5 — surface server-side "protects Rs X" projection on S9.
-    protected_lkr = 0
-    if prop is not None and compute_protected_deductions_lkr is not None:
-        try:
-            # is_property=True ensures we route to the Property branch of the
-            # helper (which reads monthly_rent_lkr × home_office_percentage),
-            # not the ServiceProvider branch. monthly_rent_lkr is not stored
-            # on Property itself — the helper handles None gracefully and
-            # returns 0, which suppresses the framing block in the template.
-            protected_lkr = compute_protected_deductions_lkr(
-                current_user, prop, is_property=True
-            )
-        except Exception as _e:
-            logger.debug("rental.preview protected_deductions calc failed: %s", _e)
-
-    # Best-effort load of landlord + most-recent rental agreement so the
-    # preview pane can render party + term details when available.
-    landlord = None
-    rental = None
-    try:
-        from fiesta.property.models import Landlord, RentalAgreement  # type: ignore[import-not-found]
-        landlord = Landlord.query.filter_by(property_id=property_id).first()
-        rental = (
-            RentalAgreement.query
-            .filter_by(property_id=property_id)
-            .order_by(RentalAgreement.start_date.desc())
-            .first()
-        )
-    except Exception as _e:
-        logger.debug("rental.preview landlord/rental fetch failed: %s", _e)
+    protected_lkr = _rental_protected_deductions_cached(
+        user_id=user_id,
+        property_id=property_id,
+        user_obj=current_user,
+        property_obj=prop,
+    )
 
     # Build the preview dict the template's {% if preview %} block expects.
     # All sub-fields are tolerant of missing data — the template guards on
@@ -560,4 +556,125 @@ def history(property_id: int) -> Any:
     )
 
 
-__all__ = ["bp"]
+# --------------------------------------------------------------------------- #
+# Tier D6 / D8 — cache helpers + invalidator (rental side).
+# --------------------------------------------------------------------------- #
+
+
+def _resolve_property_bundle_cached(property_id: int, user_id) -> dict:
+    """Cached (Property, Landlord, RentalAgreement) trio for the rental preview.
+
+    Cache key: ``rental_bundle:{user_id}:{property_id}``. TTL 60s.
+    Invalidate via `invalidate_rental_agreement_cache(user_id, property_id)`
+    when any of the three rows changes (Property/Landlord/Rental save handlers).
+
+    Returns a dict ``{"property": ..., "landlord": ..., "rental": ...}``
+    with None for any missing piece. Returns all-None dict on import-time
+    failure or DB unavailability — caller treats None as "404 / unauthorised".
+    """
+    key = None
+    try:
+        from fiesta.perf_cache import get as _get, set as _set
+        key = f"rental_bundle:{int(user_id) if user_id else 0}:{int(property_id)}"
+        hit, value = _get(key)
+        if hit:
+            return value
+    except Exception:  # noqa: BLE001
+        _set = None
+
+    bundle: dict = {"property": None, "landlord": None, "rental": None}
+
+    if _Property is not None:
+        try:
+            bundle["property"] = (
+                _Property.query.filter_by(id=property_id, user_id=user_id).first()
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("rental.preview Property fetch failed: %s", exc)
+
+    if _Landlord is not None:
+        try:
+            bundle["landlord"] = _Landlord.query.filter_by(
+                property_id=property_id
+            ).first()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("rental.preview Landlord fetch failed: %s", exc)
+
+    if _RentalAgreement is not None:
+        try:
+            bundle["rental"] = (
+                _RentalAgreement.query
+                .filter_by(property_id=property_id)
+                .order_by(_RentalAgreement.start_date.desc())
+                .first()
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("rental.preview RentalAgreement fetch failed: %s", exc)
+
+    if _set is not None and key is not None:
+        try:
+            _set(key, bundle, seconds=60)
+        except Exception:  # noqa: BLE001
+            pass
+    return bundle
+
+
+def _rental_protected_deductions_cached(
+    *, user_id, property_id: int, user_obj, property_obj
+) -> int:
+    """Cached LKR-protected-by-rental-agreement projection. Mirrors the
+    service-side helper. Key: ``rental_protected_lkr:{user_id}:{property_id}``.
+    """
+    key = None
+    try:
+        from fiesta.perf_cache import get as _get, set as _set
+        key = f"rental_protected_lkr:{int(user_id) if user_id else 0}:{int(property_id)}"
+        hit, value = _get(key)
+        if hit:
+            return int(value)
+    except Exception:  # noqa: BLE001
+        _set = None
+
+    if property_obj is None or _compute_protected_deductions_lkr is None:
+        val = 0
+    else:
+        try:
+            val = _compute_protected_deductions_lkr(
+                user_obj, property_obj, is_property=True
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("rental.preview protected_deductions calc failed: %s", exc)
+            val = 0
+
+    if _set is not None and key is not None:
+        try:
+            _set(key, int(val), seconds=60)
+        except Exception:  # noqa: BLE001
+            pass
+    return int(val)
+
+
+def invalidate_rental_agreement_cache(user_id, property_id: int | None = None) -> int:
+    """Drop cached rental-bundle + projection entries for a user.
+
+    Call from Property / Landlord / RentalAgreement write handlers so
+    `/agreements/rental/<property_id>` reflects the change on next render.
+    Returns count of cache keys dropped.
+    """
+    if not user_id:
+        return 0
+    try:
+        from fiesta.perf_cache import invalidate as _inv, invalidate_prefix as _inv_pre
+        if property_id is not None:
+            _inv(f"rental_bundle:{int(user_id)}:{int(property_id)}")
+            _inv(f"rental_protected_lkr:{int(user_id)}:{int(property_id)}")
+            return 2
+        return _inv_pre(f"rental_bundle:{int(user_id)}:") + _inv_pre(
+            f"rental_protected_lkr:{int(user_id)}:"
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("invalidate_rental_agreement_cache failed: %s", exc)
+        return 0
+
+
+__all__ = ["bp", "invalidate_rental_agreement_cache"]
