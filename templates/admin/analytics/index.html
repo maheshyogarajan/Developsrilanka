@@ -1,8 +1,10 @@
-{% extends "admin/layout.html" %}
+{# F8.2 migration (Stage C4): switched from legacy admin/layout.html to the
+   unified FIESTA admin shell. Block name changed admin_content -> content. #}
+{% extends "admin/layout_fiesta.html" %}
 
 {% block title %}Analytics — FIESTA Admin{% endblock %}
 
-{% block admin_content %}
+{% block content %}
 <div class="container-fluid py-3">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <h2 class="mb-0">Acquisition funnel</h2>

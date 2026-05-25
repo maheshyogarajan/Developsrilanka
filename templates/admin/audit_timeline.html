@@ -1,8 +1,11 @@
-{% extends "admin_base.html" %}
+{# F8.2 migration (Stage C4): admin_base.html never existed — every render of
+   /admin/audit-timeline raised TemplateNotFound. Switched to the unified admin
+   shell. Block renames: extra_css -> additional_styles, extra_js -> scripts. #}
+{% extends "admin/layout_fiesta.html" %}
 
 {% block title %}Audit Trail Timeline{% endblock %}
 
-{% block extra_css %}
+{% block additional_styles %}
 <style>
     .timeline-container {
         position: relative;
@@ -289,7 +292,7 @@
 
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
 <script>
 function refreshTimeline() {
     const loadingIndicator = document.getElementById('loading-indicator');

@@ -1,12 +1,16 @@
-{# templates/layout_fiesta_admin.html — F-Platform-1.
+{# templates/layout_fiesta_admin.html — F-Platform-1 alias.
 
-   Admin shell variant. Inherits everything from layout_fiesta.html and
-   only swaps the topbar + sidebar partials. Everything else (head,
-   footer, scripts, JS event wiring) inherits unchanged.
+   Stage C4 (admin consolidation): the canonical admin shell is
+   ``admin/layout_fiesta.html`` — it ships the af-topbar/af-rail/af-canvas
+   styled scope (ADMIN badge, forest topbar, operator-tuned sidebar nav).
+   ALL admin pages extend admin/layout_fiesta.html.
 
-   C4 admin consolidator owns the topbar_admin / sidebar_admin includes
-   long-term and may further customise per Design Lock 1 §Admin shell
-   variant.
+   This file is kept as a thin compatibility alias so anything that imports
+   ``layout_fiesta_admin.html`` (the F-Platform-1 stub path) still resolves —
+   it inherits from the customer-hub shell with the F-Platform-1 admin
+   topbar/sidebar partial swap.
+
+   Authoritative source of truth: templates/admin/layout_fiesta.html.
 #}
 {% extends "layout_fiesta.html" %}
 {% block topbar %}{% include "_fiesta/topbar_admin.html" %}{% endblock %}
