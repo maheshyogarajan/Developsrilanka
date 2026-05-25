@@ -829,6 +829,26 @@ with app.app_context():
             f"columns + tables still work via db.create_all on fresh DBs): {e}"
         )
 
+    # MS2 E.1 — B10 NRR classifier User columns.
+    # Adds user.returned_to_sl_date + user.years_abroad_prior_to_return +
+    # user.residency_classification_log. Idempotent + dialect-aware.
+    try:
+        import importlib.util as _importlib_util
+        from pathlib import Path as _Path
+        _b10_spec_path = _Path(__file__).resolve().parent / "migrations" / "20260525_130300_e_b10_nrr.py"
+        _b10_spec = _importlib_util.spec_from_file_location(
+            "_b10_nrr_migration_loader", str(_b10_spec_path)
+        )
+        if _b10_spec is not None and _b10_spec.loader is not None:
+            _b10_mod = _importlib_util.module_from_spec(_b10_spec)
+            _b10_spec.loader.exec_module(_b10_mod)
+            _b10_mod.upgrade()
+    except Exception as e:
+        logger.error(
+            f"MS2 E.1 B10 NRR migration failed (non-fatal — ORM-level "
+            f"columns still work via db.create_all on fresh DBs): {e}"
+        )
+
 # Function to start Celery worker in a background thread
 def start_background_worker():
     try:
