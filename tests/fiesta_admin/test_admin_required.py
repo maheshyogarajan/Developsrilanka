@@ -55,59 +55,51 @@ def test_anonymous_redirect_preserves_next_url(client, gated_view_path):
 
 
 # --------------------------------------------------------------------------- #
-# 2) Non-admin → 302 to /, with flash
+# 2) Non-admin → 403 (HTML or JSON per Accept)
+#
+# F8.3 (Stage C4): the canonical decorator now returns a styled 403 page for
+# HTML callers and ``{"error": "admin_required", "status": 403}`` JSON for API
+# callers. The earlier 302-with-flash behaviour was Wave 6; these tests are
+# updated to match the F8.3 contract.
 # --------------------------------------------------------------------------- #
-def test_non_admin_user_redirected_to_index_with_flash(client, non_admin_user,
-                                                       gated_view_path, login_as):
-    """Signed-in but non-admin should NOT see the view; should be bounced to
-    '/' and receive an 'Admin access required.' flash message."""
+def test_non_admin_user_gets_403_html(client, non_admin_user,
+                                       gated_view_path, login_as):
+    """Signed-in but non-admin should receive a styled 403 page. The wrapped
+    view body MUST NOT leak."""
     login_as(client, non_admin_user)
     resp = client.get(gated_view_path, follow_redirects=False)
 
-    assert resp.status_code in (301, 302), (
-        f"Expected redirect; got {resp.status_code}. "
+    assert resp.status_code == 403, (
+        f"Expected 403; got {resp.status_code}. "
         f"Did the decorator let a non-admin through? Body: {resp.data[:200]!r}"
     )
-    # The decorator bounces non-admins via ``url_for('index')``. In this app,
-    # the 'index' endpoint resolves to '/scan' (see app.py:501 — the post-login
-    # landing route). We accept '/scan', '/' (default home), or '/home' so
-    # this test stays robust if the endpoint convention changes.
-    location = resp.headers.get("Location", "")
-    assert (location.endswith("/scan") or location.endswith("/")
-            or location == "/" or location.endswith("/home")), (
-        f"Expected redirect to index/home/scan; got {location!r}"
+    # 403 page identity — admin/403.html says "403 — Admin Only".
+    assert b"Admin" in resp.data or b"403" in resp.data, (
+        f"Expected admin 403 page body; got {resp.data[:200]!r}"
     )
     # And critically: the wrapped view's body MUST NOT leak.
     assert b"ADMIN_VIEW_OK" not in resp.data
 
 
-def test_non_admin_user_gets_flash_in_session(client, non_admin_user,
-                                               gated_view_path, login_as, app):
-    """The decorator must enqueue the spec-required flash message in the
-    session before redirecting. We assert against the session state directly
-    rather than following the redirect chain (the production '/scan' landing
-    page has its own onboarding redirects which can loop in the test client).
-
-    This verifies the *contract* — that the decorator emits the flash with the
-    exact spec wording and the 'error' category."""
+def test_non_admin_user_gets_403_json_when_requested(client, non_admin_user,
+                                                      gated_view_path, login_as):
+    """JSON callers (Accept: application/json) receive the canonical JSON
+    error shape, not the HTML page."""
+    import json as _json
     login_as(client, non_admin_user)
-    # Issue the gated request; do NOT follow redirects.
-    resp = client.get(gated_view_path, follow_redirects=False)
-    assert resp.status_code in (301, 302)
-
-    # Inspect the flash stack the decorator left in the session.
-    with client.session_transaction() as sess:
-        flashes = sess.get("_flashes", [])
-    # _flashes is a list of (category, message) tuples.
-    found = [(cat, msg) for (cat, msg) in flashes if msg == "Admin access required."]
-    assert found, (
-        f"Expected ('error', 'Admin access required.') in session _flashes; "
-        f"got {flashes!r}"
+    resp = client.get(
+        gated_view_path,
+        headers={"Accept": "application/json"},
+        follow_redirects=False,
     )
-    # Category must be 'error' per spec (DoD #1, sub-clause 'flash message').
-    assert any(cat == "error" for (cat, _msg) in found), (
-        f"Expected category='error'; got {found!r}"
+    assert resp.status_code == 403, (
+        f"Expected 403; got {resp.status_code}. Body: {resp.data[:200]!r}"
     )
+    payload = _json.loads(resp.data)
+    assert payload.get("error") == "admin_required", (
+        f"Expected error=admin_required; got {payload!r}"
+    )
+    assert payload.get("status") == 403
 
 
 # --------------------------------------------------------------------------- #
