@@ -123,6 +123,35 @@ def page_not_found(e):
 
 @app.errorhandler(403)
 def forbidden(e):
+    # F8.3 (Stage C4 admin consolidation): for /admin/* paths render the
+    # styled admin/403.html so inline ``abort(403)`` calls match what the
+    # @admin_required decorator returns. JSON callers (Accept: application/json
+    # or Content-Type: application/json) receive the canonical JSON shape.
+    try:
+        from flask import request, jsonify
+        wants_json = False
+        try:
+            if request.is_json:
+                wants_json = True
+            else:
+                best = request.accept_mimetypes.best_match(
+                    ["application/json", "text/html"], default="text/html"
+                )
+                wants_json = (best == "application/json")
+        except Exception:
+            wants_json = False
+
+        if wants_json:
+            return jsonify({"error": "forbidden", "status": 403}), 403
+
+        # Admin scope -> styled admin 403 (extends layout_fiesta_admin shell).
+        if request.path and request.path.startswith("/admin"):
+            try:
+                return render_template("admin/403.html"), 403
+            except Exception:
+                pass
+    except Exception:
+        pass
     return render_template('error.html',
                            error_code=403,
                            error_message="You don't have access to this page. If you think this is wrong, contact us at tax@lanka.tax."), 403
@@ -139,6 +168,35 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
+
+
+# Stage C4 F8.7 — last_login_at via Flask-Login user_logged_in signal.
+#
+# Every successful login_user() emits this signal. Wiring the update here
+# guarantees `User.last_login_at` is updated no matter which auth path fires
+# (email, OAuth, magic link, password reset auto-login, future SSO). The
+# per-handler inline writes already in this file are kept as belt-and-braces
+# in case the signal is suppressed in some test contexts.
+try:
+    from flask_login import user_logged_in
+
+    @user_logged_in.connect_via(app)
+    def _update_last_login_at(sender, user, **extra):
+        """Update User.last_login_at on every successful auth."""
+        try:
+            if user is None or not hasattr(user, "id"):
+                return
+            from datetime import datetime as _dt
+            user.last_login_at = _dt.utcnow()
+            db.session.commit()
+        except Exception as _exc:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            logging.debug("last_login_at signal-handler update failed: %s", _exc)
+except Exception as _signal_exc:
+    logging.debug("user_logged_in signal wiring failed: %s", _signal_exc)
 
 # Flask-Login user loader
 @login_manager.user_loader

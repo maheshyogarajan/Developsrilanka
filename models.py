@@ -428,6 +428,11 @@ class User(UserMixin, db.Model):
         Use this helper instead — it writes to `role` and logs the change.
 
         `granted_by` is the User performing the action (None for system seeds).
+
+        Stage C4: also writes a row to the AuditLog table so admin grants are
+        durable in the database, not just stdout logs. AuditLog write is
+        best-effort — if it fails (table missing, FK violation), the role
+        change still commits via the caller's session.
         """
         previous = self.role
         self.role = 'admin'
@@ -440,6 +445,39 @@ class User(UserMixin, db.Model):
             )
         except Exception:
             pass
+
+        # Stage C4 F8.1: durable AuditLog entry for admin grants.
+        try:
+            granted_by_id = getattr(granted_by, "id", None)
+            audit = AuditLog(
+                entity_type="user",
+                entity_id=self.id,
+                action="UPDATE",
+                changed_fields={
+                    "role": {"old_value": previous, "new_value": "admin"},
+                    "reason": reason,
+                    "operation": "promote_to_admin",
+                },
+                user_id=granted_by_id,
+            )
+            db.session.add(audit)
+        except Exception:
+            # Best-effort — don't break the promotion if AuditLog write fails.
+            pass
+
+        # Stage C4: also keep the forward-looking ``user.is_admin`` BOOLEAN
+        # column (added by ``add_admin_and_stripe_columns_to_user.py``) in
+        # sync with ``role`` so the two readers don't drift. Column isn't
+        # declared on the model — we touch it via raw SQL on the session.
+        try:
+            from sqlalchemy import text as _text
+            db.session.execute(
+                _text('UPDATE "user" SET is_admin = TRUE WHERE id = :uid'),
+                {"uid": self.id},
+            )
+        except Exception:
+            pass
+
         return self
 
     def demote_from_admin(self, *, revoked_by=None, reason=None):
@@ -452,6 +490,15 @@ class User(UserMixin, db.Model):
                 "admin_role_revoked user_id=%s email=%s previous_role=%s revoked_by=%s reason=%s",
                 self.id, self.email, previous,
                 getattr(revoked_by, 'id', None), reason,
+            )
+        except Exception:
+            pass
+        # Stage C4: keep the BOOLEAN column in sync on demotion too.
+        try:
+            from sqlalchemy import text as _text
+            db.session.execute(
+                _text('UPDATE "user" SET is_admin = FALSE WHERE id = :uid'),
+                {"uid": self.id},
             )
         except Exception:
             pass
