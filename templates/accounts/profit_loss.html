@@ -1,6 +1,12 @@
-{% extends "layout.html" %}
+{# G2.2 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Profit & Loss accounting page extends the universal FIESTA shell via
+   `layout_template` (Design Lock 3 §D5). G3 will later wire P&L surplus
+   into the unified tax-bill compute; for now this is pure chrome
+   migration — same data, same form, same FinancialReportService call,
+   rendered inside the FIESTA topbar + sidebar. #}
+{% extends layout_template %}
 
-{% block title %}Profit & Loss Statement{% endblock %}
+{% block page_title %}Profit & Loss{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">

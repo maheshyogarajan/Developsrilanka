@@ -1,4 +1,12 @@
-{% extends 'layout.html' %}
+{# G2.1 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Receipts module — the /scan admin operator + future non-admin Receipts
+   surface — now extends the universal FIESTA shell via `layout_template`
+   (Design Lock 3 §D5). Page-level scripts stay inside `scripts_extra`
+   so the FIESTA base `scripts` block (which loads fiesta.js) continues
+   to fire. No page-specific <head> additions required. #}
+{% extends layout_template %}
+
+{% block page_title %}Receipts{% endblock %}
 
 {% block content %}
 <div class="upload-card">
@@ -372,7 +380,7 @@
 </template>
 {% endblock %}
 
-{% block scripts %}
+{% block scripts_extra %}
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 <!-- improved-context.js is already loaded in layout.html -->
 <script>

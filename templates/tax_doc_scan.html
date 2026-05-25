@@ -1,6 +1,14 @@
-{% extends "layout.html" %}
+{# G2.4 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Tax-documents scanner (Lanka.tax doc_lens UI, /tax-doc/scan) extends
+   the universal FIESTA shell via `layout_template` (Design Lock 3 §D5).
+   The page-level <style> block stays inside `content` for now — it's
+   scoped to `.tax-scan-wrap` so it won't bleed into the FIESTA chrome.
+   Addendum §G2.4 calls for /tax-documents to fold into the /tax-bill
+   flow eventually, but until that lands this page renders in the
+   FIESTA shell as a standalone module. #}
+{% extends layout_template %}
 
-{% block title %}Tax Document Scanner — FIESTA{% endblock %}
+{% block page_title %}Tax document scanner{% endblock %}
 
 {% block content %}
 <style>

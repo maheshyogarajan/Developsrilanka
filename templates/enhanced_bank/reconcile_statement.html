@@ -1,6 +1,13 @@
-{% extends "layout.html" %}
+{# G2.3 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Bank statement reconciliation page extends the universal FIESTA shell
+   via `layout_template` (Design Lock 3 §D5). Pure chrome migration.
+   Note: jQuery + inline csrf_token script remain at the top of `content`
+   (their original location) — relocating them risks breaking the
+   reconciliation drag-drop wiring; G5 visual unification can move them
+   into `scripts_extra` once tested manually. #}
+{% extends layout_template %}
 
-{% block title %}Reconcile Statement{% endblock %}
+{% block page_title %}Reconcile statement{% endblock %}
 
 {% block content %}
 <!-- Add jQuery for the reconciliation functionality -->

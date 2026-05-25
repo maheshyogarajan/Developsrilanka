@@ -1,6 +1,9 @@
-{% extends "layout.html" %}
+{# G2.3 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Bank statements list extends the universal FIESTA shell via
+   `layout_template` (Design Lock 3 §D5). Pure chrome migration. #}
+{% extends layout_template %}
 
-{% block title %}Bank Statements{% endblock %}
+{% block page_title %}Bank statements list{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

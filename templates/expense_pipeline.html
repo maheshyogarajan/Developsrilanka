@@ -1,12 +1,15 @@
-{% extends "layout.html" %}
+{# G2.3 (MS4 W3a, 2026-05-25): bookkeeping shell migration.
+   Cash-out (Expense Pipeline kanban) extends the universal FIESTA shell
+   via `layout_template` (Design Lock 3 §D5). Pipeline CSS + SortableJS
+   relocated from legacy `additional_styles` / `scripts` blocks (which
+   only existed in layout.html) into the FIESTA shell's `head_extra` and
+   `scripts_extra` blocks so styling + drag-drop continue to function.
+   Pure chrome migration — pipeline.css scoping unchanged. #}
+{% extends layout_template %}
 
-{% block title %}Expense Pipeline - FIESTA{% endblock %}
+{% block page_title %}Cash out (Expense Pipeline){% endblock %}
 
-{% block styles %}
-{{ super() }}
-{% endblock %}
-
-{% block additional_styles %}
+{% block head_extra %}
 <!-- Pipeline CSS loaded at the end to override all Bootstrap styles -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pipeline.css') }}">
 <style>
@@ -248,8 +251,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
+{% block scripts_extra %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
 <script>
     // Debug script to verify scripts are loading
