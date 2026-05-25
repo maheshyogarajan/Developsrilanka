@@ -306,7 +306,15 @@ def create():
         db.session.add(prop)
         db.session.commit()
         _invalidate_rental_cache_for(_current_user_id(), prop.id)
-        return jsonify({"ok": True, "property": prop.to_dict()})
+        # F-Platform-5: bust the savings cache + flag X-Fiesta-Event so the
+        # topbar counter refreshes on the caller's next page load.
+        try:
+            from app import invalidate_savings_projection, fiesta_event_response
+            invalidate_savings_projection(user_id)
+            resp = jsonify({"ok": True, "property": prop.to_dict()})
+            return fiesta_event_response(resp, 'property-added')
+        except Exception:
+            return jsonify({"ok": True, "property": prop.to_dict()})
     except Exception as exc:
         db.session.rollback()
         logger.exception("Property create failed")
@@ -1043,6 +1051,15 @@ def setup():
         db.session.add(rental)
 
         db.session.commit()
+
+        # F-Platform-5: bust the savings cache + queue the property-added
+        # event so the topbar counter refreshes on the redirected /property/<id>.
+        try:
+            from app import invalidate_savings_projection, queue_fiesta_event
+            invalidate_savings_projection(user_id)
+            queue_fiesta_event('property-added')
+        except Exception:
+            pass
 
         flash(
             f"Property, landlord, and rental agreement saved for {address_line1}, {city}.",

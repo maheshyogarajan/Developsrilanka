@@ -600,6 +600,235 @@ def invalidate_savings_projection(user_id) -> None:
         pass
 
 
+# X9 F-Platform-5 (MS1 Stage C1, 2026-05-25): savings-counter event wiring.
+# The persistent counter in the topbar (static/js/fiesta.js + #fiesta-savings-counter)
+# already listens for these JS custom events and refetches on each:
+#   fiesta:remittance-added
+#   fiesta:deduction-toggled
+#   fiesta:sp-added
+#   fiesta:property-added
+#   fiesta:income-source-added
+#   fiesta:savings-counter-refresh
+#
+# F-Platform-5 dispatches them from two paths:
+#   (a) AJAX/JSON endpoints (deductions claim/unclaim, SP create JSON,
+#       property API): a small response-header (`X-Fiesta-Event: <name>`)
+#       wrapped by `fiesta_event_response(resp, event)`. Frontend's fetch
+#       wrapper in fiesta.js reads it and dispatches.
+#   (b) HTML form POSTs that 302-redirect (remittance/new, SP HTML form,
+#       property/setup): a session-keyed pending-events list. The shell's
+#       <meta name="fiesta-pending-events"> tag exposes the queue on the
+#       NEXT page render; fiesta.js drains + dispatches on DOMContentLoaded.
+#
+# Both paths ALSO call `invalidate_savings_projection(user_id)` server-side
+# so the next `/api/fiesta/savings-projection` fetch returns fresh data.
+_FIESTA_EVENT_NAMES = frozenset({
+    'remittance-added',
+    'deduction-toggled',
+    'sp-added',
+    'property-added',
+    'income-source-added',
+    'savings-counter-refresh',
+})
+
+
+def _normalise_event_name(name: str) -> str | None:
+    """Strip optional `fiesta:` prefix; return canonical short name or None."""
+    if not name:
+        return None
+    n = name.strip()
+    if n.startswith('fiesta:'):
+        n = n[len('fiesta:'):]
+    return n if n in _FIESTA_EVENT_NAMES else None
+
+
+def queue_fiesta_event(event_name: str) -> None:
+    """Queue a `fiesta:*` event to dispatch on the NEXT page render via the
+    session-backed pending-events list. Use this from POST handlers that
+    redirect (rather than respond with JSON). Idempotent + bounded (last
+    10 events kept). Safe to call outside a request context (no-op)."""
+    from flask import session as _session, has_request_context
+    short = _normalise_event_name(event_name)
+    if not short or not has_request_context():
+        return
+    try:
+        q = list(_session.get('_fiesta_pending_events') or [])
+        q.append(short)
+        # Cap to last 10 to bound cookie size; the JS dispatches all in order.
+        _session['_fiesta_pending_events'] = q[-10:]
+    except Exception:
+        pass
+
+
+def fiesta_event_response(resp, event_name: str):
+    """Attach the `X-Fiesta-Event: <name>` response header to a Flask
+    response/JSON tuple so the fiesta.js fetch wrapper dispatches the
+    matching custom event. Returns the (possibly wrapped) response.
+    Accepts either a Response object or a (body, status) tuple."""
+    from flask import make_response
+    short = _normalise_event_name(event_name)
+    if not short:
+        return resp
+    try:
+        wrapped = make_response(resp)
+        wrapped.headers['X-Fiesta-Event'] = f'fiesta:{short}'
+        return wrapped
+    except Exception:
+        return resp
+
+
+@app.context_processor
+def _expose_fiesta_pending_events():
+    """Drain the session-queued pending events into the template context
+    so layout_fiesta.html can render them into a <meta> tag. We DRAIN
+    (pop) on read so events fire exactly once."""
+    from flask import session as _session, has_request_context
+    if not has_request_context():
+        return {'fiesta_pending_events': []}
+    try:
+        q = _session.pop('_fiesta_pending_events', None) or []
+        # Normalise back to fully-qualified names for the JS dispatch path.
+        return {'fiesta_pending_events': [f'fiesta:{e}' for e in q if e in _FIESTA_EVENT_NAMES]}
+    except Exception:
+        return {'fiesta_pending_events': []}
+
+
+# X9 F-Platform-4 (MS1 Stage C1, 2026-05-25): hub extras computation.
+# The hub template (`templates/fiesta_home.html`) needs three things on top of
+# the context the `inject_fiesta_hub_context` processor already supplies:
+#   1. The deduction-category catalog (id + name) for the chip row.
+#   2. The set of category IDs the user has claimed → drives chip pre-tick.
+#   3. The compute_tax_25_26 result for their current data → drives the big
+#      counter (NOT quick_preview, per the F-Platform-4 spec).
+#
+# All three are best-effort: any import / DB failure degrades gracefully so a
+# downstream change in catalog.yaml / DeductionClaim schema / fiesta.tax never
+# breaks the home page.
+def _compute_hub_extras(user_id: int, fx_rate_lkr_per_usd: int) -> dict:
+    """Best-effort hub context extras for `templates/fiesta_home.html`."""
+    from decimal import Decimal as _D
+
+    extras = {
+        'categories': [],
+        'claimed_ids': [],
+        'compute_tax': None,
+    }
+
+    # ---- Categories + claimed IDs ----
+    try:
+        from fiesta.deductions.catalog_loader import load_catalog
+        cat = load_catalog()
+        extras['categories'] = [
+            {'id': c.get('id'), 'name': c.get('name', c.get('id'))}
+            for c in (cat.get('categories') or [])
+            if c.get('id')
+        ]
+    except Exception as exc:
+        logging.debug(f"hub extras catalog load failed: {exc}")
+
+    try:
+        from fiesta.deductions.models import DeductionClaim
+        from fiesta.paywall.models import current_sl_tax_year as _csl
+        try:
+            ya = _csl()
+        except Exception:
+            ya = '2025/26'
+        # DeductionClaim stores tax_year as the underscore-form ('2025_26')
+        # OR slash-form depending on caller — query both to be safe.
+        ya_variants = list({ya, ya.replace('/', '-'), ya.replace('/', '_')})
+        rows = (
+            DeductionClaim.query
+            .filter(DeductionClaim.user_id == user_id)
+            .filter(DeductionClaim.tax_year.in_(ya_variants))
+            .filter(DeductionClaim.claimed.is_(True))
+            .all()
+        )
+        extras['claimed_ids'] = [r.category_id for r in rows if r.category_id]
+    except Exception as exc:
+        logging.debug(f"hub extras claimed_ids load failed: {exc}")
+
+    # ---- compute_tax_25_26 for the user's real data ----
+    # If the user has remittances, sum LKR-equivalent to drive foreign_lkr.
+    # Then run the engine twice: once naive (no deductions), once with their
+    # claimed reliefs from estimate.py — saving is the diff.
+    try:
+        from fiesta.tax.engine import compute_tax_25_26
+        from fiesta.tax.types import Income, Deductions
+        from remittance_models import RemittanceEntry
+        from fiesta.paywall.models import current_sl_tax_year as _csl
+        try:
+            ya = _csl()
+        except Exception:
+            ya = '2025/26'
+        ya_variants = list({ya, ya.replace('/', '-')})
+
+        remits = (
+            RemittanceEntry.query
+            .filter(RemittanceEntry.user_id == user_id)
+            .filter(RemittanceEntry.tax_year.in_(ya_variants))
+            .all()
+        )
+        foreign_lkr = _D('0')
+        for r in remits:
+            if r.lkr_amount_cbsl:
+                foreign_lkr += _D(str(r.lkr_amount_cbsl))
+            elif r.foreign_amount and r.cbsl_rate:
+                foreign_lkr += _D(str(r.foreign_amount)) * _D(str(r.cbsl_rate))
+
+        if foreign_lkr <= 0:
+            # No remittances yet → return None so the template shows Rs --.
+            return extras
+
+        income = Income(foreign_lkr=foreign_lkr)
+        naive = compute_tax_25_26(income=income)
+        # With deductions: best-effort estimate from the user's claims.
+        # The deductions engine (fiesta.deductions.estimate) gives an
+        # aggregated LKR figure — we apply it as expenditure_relief to mirror
+        # the 25/26 SF flow's FMLtaxableIncome computation.
+        deduction_lkr = _D('0')
+        try:
+            from fiesta.deductions.estimate import estimate_total_for_user
+            deduction_lkr = _D(str(estimate_total_for_user(user_id, ya) or 0))
+        except Exception:
+            # Heuristic fallback: sum claimed.estimated_lkr if the engine
+            # helper isn't available.
+            try:
+                from fiesta.deductions.models import DeductionClaim
+                claims = (
+                    DeductionClaim.query
+                    .filter(DeductionClaim.user_id == user_id)
+                    .filter(DeductionClaim.tax_year.in_(ya_variants))
+                    .filter(DeductionClaim.claimed.is_(True))
+                    .all()
+                )
+                for c in claims:
+                    if getattr(c, 'estimated_lkr', None):
+                        deduction_lkr += _D(str(c.estimated_lkr))
+            except Exception:
+                pass
+
+        fiesta_tax = naive.net_tax_due_lkr
+        if deduction_lkr > 0:
+            with_d = compute_tax_25_26(
+                income=income,
+                deductions=Deductions(expenditure_relief_lkr=deduction_lkr),
+            )
+            fiesta_tax = with_d.net_tax_due_lkr
+        saving = max(_D('0'), naive.net_tax_due_lkr - fiesta_tax)
+
+        extras['compute_tax'] = {
+            'gross_lkr': int(foreign_lkr),
+            'naive_tax_lkr': int(naive.net_tax_due_lkr),
+            'fiesta_tax_lkr': int(fiesta_tax),
+            'saving_lkr': int(saving),
+            'source': 'compute_tax_25_26',
+        }
+    except Exception as exc:
+        logging.debug(f"hub extras compute_tax_25_26 failed: {exc}")
+
+    return extras
+
+
 @app.route('/api/fiesta/savings-projection')
 @login_required
 def api_fiesta_savings_projection():
@@ -987,25 +1216,30 @@ def home():
         fx_rate_lkr_per_usd = 302
 
     if current_user.is_authenticated:
-        # X9 F-Platform-4: `/` becomes the FIESTA hub for authenticated
-        # sl_foreign_income personas — same hero, same calculator, same chips,
-        # but pre-filled with their real data + a next-step recommender card.
-        # Two-Doors-One-House: anon S0 and authed hub are the same house, just
-        # personalised behind the door. Non-FIESTA personas keep the legacy
-        # /scan bookkeeping path.
+        # X9 F-Platform-4 (MS1 Stage C1, 2026-05-25): `/` is the FIESTA hub
+        # for any user the persona-gate `use_fiesta_shell()` accepts —
+        # same hero, same calculator, same chips, but pre-filled with their
+        # real data + a next-step recommender card. Two-Doors-One-House: anon
+        # S0 and authed hub are the same house, just personalised behind the
+        # door. Legacy bookkeeping personas keep the `/scan` path.
         #
-        # F-Platform-3: admin role is exempt from the persona reroute. An
-        # admin who happens to also carry the sl_foreign_income persona
-        # (testing the FIESTA flow from their own account) must still bounce
-        # into the legacy operator surface, not the customer hub.
+        # F-Platform-3: admin role takes the legacy operator surface — admins
+        # are operators, not customers. The hub gate explicitly excludes the
+        # admin role even though `use_fiesta_shell()` returns True for
+        # admins (admins need the shell on the admin pages they own).
         if (
             getattr(current_user, 'persona', None) == 'sl_foreign_income'
             and current_user.role != 'admin'
+            and use_fiesta_shell(current_user)
         ):
+            hub_extras = _compute_hub_extras(current_user.id, fx_rate_lkr_per_usd)
             return render_template(
-                'fiesta_public/hub.html',
+                'fiesta_home.html',
                 fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
                 hero_example=_s0_hero_example(),
+                hub_categories=hub_extras['categories'],
+                hub_claimed_category_ids=hub_extras['claimed_ids'],
+                hub_compute_tax=hub_extras['compute_tax'],
             )
         return redirect(url_for('index'))
 
