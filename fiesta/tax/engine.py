@@ -23,7 +23,9 @@ this engine and pass already-LKR-converted income in.
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
+from typing import Optional
 
 from .brackets import (
     compute_bracket_tax,
@@ -33,6 +35,7 @@ from .brackets import (
     sum_bracket_tax,
 )
 from .relief import apply_relief, compute_reliefs, gross_income as compute_gross_income
+from .residency import ResidencyStatus
 from .types import (
     BracketResult,
     Deductions,
@@ -43,11 +46,46 @@ from .types import (
 )
 
 
+def _apply_nrr_exemption(
+    income: Income,
+    residency_status: Optional[ResidencyStatus],
+    returned_to_sl_date: Optional[date],
+    on: Optional[date],
+) -> Income:
+    """B10 NRR — exempt foreign-source income during the 3-year window.
+
+    Date-anchored: window expires at ``returned_to_sl_date + 3 years``
+    exactly. If ``on`` is past the boundary, the exemption no longer
+    applies and the income flows through untouched (caller's regular
+    resident/non-resident bracket logic kicks in).
+
+    Returns a NEW Income object (frozen pydantic model) with
+    ``foreign_lkr=0`` when the exemption applies; otherwise returns the
+    input unchanged.
+    """
+    if residency_status != ResidencyStatus.NRR:
+        return income
+    if returned_to_sl_date is None:
+        # Can't anchor the window — be safe, don't exempt.
+        return income
+    from dateutil.relativedelta import relativedelta
+    on_date = on or date.today()
+    window_end = returned_to_sl_date + relativedelta(years=3)
+    if on_date >= window_end:
+        # Window expired — no exemption.
+        return income
+    # Active NRR window: zero out foreign_lkr.
+    return income.model_copy(update={"foreign_lkr": Decimal("0")})
+
+
 def compute_tax(
     income: Income,
     deductions: Deductions,
     year: TaxYear,
     senior_citizen: bool = False,
+    residency_status: Optional[ResidencyStatus] = None,
+    returned_to_sl_date: Optional[date] = None,
+    on: Optional[date] = None,
 ) -> TaxComputation:
     """Compute tax for any supported year (used by 24/25 regression + 25/26).
 
@@ -60,7 +98,21 @@ def compute_tax(
 
     Returns:
         TaxComputation with full audit trail.
+
+    B10 NRR (added MS2 E.1): when ``residency_status=ResidencyStatus.NRR``
+    and ``returned_to_sl_date`` is within the 3-year concession window,
+    ``income.foreign_lkr`` is zeroed out BEFORE relief + bracket walking.
+    No exemption applies for RESIDENT (foreign income taxed normally), or
+    after the window expires.
     """
+    # B10 NRR — apply foreign-income exemption before any bracket math.
+    income = _apply_nrr_exemption(
+        income=income,
+        residency_status=residency_status,
+        returned_to_sl_date=returned_to_sl_date,
+        on=on,
+    )
+
     slabs = get_slabs(year)
 
     gross = compute_gross_income(income)
@@ -116,6 +168,9 @@ def compute_tax_25_26(
     income: Income,
     deductions: Deductions | None = None,
     senior_citizen: bool = False,
+    residency_status: Optional[ResidencyStatus] = None,
+    returned_to_sl_date: Optional[date] = None,
+    on: Optional[date] = None,
 ) -> TaxComputation:
     """Compute tax for tax year 25/26 — v1 public surface.
 
@@ -128,6 +183,10 @@ def compute_tax_25_26(
         income: Income components (LKR Decimal).
         deductions: Optional. Empty deductions if None.
         senior_citizen: True if taxpayer is 60+ for the year.
+        residency_status: Optional ResidencyStatus. When NRR + within the
+          3-year window, foreign_lkr is exempted (B10).
+        returned_to_sl_date: Required for NRR window calculation.
+        on: Reference date for the NRR window check (defaults to today).
 
     Returns:
         TaxComputation for tax year 25/26.
@@ -138,6 +197,9 @@ def compute_tax_25_26(
         deductions=deductions,
         year=TaxYear.Y25_26,
         senior_citizen=senior_citizen,
+        residency_status=residency_status,
+        returned_to_sl_date=returned_to_sl_date,
+        on=on,
     )
 
 

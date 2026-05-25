@@ -153,9 +153,20 @@ def save():
         # Special coercions for HTML form bools / ints
         if k == "has_foreign_clients" and isinstance(v, str):
             v = v.lower() in {"true", "1", "yes", "on"}
-        if k in {"tax_resident_year", "days_in_sl_current_year"} and isinstance(v, str):
+        if k in {
+            "tax_resident_year",
+            "days_in_sl_current_year",
+            "years_abroad_prior_to_return",  # B10 NRR
+        } and isinstance(v, str):
             try:
                 v = int(v)
+            except (TypeError, ValueError):
+                continue
+        # B10 NRR — coerce ISO date string → date
+        if k == "returned_to_sl_date" and isinstance(v, str):
+            from datetime import date as _date
+            try:
+                v = _date.fromisoformat(v)
             except (TypeError, ValueError):
                 continue
         cleaned[k] = v
@@ -180,9 +191,32 @@ def save():
 
     # Apply validated payload
     before = profile.to_dict(redact_bank=False)
-    profile.apply(payload.model_dump(exclude_none=True))
+    payload_dict = payload.model_dump(exclude_none=True)
+    profile.apply(payload_dict)
+
+    # B10 NRR — User-level fields (separate from FiestaProfile). These live
+    # on User so the tax engine + classifier read them without joining.
+    user_nrr_fields = {"returned_to_sl_date", "years_abroad_prior_to_return"}
+    user_changed = False
+    for field in user_nrr_fields:
+        if field in payload_dict and payload_dict[field] is not None:
+            setattr(current_user, field, payload_dict[field])
+            user_changed = True
+
     db.session.commit()
     after = profile.to_dict(redact_bank=False)
+
+    # B10 NRR — re-classify after any User-level NRR field change. Persist
+    # is implicit (classifier commits the updated status + log row).
+    if user_changed:
+        try:
+            from fiesta.tax.nrr_classifier import classify_user_residency
+            classify_user_residency(current_user, persist=True)
+        except Exception as _exc:  # noqa: BLE001
+            # Never block profile save on a classifier hiccup.
+            logger.warning(
+                "B10 NRR re-classify after profile save failed: %s", _exc
+            )
 
     # Per-field completion events
     for field in payload.model_fields_set:

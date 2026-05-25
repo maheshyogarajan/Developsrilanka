@@ -422,6 +422,24 @@ class User(UserMixin, db.Model):
         default=list,
     )
 
+    # MS2 E.1 / B10 — NRR (Non-Resident Returnee) declared facts.
+    # ``returned_to_sl_date``: the date the user returned to SL after
+    #   being abroad. Nullable — only populated for returnees.
+    # ``years_abroad_prior_to_return``: years they were abroad immediately
+    #   before returning. Drives the NRR ≥5-year qualification gate.
+    # ``residency_classification_log``: append-only JSON list of every
+    #   classifier run for this user — {at, status, confidence, reasoning,
+    #   signals}. Used by Profile UI + audit trail. JSON list of dicts.
+    # Migration: 20260525_130300_e_b10_nrr.py
+    returned_to_sl_date = db.Column(db.Date, nullable=True)
+    years_abroad_prior_to_return = db.Column(db.Integer, nullable=True)
+    residency_classification_log = db.Column(
+        db.JSON,
+        nullable=False,
+        server_default='[]',
+        default=list,
+    )
+
     # Relationships
     organizations = db.relationship('OrganizationUser', back_populates='user', lazy=True, cascade='all, delete-orphan')
     receipts = db.relationship('Receipt', backref='user', lazy=True)

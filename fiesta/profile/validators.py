@@ -14,6 +14,7 @@ Pattern sources:
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -165,6 +166,12 @@ class ProfileFormPayload(BaseModel):
     # Tax residency
     tax_resident_year: Optional[int] = Field(default=None, ge=1, le=99)
     days_in_sl_current_year: Optional[int] = Field(default=None, ge=0, le=366)
+
+    # B10 NRR — declared returnee facts (persisted on User, not FiestaProfile).
+    # ``returned_to_sl_date``: ISO date string in form (yyyy-mm-dd) or None.
+    # ``years_abroad_prior_to_return``: 0-99 integer.
+    returned_to_sl_date: Optional[date] = Field(default=None)
+    years_abroad_prior_to_return: Optional[int] = Field(default=None, ge=0, le=99)
 
     # Employer status
     employment_type: Optional[str] = Field(default=None)
