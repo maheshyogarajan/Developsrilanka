@@ -219,6 +219,20 @@ class TaxInputs:
     rsu_cgt_total_lkr: Decimal = Decimal("0")
     rsu_dtaa_deferred: bool = False
 
+    # Business income (B12, MS3 E.1) ---------------------------------------
+    # Read from BusinessIncomeEntry + BusinessExpenseEntry + paired Income
+    # rows (source_type in ('business_lkr','business_foreign')).
+    # business_lines: list of dicts per business {business_name, business_type,
+    #                  source_country, is_foreign, gross_lkr,
+    #                  expenses_total_lkr, taxable_profit_lkr, expenses}.
+    business_lines: list[dict[str, Any]] = field(default_factory=list)
+    business_gross_total_lkr: Decimal = Decimal("0")
+    business_expenses_total_lkr: Decimal = Decimal("0")
+    business_taxable_profit_total_lkr: Decimal = Decimal("0")
+    business_lkr_taxable_profit_lkr: Decimal = Decimal("0")     # local bucket
+    business_foreign_taxable_profit_lkr: Decimal = Decimal("0")  # foreign bucket
+    business_dtaa_deferred: bool = False
+
     # Engine-shaped inputs (pydantic) --------------------------------------
     # These are computed at the end of assemble_tax_inputs; the compute layer
     # passes them directly to compute_tax_25_26.
@@ -841,6 +855,67 @@ def _load_rsu(inputs: TaxInputs) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Business income loader (B12, MS3 E.1)
+# ---------------------------------------------------------------------------
+
+
+def _load_business_income(inputs: TaxInputs) -> None:
+    """Section B12: BusinessIncomeEntry rows + paired Income + expenses for
+    the tax year.
+
+    Reads from the canonical schema (Design Lock 2 §3-§4 + business_income
+    tables added by M3-001). Tax-year matching uses the canonical YYYY/YY
+    shape stored on Income rows; the aggregator's tax_year_s4_format is
+    YYYY-YY so we convert.
+
+    Pulls per-business gross + expenses via fiesta.tax.business_income.
+    compute_business_tax() which already calls apply_foreign_tax_credit at
+    the DTAA seam for each foreign-source row.
+    """
+    try:
+        from fiesta.tax.business_income import compute_business_tax
+    except Exception:
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+
+    ty_canonical = inputs.tax_year_s4_format.replace("-", "/")
+
+    try:
+        # We need a "user-like" object with .id — User instance preferred.
+        from models import User  # type: ignore
+        user = User.query.get(inputs.user_id)
+    except Exception as exc:
+        logger.warning("business-income user lookup failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+    if user is None:
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+
+    try:
+        result = compute_business_tax(user, ty_canonical)
+    except Exception as exc:
+        logger.warning("compute_business_tax failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+
+    inputs.sources_loaded.append("fiesta.tax.business_income")
+    inputs.business_lines = result.get("businesses") or []
+    inputs.business_gross_total_lkr = _to_decimal(result.get("gross_total_lkr"))
+    inputs.business_expenses_total_lkr = _to_decimal(result.get("expenses_total_lkr"))
+    inputs.business_taxable_profit_total_lkr = _to_decimal(
+        result.get("taxable_profit_total_lkr")
+    )
+    inputs.business_lkr_taxable_profit_lkr = _to_decimal(
+        result.get("lkr_taxable_profit_lkr")
+    )
+    inputs.business_foreign_taxable_profit_lkr = _to_decimal(
+        result.get("foreign_taxable_profit_lkr")
+    )
+    inputs.business_dtaa_deferred = bool(result.get("dtaa_deferred"))
+
+
+# ---------------------------------------------------------------------------
 # Engine-shape composition
 # ---------------------------------------------------------------------------
 
@@ -888,6 +963,34 @@ def _compose_engine_inputs(inputs: TaxInputs) -> None:
         inputs.income_by_category_lkr["rsu_vesting"] = (
             inputs.income_by_category_lkr.get("rsu_vesting", Decimal("0"))
             + inputs.rsu_vesting_total_lkr
+        )
+
+    # B12 (MS3 E.1): Business income (IRA §6 — gross receipts MINUS
+    # deductible expenses = taxable business profit). Sole-prop is taxed
+    # at IIT bracket rates. LKR-source profit feeds business_lkr (local
+    # progressive bracket); foreign-source profit feeds foreign_lkr
+    # (25/26 dual-track 15% cap). compute_business_tax() already invoked
+    # apply_foreign_tax_credit at the DTAA seam for each foreign row.
+    if inputs.business_lkr_taxable_profit_lkr and inputs.business_lkr_taxable_profit_lkr > 0:
+        income_kwargs["business_lkr"] = (
+            income_kwargs["business_lkr"] + inputs.business_lkr_taxable_profit_lkr
+        )
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["business_lkr"] = (
+            inputs.income_by_category_lkr.get("business_lkr", Decimal("0"))
+            + inputs.business_lkr_taxable_profit_lkr
+        )
+    if (
+        inputs.business_foreign_taxable_profit_lkr
+        and inputs.business_foreign_taxable_profit_lkr > 0
+    ):
+        income_kwargs["foreign_lkr"] = (
+            income_kwargs["foreign_lkr"] + inputs.business_foreign_taxable_profit_lkr
+        )
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["business_foreign"] = (
+            inputs.income_by_category_lkr.get("business_foreign", Decimal("0"))
+            + inputs.business_foreign_taxable_profit_lkr
         )
 
     # Roll the "everything else" categories into other_lkr.
@@ -1294,6 +1397,9 @@ def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
 
     # B11 (MS2 E.1): RSU vesting + CGT — canonical schema (Design Lock 2).
     _load_rsu(inputs)
+
+    # B12 (MS3 E.1): Business income (sole-prop, LKR + foreign).
+    _load_business_income(inputs)
 
     _compose_engine_inputs(inputs)
 

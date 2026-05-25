@@ -936,6 +936,87 @@
     </details>
     {% endif %}
 
+    {# ---- Section A.BIZ: BUSINESS INCOME (B12, MS3 E.1) ----------------- #}
+    {% if inputs.business_lines and inputs.business_lines|length > 0 %}
+    <details class="tb-section" open>
+        <summary>
+            Business income
+            <span class="tb-section-total">
+                Gross Rs {{ "{:,.2f}".format(inputs.business_gross_total_lkr) }} &middot;
+                Expenses Rs {{ "{:,.2f}".format(inputs.business_expenses_total_lkr) }} &middot;
+                Profit Rs {{ "{:,.2f}".format(inputs.business_taxable_profit_total_lkr) }}
+            </span>
+        </summary>
+        <div class="tb-section-content">
+            <p style="margin:0 0 0.6rem;font-size:0.9rem;color:var(--color-ink-700,#4b525c);">
+                Taxable business profit = gross receipts &minus; deductible expenses (IRA &sect;6 verified;
+                &sect;10&ndash;&sect;19 deductions per category &mdash; TODO citation pending IRA KG verification).
+                Sole-prop profit is added to your IIT bracket schedule.
+            </p>
+            <table class="tb-table">
+                <thead>
+                    <tr>
+                        <th>Business</th>
+                        <th>Source</th>
+                        <th class="tb-num">Gross</th>
+                        <th class="tb-num">Expenses</th>
+                        <th class="tb-num">Taxable profit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in inputs.business_lines %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('fiesta_business.detail', business_entry_id=b.entry_id) }}"
+                                   style="color:var(--color-accent-700,#7c3aed);">{{ b.business_name }}</a>
+                                <span style="color:var(--color-ink-500,#6e7682);font-size:0.85rem;">({{ b.business_type }})</span>
+                            </td>
+                            <td>
+                                {{ b.source_country or 'LK' }}
+                                {% if b.is_foreign %}<span style="color:#1e40af;font-size:0.8rem;">(foreign)</span>{% endif %}
+                            </td>
+                            <td class="tb-num">{{ "{:,.2f}".format(b.gross_lkr) }}</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(b.expenses_total_lkr) }}</td>
+                            <td class="tb-num" style="font-weight:600;">{{ "{:,.2f}".format(b.taxable_profit_lkr) }}</td>
+                        </tr>
+                        {% if b.expenses and b.expenses|length > 0 %}
+                            <tr>
+                                <td colspan="5" style="padding:0 0.6rem 0.8rem 1.8rem;">
+                                    <details>
+                                        <summary style="cursor:pointer;color:var(--color-ink-500,#6e7682);font-size:0.85rem;">
+                                            {{ b.expenses|length }} expense{{ '' if b.expenses|length == 1 else 's' }} &mdash; expand
+                                        </summary>
+                                        <ul style="margin:0.5rem 0 0;padding-left:1.2rem;font-size:0.85rem;color:var(--color-ink-700,#4b525c);">
+                                            {% for e in b.expenses %}
+                                                <li>{{ e.date_incurred or '—' }} &middot; {{ e.category }}{% if e.description %} &middot; {{ e.description }}{% endif %} &middot; Rs {{ "{:,.2f}".format(e.amount_lkr) }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </details>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                    <tr class="tb-total-row">
+                        <td colspan="2">Total taxable business profit</td>
+                        <td class="tb-num">{{ "{:,.2f}".format(inputs.business_gross_total_lkr) }}</td>
+                        <td class="tb-num">{{ "{:,.2f}".format(inputs.business_expenses_total_lkr) }}</td>
+                        <td class="tb-num">{{ "{:,.2f}".format(inputs.business_taxable_profit_total_lkr) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% if inputs.business_dtaa_deferred %}
+                <div class="tb-gate-warn" style="margin-top:0.9rem;">
+                    <strong>DTAA relief deferred.</strong> Foreign tax withheld on foreign-source
+                    business income is not yet credited against your SL liability. Treaty relief
+                    under the relevant DTAA (e.g. SL-US Art 7 business profits) is coming in a
+                    future update; until then you may apply the credit manually on your IRD return.
+                </div>
+            {% endif %}
+        </div>
+    </details>
+    {% endif %}
+
     {# ---- Section B: DEDUCTIONS ---------------------------------------- #}
     <details class="tb-section">
         <summary>
