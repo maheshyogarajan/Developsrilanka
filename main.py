@@ -867,6 +867,26 @@ with app.app_context():
             f"columns still work via db.create_all on fresh DBs): {e}"
         )
 
+    # MS3 E.1 — B12 Business Income tables + incomes.business_income_id FK.
+    # Creates business_income_entries + business_expense_entries +
+    # adds the soft-link FK. Idempotent + dialect-aware.
+    try:
+        import importlib.util as _importlib_util
+        from pathlib import Path as _Path
+        _b12_spec_path = _Path(__file__).resolve().parent / "migrations" / "20260525_140100_f_b12_business.py"
+        _b12_spec = _importlib_util.spec_from_file_location(
+            "_b12_business_migration_loader", str(_b12_spec_path)
+        )
+        if _b12_spec is not None and _b12_spec.loader is not None:
+            _b12_mod = _importlib_util.module_from_spec(_b12_spec)
+            _b12_spec.loader.exec_module(_b12_mod)
+            _b12_mod.upgrade()
+    except Exception as e:
+        logger.error(
+            f"MS3 E.1 B12 business-income migration failed (non-fatal — "
+            f"ORM-level columns still work via db.create_all on fresh DBs): {e}"
+        )
+
 # Function to start Celery worker in a background thread
 def start_background_worker():
     try:
