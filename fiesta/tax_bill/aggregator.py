@@ -239,6 +239,17 @@ class TaxInputs:
     business_foreign_taxable_profit_lkr: Decimal = Decimal("0")
     business_dtaa_deferred: bool = False
 
+    # Employment income (G3.1, MS4 W3b) ------------------------------------
+    # Lines: list of dicts (per-employer breakdown for tax-bill rendering).
+    employment_lines: list[dict[str, Any]] = field(default_factory=list)
+    employment_gross_total_lkr: Decimal = Decimal("0")
+    employment_apit_credit_total_lkr: Decimal = Decimal("0")
+
+    # Professional fees (G3.2, MS4 W3b) ------------------------------------
+    professional_fee_lines: list[dict[str, Any]] = field(default_factory=list)
+    professional_fee_gross_total_lkr: Decimal = Decimal("0")
+    professional_fee_wht_credit_total_lkr: Decimal = Decimal("0")
+
     # Engine-shaped inputs (pydantic) --------------------------------------
     # These are computed at the end of assemble_tax_inputs; the compute layer
     # passes them directly to compute_tax_25_26.
@@ -963,6 +974,97 @@ def _load_business_income(inputs: TaxInputs) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Employment income loader (G3.1, MS4 W3b)
+# ---------------------------------------------------------------------------
+
+
+def _load_employment_income(inputs: TaxInputs) -> None:
+    """Section G3.1: per-employer LKR employment + APIT credit for tax year.
+
+    Reads via fiesta.tax.employment.compute_employment_tax which already
+    handles the EmploymentIncomeMetadata + Income join.
+    """
+    try:
+        from fiesta.tax.employment import compute_employment_tax
+    except Exception:
+        inputs.sources_missing.append("fiesta.tax.employment")
+        return
+
+    ty_canonical = inputs.tax_year_s4_format.replace("-", "/")
+
+    try:
+        from models import User  # type: ignore
+        user = User.query.get(inputs.user_id)
+    except Exception as exc:
+        logger.warning("employment user lookup failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.employment")
+        return
+    if user is None:
+        inputs.sources_missing.append("fiesta.tax.employment")
+        return
+
+    try:
+        result = compute_employment_tax(user, ty_canonical)
+    except Exception as exc:
+        logger.warning("compute_employment_tax failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.employment")
+        return
+
+    inputs.sources_loaded.append("fiesta.tax.employment")
+    inputs.employment_lines = result.get("employers") or []
+    inputs.employment_gross_total_lkr = _to_decimal(result.get("gross_total_lkr"))
+    inputs.employment_apit_credit_total_lkr = _to_decimal(
+        result.get("apit_credit_total_lkr")
+    )
+
+
+# ---------------------------------------------------------------------------
+# Professional fees loader (G3.2, MS4 W3b)
+# ---------------------------------------------------------------------------
+
+
+def _load_professional_fees(inputs: TaxInputs) -> None:
+    """Section G3.2: per-invoice LKR professional fees + §85 WHT credit.
+
+    Reads via fiesta.tax.professional_fees.compute_professional_fee_tax.
+    """
+    try:
+        from fiesta.tax.professional_fees import compute_professional_fee_tax
+    except Exception:
+        inputs.sources_missing.append("fiesta.tax.professional_fees")
+        return
+
+    ty_canonical = inputs.tax_year_s4_format.replace("-", "/")
+
+    try:
+        from models import User  # type: ignore
+        user = User.query.get(inputs.user_id)
+    except Exception as exc:
+        logger.warning("professional-fees user lookup failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.professional_fees")
+        return
+    if user is None:
+        inputs.sources_missing.append("fiesta.tax.professional_fees")
+        return
+
+    try:
+        result = compute_professional_fee_tax(user, ty_canonical)
+    except Exception as exc:
+        logger.warning("compute_professional_fee_tax failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.professional_fees")
+        return
+
+    inputs.sources_loaded.append("fiesta.tax.professional_fees")
+    inputs.professional_fee_lines = result.get("clients") or []
+    inputs.professional_fee_gross_total_lkr = _to_decimal(
+        result.get("gross_total_lkr")
+    )
+    inputs.professional_fee_wht_credit_total_lkr = _to_decimal(
+        result.get("wht_credit_total_lkr")
+    )
+
+
+# ---------------------------------------------------------------------------
 # Engine-shape composition
 # ---------------------------------------------------------------------------
 
@@ -1022,6 +1124,43 @@ def _compose_engine_inputs(inputs: TaxInputs) -> None:
         inputs.income_by_category_lkr["crypto_cgt"] = (
             inputs.income_by_category_lkr.get("crypto_cgt", Decimal("0"))
             + inputs.crypto_cgt_net_after_carry_lkr
+        )
+
+    # G3.1 (MS4 W3b): Employment income → employment_lkr bucket.
+    # APIT credit is reported separately (employment_apit_credit_total_lkr)
+    # — it does NOT reduce gross; it subtracts from the final IIT liability
+    # downstream. The engine receives the GROSS here; the bill render
+    # presents the APIT credit as a tax-side adjustment.
+    if (
+        inputs.employment_gross_total_lkr
+        and inputs.employment_gross_total_lkr > 0
+    ):
+        income_kwargs["employment_lkr"] = (
+            income_kwargs["employment_lkr"]
+            + inputs.employment_gross_total_lkr
+        )
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["employment_lkr"] = (
+            inputs.income_by_category_lkr.get("employment_lkr", Decimal("0"))
+            + inputs.employment_gross_total_lkr
+        )
+
+    # G3.2 (MS4 W3b): Professional fees → employment_lkr bucket (per
+    # convention: §85 WHT'd professional fees taxed at IIT bracket rates
+    # alongside employment). §85 WHT credit reported separately
+    # (professional_fee_wht_credit_total_lkr).
+    if (
+        inputs.professional_fee_gross_total_lkr
+        and inputs.professional_fee_gross_total_lkr > 0
+    ):
+        income_kwargs["employment_lkr"] = (
+            income_kwargs["employment_lkr"]
+            + inputs.professional_fee_gross_total_lkr
+        )
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["professional_fees_lkr"] = (
+            inputs.income_by_category_lkr.get("professional_fees_lkr", Decimal("0"))
+            + inputs.professional_fee_gross_total_lkr
         )
 
     # B12 (MS3): Business income → business_lkr (local) or foreign_lkr (foreign).
@@ -1457,6 +1596,12 @@ def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
 
     # B12 (MS3): Business income (sole-prop, LKR + foreign).
     _load_business_income(inputs)
+
+    # G3.1 (MS4 W3b): Employment income (LKR + APIT credit).
+    _load_employment_income(inputs)
+
+    # G3.2 (MS4 W3b): Professional fees (LKR + §85 WHT credit).
+    _load_professional_fees(inputs)
 
     _compose_engine_inputs(inputs)
 

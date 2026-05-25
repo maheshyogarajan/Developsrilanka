@@ -48,6 +48,11 @@ def app_ctx():
     import remittance_models  # noqa: F401
     import fiesta.tax.models  # noqa: F401
     import fiesta.tax.business_income  # noqa: F401
+    # MS4 W3b G3.1/G3.2 — must register before create_all so the
+    # employment_income_metadata + professional_fee_metadata tables exist
+    # with their FK on incomes.id resolved correctly.
+    import fiesta.tax.employment  # noqa: F401
+    import fiesta.tax.professional_fees  # noqa: F401
 
     with flask_app.app_context():
         # db.create_all picks up everything in metadata, including the new

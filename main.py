@@ -938,6 +938,24 @@ with app.app_context():
             f"ORM-level columns still work via db.create_all on fresh DBs): {e}"
         )
 
+    # MS4 W3b G3.1/G3.2 — Employment + Professional-fees metadata tables.
+    try:
+        import importlib.util as _importlib_util
+        from pathlib import Path as _Path
+        _g3_spec_path = _Path(__file__).resolve().parent / "migrations" / "20260525_150300_g_lkr_engine_models.py"
+        _g3_spec = _importlib_util.spec_from_file_location(
+            "_g3_lkr_engine_migration_loader", str(_g3_spec_path)
+        )
+        if _g3_spec is not None and _g3_spec.loader is not None:
+            _g3_mod = _importlib_util.module_from_spec(_g3_spec)
+            _g3_spec.loader.exec_module(_g3_mod)
+            _g3_mod.upgrade()
+    except Exception as e:
+        logger.error(
+            f"MS4 W3b G3.1/G3.2 LKR engine migration failed (non-fatal — "
+            f"ORM-level columns still work via db.create_all on fresh DBs): {e}"
+        )
+
 # Function to start Celery worker in a background thread
 def start_background_worker():
     try:

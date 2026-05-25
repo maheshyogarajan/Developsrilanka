@@ -1017,6 +1017,111 @@
     </details>
     {% endif %}
 
+    {# ---- Section A.EMP: EMPLOYMENT INCOME (G3.1, MS4 W3b) --------------- #}
+    {% if inputs.employment_lines and inputs.employment_lines|length > 0 %}
+    <details class="tb-section" open>
+        <summary>
+            Employment income (with APIT credit)
+            <span class="tb-section-total">
+                Gross Rs {{ "{:,.2f}".format(inputs.employment_gross_total_lkr) }} &middot;
+                APIT credit Rs {{ "{:,.2f}".format(inputs.employment_apit_credit_total_lkr) }}
+            </span>
+        </summary>
+        <div class="tb-section-content">
+            <p style="margin:0 0 0.6rem;font-size:0.9rem;color:var(--color-ink-700,#4b525c);">
+                Salaried employment income (IRA &sect;5(1)/(2)(a)). APIT (Advance Personal Income
+                Tax) withheld by your employer is captured as a credit against your final IIT
+                liability &mdash; not as a deduction from gross. The bracket walker sees the gross;
+                the APIT total is subtracted from the bracket tax to produce net tax owed
+                (or refund due).
+            </p>
+            <table class="tb-table">
+                <thead>
+                    <tr>
+                        <th>Employer</th>
+                        <th>Period</th>
+                        <th class="tb-num">Gross</th>
+                        <th class="tb-num">APIT credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in inputs.employment_lines %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('fiesta_employment.detail', meta_id=e.meta_id) }}"
+                                   style="color:var(--color-accent-700,#7c3aed);">{{ e.employer_name }}</a>
+                                {% if e.apit_certificate_ref %}
+                                <span style="color:var(--color-ink-500,#6e7682);font-size:0.8rem;">cert: {{ e.apit_certificate_ref }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.85rem;">{{ e.period_start }} &rarr; {{ e.period_end }}</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(e.gross_lkr) }}</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(e.apit_credit_lkr) }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="tb-total-row">
+                        <td colspan="2">Total employment</td>
+                        <td class="tb-num">{{ "{:,.2f}".format(inputs.employment_gross_total_lkr) }}</td>
+                        <td class="tb-num">{{ "{:,.2f}".format(inputs.employment_apit_credit_total_lkr) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+
+    {# ---- Section A.PROF: PROFESSIONAL FEES (G3.2, MS4 W3b) -------------- #}
+    {% if inputs.professional_fee_lines and inputs.professional_fee_lines|length > 0 %}
+    <details class="tb-section" open>
+        <summary>
+            Professional fees (with &sect;85 WHT credit)
+            <span class="tb-section-total">
+                Gross Rs {{ "{:,.2f}".format(inputs.professional_fee_gross_total_lkr) }} &middot;
+                &sect;85 WHT credit Rs {{ "{:,.2f}".format(inputs.professional_fee_wht_credit_total_lkr) }}
+            </span>
+        </summary>
+        <div class="tb-section-content">
+            <p style="margin:0 0 0.6rem;font-size:0.9rem;color:var(--color-ink-700,#4b525c);">
+                Professional-fee income (IRA &sect;6 business income for sole practitioners). &sect;85(1C)
+                WHT withheld by paying clients at 5% (resident independent professionals,
+                effective 2023-01-01, payments &ge; Rs 100,000/month) is captured as a credit
+                against your IIT liability.
+            </p>
+            <table class="tb-table">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Invoice date</th>
+                        <th class="tb-num">Gross</th>
+                        <th class="tb-num">&sect;85 WHT credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in inputs.professional_fee_lines %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('fiesta_professional_fees.detail', meta_id=c.meta_id) }}"
+                                   style="color:var(--color-accent-700,#7c3aed);">{{ c.client_name }}</a>
+                                {% if c.invoice_number %}
+                                <span style="color:var(--color-ink-500,#6e7682);font-size:0.8rem;">#{{ c.invoice_number }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.85rem;">{{ c.invoice_date }}</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(c.gross_lkr) }}</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(c.wht_credit_lkr) }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="tb-total-row">
+                        <td colspan="2">Total professional fees</td>
+                        <td class="tb-num">{{ "{:,.2f}".format(inputs.professional_fee_gross_total_lkr) }}</td>
+                        <td class="tb-num">{{ "{:,.2f}".format(inputs.professional_fee_wht_credit_total_lkr) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+
     {# ---- Section B: DEDUCTIONS ---------------------------------------- #}
     <details class="tb-section">
         <summary>
