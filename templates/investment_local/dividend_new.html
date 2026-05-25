@@ -1,0 +1,50 @@
+{% extends layout_template %}
+{% block page_title %}Add dividend — FIESTA{% endblock %}
+{% block content %}
+<div class="invest-page" style="max-width:680px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <p style="margin:0;color:var(--color-ink-500,#6e7682);font-size:0.85rem;">
+    <a href="{{ url_for('fiesta_investment_local.list_view') }}" style="color:var(--color-ink-700,#4b525c);">&lt; Investments</a>
+  </p>
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.7rem;margin:0.3rem 0 0.4rem;">Add dividend payment</h1>
+  <p style="color:var(--color-ink-700,#4b525c);font-size:0.9rem;">
+    Record one local dividend. WHT (commonly 15%) is captured separately and applied
+    as a credit. (TODO IRA rate citation.)
+  </p>
+
+  {% if error %}
+  <div style="margin:1rem 0;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;color:#7f1d1d;border-radius:0 6px 6px 0;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_investment_local.dividend_new_submit') }}" style="display:grid;gap:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label><span style="font-weight:600;">Company name</span>
+      <input type="text" name="company_name" required maxlength="128" value="{{ form.company_name or '' }}"
+             placeholder="e.g. JKH PLC" style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+    <label><span style="font-weight:600;">Dividend (LKR, gross)</span>
+      <input type="number" name="dividend" required step="0.01" min="0" value="{{ form.dividend or '' }}"
+             style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+    <label><span style="font-weight:600;">WHT withheld (LKR) (optional)</span>
+      <input type="number" name="wht" step="0.01" min="0" value="{{ form.wht or '' }}"
+             style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+    <label><span style="font-weight:600;">Ex-dividend date</span>
+      <input type="date" name="ex_dividend_date" required value="{{ form.ex_dividend_date or '' }}"
+             style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+    <label><span style="font-weight:600;">Tax year (optional)</span>
+      <input type="text" name="tax_year" maxlength="7" pattern="\d{4}/\d{2}" value="{{ form.tax_year or '' }}" placeholder="2025/26"
+             style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <div style="display:flex;gap:0.6rem;align-items:center;margin-top:0.4rem;">
+      <button type="submit" style="padding:0.7rem 1.3rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Save dividend</button>
+      <a href="{{ url_for('fiesta_investment_local.list_view') }}" style="color:var(--color-ink-700,#4b525c);">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

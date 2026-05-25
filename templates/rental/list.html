@@ -1,0 +1,54 @@
+{% extends layout_template %}
+{% block page_title %}Rental income — FIESTA{% endblock %}
+{% block content %}
+<div class="rental-page" style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0 0 0.4rem;">Rental income (LKR)</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Track LKR rental income from Sri Lankan property let to Sri Lankan tenants.
+    Gross rent minus deductible expenses (repairs, rates, depreciation, agent
+    fees, mortgage interest) is added to your IIT base under IRA &sect;7(2)(a).
+  </p>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1.6rem;">
+    <a href="{{ url_for('fiesta_rental.new_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      + Add a rental
+    </a>
+  </div>
+
+  {% if not rentals %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No rental entries logged yet. Add your first property above &mdash; one entry per
+      property per tenancy period.
+    </p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Property</th>
+          <th style="padding:0.5rem 0.6rem;">Tenant</th>
+          <th style="padding:0.5rem 0.6rem;">Period</th>
+          <th style="padding:0.5rem 0.6rem;">Tax year</th>
+          <th style="padding:0.5rem 0.6rem;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rentals %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;font-weight:600;">{{ r.property_address }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ r.tenant_name or '&mdash;'|safe }}</td>
+            <td style="padding:0.5rem 0.6rem;">
+              {{ r.period_start }}{% if r.period_end %} &rarr; {{ r.period_end }}{% endif %}
+            </td>
+            <td style="padding:0.5rem 0.6rem;">{{ r.tax_year }}</td>
+            <td style="padding:0.5rem 0.6rem;">
+              <a href="{{ url_for('fiesta_rental.detail', rental_entry_id=r.id) }}"
+                 style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">View</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

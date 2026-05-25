@@ -1,0 +1,125 @@
+{% extends layout_template %}
+{% block page_title %}Investment income (LKR) — FIESTA{% endblock %}
+{% block content %}
+<div class="invest-page" style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0 0 0.4rem;">Investment income (LKR)</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Sri Lanka FD interest, equity dividends, and local capital gains
+    (real estate / equity / unit trusts). All values in LKR.
+    Foreign-source equivalents are coming in a future update (DTAA-deferred).
+  </p>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1.6rem;flex-wrap:wrap;">
+    <a href="{{ url_for('fiesta_investment_local.fd_new_form') }}"
+       style="display:inline-block;padding:0.6rem 1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      + Add FD interest
+    </a>
+    <a href="{{ url_for('fiesta_investment_local.dividend_new_form') }}"
+       style="display:inline-block;padding:0.6rem 1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      + Add dividend
+    </a>
+    <a href="{{ url_for('fiesta_investment_local.cgt_new_form') }}"
+       style="display:inline-block;padding:0.6rem 1rem;background:var(--color-ink-700,#4b525c);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      + Add CGT disposal
+    </a>
+  </div>
+
+  {% if summary %}
+  <div style="margin:1rem 0 2rem;padding:1.1rem 1.3rem;background:var(--color-fog-50,#f8f9fb);border:1px solid var(--color-ink-100,#e6e8ec);border-radius:10px;">
+    <h2 style="margin:0 0 0.6rem;font-size:1.05rem;">Summary for {{ tax_year_filter }}</h2>
+    <ul style="margin:0;padding-left:1.2rem;font-size:0.95rem;color:var(--color-ink-700,#4b525c);">
+      <li>FD interest: Rs {{ "{:,.2f}".format(summary.fd_interest_total_lkr) }}</li>
+      <li>Dividends: Rs {{ "{:,.2f}".format(summary.dividend_total_lkr) }}</li>
+      <li>WHT credit available: Rs {{ "{:,.2f}".format(summary.wht_credit_total_lkr) }}</li>
+      <li>CGT gross gain: Rs {{ "{:,.2f}".format(summary.cgt_gross_gain_lkr) }}</li>
+      <li>CGT gross loss: Rs {{ "{:,.2f}".format(summary.cgt_gross_loss_lkr) }}</li>
+      <li>Loss carry-forward in: Rs {{ "{:,.2f}".format(summary.cgt_loss_carry_forward_in_lkr) }}</li>
+      <li>CGT net (after carry): Rs {{ "{:,.2f}".format(summary.cgt_net_gain_after_carry_lkr) }}</li>
+      <li>Loss carry-forward out: Rs {{ "{:,.2f}".format(summary.cgt_loss_carry_forward_out_lkr) }}</li>
+      <li style="font-weight:700;">Total taxable investment income: Rs {{ "{:,.2f}".format(summary.investment_total_taxable_lkr) }}</li>
+    </ul>
+  </div>
+  {% endif %}
+
+  <h2 style="margin:1.4rem 0 0.5rem;font-size:1.2rem;">FD interest</h2>
+  {% if not fd_rows %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.9rem;">None logged yet.</p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+        <th style="padding:0.4rem 0.6rem;">Date</th><th style="padding:0.4rem 0.6rem;">Bank</th>
+        <th style="padding:0.4rem 0.6rem;">FD ref</th>
+        <th style="padding:0.4rem 0.6rem;text-align:right;">Principal (LKR)</th>
+        <th style="padding:0.4rem 0.6rem;text-align:right;">WHT (LKR)</th><th style="padding:0.4rem 0.6rem;">Tax year</th>
+      </tr></thead>
+      <tbody>
+      {% for f in fd_rows %}
+        <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <td style="padding:0.4rem 0.6rem;">{{ f.interest_date }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ f.bank_name }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ f.fd_account_ref or '&mdash;'|safe }}</td>
+          <td style="padding:0.4rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(f.principal_lkr) }}</td>
+          <td style="padding:0.4rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(f.wht_lkr) }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ f.tax_year }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p style="margin-top:0.4rem;font-size:0.85rem;color:var(--color-ink-500,#6e7682);">
+      Per-payment interest amounts appear in the tax-year summary above (filter by tax year to expand).
+    </p>
+  {% endif %}
+
+  <h2 style="margin:1.4rem 0 0.5rem;font-size:1.2rem;">Dividends</h2>
+  {% if not div_rows %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.9rem;">None logged yet.</p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+        <th style="padding:0.4rem 0.6rem;">Ex-dividend date</th><th style="padding:0.4rem 0.6rem;">Company</th>
+        <th style="padding:0.4rem 0.6rem;text-align:right;">WHT (LKR)</th><th style="padding:0.4rem 0.6rem;">Tax year</th>
+      </tr></thead>
+      <tbody>
+      {% for d in div_rows %}
+        <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <td style="padding:0.4rem 0.6rem;">{{ d.ex_dividend_date }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ d.company_name }}</td>
+          <td style="padding:0.4rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(d.wht_lkr) }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ d.tax_year }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <h2 style="margin:1.4rem 0 0.5rem;font-size:1.2rem;">Local capital gains</h2>
+  {% if not cgt_rows %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.9rem;">None logged yet.</p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+        <th style="padding:0.4rem 0.6rem;">Disposal date</th>
+        <th style="padding:0.4rem 0.6rem;">Asset type</th>
+        <th style="padding:0.4rem 0.6rem;">Identifier</th>
+        <th style="padding:0.4rem 0.6rem;text-align:right;">Cost basis (LKR)</th>
+        <th style="padding:0.4rem 0.6rem;text-align:right;">Proceeds (LKR)</th>
+        <th style="padding:0.4rem 0.6rem;text-align:right;">Gain (LKR)</th>
+        <th style="padding:0.4rem 0.6rem;">Tax year</th>
+      </tr></thead>
+      <tbody>
+      {% for c in cgt_rows %}
+        <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <td style="padding:0.4rem 0.6rem;">{{ c.disposal_date }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ c.asset_type }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ c.asset_identifier or '&mdash;'|safe }}</td>
+          <td style="padding:0.4rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(c.acq_amount_lkr) }}</td>
+          <td style="padding:0.4rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(c.disp_amount_lkr) }}</td>
+          <td style="padding:0.4rem 0.6rem;text-align:right;{% if c.gain_lkr < 0 %}color:#b91c1c;{% else %}color:#15803d;{% endif %}font-weight:600;">Rs {{ "{:,.2f}".format(c.gain_lkr) }}</td>
+          <td style="padding:0.4rem 0.6rem;">{{ c.tax_year }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

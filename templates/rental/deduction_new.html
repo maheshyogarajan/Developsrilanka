@@ -1,0 +1,66 @@
+{% extends layout_template %}
+{% block page_title %}Add deduction — {{ entry.property_address }} — FIESTA{% endblock %}
+{% block content %}
+<div class="rental-page" style="max-width:680px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <p style="margin:0;color:var(--color-ink-500,#6e7682);font-size:0.85rem;">
+    <a href="{{ url_for('fiesta_rental.detail', rental_entry_id=entry.id) }}" style="color:var(--color-ink-700,#4b525c);">&lt; {{ entry.property_address }}</a>
+  </p>
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.7rem;margin:0.3rem 0 0.4rem;">Add deductible expense</h1>
+
+  {% if error %}
+  <div style="margin-bottom:1rem;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;color:#7f1d1d;border-radius:0 6px 6px 0;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_rental.deduction_new_submit', rental_entry_id=entry.id) }}"
+        style="display:grid;gap:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Category</span>
+      <select name="category" required style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+        {% for c in deduction_categories %}
+          <option value="{{ c }}" {% if form.category == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Description (optional)</span>
+      <input type="text" name="description" maxlength="512" value="{{ form.description or '' }}"
+             placeholder="e.g. Roof repair — Sept 2025"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <fieldset style="display:grid;gap:0.6rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">Amount (LKR)</legend>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Value</span>
+        <input type="number" name="amount" step="0.01" min="0" required value="{{ form.amount or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Date</span>
+        <input type="date" name="as_of_date" required value="{{ form.as_of_date or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Date incurred <small style="color:var(--color-ink-500,#6e7682);">(leave blank to use date above)</small></span>
+      <input type="date" name="date_incurred" value="{{ form.date_incurred or '' }}"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <div style="display:flex;gap:0.6rem;align-items:center;margin-top:0.4rem;">
+      <button type="submit"
+              style="padding:0.7rem 1.3rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+        Save deduction
+      </button>
+      <a href="{{ url_for('fiesta_rental.detail', rental_entry_id=entry.id) }}"
+         style="color:var(--color-ink-700,#4b525c);">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
