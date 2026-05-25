@@ -883,7 +883,6 @@ with app.app_context():
             f"columns still work via db.create_all on fresh DBs): {e}"
         )
 
-<<<<<<< HEAD
     # MS3 B13 — Crypto / CGT classifier (M3-002).
     # Creates crypto_positions table + indexes. AssetDisposal rows reuse
     # the table from M2-001 with asset_type='crypto'. Idempotent +
