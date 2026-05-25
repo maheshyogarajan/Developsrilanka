@@ -1,12 +1,15 @@
 {# F-Platform-4 (X9 MS1 Stage C1) — authenticated FIESTA hub at `/`.
+   MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D2): universal hub for every
+   authenticated non-admin user, regardless of income mix or persona.
 
    The "same house, two doors" principle (PLAN_X9_WIRE_UP §0):
      - Anonymous `/` → fiesta_public/s0_landing.html (already shipped).
-     - Authenticated sl_foreign_income → THIS template — same H1, same
-       calculator, same chips, same palette, just pre-filled with their
-       real data.
+     - Authenticated non-admin → THIS template — same H1, same calculator,
+       same chips, same palette. Pre-filled with whatever the user has
+       logged; the next-step card adapts to their income mix.
 
-   Extends Design Lock 1 `layout_fiesta.html` (BINDING). Block names used:
+   Extends `layout_template` (set by app.py before_request) so future
+   shell variants flow through automatically. Block names used:
      - page_title (locked)
      - head_extra (locked)
      - content (locked)
@@ -14,21 +17,38 @@
 
    Context vars expected from app.py::inject_fiesta_hub_context:
      - hub_avg_monthly_usd     int    avg USD/mo from last RemittanceEntry rows
+                                       (only populated when foreign_remittance
+                                       is in user.income_sources)
      - hub_projected_savings_lkr int  projection used for topbar counter
      - hub_next_step           dict   {label, href, rationale} or None
-     - hub_funnel_state        str    "no_remittances" | "ready_to_deduct" | "ready_for_bill"
+     - hub_funnel_state        str    one of: 'anon' | 'no_remittances' |
+                                       'ready_to_deduct' | 'ready_for_bill' |
+                                       'rsu_vesting_pending' (foreign-remit
+                                       branch) OR 'no_income_sources' |
+                                       'has_employment_lkr' | 'has_business_lkr'
+                                       | 'has_crypto' | 'has_rsu' | 'has_rental'
+                                       | 'has_investment' | 'has_other' |
+                                       'has_multiple' (non-remit branch)
      - hub_claimed_category_ids list[str]  ids of deduction categories the user
                                             has claimed (drives chip pre-tick)
      - hub_categories          list[dict]  catalog (id, name) for chip rendering
      - hub_compute_tax         dict   {gross_lkr, naive_tax_lkr, fiesta_tax_lkr,
                                        saving_lkr} from compute_tax_25_26
      - fx_rate_lkr_per_usd     int    LKR/USD for the slider math
+     - current_user            User   exposed by Flask-Login; we read
+                                       income_sources to pick the slider mode
 
    Counter element id (#fiesta-savings-counter) is owned by the topbar
    (rendered by layout_fiesta.html) — F-Platform-5 wires it to refresh
    via the `fiesta:*` custom events fired from this page's JS.
 #}
-{% extends "layout_fiesta.html" %}
+{% extends layout_template %}
+
+{# Slider mode: USD slider for users with foreign_remittance, LKR for
+   everyone else (Design Lock 3 §D4). Computed once, used by both the
+   slider markup and the JS calc. #}
+{% set _income_sources = current_user.income_sources if current_user.is_authenticated else [] %}
+{% set _slider_mode_usd = 'foreign_remittance' in (_income_sources or []) %}
 
 {% block page_title %}Your tax dashboard{% endblock %}
 
@@ -245,10 +265,17 @@
   </div>
   <h1 class="display">Cut your tax bill. <em>Keep the records clean.</em></h1>
   <p class="sub">
+    {% if _slider_mode_usd %}
     Same hero, same calculator &mdash; now pre-filled with what you've
     actually logged. Move the slider, claim deductions, watch the
     bracket math drop in real time. Every tick is documentation the
     IRD recognises under <abbr title="Inland Revenue Act &sect;6(1)">&sect;6(1) IRA</abbr>.
+    {% else %}
+    Same calculator, your numbers. Move the slider to model "what if I
+    earned more this year", claim the deductions that apply, and watch
+    the bracket math respond in real time. Every entry on this hub is
+    IRD-defensible documentation.
+    {% endif %}
   </p>
 
   {# Next-step recommender — server-rendered. #}
@@ -263,7 +290,13 @@
   </div>
   {% endif %}
 
-  {# Slider — pre-filled with the user's avg monthly USD remittance. #}
+  {# Slider — Design Lock 3 §D4 dual-mode:
+       - foreign_remittance users → USD slider, pre-filled from avg monthly USD
+       - all other users → LKR slider, pre-filled at Rs 300k/mo default
+     Same DOM ids (#incomeSlider, #incomeUsd, #annualLkr) so the JS calc
+     wiring below is unchanged regardless of mode. The JS reads the
+     data-slider-mode attribute to know whether `value` is USD or LKR. #}
+  {% if _slider_mode_usd %}
   <div class="slider-row" role="group" aria-label="Monthly foreign income slider">
     <div class="slider-label">Monthly foreign income (USD)</div>
     <div class="slider-val">
@@ -275,8 +308,25 @@
            min="200" max="10000" step="50"
            value="{{ hub_avg_monthly_usd or 1000 }}"
            aria-label="Monthly foreign income in US dollars"
+           data-slider-mode="usd"
            data-prefilled-from-remittances="{{ '1' if hub_avg_monthly_usd else '0' }}">
   </div>
+  {% else %}
+  <div class="slider-row" role="group" aria-label="Monthly income slider (LKR)">
+    <div class="slider-label">Monthly income (LKR)</div>
+    <div class="slider-val">
+      <span id="incomeUsd">Rs {{ '{:,}'.format(300000) }}</span> / mo
+    </div>
+    <input type="range"
+           id="incomeSlider"
+           name="monthly_lkr"
+           min="50000" max="3000000" step="10000"
+           value="300000"
+           aria-label="Monthly income in Sri Lankan rupees"
+           data-slider-mode="lkr"
+           data-prefilled-from-remittances="0">
+  </div>
+  {% endif %}
 
   {# Chips — pre-ticked from S5 claimed deductions. #}
   {% if hub_categories %}
@@ -343,8 +393,16 @@
     </div>
   </div>
 
+  {# CTA row — Design Lock 3 §D4: foreign-remittance users get the
+     Remittance Ledger as primary CTA; everyone else gets Earnings as
+     the primary income-logging surface. Deductions stays as the ghost
+     CTA in both modes — it's the universal next step for any income mix. #}
   <div class="cta-row">
+    {% if _slider_mode_usd %}
     <a class="btn" href="/remittance/dashboard">Open your Remittance Ledger &rarr;</a>
+    {% else %}
+    <a class="btn" href="/earnings">Log your income &rarr;</a>
+    {% endif %}
     <a class="btn ghost" href="/reduce-tax/">Claim more deductions</a>
   </div>
 
@@ -384,11 +442,21 @@
   }
   function fmtUSD(n) { return '$' + Number(n).toLocaleString('en-US'); }
 
+  // MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D4): dual-mode slider.
+  // USD mode → multiply by 12 * FX for annual LKR; label is "$X / mo".
+  // LKR mode → multiply by 12 directly; label is "Rs X / mo".
+  var SLIDER_MODE = (slider && slider.getAttribute('data-slider-mode')) || 'usd';
   function paintLocal() {
     if (!slider) return 0;
-    var monthlyUsd = Number(slider.value);
-    var annualLkr = monthlyUsd * 12 * FX_LKR_PER_USD;
-    if (usdLabel) usdLabel.textContent = fmtUSD(monthlyUsd);
+    var monthly = Number(slider.value);
+    var annualLkr;
+    if (SLIDER_MODE === 'lkr') {
+      annualLkr = monthly * 12;
+      if (usdLabel) usdLabel.textContent = fmtLKR(monthly);
+    } else {
+      annualLkr = monthly * 12 * FX_LKR_PER_USD;
+      if (usdLabel) usdLabel.textContent = fmtUSD(monthly);
+    }
     if (lkrLabel) lkrLabel.textContent = fmtLKR(annualLkr);
     return annualLkr;
   }
