@@ -166,6 +166,47 @@ def _emit_event(event: str, **payload: Any) -> None:
         pass
 
 
+def _seed_business_income_sources(user: Any, earning_source: Optional[str]) -> None:
+    """B12 onboarding hook — pre-seed income_sources from triage.
+
+    When the user picks 'business_sole_prop' under earning_vehicle, decide
+    which income_sources entries to add based on earning_source:
+
+      - 'pure_foreign'  → add 'business_foreign' only
+      - 'mixed'         → add both
+      - 'pure_local' /  → add 'business_lkr' only
+        anything else
+        / None
+
+    Idempotent. The real authority for income_sources content remains
+    fiesta.tax.business_income.record_business_income(); this is a pre-
+    emptive nudge so the sidebar surfaces the link before the user files
+    their first entry.
+    """
+    sources = list(getattr(user, "income_sources", None) or [])
+    to_add: list[str] = []
+    es = (earning_source or "").lower().strip()
+    if es == "pure_foreign":
+        to_add = ["business_foreign"]
+    elif es == "mixed":
+        to_add = ["business_lkr", "business_foreign"]
+    else:
+        to_add = ["business_lkr"]
+
+    changed = False
+    for s in to_add:
+        if s not in sources:
+            sources.append(s)
+            changed = True
+    if changed:
+        user.income_sources = sources
+        try:
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(user, "income_sources")
+        except Exception:
+            pass
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -299,6 +340,20 @@ def triage_submit():
             return redirect(url_for("fiesta_triage.triage_form"))
 
         final["completed_at"] = datetime.utcnow().isoformat() + "Z"
+
+        # B12 (MS3 E.1): If the user picked 'business_sole_prop' in
+        # earning_vehicle, seed income_sources so the sidebar surfaces the
+        # business-income link before they record their first entry. Choice
+        # of 'business_lkr' vs 'business_foreign' follows earning_source:
+        # pure_foreign → business_foreign; mixed → both; everything else →
+        # business_lkr. Idempotent — record_business_income is the
+        # authoritative writer; this is a pre-emptive nudge only.
+        try:
+            ev = final.get("earning_vehicle") or []
+            if "business_sole_prop" in ev:
+                _seed_business_income_sources(current_user, final.get("earning_source"))
+        except Exception as _exc:
+            log.debug(f"business income_sources seed failed: {_exc}")
 
         try:
             from app import db

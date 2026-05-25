@@ -41,10 +41,13 @@ def app_ctx():
     flask_app.config["WTF_CSRF_ENABLED"] = False
 
     # Register model metadata. Order matters: models.py defines User which
-    # remittance_models.py and fiesta.tax.models both FK to.
+    # remittance_models.py and fiesta.tax.models both FK to. B12 business_income
+    # ORM models must be imported before db.create_all so the FK from
+    # incomes.business_income_id resolves to business_income_entries.id.
     import models  # noqa: F401
     import remittance_models  # noqa: F401
     import fiesta.tax.models  # noqa: F401
+    import fiesta.tax.business_income  # noqa: F401
 
     with flask_app.app_context():
         # db.create_all picks up everything in metadata, including the new

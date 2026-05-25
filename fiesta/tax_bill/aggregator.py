@@ -220,14 +220,6 @@ class TaxInputs:
     rsu_dtaa_deferred: bool = False
 
     # Crypto / CGT (B13, MS3) ----------------------------------------------
-    # Read from canonical AssetDisposal(asset_type='crypto') for the year.
-    # Aggregated via fiesta.tax.crypto_cgt.compute_crypto_cgt which also
-    # computes loss carry-forward + DTAA seam.
-    # crypto_cgt_lines: per-disposal dicts {asset_identifier, disposal_date,
-    #                                       acquisition_date, gain_lkr,
-    #                                       acq_amount_lkr, disp_amount_lkr,
-    #                                       source_country}.
-    # crypto_by_asset: {asset: {gain_lkr, loss_lkr, net_lkr, rows}}.
     crypto_cgt_lines: list[dict[str, Any]] = field(default_factory=list)
     crypto_cgt_gross_gain_lkr: Decimal = Decimal("0")
     crypto_cgt_gross_loss_lkr: Decimal = Decimal("0")
@@ -237,6 +229,15 @@ class TaxInputs:
     crypto_cgt_loss_carry_out_lkr: Decimal = Decimal("0")
     crypto_by_asset: dict[str, dict[str, Any]] = field(default_factory=dict)
     crypto_dtaa_deferred: bool = False
+
+    # Business income (B12, MS3) -------------------------------------------
+    business_lines: list[dict[str, Any]] = field(default_factory=list)
+    business_gross_total_lkr: Decimal = Decimal("0")
+    business_expenses_total_lkr: Decimal = Decimal("0")
+    business_taxable_profit_total_lkr: Decimal = Decimal("0")
+    business_lkr_taxable_profit_lkr: Decimal = Decimal("0")
+    business_foreign_taxable_profit_lkr: Decimal = Decimal("0")
+    business_dtaa_deferred: bool = False
 
     # Engine-shaped inputs (pydantic) --------------------------------------
     # These are computed at the end of assemble_tax_inputs; the compute layer
@@ -901,6 +902,67 @@ def _load_crypto(inputs: TaxInputs) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Business income loader (B12, MS3)
+# ---------------------------------------------------------------------------
+
+
+def _load_business_income(inputs: TaxInputs) -> None:
+    """Section B12: BusinessIncomeEntry rows + paired Income + expenses for
+    the tax year.
+
+    Reads from the canonical schema (Design Lock 2 §3-§4 + business_income
+    tables added by M3-001). Tax-year matching uses the canonical YYYY/YY
+    shape stored on Income rows; the aggregator's tax_year_s4_format is
+    YYYY-YY so we convert.
+
+    Pulls per-business gross + expenses via fiesta.tax.business_income.
+    compute_business_tax() which already calls apply_foreign_tax_credit at
+    the DTAA seam for each foreign-source row.
+    """
+    try:
+        from fiesta.tax.business_income import compute_business_tax
+    except Exception:
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+
+    ty_canonical = inputs.tax_year_s4_format.replace("-", "/")
+
+    try:
+        # We need a "user-like" object with .id — User instance preferred.
+        from models import User  # type: ignore
+        user = User.query.get(inputs.user_id)
+    except Exception as exc:
+        logger.warning("business-income user lookup failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+    if user is None:
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+
+    try:
+        result = compute_business_tax(user, ty_canonical)
+    except Exception as exc:
+        logger.warning("compute_business_tax failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.business_income")
+        return
+
+    inputs.sources_loaded.append("fiesta.tax.business_income")
+    inputs.business_lines = result.get("businesses") or []
+    inputs.business_gross_total_lkr = _to_decimal(result.get("gross_total_lkr"))
+    inputs.business_expenses_total_lkr = _to_decimal(result.get("expenses_total_lkr"))
+    inputs.business_taxable_profit_total_lkr = _to_decimal(
+        result.get("taxable_profit_total_lkr")
+    )
+    inputs.business_lkr_taxable_profit_lkr = _to_decimal(
+        result.get("lkr_taxable_profit_lkr")
+    )
+    inputs.business_foreign_taxable_profit_lkr = _to_decimal(
+        result.get("foreign_taxable_profit_lkr")
+    )
+    inputs.business_dtaa_deferred = bool(result.get("dtaa_deferred"))
+
+
+# ---------------------------------------------------------------------------
 # Engine-shape composition
 # ---------------------------------------------------------------------------
 
@@ -950,23 +1012,39 @@ def _compose_engine_inputs(inputs: TaxInputs) -> None:
             + inputs.rsu_vesting_total_lkr
         )
 
-    # B13 (MS3): Crypto CGT (IRA §36 — gains from realisation of investment
-    # assets, §7(2)(b)). Net-after-carry-forward feeds the engine via
-    # investment_lkr (Phase-1 engine doesn't yet have a dedicated CGT slab;
-    # this is the conservative routing — gains tax under the investment
-    # bracket schedule until Phase-3 separates CGT). Per IRA Chapter IV the
-    # taxable base is the NET (gross gain less in-year losses less
-    # loss-carry-forward), so we use net_after_carry not gross.
+    # B13 (MS3): Crypto CGT net-after-carry-forward → investment_lkr bucket.
     if inputs.crypto_cgt_net_after_carry_lkr and inputs.crypto_cgt_net_after_carry_lkr > 0:
         income_kwargs["investment_lkr"] = (
             income_kwargs.get("investment_lkr", Decimal("0"))
             + inputs.crypto_cgt_net_after_carry_lkr
         )
-        # Synthetic category for the bill UI breakdown.
         inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
         inputs.income_by_category_lkr["crypto_cgt"] = (
             inputs.income_by_category_lkr.get("crypto_cgt", Decimal("0"))
             + inputs.crypto_cgt_net_after_carry_lkr
+        )
+
+    # B12 (MS3): Business income → business_lkr (local) or foreign_lkr (foreign).
+    if inputs.business_lkr_taxable_profit_lkr and inputs.business_lkr_taxable_profit_lkr > 0:
+        income_kwargs["business_lkr"] = (
+            income_kwargs["business_lkr"] + inputs.business_lkr_taxable_profit_lkr
+        )
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["business_lkr"] = (
+            inputs.income_by_category_lkr.get("business_lkr", Decimal("0"))
+            + inputs.business_lkr_taxable_profit_lkr
+        )
+    if (
+        inputs.business_foreign_taxable_profit_lkr
+        and inputs.business_foreign_taxable_profit_lkr > 0
+    ):
+        income_kwargs["foreign_lkr"] = (
+            income_kwargs["foreign_lkr"] + inputs.business_foreign_taxable_profit_lkr
+        )
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["business_foreign"] = (
+            inputs.income_by_category_lkr.get("business_foreign", Decimal("0"))
+            + inputs.business_foreign_taxable_profit_lkr
         )
 
     # Roll the "everything else" categories into other_lkr.
@@ -1376,6 +1454,9 @@ def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
 
     # B13 (MS3): Crypto / CGT — AssetDisposal(asset_type='crypto').
     _load_crypto(inputs)
+
+    # B12 (MS3): Business income (sole-prop, LKR + foreign).
+    _load_business_income(inputs)
 
     _compose_engine_inputs(inputs)
 

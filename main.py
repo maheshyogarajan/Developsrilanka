@@ -749,6 +749,14 @@ try:
 except Exception as e:
     logger.error(f'FIESTA MS3 B13 Crypto/CGT load failed: {e}')
 
+# MS3 B12 — Business Income (sole-prop, LKR + foreign) at /income/business/*
+try:
+    from fiesta.business.routes import register_blueprint as register_business
+    register_business(app)
+    logger.info('FIESTA MS3 B12 business income registered at /income/business')
+except Exception as e:
+    logger.error(f'FIESTA MS3 B12 business income load failed: {e}')
+
 # FIESTA Wave 6 — X4 Consultant booking (/consultant/book)
 try:
     from fiesta.consultant import register_routes as register_consultant
@@ -875,6 +883,7 @@ with app.app_context():
             f"columns still work via db.create_all on fresh DBs): {e}"
         )
 
+<<<<<<< HEAD
     # MS3 B13 — Crypto / CGT classifier (M3-002).
     # Creates crypto_positions table + indexes. AssetDisposal rows reuse
     # the table from M2-001 with asset_type='crypto'. Idempotent +
@@ -894,6 +903,24 @@ with app.app_context():
         logger.error(
             f"MS3 B13 Crypto/CGT migration failed (non-fatal — ORM-level "
             f"columns/tables still work via db.create_all on fresh DBs): {e}"
+        )
+
+    # MS3 B12 — Business Income tables + incomes.business_income_id FK.
+    try:
+        import importlib.util as _importlib_util
+        from pathlib import Path as _Path
+        _b12_spec_path = _Path(__file__).resolve().parent / "migrations" / "20260525_140100_f_b12_business.py"
+        _b12_spec = _importlib_util.spec_from_file_location(
+            "_b12_business_migration_loader", str(_b12_spec_path)
+        )
+        if _b12_spec is not None and _b12_spec.loader is not None:
+            _b12_mod = _importlib_util.module_from_spec(_b12_spec)
+            _b12_spec.loader.exec_module(_b12_mod)
+            _b12_mod.upgrade()
+    except Exception as e:
+        logger.error(
+            f"MS3 B12 business-income migration failed (non-fatal — "
+            f"ORM-level columns still work via db.create_all on fresh DBs): {e}"
         )
 
 # Function to start Celery worker in a background thread

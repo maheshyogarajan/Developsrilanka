@@ -72,6 +72,11 @@ QUESTIONS: List[Dict[str, Any]] = [
                 "hint": "You pay others to help deliver.",
             },
             {
+                "id": "business_sole_prop",
+                "label": "Business / sole-proprietorship",
+                "hint": "Consulting practice, trading, services — tracked under IRA §6.",
+            },
+            {
                 "id": "employee_with_side",
                 "label": "Salaried employee with side income",
                 "hint": "Day job plus extras.",
