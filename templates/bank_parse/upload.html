@@ -1,0 +1,82 @@
+{% extends layout_template %}
+
+{% block title %}Parse Bank Statement (Beta) - FIESTA{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 720px;">
+  <div class="row mb-4">
+    <div class="col">
+      <span class="eyebrow">Foreign Income · Sri Lanka · Beta</span>
+      <h1 class="h2 mb-2">Parse a bank statement (canonical)</h1>
+      <p class="text-secondary mb-0">
+        Upload a PDF, JPG, or PNG of your SL bank statement. We extract every
+        inward foreign remittance row (date, amount, currency, sender, SWIFT
+        if present), you review and confirm, and we create canonical income
+        rows you can use across the tax engine.
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if not enabled %}
+  <div class="card mb-4" style="border-left: 4px solid var(--color-info-500, #2196F3);">
+    <div class="card-body">
+      <h4 class="h6 mb-2">Bank statement parsing is in beta</h4>
+      <p class="mb-3 text-secondary">
+        We're piloting canonical-income bank parsing with a small group of users.
+        Please request access if you'd like to try it.
+      </p>
+      <a href="mailto:tax@lanka.tax?subject=FIESTA%20bank%20parse%20beta%20access"
+         class="btn btn-primary">Request access</a>
+      <a href="{{ url_for('remittance.import_upload') }}"
+         class="btn btn-outline-secondary ms-2">Use the existing PDF/CSV import</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data" novalidate>
+        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+
+        <div class="mb-3">
+          <label for="statement" class="form-label fw-semibold">Bank statement file</label>
+          <input type="file" name="statement" id="statement" class="form-control"
+                 accept=".pdf,.jpg,.jpeg,.png" required>
+          <div class="form-text">
+            PDF (text-export) or photo (JPG/PNG). Max {{ max_mb }} MB.
+            Same file twice = same parse (no duplicate income rows).
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="{{ url_for('remittance.dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Upload &amp; parse</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-body">
+      <h4 class="h6 mb-2 text-uppercase text-secondary">What we extract</h4>
+      <ul class="mb-0 ps-3">
+        <li class="mb-1">Inward foreign remittance rows only (no debits, no LKR-only credits).</li>
+        <li class="mb-1">Date, foreign amount, ISO currency code, sender name (best guess).</li>
+        <li class="mb-1">SWIFT / BIC code if visible in the narration.</li>
+        <li>You confirm each row before any income is created.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
