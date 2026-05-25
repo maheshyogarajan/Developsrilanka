@@ -1,4 +1,4 @@
-{% extends "layout.html" if not is_modal else "empty_layout.html" %}
+{% extends layout_template if not is_modal else "empty_layout.html" %}
 
 {% block title %}Create Organization{% endblock %}
 
