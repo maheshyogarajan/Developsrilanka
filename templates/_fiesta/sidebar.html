@@ -1,0 +1,139 @@
+{# templates/_fiesta/sidebar.html — F-Platform-1 (stub for F-Platform-2).
+
+   Per Design Lock 1 sidebar contract: Hub / Earn-in / Deduct / Generate /
+   Outcome / Help / Profile / Sign out. Active-link class is
+   .fiesta-nav-active applied when request.endpoint matches.
+
+   F-Platform-2 owns this file long-term and may refine grouping /
+   ordering / icons. The structure shipped here is the working baseline.
+
+   request.endpoint is preferred over request.path matching — it survives
+   url_prefix changes and is the canonical Flask handle. We fall back to
+   path-prefix checks for blueprints whose endpoints aren't stable yet
+   (cosign, agreements).
+#}
+{% set _ep = request.endpoint or '' %}
+{% set _p = request.path or '' %}
+{% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
+{% set _ya_dash = _ya_default.replace('/', '-') %}
+<aside class="fiesta-sidebar" id="fiesta-sidebar" aria-label="FIESTA navigation">
+  <nav class="fiesta-nav">
+
+    <div class="fiesta-nav-group">
+      <a href="{{ url_for('home') }}"
+         class="fiesta-nav-link fiesta-nav-primary {% if _ep == 'home' or _p == '/' %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8962;</span>
+        <span>Hub</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Earn-in</div>
+      <a href="{{ url_for('remittance.dashboard') }}"
+         class="fiesta-nav-link {% if _ep == 'remittance.dashboard' or (_p.startswith('/remittance') and not _p.startswith('/remittance/new') and not _p.startswith('/remittance/import')) %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9776;</span>
+        <span>Remittance Ledger</span>
+      </a>
+      <a href="{{ url_for('remittance.new') }}"
+         class="fiesta-nav-link {% if _ep == 'remittance.new' or _p.startswith('/remittance/new') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">+</span>
+        <span>Add a remittance</span>
+      </a>
+      <a href="{{ url_for('remittance.import_upload') }}"
+         class="fiesta-nav-link {% if _ep == 'remittance.import_upload' or _p.startswith('/remittance/import') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8682;</span>
+        <span>Import a bank statement</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Deduct</div>
+      <a href="/reduce-tax/"
+         class="fiesta-nav-link {% if _p.startswith('/reduce-tax') or _p == '/deductions' %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8722;</span>
+        <span>Reduce your tax</span>
+      </a>
+      <a href="/service-providers"
+         class="fiesta-nav-link {% if _p.startswith('/service-providers') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9956;</span>
+        <span>Your support team</span>
+      </a>
+      <a href="/property"
+         class="fiesta-nav-link {% if _p.startswith('/property') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8962;</span>
+        <span>Home-office rent</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Generate</div>
+      <a href="/agreements/service"
+         class="fiesta-nav-link {% if _p.startswith('/agreements/service') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9998;</span>
+        <span>Service agreements</span>
+      </a>
+      <a href="/agreements/rental"
+         class="fiesta-nav-link {% if _p.startswith('/agreements/rental') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9998;</span>
+        <span>Rental agreements</span>
+      </a>
+      <a href="/cosign"
+         class="fiesta-nav-link {% if _p.startswith('/cosign') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9758;</span>
+        <span>Co-sign pending</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Outcome</div>
+      <a href="/tax-bill/{{ _ya_dash }}"
+         class="fiesta-nav-link {% if _p.startswith('/tax-bill') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8731;</span>
+        <span>Your tax bill</span>
+      </a>
+      <a href="/submit/"
+         class="fiesta-nav-link {% if _p.startswith('/submit') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9992;</span>
+        <span>Submit</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-divider" aria-hidden="true"></div>
+
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Help</div>
+      <a href="/consultant/book"
+         class="fiesta-nav-link {% if _p.startswith('/consultant') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9742;</span>
+        <span>Book a consultation</span>
+      </a>
+      <a href="/tax-preview"
+         class="fiesta-nav-link {% if _p == '/tax-preview' %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
+        <span>Tax preview</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-divider" aria-hidden="true"></div>
+
+    <div class="fiesta-nav-group">
+      <a href="{{ url_for('profile') }}"
+         class="fiesta-nav-link {% if _ep == 'profile' or _p == '/profile' or _p.startswith('/fie/profile') or _p.startswith('/fiesta/profile') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9788;</span>
+        <span>Profile</span>
+      </a>
+      {% if current_user.is_authenticated and current_user.role == 'admin' %}
+      <a href="{{ url_for('admin_dashboard') }}"
+         class="fiesta-nav-link {% if _p.startswith('/admin') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9876;</span>
+        <span>Admin</span>
+      </a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="fiesta-nav-link fiesta-nav-signout">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8629;</span>
+        <span>Sign out</span>
+      </a>
+    </div>
+
+  </nav>
+</aside>

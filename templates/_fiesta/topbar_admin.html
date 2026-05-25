@@ -1,0 +1,54 @@
+{# templates/_fiesta/topbar_admin.html — F-Platform-1 stub (C4 admin owner).
+
+   Same structural anatomy as _fiesta/topbar.html (wordmark + YA selector +
+   savings counter + user menu) plus an ADMIN badge after the wordmark.
+   C4 admin consolidator may extend.
+#}
+{% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
+{% set _ya_years = (hub_tax_years if hub_tax_years is defined else ['2025/26','2024/25','2023/24','2022/23']) %}
+<header class="fiesta-topbar fiesta-topbar-admin" role="banner">
+  <button class="fiesta-topbar-toggle" id="fiesta-mobile-toggle"
+          type="button" aria-label="Open admin navigation" aria-controls="fiesta-sidebar"
+          aria-expanded="false">
+    <span aria-hidden="true">&#9776;</span>
+  </button>
+
+  <a href="{{ url_for('home') }}" class="fiesta-wordmark">
+    FIESTA<em>&middot;</em>
+  </a>
+  <span class="fiesta-admin-badge" aria-label="Admin mode">ADMIN</span>
+
+  <div class="fiesta-topbar-year">
+    <label for="fiesta-ya-select" class="fiesta-eyebrow">Year of Assessment</label>
+    <select id="fiesta-ya-select"
+            onchange="(function(v){try{document.cookie='hub_ya='+encodeURIComponent(v)+';path=/;max-age=31536000';}catch(e){}})(this.value)">
+      {% for ty in _ya_years %}
+        <option value="{{ ty }}" {% if ty == _ya_default %}selected{% endif %}>{{ ty }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="fiesta-counter" aria-live="polite">
+    <span class="fiesta-counter-lead">Platform savings</span>
+    <span id="fiesta-savings-counter" data-source="api">Rs --</span>
+    <span class="fiesta-counter-ya">YA {{ _ya_default }}</span>
+  </div>
+
+  <div class="fiesta-user" id="fiesta-user">
+    <button class="fiesta-user-btn" id="fiesta-user-btn"
+            type="button" aria-haspopup="true" aria-expanded="false">
+      {% set _initial = (current_user.name[0] if (current_user.is_authenticated and current_user.name) else (current_user.email[0] if current_user.is_authenticated else '?'))|upper %}
+      <span class="fiesta-user-av">{{ _initial }}</span>
+      <span class="fiesta-user-name">
+        {%- if current_user.is_authenticated -%}
+          {%- if current_user.name -%}{{ current_user.name.split(' ')[0] }}
+          {%- else -%}{{ current_user.email.split('@')[0] }}{%- endif -%}
+        {%- else -%}Guest{%- endif -%}
+      </span>
+    </button>
+    <div class="fiesta-user-menu" role="menu">
+      <a href="{{ url_for('profile') }}" role="menuitem">Profile</a>
+      <a href="{{ url_for('logout') }}" role="menuitem" class="fiesta-user-menu-danger">Sign out</a>
+    </div>
+  </div>
+</header>

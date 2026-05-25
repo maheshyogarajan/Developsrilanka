@@ -1,0 +1,91 @@
+{# templates/_fiesta/sidebar_admin.html — F-Platform-1 stub (C4 admin owner).
+
+   Admin sidebar nav per Design Lock 1 §Admin shell variant:
+   Dashboard / Users / Per-user 360 / Autoreply / PCSE Inspector /
+   AI-Org / Support / Revenue Intel / Settings / Logs.
+
+   C4 admin consolidator owns long-term; this stub gives the working
+   shell from day 1 so admin pages migrating during MS1 have a sidebar
+   to render against. Many of these routes are still WIP and may 404 —
+   that's expected (C4 fleshes them out).
+#}
+{% set _p = request.path or '' %}
+<aside class="fiesta-sidebar fiesta-sidebar-admin" id="fiesta-sidebar" aria-label="FIESTA admin navigation">
+  <nav class="fiesta-nav">
+
+    <div class="fiesta-nav-group">
+      <a href="{{ url_for('admin_dashboard') }}"
+         class="fiesta-nav-link fiesta-nav-primary {% if _p == '/admin' or _p == '/admin/' %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
+        <span>Dashboard</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Operations</div>
+      <a href="/admin/users"
+         class="fiesta-nav-link {% if _p.startswith('/admin/users') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9786;</span>
+        <span>Users</span>
+      </a>
+      <a href="/admin/360"
+         class="fiesta-nav-link {% if _p.startswith('/admin/360') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8635;</span>
+        <span>Per-user 360</span>
+      </a>
+      <a href="/admin/autoreply"
+         class="fiesta-nav-link {% if _p.startswith('/admin/autoreply') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9993;</span>
+        <span>Autoreply</span>
+      </a>
+      <a href="/admin/pcse"
+         class="fiesta-nav-link {% if _p.startswith('/admin/pcse') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8981;</span>
+        <span>PCSE Inspector</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Intelligence</div>
+      <a href="/admin/ai-org"
+         class="fiesta-nav-link {% if _p.startswith('/admin/ai-org') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
+        <span>AI-Org</span>
+      </a>
+      <a href="/admin/support"
+         class="fiesta-nav-link {% if _p.startswith('/admin/support') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9742;</span>
+        <span>Support</span>
+      </a>
+      <a href="/admin/revenue"
+         class="fiesta-nav-link {% if _p.startswith('/admin/revenue') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8364;</span>
+        <span>Revenue Intel</span>
+      </a>
+    </div>
+
+    <div class="fiesta-nav-divider" aria-hidden="true"></div>
+
+    <div class="fiesta-nav-group">
+      <a href="/admin/settings"
+         class="fiesta-nav-link {% if _p.startswith('/admin/settings') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
+        <span>Settings</span>
+      </a>
+      <a href="/admin/logs"
+         class="fiesta-nav-link {% if _p.startswith('/admin/logs') %}fiesta-nav-active{% endif %}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9998;</span>
+        <span>Logs</span>
+      </a>
+      <a href="{{ url_for('home') }}" class="fiesta-nav-link">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8617;</span>
+        <span>Back to FIESTA</span>
+      </a>
+      <a href="{{ url_for('logout') }}" class="fiesta-nav-link fiesta-nav-signout">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8629;</span>
+        <span>Sign out</span>
+      </a>
+    </div>
+
+  </nav>
+</aside>

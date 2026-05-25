@@ -1,0 +1,71 @@
+{# templates/_fiesta/topbar.html — F-Platform-1.
+
+   Default FIESTA topbar: wordmark + Year-of-Assessment selector + savings
+   counter + user menu. layout_fiesta.html includes this via the {% block
+   topbar %} default. C4 admin work overrides {% block topbar %} with
+   _fiesta/topbar_admin.html (adds ADMIN badge).
+
+   Tax-year selector defaults to current_sl_tax_year() (exposed by
+   app.py::inject_fiesta_hub_context) and persists the choice in the
+   hub_ya cookie so other surfaces (tax-bill, remittance) can pick it up.
+
+   Savings counter is an empty stub (Rs --) until static/js/fiesta.js
+   resolves /api/fiesta/savings-projection on DOMContentLoaded. The
+   data-source="api" attribute is contract-locked — F-Platform-5 may swap
+   it to data-source="cache" / "fallback" depending on resolution.
+#}
+{% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
+{% set _ya_years = (hub_tax_years if hub_tax_years is defined else ['2025/26','2024/25','2023/24','2022/23']) %}
+<header class="fiesta-topbar" role="banner">
+  <button class="fiesta-topbar-toggle" id="fiesta-mobile-toggle"
+          type="button" aria-label="Open navigation" aria-controls="fiesta-sidebar"
+          aria-expanded="false">
+    <span aria-hidden="true">&#9776;</span>
+  </button>
+
+  <a href="{{ url_for('home') }}" class="fiesta-wordmark">
+    FIESTA<em>&middot;</em>
+  </a>
+
+  <div class="fiesta-topbar-year">
+    <label for="fiesta-ya-select" class="fiesta-eyebrow">Year of Assessment</label>
+    <select id="fiesta-ya-select"
+            onchange="(function(v){try{document.cookie='hub_ya='+encodeURIComponent(v)+';path=/;max-age=31536000';}catch(e){}})(this.value)">
+      {% for ty in _ya_years %}
+        <option value="{{ ty }}" {% if ty == _ya_default %}selected{% endif %}>{{ ty }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {# Savings counter — Design Lock 1 contract.
+     Element id and data-source attribute are LOCKED. Initial render falls
+     back to the server-side hub_projected_savings_lkr (set by
+     inject_fiesta_hub_context) so the counter is correct on first paint
+     even before fiesta.js hits /api/fiesta/savings-projection. #}
+  <div class="fiesta-counter" aria-live="polite"
+       title="Projected tax savings for this YA based on your data so far.">
+    <span class="fiesta-counter-lead">You're saving</span>
+    <span id="fiesta-savings-counter" data-source="api">
+      Rs {{ '{:,.0f}'.format(hub_projected_savings_lkr) if (hub_projected_savings_lkr is defined and hub_projected_savings_lkr) else '--' }}
+    </span>
+    <span class="fiesta-counter-ya">YA {{ _ya_default }}</span>
+  </div>
+
+  <div class="fiesta-user" id="fiesta-user">
+    <button class="fiesta-user-btn" id="fiesta-user-btn"
+            type="button" aria-haspopup="true" aria-expanded="false">
+      {% set _initial = (current_user.name[0] if (current_user.is_authenticated and current_user.name) else (current_user.email[0] if current_user.is_authenticated else '?'))|upper %}
+      <span class="fiesta-user-av">{{ _initial }}</span>
+      <span class="fiesta-user-name">
+        {%- if current_user.is_authenticated -%}
+          {%- if current_user.name -%}{{ current_user.name.split(' ')[0] }}
+          {%- else -%}{{ current_user.email.split('@')[0] }}{%- endif -%}
+        {%- else -%}Guest{%- endif -%}
+      </span>
+    </button>
+    <div class="fiesta-user-menu" role="menu">
+      <a href="{{ url_for('profile') }}" role="menuitem">Profile</a>
+      <a href="{{ url_for('logout') }}" role="menuitem" class="fiesta-user-menu-danger">Sign out</a>
+    </div>
+  </div>
+</header>

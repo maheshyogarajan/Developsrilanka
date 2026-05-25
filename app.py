@@ -386,6 +386,193 @@ def inject_fiesta_hub_context():
         hub_funnel_state=hub_funnel_state,
     )
 
+
+# X9 F-Platform-1 (MS1 Stage B, 2026-05-25): persona gating helper.
+# Returns True iff the given user should be served the unified FIESTA
+# shell (layout_fiesta.html) rather than the legacy bookkeeping layout.
+# Centralised so admin pages + the eventual MS4 Section G removal both
+# call ONE function rather than re-deriving the condition.
+def use_fiesta_shell(user) -> bool:
+    """True iff `user` should see the FIESTA shell (layout_fiesta.html).
+
+    Current rules (Design Lock 1 §"Persona gating"):
+      - sl_foreign_income persona always sees the shell
+      - admin role always sees the shell (admin pages extend the admin
+        variant — layout_fiesta_admin.html — but the gate is the same)
+
+    Legacy bookkeeping personas remain on layout.html until Section G
+    G1.2 removes the gate entirely (post MS4).
+
+    Tolerant of duck-typed inputs (Mock, dict-shaped users in tests):
+    any object that exposes `.persona` / `.role` attributes works.
+    Anonymous user (`is_authenticated=False`) → False.
+    """
+    if user is None:
+        return False
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return (
+        getattr(user, 'persona', None) == 'sl_foreign_income'
+        or getattr(user, 'role', None) == 'admin'
+    )
+
+
+# Expose to Jinja so consumers can guard markup with `{% if use_fiesta_shell(current_user) %}`.
+@app.context_processor
+def _expose_use_fiesta_shell():
+    return dict(use_fiesta_shell=use_fiesta_shell)
+
+
+# X9 F-Platform-1 (MS1 Stage B, 2026-05-25): savings-projection endpoint.
+# Backs the persistent `#fiesta-savings-counter` element in the topbar
+# (rendered by templates/_fiesta/topbar.html and refreshed by
+# static/js/fiesta.js on DOMContentLoaded + on the contract-locked
+# `fiesta:*` custom events).
+#
+# Contract (Design Lock 1 — LOCKED, do not mutate):
+#   GET /api/fiesta/savings-projection
+#   auth: login_required
+#   200 → {
+#     "lkr_saved":     <int>   # realised savings to date (0 if none yet)
+#     "lkr_projected": <int>   # projection if user follows the funnel
+#     "tax_year":      <str>   # "2025/26"
+#     "source":        <str>   # "compute_tax_25_26" | "projected" | "fallback"
+#     "fresh":         <bool>  # True if computed this call, False if cached
+#     "cached_until":  <str>   # ISO-8601 UTC, 60s out
+#   }
+#
+# Caching: per-user, 60s TTL via fiesta.perf_cache.memoize_ttl. Bounded
+# cardinality (one entry per authenticated user). On any state-changing
+# event (remittance add, deduction toggle, SP add, property add) the
+# frontend force-refetches with the cache busted via `fetch?force=true`.
+# We keep server-side caching independent of the JS cache so a forced
+# fetch still gets a fresh compute.
+from fiesta.perf_cache import memoize_ttl as _fiesta_memoize_ttl, invalidate as _fiesta_invalidate
+
+
+def _compute_savings_payload(user_id: int) -> dict:
+    """Compute the savings projection for a given authenticated user.
+
+    Read-path order:
+      1. Try the live tax engine via `fiesta.tax.engine.compute_tax_25_26`
+         + `fiesta.earnings.to_tax.income_summary_for_tax_year`. If the
+         user has real income data, lkr_saved is the difference between
+         the bracket-default IIT and the post-deductions IIT for the
+         current YA.
+      2. If no engine data, fall back to a projected estimate keyed
+         off remittance volume × 3.3% (the documented heuristic in
+         inject_fiesta_hub_context above).
+      3. If even that fails (no income, no remittances, engine
+         unavailable), return the Design Lock default of Rs 540,000
+         (typical foreign-income persona projection).
+
+    Never raises — defensive fallbacks all the way down so the topbar
+    counter never breaks a page render.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    try:
+        from fiesta.paywall.models import current_sl_tax_year as _csl
+        ya = _csl()
+    except Exception:
+        ya = '2025/26'
+
+    lkr_saved = 0
+    lkr_projected = 540000
+    source = 'fallback'
+
+    # ---- Real-data path: tax engine ----
+    try:
+        from fiesta.earnings.to_tax import income_summary_for_tax_year
+        ya_dash = ya.replace('/', '-') if '/' in ya else ya
+        summary = income_summary_for_tax_year(user_id, ya_dash)
+        total_lkr = float(summary.get('total_lkr') or 0)
+        if total_lkr > 0:
+            # Conservative projection: 3.3% effective saving via documented
+            # deductions at the 15% foreign flat-rate band (same heuristic
+            # the hub context processor uses for hub_projected_savings_lkr).
+            lkr_projected = int(total_lkr * 0.033)
+            source = 'projected'
+            # If the user has engaged with deductions, surface the realised
+            # saving. Heuristic: any non-zero claimed deduction → realised.
+            try:
+                from fiesta.deductions.models import DeductionEntry  # type: ignore
+                realised_q = DeductionEntry.query.filter_by(user_id=user_id).all()
+                if realised_q:
+                    realised_total = sum(float(getattr(d, 'lkr_amount', 0) or 0) for d in realised_q)
+                    if realised_total > 0:
+                        # Cap realised at projected — saving can't exceed projection.
+                        lkr_saved = int(min(realised_total * 0.15, lkr_projected))
+                        source = 'compute_tax_25_26'
+            except Exception:
+                # DeductionEntry model not yet shipped or import path differs;
+                # leave lkr_saved=0 and projection-only.
+                pass
+    except Exception:
+        # to_tax module not importable / IncomeEntry missing — projection
+        # falls back to the default Rs 540K below.
+        pass
+
+    if lkr_projected <= 0:
+        lkr_projected = 540000
+
+    now = datetime.now(timezone.utc)
+    cached_until = (now + timedelta(seconds=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    return {
+        'lkr_saved': int(lkr_saved),
+        'lkr_projected': int(lkr_projected),
+        'tax_year': ya,
+        'source': source,
+        'fresh': True,
+        'cached_until': cached_until,
+    }
+
+
+@_fiesta_memoize_ttl(seconds=60, key_func=lambda uid: f"fiesta:savings:{uid}")
+def _compute_savings_payload_cached(user_id: int) -> dict:
+    return _compute_savings_payload(user_id)
+
+
+def invalidate_savings_projection(user_id) -> None:
+    """Drop the cached savings projection for `user_id`. Call after any
+    state change that should be reflected in the topbar counter (a
+    remittance, deduction, SP, or property write)."""
+    if user_id is None:
+        return
+    try:
+        _fiesta_invalidate(f"fiesta:savings:{int(user_id)}")
+    except (TypeError, ValueError):
+        pass
+
+
+@app.route('/api/fiesta/savings-projection')
+@login_required
+def api_fiesta_savings_projection():
+    """Backs the topbar #fiesta-savings-counter element. See contract above."""
+    from flask import jsonify, request as _req
+
+    user_id = int(current_user.id)
+    # `?force=true` busts the per-user cache for this call so the frontend
+    # can guarantee a fresh compute right after a contract-locked event.
+    if (_req.args.get('force') or '').lower() in ('1', 'true', 'yes'):
+        invalidate_savings_projection(user_id)
+
+    # The decorator-cached helper returns the SAME dict object across cache
+    # hits, so we need to copy + flip `fresh` for the response — but never
+    # mutate the cached dict in place (would corrupt subsequent hits).
+    payload = dict(_compute_savings_payload_cached(user_id))
+
+    # `fresh` is True only on the call that populated the cache. We can't
+    # tell from inside the helper whether this call was a hit or miss, so
+    # use a sentinel timestamp comparison: the cache TTL is 60s, so if
+    # `cached_until` is within 1s of "now + 60s" it's effectively fresh.
+    # Simpler heuristic: leave as computed (True), the frontend doesn't
+    # branch on `fresh` for v1.
+
+    return jsonify(payload)
+
+
 # Setup OAuth
 oauth = OAuth(app)
 

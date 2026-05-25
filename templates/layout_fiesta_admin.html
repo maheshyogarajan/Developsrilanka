@@ -1,0 +1,13 @@
+{# templates/layout_fiesta_admin.html — F-Platform-1.
+
+   Admin shell variant. Inherits everything from layout_fiesta.html and
+   only swaps the topbar + sidebar partials. Everything else (head,
+   footer, scripts, JS event wiring) inherits unchanged.
+
+   C4 admin consolidator owns the topbar_admin / sidebar_admin includes
+   long-term and may further customise per Design Lock 1 §Admin shell
+   variant.
+#}
+{% extends "layout_fiesta.html" %}
+{% block topbar %}{% include "_fiesta/topbar_admin.html" %}{% endblock %}
+{% block sidebar %}{% include "_fiesta/sidebar_admin.html" %}{% endblock %}
