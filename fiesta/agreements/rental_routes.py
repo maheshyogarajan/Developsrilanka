@@ -260,6 +260,34 @@ def preview(property_id: int) -> Any:
         # by this user — 404 (not 403) to avoid leaking existence.
         abort(404)
 
+    # D1 (Tier D-Perf 2026-05-25) — defensive fallback render. If we got
+    # this far with prop=None (Property model failed to import at startup
+    # OR the bundle helper silently failed), render a FRIENDLY MESSAGE
+    # rather than the half-blank page CEO saw. Without this guard the
+    # template's 4 conditional blocks all evaluate False and the user
+    # gets chrome (breadcrumb + DRAFT banner) and nothing else — the
+    # exact symptom the master defect log filed for D1.
+    if prop is None:
+        logger.warning(
+            "rental.preview rendering blank-fallback for property_id=%s user_id=%s "
+            "(_Property=%s) — Property model unavailable or bundle helper failed",
+            property_id, user_id, _Property is not None,
+        )
+        return render_template(
+            "agreements/rental_preview.html",
+            property_id=property_id,
+            user_id=user_id,
+            property=None,
+            preview=None,
+            rental_form_context=None,
+            history_url=None,
+            gate_warnings=[],
+            gate_blocks=[],
+            protected_deductions_lkr=0,
+            blank_fallback=True,
+            blank_fallback_property_id=property_id,
+        )
+
     # B4 F5.5 — surface server-side "protects Rs X" projection on S9.
     protected_lkr = _rental_protected_deductions_cached(
         user_id=user_id,
