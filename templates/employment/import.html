@@ -1,0 +1,58 @@
+{% extends layout_template %}
+{% block page_title %}Import payslips — Employment — FIESTA{% endblock %}
+{% block content %}
+<div style="max-width:780px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <p><a href="{{ url_for('fiesta_employment.list_view') }}"
+        style="color:var(--color-ink-700,#4b525c);">&larr; All employment</a></p>
+
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.8rem;margin:0 0 0.4rem;">Import monthly payslips</h1>
+
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Bulk-load payslips from a CSV. One row per (employer &middot; period). Required columns:
+    <code>employer_name, period_start, period_end, gross_lkr</code>. Optional:
+    <code>apit_lkr, apit_cert_ref</code>. Rows with the same (employer, period_start)
+    update non-destructively.
+  </p>
+
+  {% if error %}
+  <div style="margin-bottom:1rem;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;color:#7f1d1d;border-radius:0 6px 6px 0;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if result %}
+  <div style="margin-bottom:1.4rem;padding:0.9rem 1.1rem;background:#ecfdf5;border-left:3px solid #047857;border-radius:0 6px 6px 0;">
+    <div style="font-weight:600;">Import complete</div>
+    <div style="font-size:0.92rem;color:var(--color-ink-700,#4b525c);">
+      Created {{ result.created }} &middot; Updated {{ result.updated }} &middot;
+      Errors {{ result.errors|length }} &middot; Total rows {{ result.total }}
+    </div>
+    {% if result.errors %}
+      <details style="margin-top:0.6rem;">
+        <summary style="cursor:pointer;">Errors</summary>
+        <ul style="margin:0.4rem 0 0;padding-left:1.2rem;font-size:0.85rem;color:#7f1d1d;">
+          {% for e in result.errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data"
+        action="{{ url_for('fiesta_employment.import_submit') }}"
+        style="display:grid;gap:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">CSV file</span>
+      <input type="file" name="payslips_csv" accept=".csv,text/csv" required
+             style="padding:0.55rem;">
+    </label>
+    <div>
+      <button type="submit"
+              style="padding:0.7rem 1.3rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+        Import payslips
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -757,6 +757,22 @@ try:
 except Exception as e:
     logger.error(f'FIESTA MS3 B12 business income load failed: {e}')
 
+# MS4 W3b G3.1 — Employment income (LKR + APIT credit) at /income/employment/*
+try:
+    from fiesta.employment.routes import register_blueprint as register_employment
+    register_employment(app)
+    logger.info('FIESTA MS4 W3b G3.1 employment income registered at /income/employment')
+except Exception as e:
+    logger.error(f'FIESTA MS4 W3b G3.1 employment income load failed: {e}')
+
+# MS4 W3b G3.2 — Professional fees (LKR + §85 WHT credit) at /income/professional-fees/*
+try:
+    from fiesta.professional_fees.routes import register_blueprint as register_profees
+    register_profees(app)
+    logger.info('FIESTA MS4 W3b G3.2 professional fees registered at /income/professional-fees')
+except Exception as e:
+    logger.error(f'FIESTA MS4 W3b G3.2 professional fees load failed: {e}')
+
 # FIESTA Wave 6 — X4 Consultant booking (/consultant/book)
 try:
     from fiesta.consultant import register_routes as register_consultant

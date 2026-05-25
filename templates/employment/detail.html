@@ -1,0 +1,107 @@
+{% extends layout_template %}
+{% block page_title %}{{ meta.employer_name }} — Employment — FIESTA{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <p><a href="{{ url_for('fiesta_employment.list_view') }}"
+        style="color:var(--color-ink-700,#4b525c);">&larr; All employment</a></p>
+
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.8rem;margin:0 0 0.4rem;">{{ meta.employer_name }}</h1>
+  <p style="color:var(--color-ink-700,#4b525c);margin:0 0 1.4rem;">
+    Tax year {{ meta.tax_year }} &middot; {{ meta.period_start }} &rarr; {{ meta.period_end }}
+  </p>
+
+  {% if row %}
+  <div style="margin-bottom:1.6rem;padding:0.9rem 1.1rem;background:#eef2ff;border-left:3px solid #4338ca;border-radius:0 6px 6px 0;">
+    <div style="font-weight:600;">This row</div>
+    <div style="font-size:0.92rem;color:var(--color-ink-700,#4b525c);">
+      Gross Rs {{ "{:,.2f}".format(row.gross_lkr) }}
+      &middot; APIT credit Rs {{ "{:,.2f}".format(row.apit_credit_lkr) }}
+      &middot; Certificate: {{ row.apit_certificate_ref or '(none)' }}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if summary %}
+  <div style="margin-bottom:1.6rem;padding:0.9rem 1.1rem;background:#f3f4f6;border-radius:6px;">
+    <div style="font-weight:600;">Tax-year {{ summary.tax_year }} total</div>
+    <div style="font-size:0.92rem;color:var(--color-ink-700,#4b525c);">
+      Gross Rs {{ "{:,.2f}".format(summary.gross_total_lkr) }} &middot;
+      APIT credit Rs {{ "{:,.2f}".format(summary.apit_credit_total_lkr) }}
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_employment.edit_submit', meta_id=meta.id) }}" style="display:grid;gap:1rem;max-width:760px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Employer name</span>
+      <input type="text" name="employer_name" maxlength="128" value="{{ meta.employer_name }}"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <label style="display:grid;gap:0.3rem;">
+        <span style="font-weight:600;">Period start</span>
+        <input type="date" name="period_start" value="{{ meta.period_start }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span style="font-weight:600;">Period end</span>
+        <input type="date" name="period_end" value="{{ meta.period_end }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </div>
+
+    <fieldset style="display:grid;gap:0.6rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">Gross employment income</legend>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Amount</span>
+        <input type="number" name="gross_amount" step="0.01" min="0"
+               value="{{ row.gross_lkr if row else '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Currency</span>
+        <input type="text" name="currency" maxlength="3"
+               value="{{ row.currency if row else 'LKR' }}" pattern="[A-Za-z]{3}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <fieldset style="display:grid;gap:0.6rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">APIT withheld</legend>
+      <label style="display:grid;gap:0.3rem;">
+        <span>APIT amount</span>
+        <input type="number" name="apit_amount" step="0.01" min="0"
+               value="{{ row.apit_credit_lkr if row else '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Certificate ref</span>
+        <input type="text" name="apit_certificate_ref" maxlength="128"
+               value="{{ meta.apit_certificate_ref or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <div style="display:flex;gap:0.6rem;align-items:center;">
+      <button type="submit"
+              style="padding:0.7rem 1.3rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+        Save changes
+      </button>
+    </div>
+  </form>
+
+  <hr style="margin:2rem 0;border:none;border-top:1px solid var(--color-ink-100,#e6e8ec);">
+
+  <form method="POST" action="{{ url_for('fiesta_employment.delete_submit', meta_id=meta.id) }}"
+        onsubmit="return confirm('Delete this employment row + its paired income?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <button type="submit"
+            style="padding:0.55rem 1rem;background:#fee2e2;color:#7f1d1d;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+      Delete this row
+    </button>
+  </form>
+</div>
+{% endblock %}

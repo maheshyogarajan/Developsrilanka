@@ -1,0 +1,103 @@
+{% extends layout_template %}
+{% block page_title %}Add invoice — Professional fees — FIESTA{% endblock %}
+{% block content %}
+<div style="max-width:780px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.8rem;margin:0 0 0.4rem;">Add invoice</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    One row per (client &middot; invoice_date). Re-submitting the same client + date
+    updates the existing row non-destructively (gross + WHT are overwritten).
+  </p>
+
+  {% if error %}
+  <div style="margin-bottom:1rem;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;color:#7f1d1d;border-radius:0 6px 6px 0;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_professional_fees.new_submit') }}" style="display:grid;gap:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Client name</span>
+      <input type="text" name="client_name" required maxlength="128"
+             value="{{ form.client_name or '' }}"
+             placeholder="e.g. Foo Bar Holdings (Pvt) Ltd"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Invoice date</span>
+      <input type="date" name="invoice_date" required value="{{ form.invoice_date or '' }}"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Invoice number <small style="color:var(--color-ink-500,#6e7682);">(optional)</small></span>
+      <input type="text" name="invoice_number" maxlength="64" value="{{ form.invoice_number or '' }}"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Service description <small style="color:var(--color-ink-500,#6e7682);">(optional)</small></span>
+      <textarea name="service_description" maxlength="512" rows="2"
+                style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">{{ form.service_description or '' }}</textarea>
+    </label>
+
+    <fieldset style="display:grid;gap:0.6rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">Gross invoice amount</legend>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Amount</span>
+        <input type="number" name="gross_amount" required step="0.01" min="0"
+               value="{{ form.gross_amount or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>Currency (ISO-4217)</span>
+        <input type="text" name="currency" maxlength="3"
+               value="{{ form.currency or 'LKR' }}" pattern="[A-Za-z]{3}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <fieldset style="display:grid;gap:0.6rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">&sect;85 WHT withheld (credit)</legend>
+      <p style="margin:0 0 0.4rem;font-size:0.85rem;color:var(--color-ink-700,#4b525c);">
+        WHT withheld by the client at payment per &sect;85(1C). Default rate for resident
+        independent professionals is {{ "%.0f"|format(section85_resident_rate * 100) }}%
+        when the monthly fee exceeds Rs {{ "{:,.0f}".format(section85_threshold) }}.
+        Leave blank if no WHT was withheld.
+      </p>
+      <label style="display:grid;gap:0.3rem;">
+        <span>WHT amount</span>
+        <input type="number" name="wht_amount" step="0.01" min="0"
+               value="{{ form.wht_amount or '' }}"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label style="display:grid;gap:0.3rem;">
+        <span>WHT certificate reference</span>
+        <input type="text" name="wht_certificate_ref" maxlength="128"
+               value="{{ form.wht_certificate_ref or '' }}"
+               placeholder="e.g. WHT-2025-26-CLIENT-042"
+               style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <label style="display:grid;gap:0.3rem;">
+      <span style="font-weight:600;">Tax year <small style="color:var(--color-ink-500,#6e7682);">(YYYY/YY) &mdash; leave blank to derive from invoice date</small></span>
+      <input type="text" name="tax_year" maxlength="7"
+             value="{{ form.tax_year or '' }}" placeholder="2025/26"
+             pattern="\d{4}/\d{2}"
+             style="padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <div style="display:flex;gap:0.6rem;align-items:center;margin-top:0.4rem;">
+      <button type="submit"
+              style="padding:0.7rem 1.3rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+        Save invoice
+      </button>
+      <a href="{{ url_for('fiesta_professional_fees.list_view') }}"
+         style="color:var(--color-ink-700,#4b525c);">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
