@@ -291,6 +291,29 @@
     planning; finalise after counsel review.
   </div>
 
+  {# D1 (Tier D-Perf 2026-05-25) — friendly blank-fallback. Renders when the
+     route couldn't resolve a Property row but didn't 404 (e.g. Property model
+     import failed at startup, or cache helper returned None). Replaces the
+     chrome-only blank page CEO originally hit. #}
+  {% if blank_fallback %}
+  <div class="s9-gate-strip s9-gate-blocked" role="alert"
+       data-testid="rental-blank-fallback">
+    <strong>We couldn't compute the rental preview.</strong>
+    <p style="margin: .5rem 0 .25rem;">
+      Please review your property details — we need the property's address,
+      total area, home-office area and landlord linked before we can render
+      the rental agreement preview.
+    </p>
+    <p style="margin: .25rem 0 0;">
+      <a href="/property/{{ blank_fallback_property_id }}/edit">
+        Edit property #{{ blank_fallback_property_id }}
+      </a>
+      &nbsp;·&nbsp;
+      <a href="/property">Back to all properties</a>
+    </p>
+  </div>
+  {% endif %}
+
   {# Compliance gate warnings / blocks #}
   {% if gate_warnings or gate_blocks %}
   <div class="s9-gate-strip {% if gate_blocks %}s9-gate-blocked{% endif %}"

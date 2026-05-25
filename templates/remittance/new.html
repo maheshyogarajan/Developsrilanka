@@ -214,7 +214,20 @@
     debounce = setTimeout(runProjection, 250);
   }
 
+  // D6 (Tier D-Perf 2026-05-25) — listen for BOTH 'input' and 'change' on
+  // BOTH inputs so the projection paints under every fill mechanism:
+  //   - manual keyboard typing -> 'input' fires per keystroke
+  //   - paste / autofill       -> 'input' fires once
+  //   - programmatic .value=   -> NEITHER fires (needs dispatchEvent)
+  //   - Playwright .fill()     -> 'input' fires (Playwright dispatches it)
+  //   - blur after edit        -> 'change' fires
+  // The previous binding only had 'input' on amountInput; the master defect
+  // log filed that Playwright fill didn't trigger the listener — adding
+  // 'change' as the redundant trigger gives us blur-time recovery for any
+  // automation harness that mutates the value programmatically without
+  // dispatching 'input'.
   amountInput.addEventListener('input', schedule);
+  amountInput.addEventListener('change', schedule);
   cbslInput.addEventListener('input', schedule);
   cbslInput.addEventListener('change', schedule);
 
@@ -223,6 +236,15 @@
   // as soon as they type an amount (rate is already there).
   if (cbslInput.value && parseFloat(cbslInput.value) > 0) {
     amountInput.addEventListener('input', schedule, { once: false });
+  }
+
+  // D6 (Tier D-Perf 2026-05-25) — page-load recovery: if the form arrived
+  // with both inputs already populated (back/forward cache, server
+  // pre-fill, or automation harness that ran fill BEFORE the listeners
+  // bound), paint the projection immediately on DOMContentLoaded.
+  if (amountInput.value && cbslInput.value &&
+      parseFloat(amountInput.value) > 0 && parseFloat(cbslInput.value) > 0) {
+    schedule();
   }
 })();
 
