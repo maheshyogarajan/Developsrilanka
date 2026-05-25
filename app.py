@@ -111,27 +111,50 @@ logging.info(f"Mail configuration: Server={app.config['MAIL_SERVER']}, Port={app
 logging.info(f"Mail username configured: {'Yes' if app.config['MAIL_USERNAME'] else 'No'}")
 logging.info(f"Mail password configured: {'Yes' if app.config['MAIL_PASSWORD'] else 'No'}")
 
-# Production error handlers — X9 F-Platform-6 unified family.
-# All three render templates/error.html, which now extends layout_template
-# (FIESTA shell for sl_foreign_income personas, legacy bookkeeping otherwise)
-# and ships a persona-aware "Go Home" CTA.
+# Production error handlers — X9 F-Platform-6 unified family (MS1 Stage C3).
+# Templates live in templates/errors/*.html and extend layout_template via
+# the shared errors/_base.html (FIESTA shell for sl_foreign_income personas,
+# legacy bookkeeping otherwise) with persona-aware "Go Home" + help CTAs.
+#
+# NOTE: paywall/expense-specific error pages keep using templates/error.html
+# (legacy generic shell) — only the framework-level 404/403/500/401 handlers
+# unify here. See expense_reports.py for the in-route legacy usages that
+# are intentionally untouched.
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('error.html',
-                           error_code=404,
-                           error_message="The page you're looking for doesn't exist."), 404
+    return render_template('errors/404.html'), 404
 
 @app.errorhandler(403)
 def forbidden(e):
-    return render_template('error.html',
-                           error_code=403,
-                           error_message="You don't have access to this page. If you think this is wrong, contact us at tax@lanka.tax."), 403
+    return render_template('errors/403.html'), 403
+
+@app.errorhandler(401)
+def unauthorized(e):
+    # Preserve the requested URL via ?next= so the Sign in CTA round-trips.
+    return render_template('errors/401.html', error_next_url=request.url), 401
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    return render_template('error.html',
-                           error_code=500,
-                           error_message="Something went wrong on our end. We're working to fix it."), 500
+    # Paranoid render: a 500 may originate inside before_request itself, in
+    # which case g.layout_template / current_user / etc. may be undefined.
+    # Force the legacy layout (always-renderable) and swallow any secondary
+    # exception by falling back to a static plaintext response. The error
+    # page must NEVER itself raise — a stacktrace here is unrecoverable.
+    try:
+        return render_template(
+            'errors/500.html',
+            error_layout_template='layout.html',
+        ), 500
+    except Exception:
+        logging.exception("F-Platform-6: 500 error page render itself failed")
+        return (
+            "<!doctype html><title>500 · FIESTA</title>"
+            "<h1>500</h1>"
+            "<p>Something went wrong on our side. We've logged it.</p>"
+            '<p><a href="/">Back to FIESTA</a></p>',
+            500,
+            {'Content-Type': 'text/html; charset=utf-8'},
+        )
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 
 # Initialize Flask-Login

@@ -1,0 +1,91 @@
+{# F-Platform-6 (X9, MS1 Stage C3, 2026-05-25) — unified error shell base.
+
+   Picks the right layout for the current user:
+     - FIESTA-shell users (sl_foreign_income persona / admin role) → layout_fiesta.html
+     - Everyone else (anon + legacy bookkeeping) → layout.html
+
+   Resolution rules (in order):
+     1. `error_layout_template` if set explicitly by the error handler
+        (escape hatch for handlers that need to force a layout — e.g. an
+        early-boot 500 where g.layout_template is unset)
+     2. `g.layout_template` set by check_authentication() before_request
+     3. Defensive fallback to 'layout.html' (the legacy shell is always
+        safe to render even with no auth/persona context)
+
+   Child templates (404 / 403 / 500 / 401) override:
+     - `error_code`       — string shown in the big display number
+     - `error_headline`   — main h2 line
+     - `error_message`    — supportive copy paragraph
+     - `error_actions`    — optional extra CTAs (e.g. "Try again" on 500)
+
+   Persona-aware "Go Home" CTA is rendered by this base — child templates
+   should NOT re-implement it. Routing follows Design Lock 1:
+     - sl_foreign_income → /remittance/dashboard
+     - other authenticated  → /scan (legacy hub)
+     - anonymous           → /  (public landing)
+
+   "Search/help" link is wired to /consultant/book per spec — that's the
+   only customer-facing help/search entry point currently shipped.
+#}
+{% set _layout = error_layout_template if error_layout_template is defined and error_layout_template
+                 else (g.layout_template if g.layout_template is defined and g.layout_template
+                       else 'layout.html') %}
+{% extends _layout %}
+
+{% block page_title %}{{ error_code }} · FIESTA{% endblock %}
+{% block title %}{{ error_code }} · FIESTA{% endblock %}
+
+{% block content %}
+{# Persona-aware Home CTA — mirrors templates/error.html resolution. #}
+{% set _home_href = url_for('home') %}
+{% set _home_label = 'Back to FIESTA' %}
+{% if current_user.is_authenticated and current_user.persona == 'sl_foreign_income' %}
+  {% set _home_href = url_for('remittance.dashboard') %}
+  {% set _home_label = 'Back to your Remittance Ledger' %}
+{% elif current_user.is_authenticated %}
+  {% set _home_href = url_for('index') %}
+  {% set _home_label = 'Back to your dashboard' %}
+{% endif %}
+
+{# Help/search entry point. consultant.book_landing is the only shipped
+   help surface; if the blueprint is somehow not registered, fall back to
+   a mailto so the page always renders something useful. #}
+{% set _help_href = '' %}
+{% if 'consultant.book_landing' in current_app.view_functions %}
+  {% set _help_href = url_for('consultant.book_landing') %}
+{% endif %}
+
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-lg border-0">
+        <div class="card-body p-5 text-center">
+          <h1 class="display-1 text-danger mb-4" data-error-code="{{ error_code }}">{{ error_code }}</h1>
+          <h2 class="mb-3">{% block error_headline %}Something went wrong{% endblock %}</h2>
+          <p class="lead mb-4">{% block error_message %}{% endblock %}</p>
+
+          <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+            <a href="{{ _home_href }}"
+               class="btn btn-primary btn-lg px-4"
+               data-fiesta-home-cta
+               data-fiesta-home-href="{{ _home_href }}">
+              <i class="fas fa-home me-2"></i> {{ _home_label }}
+            </a>
+            {% block error_actions %}{% endblock %}
+          </div>
+
+          {% if _help_href %}
+          <p class="small mb-0">
+            Need a human? <a href="{{ _help_href }}" data-fiesta-help-link>Talk to a consultant</a>.
+          </p>
+          {% else %}
+          <p class="small mb-0">
+            Need a human? <a href="mailto:tax@lanka.tax" data-fiesta-help-link>Email tax@lanka.tax</a>.
+          </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
