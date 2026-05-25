@@ -1,0 +1,145 @@
+{% extends layout_template %}
+{% block page_title %}{{ entry.business_name }} — Business income — FIESTA{% endblock %}
+{% block content %}
+<div class="business-page" style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;">
+    <div>
+      <p style="margin:0;color:var(--color-ink-500,#6e7682);font-size:0.85rem;">
+        <a href="{{ url_for('fiesta_business.list_view') }}" style="color:var(--color-ink-700,#4b525c);">&lt; All businesses</a>
+      </p>
+      <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0.2rem 0 0.4rem;">{{ entry.business_name }}</h1>
+      <p style="color:var(--color-ink-700,#4b525c);margin:0;">
+        {{ entry.business_type }} &middot; {{ entry.source_country or 'LK' }} &middot; Tax year {{ entry.tax_year }}
+      </p>
+    </div>
+  </div>
+
+  {# ============ Summary card ============ #}
+  {% if business %}
+  <div style="margin:1.4rem 0;padding:1.1rem 1.3rem;background:var(--color-fog-50,#f8f9fb);border:1px solid var(--color-ink-100,#e6e8ec);border-radius:10px;">
+    <h2 style="margin:0 0 0.6rem;font-size:1.1rem;">Tax-bill contribution</h2>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--color-ink-700,#4b525c);">Gross receipts (LKR)</td>
+        <td style="padding:0.3rem 0;text-align:right;font-weight:600;">Rs {{ "{:,.2f}".format(business.gross_lkr) }}</td>
+      </tr>
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--color-ink-700,#4b525c);">Deductible expenses (LKR)</td>
+        <td style="padding:0.3rem 0;text-align:right;font-weight:600;">&minus; Rs {{ "{:,.2f}".format(business.expenses_total_lkr) }}</td>
+      </tr>
+      <tr style="border-top:1px solid var(--color-ink-100,#e6e8ec);">
+        <td style="padding:0.5rem 0;font-weight:700;">Taxable business profit (IRA &sect;6)</td>
+        <td style="padding:0.5rem 0;text-align:right;font-weight:700;font-size:1.1rem;{% if business.is_foreign %}color:#1e40af;{% else %}color:#15803d;{% endif %}">
+          Rs {{ "{:,.2f}".format(business.taxable_profit_lkr) }}
+        </td>
+      </tr>
+    </table>
+    {% if business.is_foreign %}
+    <p style="margin:0.6rem 0 0;padding:0.6rem 0.8rem;background:#dbeafe;color:#1e3a8a;border-radius:6px;font-size:0.9rem;">
+      Foreign business income &mdash; taxed at the SL 25/26 dual-track 15% foreign cap; DTAA relief deferred (see banner below).
+    </p>
+    {% endif %}
+    <p style="margin:0.6rem 0 0;font-size:0.85rem;color:var(--color-ink-500,#6e7682);">
+      Currency {{ business.currency or 'LKR' }}{% if business.fx_rate and business.fx_rate != 1 %} &middot; FX rate {{ business.fx_rate }} &rArr; LKR{% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  {# ============ Edit gross/metadata form ============ #}
+  <details style="margin:1rem 0;">
+    <summary style="cursor:pointer;font-weight:600;color:var(--color-accent-700,#7c3aed);">Update business / gross receipts</summary>
+    <form method="POST" action="{{ url_for('fiesta_business.edit_submit', business_entry_id=entry.id) }}"
+          style="display:grid;gap:0.6rem;margin-top:0.8rem;padding:1rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+      <label>Business name <input type="text" name="business_name" maxlength="128" value="{{ entry.business_name }}" style="width:100%;padding:0.45rem;"></label>
+      <label>Business type
+        <select name="business_type" style="width:100%;padding:0.45rem;">
+          {% for bt in ('sole_prop','incorporated','partnership') %}
+            <option value="{{ bt }}" {% if entry.business_type == bt %}selected{% endif %}>{{ bt }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Source country <input type="text" name="source_country" maxlength="2" value="{{ entry.source_country or '' }}" style="width:100%;padding:0.45rem;"></label>
+      <label>Gross receipts <input type="number" name="gross_receipts" step="0.01" min="0" required value="{{ business.gross_lkr if business else '' }}" style="width:100%;padding:0.45rem;"></label>
+      <label>Currency <input type="text" name="currency" maxlength="3" value="{{ business.currency or 'LKR' }}" style="width:100%;padding:0.45rem;"></label>
+      <label>FX date <input type="date" name="as_of_date" required style="width:100%;padding:0.45rem;"></label>
+      <label>Tax year <input type="text" name="tax_year" maxlength="7" pattern="\d{4}/\d{2}" value="{{ entry.tax_year }}" style="width:100%;padding:0.45rem;"></label>
+      <button type="submit" style="margin-top:0.4rem;padding:0.6rem 1.1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Save</button>
+    </form>
+  </details>
+
+  {# ============ Expenses table ============ #}
+  <h2 style="margin:2rem 0 0.5rem;font-size:1.2rem;">Deductible expenses</h2>
+  <p style="color:var(--color-ink-500,#6e7682);font-size:0.9rem;margin:0 0 1rem;">
+    Itemise the running cost of the business: rent, utilities, salaries, professional fees, equipment, depreciation,
+    bank charges, repairs, advertising, insurance. IRA &sect;10&ndash;&sect;19 govern deductibility (TODO: paragraph-level
+    citations pending IRA KG verification).
+  </p>
+
+  <div style="margin-bottom:1rem;">
+    <a href="{{ url_for('fiesta_business.expense_new_form', business_entry_id=entry.id) }}"
+       style="display:inline-block;padding:0.55rem 0.9rem;background:var(--color-ink-700,#4b525c);color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:0.9rem;">
+      + Add expense
+    </a>
+  </div>
+
+  {% if business and business.expenses %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Date</th>
+          <th style="padding:0.5rem 0.6rem;">Category</th>
+          <th style="padding:0.5rem 0.6rem;">Description</th>
+          <th style="padding:0.5rem 0.6rem;text-align:right;">Amount (LKR)</th>
+          <th style="padding:0.5rem 0.6rem;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in business.expenses %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;">{{ e.date_incurred or '&mdash;' }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ e.category }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ e.description or '' }}</td>
+            <td style="padding:0.5rem 0.6rem;text-align:right;">Rs {{ "{:,.2f}".format(e.amount_lkr) }}</td>
+            <td style="padding:0.5rem 0.6rem;">
+              <form method="POST" action="{{ url_for('fiesta_business.expense_delete', business_entry_id=entry.id, expense_id=e.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <button type="submit" style="background:none;border:none;color:#b91c1c;cursor:pointer;font-size:0.85rem;">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        <tr style="border-top:2px solid var(--color-ink-100,#e6e8ec);">
+          <td colspan="3" style="padding:0.6rem;font-weight:700;">Total deductible expenses</td>
+          <td style="padding:0.6rem;text-align:right;font-weight:700;">Rs {{ "{:,.2f}".format(business.expenses_total_lkr) }}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    {% if business.expenses_by_category_lkr %}
+    <details style="margin-top:1rem;">
+      <summary style="cursor:pointer;font-weight:600;color:var(--color-ink-700,#4b525c);font-size:0.9rem;">Expenses by category</summary>
+      <ul style="margin:0.5rem 0 0;padding-left:1.2rem;font-size:0.9rem;">
+        {% for cat, amt in business.expenses_by_category_lkr.items() %}
+          <li>{{ cat }}: Rs {{ "{:,.2f}".format(amt) }}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  {% else %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No expenses recorded yet. Add the running costs that should reduce taxable profit.
+    </p>
+  {% endif %}
+
+  {% if summary.dtaa_deferred %}
+  <p style="margin-top:2rem;padding:0.9rem 1rem;background:#fef3c7;border-left:3px solid #b45309;font-size:0.9rem;border-radius:0 6px 6px 0;">
+    <strong>DTAA relief deferred.</strong> Foreign tax withheld on this business income
+    is not yet credited against your SL liability. Treaty relief under the relevant
+    SL DTAA (e.g. SL-US Art 7 business profits) is coming in a future update; until
+    then you may apply the credit manually on your IRD return.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

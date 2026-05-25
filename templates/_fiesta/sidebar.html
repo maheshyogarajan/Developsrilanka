@@ -80,6 +80,20 @@
         <span>RSU vesting + sales</span>
       </a>
       {% endif %}
+      {# B12 (MS3 E.1): Business income — sole-prop, LKR + foreign. Surfaced once a user has
+         self-declared 'business_lkr' OR 'business_foreign' in income_sources, OR has at least
+         one BusinessIncomeEntry. The income_sources check is the cheap path; record_business_income
+         sets it on first save. #}
+      {% if current_user.is_authenticated
+            and current_user.income_sources is defined
+            and ('business_lkr' in (current_user.income_sources or [])
+                 or 'business_foreign' in (current_user.income_sources or [])) %}
+      <a href="/income/business/"
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_business', path_prefix='/income/business') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
+        <span>Business income</span>
+      </a>
+      {% endif %}
     </div>
 
     {# ============ Deduct ============ #}

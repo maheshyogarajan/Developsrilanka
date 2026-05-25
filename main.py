@@ -741,6 +741,14 @@ try:
 except Exception as e:
     logger.error(f'FIESTA MS2 E.1 B11 RSU load failed: {e}')
 
+# MS3 Stage E.1 B12 — Business Income (sole-prop, LKR + foreign) at /income/business/*
+try:
+    from fiesta.business.routes import register_blueprint as register_business
+    register_business(app)
+    logger.info('FIESTA MS3 E.1 B12 business income registered at /income/business')
+except Exception as e:
+    logger.error(f'FIESTA MS3 E.1 B12 business income load failed: {e}')
+
 # FIESTA Wave 6 — X4 Consultant booking (/consultant/book)
 try:
     from fiesta.consultant import register_routes as register_consultant
