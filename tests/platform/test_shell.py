@@ -153,6 +153,23 @@ def test_layout_fiesta_renders_for_admin_user(app, client, user_factory):
 # -------------------------------------------------------------------- #
 # 3. Legacy bookkeeping user does NOT get the FIESTA shell.
 # -------------------------------------------------------------------- #
+# MS4 W2 Agent 1 — G1.2 (2026-05-25): INVERTED by Design Lock 3 §D1+§D5.
+# Post-G1.2 every authenticated user is on the FIESTA shell; the legacy
+# layout.html only fires for anonymous boot-time renders. W3 follow-up
+# will rewrite this assertion (covered by sibling test_use_fiesta_shell_
+# returns_true_for_any_authenticated_user in test_universal_hub.py).
+# -------------------------------------------------------------------- #
+import pytest as _pt_w2a1
+
+
+@_pt_w2a1.mark.xfail(
+    reason=(
+        "Pre-G1.2 contract. Post-G1.2 (Design Lock 3 §D1+§D5) every authenticated "
+        "user is on the FIESTA shell; layout.html only renders for anonymous. "
+        "W3 follow-up will rewrite this assertion."
+    ),
+    strict=True,
+)
 def test_layout_fiesta_NOT_rendered_for_legacy_bookkeeping_user(
     app, client, user_factory
 ):

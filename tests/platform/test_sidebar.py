@@ -280,7 +280,25 @@ def test_cosign_pending_route_registered(app):
 
 # -------------------------------------------------------------------- #
 # 5. Legacy bookkeeping user keeps the old sidebar (NOT the FIESTA one).
+#
+# MS4 W2 Agent 1 — G1.2 (2026-05-25): INVERTED by Design Lock 3 §D1+§D5.
+# Post-G1.2 every authenticated user gets the FIESTA shell + sidebar;
+# G1.4 (W2 Agent 2) extends the FIESTA sidebar with bookkeeping module
+# entries conditional on user activity. The "legacy sidebar keeps
+# leaking" failure mode is now structurally prevented because layout.html
+# only renders for anonymous. W3 follow-up will rewrite this assertion.
 # -------------------------------------------------------------------- #
+import pytest as _pt_w2a1
+
+
+@_pt_w2a1.mark.xfail(
+    reason=(
+        "Pre-G1.2 contract. Post-G1.2 (Design Lock 3 §D1+§D5) every authenticated "
+        "user is on the FIESTA shell; W2 Agent 2 (G1.4) extends the FIESTA sidebar "
+        "with conditional bookkeeping entries. W3 follow-up will rewrite."
+    ),
+    strict=True,
+)
 def test_legacy_bookkeeping_user_keeps_old_sidebar(app, client, user_factory):
     """For persona=None (legacy bookkeeping), the app must render
     layout.html — NOT layout_fiesta.html. This is verified two ways:
