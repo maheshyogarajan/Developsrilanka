@@ -379,11 +379,16 @@
 <body class="{% if not current_user.is_authenticated %}is-anonymous{% endif %}">
     {# Tier D3 / C5 — Dunning banner (above everything else; clears when Stripe retry succeeds). #}
     {% include 'components/dunning_banner.html' %}
-    {# E4 — Bookkeeping deprecation banner. Show for authenticated non-FIESTA personas only.
-       Hidden for sl_foreign_income (FIESTA persona) and for anonymous users. #}
-    {% if current_user.is_authenticated and current_user.persona != 'sl_foreign_income' %}
+    {# E4 — Bookkeeping deprecation banner.
+       G5.5 (2026-05-26): Post-G1.2 + G5.1, every authenticated user is
+       dispatched to layout_fiesta.html via g.layout_template. This banner
+       (which lives on layout.html) is only visible if an authed user lands
+       on a templates/home_bookkeeping_legacy.html rollback path. Anon users
+       are excluded because the banner is irrelevant pre-signup. Persona is
+       no longer a UX discriminator — guarded only for the rollback edge. #}
+    {% if current_user.is_authenticated %}
     <div class="bookkeeping-deprecation-banner">
-        This product is winding down &mdash; <a href="/fie/triage">migrate to FIESTA</a>
+        Legacy bookkeeping view &mdash; <a href="/">return to FIESTA</a>
     </div>
     {% endif %}
     {% if current_user.is_authenticated %}

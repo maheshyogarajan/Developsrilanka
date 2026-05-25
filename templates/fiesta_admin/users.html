@@ -1,51 +1,53 @@
 {# S15 — Admin Users list (Wave 6, 2026-05-20).
 
-   Renders the paginated FIESTA users table. No JS framework — pure Jinja +
-   Bootstrap so it loads instantly and has zero new deps.
+   G5.4 (MS4 W4, 2026-05-26): migrated from standalone shell to extend
+   admin/layout_fiesta.html so the page inherits the canonical FIESTA admin
+   chrome (af-topbar + af-rail + af-canvas) — matches every other admin
+   page. URL contract unchanged: row email cells link to
+   url_for('customer_brain.view', user_id=r.id) per C5 F8.6 — that is the
+   canonical 360 view path (/admin/customer/<id>).
 
    View handler: fiesta.admin.routes.fiesta_admin_users
    Decorator:    fiesta.auth.decorators.admin_required
 #}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FIESTA Admin — Users (S15)</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body { background: #f5f7fa; }
-        .page-shell { max-width: 1400px; margin: 24px auto; padding: 0 16px; }
-        .filter-bar { background: #ffffff; padding: 16px; border-radius: 8px;
-                      box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 16px; }
-        .filter-bar form { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
-        .filter-bar .field { display: flex; flex-direction: column; min-width: 180px; }
-        .filter-bar label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase;
-                            letter-spacing: 0.5px; margin-bottom: 4px; }
-        .table-card { background: #ffffff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                       overflow: hidden; }
-        .badge-audit-healthy { background: #d1fae5; color: #065f46; }
-        .badge-audit-unhealthy { background: #fee2e2; color: #991b1b; }
-        .badge-tier-trial { background: #e0e7ff; color: #3730a3; }
-        .badge-tier-selfFile { background: #d1fae5; color: #065f46; }
-        .badge-tier-autoFile { background: #fef3c7; color: #92400e; }
-        .badge-tier-other { background: #e5e7eb; color: #374151; }
-        .empty-state { padding: 48px 16px; text-align: center; color: #6b7280; }
-        .audit-reason { font-size: 11px; color: #9ca3af; }
-        .nowrap { white-space: nowrap; }
-        .table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
-                           color: #6b7280; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-        .stripe-link { color: #635bff; text-decoration: none; font-family: monospace; font-size: 12px; }
-        .stripe-link:hover { text-decoration: underline; }
-    </style>
-</head>
-<body>
-<div class="page-shell">
+{% extends "admin/layout_fiesta.html" %}
+
+{% block title %}Users - Admin Panel - FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+    /* S15-scoped styling. Admin shell owns chrome; this file owns the
+       users-table look-and-feel. */
+    .filter-bar { background: #ffffff; padding: 16px; border-radius: 8px;
+                  box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 16px; }
+    .filter-bar form { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+    .filter-bar .field { display: flex; flex-direction: column; min-width: 180px; }
+    .filter-bar label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase;
+                        letter-spacing: 0.5px; margin-bottom: 4px; }
+    .table-card { background: #ffffff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                   overflow: hidden; }
+    .badge-audit-healthy { background: #d1fae5; color: #065f46; }
+    .badge-audit-unhealthy { background: #fee2e2; color: #991b1b; }
+    .badge-tier-trial { background: #e0e7ff; color: #3730a3; }
+    .badge-tier-selfFile { background: #d1fae5; color: #065f46; }
+    .badge-tier-autoFile { background: #fef3c7; color: #92400e; }
+    .badge-tier-other { background: #e5e7eb; color: #374151; }
+    .empty-state { padding: 48px 16px; text-align: center; color: #6b7280; }
+    .audit-reason { font-size: 11px; color: #9ca3af; }
+    .nowrap { white-space: nowrap; }
+    .table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+                       color: #6b7280; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .stripe-link { color: #635bff; text-decoration: none; font-family: monospace; font-size: 12px; }
+    .stripe-link:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <h1 class="h3 mb-0">FIESTA Admin — Users</h1>
+            <h1 class="h3 mb-0 text-gray-800">FIESTA Admin — Users</h1>
             <p class="text-muted mb-0 small">
                 S15 · Wave 6 · {{ total }} total
                 {% if search or tier != 'all' or audit_status != 'all' %}
@@ -53,23 +55,7 @@
                 {% endif %}
             </p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="/admin" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Legacy admin
-            </a>
-        </div>
     </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
 
     {% if error_message %}
         <div class="alert alert-warning">
@@ -139,7 +125,8 @@
                 {% for r in rows %}
                     <tr data-user-id="{{ r.id }}">
                         <td>
-                            {# C5 F8.6 — link email cell to the per-user 360 view #}
+                            {# C5 F8.6 — link email cell to the per-user 360 view.
+                               G5.4: this remains the canonical 360 URL (/admin/customer/<id>). #}
                             <div><a href="{{ url_for('customer_brain.view', user_id=r.id) }}" class="text-decoration-none"><strong>{{ r.email }}</strong></a></div>
                             {% if r.name %}
                                 <div class="text-muted small">{{ r.name }}</div>
@@ -237,7 +224,4 @@
     {% endif %}
 
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}
