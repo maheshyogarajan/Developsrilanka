@@ -752,7 +752,15 @@ def home():
         # Two-Doors-One-House: anon S0 and authed hub are the same house, just
         # personalised behind the door. Non-FIESTA personas keep the legacy
         # /scan bookkeeping path.
-        if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+        #
+        # F-Platform-3: admin role is exempt from the persona reroute. An
+        # admin who happens to also carry the sl_foreign_income persona
+        # (testing the FIESTA flow from their own account) must still bounce
+        # into the legacy operator surface, not the customer hub.
+        if (
+            getattr(current_user, 'persona', None) == 'sl_foreign_income'
+            and current_user.role != 'admin'
+        ):
             return render_template(
                 'fiesta_public/hub.html',
                 fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
@@ -989,7 +997,16 @@ def index():
     # sl_foreign_income users don't need a business org, so the previous ordering
     # caused /scan -> /onboarding -> / -> /scan loops. The Remittance Ledger is
     # their hub; everything else flows from there.
-    if getattr(current_user, 'persona', None) == 'sl_foreign_income':
+    #
+    # Admin role is exempt — admins are operators, not customers. An admin who
+    # happens to also carry a persona value (e.g. for testing the FIESTA flow
+    # from their own account) must still be able to reach /scan and every
+    # other operator surface. Mirrors the admin-bypass on the onboarding and
+    # org checks below.
+    if (
+        getattr(current_user, 'persona', None) == 'sl_foreign_income'
+        and current_user.role != 'admin'
+    ):
         return redirect(url_for('remittance.dashboard'))
 
     # Check if onboarding is completed (admins bypass this check)
