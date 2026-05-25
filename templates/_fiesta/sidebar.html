@@ -104,6 +104,78 @@
       {% endif %}
     </div>
 
+    {# ============ Bookkeeping (G1.4 — MS4 W2 Agent 2) ============
+       Per Design Lock 3 §D6 (2026-05-25): bookkeeping module entries
+       appear under the unified FIESTA sidebar conditional on the
+       authenticated user having historical activity in the matching
+       legacy table. The boolean flags are computed by
+       `fiesta.sidebar.activity.compute_bookkeeping_modules_available`
+       and exposed as `bookkeeping_modules_available` via the
+       `inject_sidebar_modules` context processor in app.py.
+
+       Each entry is independently conditional so a user with only
+       Receipts + Cash-in (e.g. a freelancer who's logged invoices but
+       never uploaded bank statements) sees exactly those two, not the
+       full group. If none of the flags fire, the whole group block is
+       omitted — no orphan "Bookkeeping" heading with nothing under it. #}
+    {% set _bk = bookkeeping_modules_available or {} %}
+    {% set _bk_any = _bk.receipts or _bk.pnl or _bk.cash_in or _bk.cash_out
+                     or _bk.accounts or _bk.bank_statements or _bk.tax_documents %}
+    {% if _bk_any %}
+    <div class="fiesta-nav-group">
+      <div class="fiesta-nav-label">Bookkeeping</div>
+      {% if _bk.receipts %}
+      <a href="/scan"
+         class="fiesta-nav-link {{ is_active(ep_exact='index', path_exact='/scan') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#128221;</span>
+        <span>Receipts</span>
+      </a>
+      {% endif %}
+      {% if _bk.pnl %}
+      <a href="/accounts/profit-loss"
+         class="fiesta-nav-link {{ is_active(ep_exact='accounts.profit_loss', path_prefix='/accounts/profit-loss') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#128200;</span>
+        <span>PNL</span>
+      </a>
+      {% endif %}
+      {% if _bk.cash_in %}
+      <a href="/invoices"
+         class="fiesta-nav-link {{ is_active(ep_exact='invoices', path_prefix='/invoices') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8593;</span>
+        <span>Cash in</span>
+      </a>
+      {% endif %}
+      {% if _bk.cash_out %}
+      <a href="/expenses/pipeline"
+         class="fiesta-nav-link {{ is_active(ep_exact='pipeline.expense_pipeline', path_prefix='/expenses') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#8595;</span>
+        <span>Cash out</span>
+      </a>
+      {% endif %}
+      {% if _bk.accounts %}
+      <a href="/accounts/"
+         class="fiesta-nav-link {{ is_active(ep_exact='accounts.dashboard', path_exact='/accounts/') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#127970;</span>
+        <span>Accounts</span>
+      </a>
+      {% endif %}
+      {% if _bk.bank_statements %}
+      <a href="/enhanced_bank/dashboard"
+         class="fiesta-nav-link {{ is_active(ep_prefix='enhanced_bank', path_prefix='/enhanced_bank') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#128196;</span>
+        <span>Bank statements</span>
+      </a>
+      {% endif %}
+      {% if _bk.tax_documents %}
+      <a href="/tax-doc/scan"
+         class="fiesta-nav-link {{ is_active(ep_exact='lanka_tax_doc_scan', path_prefix='/tax-doc') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#128209;</span>
+        <span>Tax documents</span>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {# ============ Deduct ============ #}
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Deduct</div>

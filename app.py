@@ -741,6 +741,26 @@ def _expose_use_fiesta_shell():
     return dict(use_fiesta_shell=use_fiesta_shell)
 
 
+# MS4 W2 Agent 2 — G1.4 (Design Lock 3 §D6, 2026-05-25): expose the
+# per-user bookkeeping-module availability map to every authenticated
+# template. The FIESTA sidebar (`templates/_fiesta/sidebar.html`) reads
+# `bookkeeping_modules_available.<slug>` to decide whether to render
+# each entry under the "Bookkeeping" group, so legacy bookkeeping users
+# don't lose access to Receipts / PNL / Cash in / Cash out / Accounts /
+# Bank statements / Tax documents when the universal FIESTA shell
+# replaces their old `layout.html` chrome.
+#
+# Compute is per-user, 60s TTL (memoised inside the helper) so this
+# context processor is cheap on every render. Anonymous users get an
+# all-False dict so the sidebar simply omits the group without raising.
+@app.context_processor
+def inject_sidebar_modules():
+    from fiesta.sidebar.activity import compute_bookkeeping_modules_available
+    return dict(
+        bookkeeping_modules_available=compute_bookkeeping_modules_available(current_user),
+    )
+
+
 # X9 F-Platform-1 (MS1 Stage B, 2026-05-25): savings-projection endpoint.
 # Backs the persistent `#fiesta-savings-counter` element in the topbar
 # (rendered by templates/_fiesta/topbar.html and refreshed by
