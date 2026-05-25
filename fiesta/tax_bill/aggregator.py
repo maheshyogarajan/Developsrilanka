@@ -206,6 +206,19 @@ class TaxInputs:
     rental_disclosure_applied_count: int = 0
     rental_stamp_duty_outstanding_count: int = 0
 
+    # RSU (B11, MS2 E.1) ---------------------------------------------------
+    # Read from canonical Income(source_type='rsu') + AssetDisposal(asset_type='rsu').
+    # rsu_vesting_lines: list of dicts {ticker, vesting_date, amount_lkr,
+    #                                    source_country, currency, fx_rate}.
+    # rsu_cgt_lines:     list of dicts {ticker, disposal_date, gain_lkr,
+    #                                    acq_amount_lkr, disp_amount_lkr,
+    #                                    source_country, asset_identifier}.
+    rsu_vesting_lines: list[dict[str, Any]] = field(default_factory=list)
+    rsu_vesting_total_lkr: Decimal = Decimal("0")
+    rsu_cgt_lines: list[dict[str, Any]] = field(default_factory=list)
+    rsu_cgt_total_lkr: Decimal = Decimal("0")
+    rsu_dtaa_deferred: bool = False
+
     # Engine-shaped inputs (pydantic) --------------------------------------
     # These are computed at the end of assemble_tax_inputs; the compute layer
     # passes them directly to compute_tax_25_26.
@@ -728,6 +741,106 @@ def _latest_rental_agreement_for(
 
 
 # ---------------------------------------------------------------------------
+# RSU loader (B11, MS2 E.1)
+# ---------------------------------------------------------------------------
+
+
+def _load_rsu(inputs: TaxInputs) -> None:
+    """Section B11: RSU vesting (Income.source_type='rsu') + RSU CGT
+    (AssetDisposal.asset_type='rsu') for the tax year.
+
+    Reads from the canonical schema (Design Lock 2 §4 + §5). Tax-year
+    matching uses the canonical YYYY/YY shape stored on Income / AssetDisposal
+    rows; the aggregator's tax_year_s4_format is YYYY-YY so we convert.
+    """
+    try:
+        from fiesta.tax.models import AssetDisposal, Income
+    except Exception:
+        inputs.sources_missing.append("fiesta.tax.rsu")
+        return
+
+    ty_canonical = inputs.tax_year_s4_format.replace("-", "/")
+
+    try:
+        vesting_rows = (
+            Income.query
+            .filter_by(
+                user_id=inputs.user_id,
+                source_type="rsu",
+                tax_year=ty_canonical,
+            )
+            .all()
+        )
+    except Exception as exc:
+        logger.warning("RSU vesting query failed: %s", exc)
+        inputs.sources_missing.append("fiesta.tax.rsu")
+        return
+
+    try:
+        cgt_rows = (
+            AssetDisposal.query
+            .filter_by(
+                user_id=inputs.user_id,
+                asset_type="rsu",
+                tax_year=ty_canonical,
+            )
+            .all()
+        )
+    except Exception as exc:
+        logger.warning("RSU CGT query failed: %s", exc)
+        cgt_rows = []
+
+    inputs.sources_loaded.append("fiesta.tax.rsu")
+
+    v_total = Decimal("0")
+    vesting_lines: list[dict[str, Any]] = []
+    for row in vesting_rows:
+        amt = _to_decimal(row.amount_lkr)
+        v_total += amt
+        # Pull ticker from the linked RSUVestingEvent (denormalised on row).
+        ticker = None
+        try:
+            from fiesta.tax.models import RSUVestingEvent as _RSU
+            if row.rsu_vesting_id:
+                ev = _RSU.query.get(int(row.rsu_vesting_id))
+                if ev:
+                    ticker = ev.ticker
+        except Exception:
+            pass
+        vesting_lines.append({
+            "ticker": ticker,
+            "vesting_date": row.fx_date.isoformat() if row.fx_date else None,
+            "amount_lkr": amt,
+            "currency": row.currency,
+            "fx_rate": _to_decimal(row.fx_rate),
+            "source_country": row.source_country,
+        })
+
+    c_total = Decimal("0")
+    cgt_lines: list[dict[str, Any]] = []
+    for row in cgt_rows:
+        gain = _to_decimal(row.gain_lkr)
+        c_total += gain
+        cgt_lines.append({
+            "asset_identifier": row.asset_identifier,
+            "disposal_date": row.disposal_date.isoformat() if row.disposal_date else None,
+            "acquisition_date": row.acquisition_date.isoformat() if row.acquisition_date else None,
+            "acq_amount_lkr": _to_decimal(row.acq_amount_lkr),
+            "disp_amount_lkr": _to_decimal(row.disp_amount_lkr),
+            "gain_lkr": gain,
+            "source_country": row.source_country,
+        })
+
+    inputs.rsu_vesting_lines = vesting_lines
+    inputs.rsu_vesting_total_lkr = v_total.quantize(Decimal("0.01"))
+    inputs.rsu_cgt_lines = cgt_lines
+    inputs.rsu_cgt_total_lkr = c_total.quantize(Decimal("0.01"))
+    inputs.rsu_dtaa_deferred = any(
+        (r.get("source_country") for r in vesting_lines + cgt_lines)
+    )
+
+
+# ---------------------------------------------------------------------------
 # Engine-shape composition
 # ---------------------------------------------------------------------------
 
@@ -760,6 +873,22 @@ def _compose_engine_inputs(inputs: TaxInputs) -> None:
         "investment_lkr": cat.get("dividend", Decimal("0")),
         "other_lkr": Decimal("0"),
     }
+
+    # B11 (MS2 E.1): RSU vesting income (IRA §5(2)(j)) is employment income.
+    # Add it to employment_lkr so the bracket schedule sees the right total.
+    # CGT (Section 7(2)(b) / Chapter IV) is a SEPARATE bucket that the v1
+    # engine doesn't have a slot for — surface it via the rsu_cgt_total_lkr
+    # field on inputs, rendered as a standalone tax-bill line.
+    if inputs.rsu_vesting_total_lkr and inputs.rsu_vesting_total_lkr > 0:
+        income_kwargs["employment_lkr"] = (
+            income_kwargs["employment_lkr"] + inputs.rsu_vesting_total_lkr
+        )
+        # Also surface as a synthetic category for the bill UI breakdown.
+        inputs.income_by_category_lkr = dict(inputs.income_by_category_lkr or {})
+        inputs.income_by_category_lkr["rsu_vesting"] = (
+            inputs.income_by_category_lkr.get("rsu_vesting", Decimal("0"))
+            + inputs.rsu_vesting_total_lkr
+        )
 
     # Roll the "everything else" categories into other_lkr.
     known_keys = {
@@ -1162,6 +1291,9 @@ def assemble_tax_inputs(user_id: int, tax_year: str) -> TaxInputs:
     # helper does an idempotent FX backfill (writes amount_lkr back to
     # IncomeEntry rows on first read) that a pure-read view cannot preserve.
     _load_earnings(inputs)
+
+    # B11 (MS2 E.1): RSU vesting + CGT — canonical schema (Design Lock 2).
+    _load_rsu(inputs)
 
     _compose_engine_inputs(inputs)
 

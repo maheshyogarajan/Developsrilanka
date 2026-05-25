@@ -450,7 +450,38 @@ def inject_fiesta_hub_context():
             except Exception:
                 has_remit = False
 
-        if not has_remit:
+        # B11 (MS2 E.1): if user has 'rsu' in income_sources AND no vesting
+        # event logged in the current tax year, prompt to log this quarter's
+        # vesting — surfaces above the deductions / bill steps because RSU
+        # vesting is mid-year income that compounds across the YTD bill.
+        rsu_prompt = None
+        try:
+            if 'rsu' in (getattr(current_user, 'income_sources', None) or []):
+                from fiesta.tax.models import RSUVestingEvent as _RSU
+                from fiesta.tax.rsu_engine import _tax_year_for
+                from datetime import date as _date
+                _ty = _tax_year_for(_date.today())
+                # Tax-year of any existing event in this user's set
+                _has_current_ty = any(
+                    _tax_year_for(ev.vesting_date) == _ty
+                    for ev in _RSU.query.filter_by(user_id=current_user.id).all()
+                )
+                if not _has_current_ty:
+                    rsu_prompt = {
+                        "label": "Log this quarter's RSU vesting",
+                        "href": "/income/rsu/import",
+                        "rationale": (
+                            "You earn RSU income. Logging each tranche at FMV "
+                            "(IRA §5(2)(j)) keeps your YTD tax bill accurate."
+                        ),
+                    }
+        except Exception as _exc:
+            logging.debug(f"hub_next_step RSU check failed: {_exc}")
+
+        if rsu_prompt is not None:
+            hub_funnel_state = "rsu_vesting_pending"
+            hub_next_step = rsu_prompt
+        elif not has_remit:
             hub_funnel_state = "no_remittances"
             hub_next_step = {
                 "label": "Log your first inward remittance",
