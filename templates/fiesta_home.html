@@ -278,8 +278,32 @@
     {% endif %}
   </p>
 
-  {# Next-step recommender — server-rendered. #}
+  {# Next-step recommender — server-rendered.
+     MS4 W3d (G3.6, 2026-05-25): when the funnel state is
+     'no_income_sources' OR the user has only 'other' selected, replace
+     the legacy "/onboarding" CTA with the in-page income-source picker
+     trigger. The button data-attr is read by static/js/fiesta_income_picker.js
+     and pops the picker as a modal overlay. The legacy /onboarding link
+     is kept as a hidden fallback for no-JS / progressive-enhancement
+     callers (and because the existing /onboarding wizard hasn't been
+     deprecated yet per Section G G4). #}
+  {% set _src_set = (_income_sources or []) %}
+  {% set _picker_funnel = (hub_funnel_state == 'no_income_sources')
+                          or (_src_set|length == 1 and 'other' in _src_set) %}
   {% if hub_next_step %}
+    {% if _picker_funnel %}
+  <div class="next-step-card" data-funnel-state="{{ hub_funnel_state }}"
+       data-g36-picker-funnel="1">
+    <div>
+      <div class="ns-eyebrow">Next step &middot; {{ hub_funnel_state|replace('_', ' ') }}</div>
+      <div class="ns-label">{{ hub_next_step.label }}</div>
+      <p class="ns-rationale">{{ hub_next_step.rationale }}</p>
+    </div>
+    <a class="ns-cta" href="/fie/income-sources"
+       data-fiesta-isp-open="1"
+       role="button">{{ hub_next_step.label }} &rarr;</a>
+  </div>
+    {% else %}
   <div class="next-step-card" data-funnel-state="{{ hub_funnel_state }}">
     <div>
       <div class="ns-eyebrow">Next step &middot; {{ hub_funnel_state|replace('_', ' ') }}</div>
@@ -288,7 +312,14 @@
     </div>
     <a class="ns-cta" href="{{ hub_next_step.href }}">{{ hub_next_step.label }} &rarr;</a>
   </div>
+    {% endif %}
   {% endif %}
+
+  {# G3.6 (MS4 W3d): mount the picker JS so the modal opener trigger
+     above works. The picker partial itself is loaded lazily by the JS
+     via AJAX so the hub stays light when the user already has income
+     sources. #}
+  <script src="{{ url_for('static', filename='js/fiesta_income_picker.js') }}" defer></script>
 
   {# Slider — Design Lock 3 §D4 dual-mode:
        - foreign_remittance users → USD slider, pre-filled from avg monthly USD

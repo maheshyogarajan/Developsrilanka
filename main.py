@@ -638,6 +638,18 @@ try:
 except Exception as e:
     logger.error(f"Error loading fiesta_profile (S3): {str(e)}")
 
+# MS4 W3d — G3.6 Income-Source Picker (2026-05-25)
+# Backs the picker partial at templates/_fiesta/income_source_picker.html
+# plus the standalone /fie/income-sources page. Idempotent additive
+# writes to User.income_sources; sidebar refresh triggered via the
+# `fiesta:income-source-added` event.
+try:
+    from fiesta.income_sources import register_blueprint as register_income_sources
+    register_income_sources(app)
+    logger.info("G3.6 income-source picker registered: /fie/income-sources + /api/fiesta/income-sources")
+except Exception as e:
+    logger.error(f"G3.6 income-source picker load failed: {e}")
+
 # FIESTA S5 — "Reduce your tax — 10 ways" (Wave 3, 2026-05-20)
 try:
     from fiesta.deductions import models as fiesta_deductions_models  # noqa: F401

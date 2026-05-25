@@ -1,0 +1,300 @@
+{# templates/_fiesta/income_source_picker.html — MS4 W3d G3.6.
+
+   Reusable Jinja partial for the FIESTA Income-Source Picker. Renders a
+   12-checkbox grid of canonical INCOME_SOURCE_TYPES (11 income classes
+   + "Other / not sure"). User ticks any that apply; submit POSTs to
+   /api/fiesta/income-sources which writes idempotently to
+   User.income_sources (additive only — never silently removes).
+
+   After save, the page dispatches `fiesta:income-source-added` (already
+   in _FIESTA_EVENT_NAMES) so the topbar counter + sidebar refresh on
+   the same render — no auto-redirect.
+
+   Per Design Lock 2 §3 the canonical vocab is:
+     foreign_remittance / employment_lkr / professional_fees_lkr /
+     business_lkr / business_foreign / rsu / crypto / rental_lkr /
+     rental_foreign / investment_lkr / investment_foreign / other
+
+   USAGE — two modes:
+
+     1. Inline / modal-inner body (default):
+          {% include '_fiesta/income_source_picker.html' %}
+        Wraps in <form data-fiesta-income-picker="1"> — the JS in
+        fiesta_income_picker.js intercepts submit + does the AJAX POST.
+
+     2. Standalone page (/fie/income-sources):
+          {% set picker_standalone = True %}
+          {% include '_fiesta/income_source_picker.html' %}
+        Renders an outer .fiesta-isp-shell container so the partial owns
+        page margins.
+
+   Context vars consumed:
+     - current_user.income_sources   list[str]  pre-tick selected boxes
+     - picker_standalone             bool       wrap in shell? (default False)
+     - picker_modal_id               str        DOM id (default 'fiestaIncomePicker')
+     - picker_show_skip              bool       show "Skip for now" link (default True)
+     - picker_skip_href              str        "Skip" link href (default '/')
+#}
+{% set _picker_id = picker_modal_id or 'fiestaIncomePicker' %}
+{% set _selected = (current_user.income_sources if current_user.is_authenticated else []) or [] %}
+{% set _show_skip = True if picker_show_skip is not defined else picker_show_skip %}
+{% set _skip_href = picker_skip_href or '/' %}
+
+{# The canonical 12 income sources — order is presentation order, NOT
+   alphabetical. Foreign-income first (highest revenue cohort), then
+   local-currency earners (employment / professional / business), then
+   capital + property + investments, then "other". #}
+{% set _income_types = [
+  {
+    'id': 'foreign_remittance',
+    'label': 'Foreign income remittance',
+    'desc': 'You receive money from overseas (USD/EUR/GBP wired to your SL bank). Taxed on remittance basis — see /remittance.'
+  },
+  {
+    'id': 'employment_lkr',
+    'label': 'Employment income (LKR)',
+    'desc': "You're salaried by a Sri Lankan employer who withholds APIT/PAYE. We credit the withholding against your final bill."
+  },
+  {
+    'id': 'professional_fees_lkr',
+    'label': 'Professional fees / consulting (LKR)',
+    'desc': 'You invoice SL clients for services (legal, consulting, design, etc.). §85 WHT often deducted at source — claim it back.'
+  },
+  {
+    'id': 'business_lkr',
+    'label': 'Business income (sole-prop, LKR)',
+    'desc': 'You run a sole-prop business in Sri Lanka. Quarterly receipts feed your YTD bill; trading P&L applies.'
+  },
+  {
+    'id': 'business_foreign',
+    'label': 'Business income (foreign)',
+    'desc': 'Your sole-prop earns from overseas clients. Combines foreign-remittance treatment with trading P&L.'
+  },
+  {
+    'id': 'rsu',
+    'label': 'RSU / equity compensation',
+    'desc': 'You vest in employer equity (RSUs, ESPP). Each tranche is taxable at FMV under IRA §5(2)(j) on vest date.'
+  },
+  {
+    'id': 'crypto',
+    'label': 'Crypto holdings + disposals',
+    'desc': 'You buy/sell/swap crypto (BTC, ETH, stables, NFTs). Disposals trigger CGT at FMV at disposal date.'
+  },
+  {
+    'id': 'rental_lkr',
+    'label': 'Rental property (Sri Lanka)',
+    'desc': 'You earn rent from a SL property. Allowable deductions: repairs, agent fees, depreciation.'
+  },
+  {
+    'id': 'rental_foreign',
+    'label': 'Rental property (overseas)',
+    'desc': 'You earn rent from a property abroad. Foreign rental income taxed on remittance basis.'
+  },
+  {
+    'id': 'investment_lkr',
+    'label': 'Local investments (FD, dividends, CGT)',
+    'desc': 'Fixed deposits, share dividends, capital gains on SL securities. Often final-WHT, but you can still claim losses.'
+  },
+  {
+    'id': 'investment_foreign',
+    'label': 'Foreign investments (overseas FD, dividends)',
+    'desc': 'Brokerage / FD income from outside Sri Lanka. Taxed on remittance, DTAA credit may apply.'
+  },
+  {
+    'id': 'other',
+    'label': 'Other / not sure',
+    'desc': "Something else — pension, royalties, prize money, gifts. Tick this and we'll flag it for the consultant on your first session."
+  }
+] %}
+
+{% if picker_standalone %}
+<div class="fiesta-isp-shell" data-fiesta-isp-shell="1">
+{% endif %}
+
+<div class="fiesta-isp" id="{{ _picker_id }}-wrap" data-fiesta-isp="1">
+  <header class="fiesta-isp-head">
+    <h2 class="fiesta-isp-h2">What kinds of income do you earn?</h2>
+    <p class="fiesta-isp-sub">
+      Tick anything that applies &mdash; we'll surface the matching
+      modules in your sidebar and use the right calculator for each.
+      You can add more later from Profile.
+    </p>
+  </header>
+
+  <form id="{{ _picker_id }}-form"
+        class="fiesta-isp-form"
+        data-fiesta-income-picker="1"
+        data-fiesta-isp-endpoint="/api/fiesta/income-sources"
+        method="post"
+        action="/api/fiesta/income-sources">
+    {# CSRF token — pulled by the JS from the <meta> tag the shell exposes.
+       Render a hidden input too for graceful no-JS fallback. #}
+    {% if csrf_token is defined %}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% endif %}
+
+    <div class="fiesta-isp-grid">
+      {% for t in _income_types %}
+        {% set _is_ticked = t.id in _selected %}
+        <label class="fiesta-isp-row{% if _is_ticked %} is-ticked{% endif %}"
+               data-income-type="{{ t.id }}"
+               data-was-ticked="{{ '1' if _is_ticked else '0' }}">
+          <input type="checkbox"
+                 name="income_sources"
+                 value="{{ t.id }}"
+                 {% if _is_ticked %}checked{% endif %}
+                 class="fiesta-isp-cb"
+                 aria-describedby="{{ _picker_id }}-desc-{{ t.id }}">
+          <span class="fiesta-isp-rowbody">
+            <span class="fiesta-isp-label">{{ t.label }}</span>
+            <span class="fiesta-isp-desc" id="{{ _picker_id }}-desc-{{ t.id }}">{{ t.desc }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="fiesta-isp-actions">
+      <button type="submit"
+              class="fiesta-isp-save"
+              data-fiesta-isp-save="1">Save</button>
+      {% if _show_skip %}
+      <a href="{{ _skip_href }}"
+         class="fiesta-isp-skip"
+         data-fiesta-isp-skip="1">Skip for now</a>
+      {% endif %}
+      <span class="fiesta-isp-status"
+            id="{{ _picker_id }}-status"
+            role="status"
+            aria-live="polite"></span>
+    </div>
+  </form>
+</div>
+
+{% if picker_standalone %}
+</div>
+{% endif %}
+
+{# Component-scoped styles. Safe to include multiple times — the
+   ruleset is idempotent and the selector class names (.fiesta-isp-*)
+   are unique to this partial. #}
+<style>
+  .fiesta-isp-shell {
+    max-width: 760px; margin: 0 auto; padding: 32px 20px 60px;
+  }
+  .fiesta-isp {
+    color: var(--ink, #1a1f17);
+    font-family: var(--body, 'Manrope', sans-serif);
+  }
+  .fiesta-isp-head { margin-bottom: 18px; }
+  .fiesta-isp-h2 {
+    font-family: var(--display, 'Fraunces', serif);
+    font-weight: 600; font-size: 26px;
+    color: var(--forest, #1F3A2E);
+    margin: 0 0 8px; letter-spacing: -0.3px;
+  }
+  .fiesta-isp-sub {
+    font-size: 14.5px; color: var(--ink-soft, #4a4f43);
+    margin: 0;
+  }
+  .fiesta-isp-grid {
+    display: grid; grid-template-columns: 1fr; gap: 10px;
+    margin: 18px 0 20px;
+  }
+  @media (min-width: 700px) {
+    .fiesta-isp-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .fiesta-isp-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px;
+    background: var(--paper, #FAF6EE);
+    border: 1px solid var(--paper-edge, #E5DBC9);
+    border-radius: 10px;
+    cursor: pointer; user-select: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .fiesta-isp-row:hover {
+    background: var(--paper-deep, #ece2d2);
+  }
+  .fiesta-isp-row.is-ticked {
+    background: var(--paper-deep, #ece2d2);
+    border-color: var(--forest, #1F3A2E);
+  }
+  .fiesta-isp-cb {
+    width: 18px; height: 18px; margin: 2px 0 0; flex-shrink: 0;
+    accent-color: var(--forest, #1F3A2E);
+    cursor: pointer;
+  }
+  .fiesta-isp-rowbody {
+    display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  }
+  .fiesta-isp-label {
+    font-weight: 600; font-size: 14px; color: var(--ink, #1a1f17);
+    line-height: 1.3;
+  }
+  .fiesta-isp-desc {
+    font-size: 12.5px; color: var(--ink-soft, #4a4f43);
+    line-height: 1.4;
+  }
+  .fiesta-isp-actions {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .fiesta-isp-save {
+    background: var(--clay, #C84E2E); color: var(--paper-hi, #FAF6EE);
+    border: 0; border-radius: 8px;
+    padding: 12px 24px;
+    font-family: var(--body, 'Manrope', sans-serif);
+    font-weight: 600; font-size: 14.5px;
+    cursor: pointer; min-height: 44px;
+  }
+  .fiesta-isp-save:hover {
+    background: var(--clay-deep, #8e3f22);
+  }
+  .fiesta-isp-save:disabled {
+    opacity: 0.6; cursor: not-allowed;
+  }
+  .fiesta-isp-skip {
+    font-size: 13px; color: var(--ink-soft, #4a4f43);
+    text-decoration: underline;
+  }
+  .fiesta-isp-skip:hover {
+    color: var(--ink, #1a1f17);
+  }
+  .fiesta-isp-status {
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 12px; color: var(--ink-soft, #4a4f43);
+  }
+  .fiesta-isp-status.is-success { color: #1e9e60; }
+  .fiesta-isp-status.is-error { color: #b91c1c; }
+
+  /* Modal wrapper — applied when the picker is mounted into a modal
+     dialog by the JS (.fiesta-isp-modal class on the outer overlay). */
+  .fiesta-isp-modal {
+    position: fixed; inset: 0;
+    background: rgba(20, 35, 24, 0.55);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px 16px;
+    z-index: 1000;
+    overflow-y: auto;
+  }
+  .fiesta-isp-modal-body {
+    background: var(--paper-hi, #FAF6EE);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 760px; width: 100%;
+    box-shadow: 0 28px 60px -20px rgba(20, 35, 24, 0.45);
+    position: relative;
+  }
+  .fiesta-isp-modal-close {
+    position: absolute; top: 14px; right: 14px;
+    background: transparent; border: 0;
+    width: 32px; height: 32px;
+    cursor: pointer;
+    color: var(--ink-soft, #4a4f43);
+    font-size: 22px; line-height: 1;
+    border-radius: 50%;
+  }
+  .fiesta-isp-modal-close:hover {
+    background: var(--paper-deep, #ece2d2);
+  }
+</style>
