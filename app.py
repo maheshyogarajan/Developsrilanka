@@ -981,16 +981,22 @@ if database_url:
     # Fix potential "postgres://" vs "postgresql://" issue
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
-    
+
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
         "pool_pre_ping": True,
     }
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     logging.info("Database configuration successful")
 else:
-    logging.error("DATABASE_URL environment variable not found!")
+    # CI / test fallback — db.init_app() refuses to bind without a URI,
+    # so we provide an ephemeral in-memory SQLite so module-level imports
+    # don't crash. Test fixtures override this with their own URI.
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+    logging.warning(
+        "DATABASE_URL unset — using in-memory SQLite fallback (CI/test mode)."
+    )
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Initialize the database with the app
 db.init_app(app)
