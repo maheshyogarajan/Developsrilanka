@@ -215,6 +215,50 @@
                data-field="days_in_sl_current_year" />
         <div class="help">183+ days = full SL tax resident. Your foreign-income screen can auto-fill this from travel records.</div>
       </div>
+
+      {# -------------------- B10 NRR — returnee question -------------------- #}
+      <hr style="border:0; border-top:1px solid var(--color-ink-100, #e5e7eb); margin: 1.5rem 0;" />
+      <h3 style="font-family:'Fraunces', serif; font-size: 1.05rem; margin: 0 0 .25rem;">Have you returned to Sri Lanka after living abroad?</h3>
+      <p class="sub" style="margin-bottom:1rem;">Non-Resident Returnees (NRRs) get a 3-year concession on foreign-source income. We need two facts to apply it correctly.</p>
+
+      <div class="fp-field">
+        <label for="returned_to_sl_date">When did you return to Sri Lanka?</label>
+        <input type="date" id="returned_to_sl_date" name="returned_to_sl_date"
+               value="{{ current_user.returned_to_sl_date.isoformat() if current_user.returned_to_sl_date else '' }}"
+               data-field="returned_to_sl_date" />
+        <div class="help">Leave blank if you have not lived abroad and returned. Date the concession is anchored to.</div>
+      </div>
+
+      <div class="fp-field">
+        <label for="years_abroad_prior_to_return">How many years were you abroad immediately before returning?</label>
+        <input type="number" id="years_abroad_prior_to_return" name="years_abroad_prior_to_return"
+               min="0" max="99"
+               value="{{ current_user.years_abroad_prior_to_return if current_user.years_abroad_prior_to_return is not none else '' }}"
+               data-field="years_abroad_prior_to_return" />
+        <div class="help">Need at least 5 consecutive years to qualify as a Non-Resident Returnee.</div>
+      </div>
+
+      {# -------------------- B10 NRR — classification result -------------------- #}
+      {% if current_user.residency_status and current_user.residency_status != 'unknown' %}
+      <div class="fp-field" style="background: var(--color-cream-50, #fefcf7); border: 1px solid var(--color-ink-100, #e5e7eb); border-radius: 8px; padding: .9rem 1rem; margin-top:1rem;">
+        <strong>Your current tax-residency classification:</strong>
+        {% if current_user.residency_status == 'nrr' %}
+          <span style="color:#1e9e60;">Non-Resident Returnee (NRR)</span> &mdash; foreign-source income is exempt during your 3-year concession window.
+        {% elif current_user.residency_status == 'resident' %}
+          <span style="color:#1e9e60;">Sri Lanka tax-resident</span> &mdash; worldwide income is assessable; foreign income taxed at the 25/26 dual-track 15% cap.
+        {% elif current_user.residency_status == 'nonresident' %}
+          <span style="color:#b91c1c;">Non-resident</span> &mdash; only Sri Lanka-source income is taxable here.
+        {% endif %}
+        <details style="margin-top:.5rem;">
+          <summary style="cursor:pointer; color: var(--color-ink-700, #374151); font-weight:500;">Why this matters</summary>
+          <div style="margin-top:.5rem; font-size:.92rem; color: var(--color-ink-600, #6b7280);">
+            <p>Sri Lanka classifies individuals under <strong>IRA §69 (Resident persons)</strong> &mdash; the 183-day test plus the centre-of-vital-interests test.</p>
+            <p>If you returned to Sri Lanka after 5+ years abroad, the <strong>Inland Revenue Act, Third Schedule (Exempt Amounts)</strong> grants a 3-year concession during which foreign-source income is exempt. After the window expires, you become a regular SL-resident taxpayer.</p>
+            <p style="font-size:.85rem; color: var(--color-ink-500, #6b7280);"><em>Citation TODO &mdash; exact Third Schedule paragraph to be confirmed via IRA Knowledge Graph when rate limit clears. Engine treats NRR foreign income as exempt either way; classification is the gate.</em></p>
+          </div>
+        </details>
+      </div>
+      {% endif %}
     </div>
 
     {# -------------------- Employer status -------------------- #}
