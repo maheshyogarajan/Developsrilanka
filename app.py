@@ -972,7 +972,10 @@ facebook = oauth.register(
 
 # Configure SQLAlchemy - using DATABASE_URL environment variable
 database_url = os.environ.get("DATABASE_URL")
-logging.debug(f"Database URL (masked): {database_url[:15]}...{database_url[-15:] if database_url else None}")
+if database_url:
+    logging.debug(f"Database URL (masked): {database_url[:15]}...{database_url[-15:]}")
+else:
+    logging.debug("Database URL: None (DATABASE_URL env var unset — expected in CI/test environments)")
 
 if database_url:
     # Fix potential "postgres://" vs "postgresql://" issue
