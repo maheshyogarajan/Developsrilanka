@@ -1,0 +1,134 @@
+{# templates/cosign/pending.html — F-Platform-2 (Stage C2)
+
+   Filtered index of in-flight co-sign workflows (sent_to_sp / sp_viewed /
+   sp_signed). Linked from the sidebar "Co-sign pending" entry.
+
+   Extends layout_fiesta.html per Design Lock 1 so the FIESTA shell
+   (topbar + sidebar + savings counter + footer) is rendered around the
+   page. Plain-table presentation per the spec — sender (SP), status,
+   last activity, link to continue the walkthrough.
+
+   Empty state: rendered when the customer has no in-flight workflows OR
+   the cosign / agreements tables aren't present in this environment
+   (error_state='models_unavailable'). In both cases we point at the
+   place a workflow is born — /agreements/service.
+#}
+{% extends "layout_fiesta.html" %}
+
+{% block page_title %}Co-sign pending{% endblock %}
+
+{% block content %}
+<section class="fiesta-page" aria-labelledby="cosign-pending-h1">
+  <header class="fiesta-page-header" style="margin-bottom:18px;">
+    <h1 id="cosign-pending-h1"
+        style="font-family:'Fraunces',serif;font-weight:500;font-size:28px;color:var(--fiesta-forest);margin:0 0 6px;">
+      Co-sign pending
+    </h1>
+    <p style="font-family:'Manrope',sans-serif;font-size:14px;color:var(--fiesta-ink-soft);margin:0;">
+      Agreements you've sent to a Service Provider that are still waiting on their action.
+    </p>
+  </header>
+
+  {% if rows %}
+    <div class="cosign-pending-table-wrap"
+         style="background:var(--fiesta-paper-hi);border:1px solid var(--fiesta-muted);border-radius:10px;overflow:hidden;">
+      <table class="cosign-pending-table"
+             style="width:100%;border-collapse:collapse;font-family:'Manrope',sans-serif;font-size:14px;">
+        <thead>
+          <tr style="background:var(--fiesta-paper-deep);text-align:left;">
+            <th style="padding:12px 16px;font-weight:600;color:var(--fiesta-forest);font-size:12px;text-transform:uppercase;letter-spacing:1px;">
+              Sent to
+            </th>
+            <th style="padding:12px 16px;font-weight:600;color:var(--fiesta-forest);font-size:12px;text-transform:uppercase;letter-spacing:1px;">
+              Status
+            </th>
+            <th style="padding:12px 16px;font-weight:600;color:var(--fiesta-forest);font-size:12px;text-transform:uppercase;letter-spacing:1px;">
+              Last activity
+            </th>
+            <th style="padding:12px 16px;font-weight:600;color:var(--fiesta-forest);font-size:12px;text-transform:uppercase;letter-spacing:1px;text-align:right;">
+              &nbsp;
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            {% set wf = r.workflow %}
+            {% set ag = r.agreement %}
+            <tr style="border-top:1px solid var(--fiesta-muted);">
+              <td style="padding:14px 16px;">
+                <div style="color:var(--fiesta-forest);font-weight:500;">
+                  {{ r.sp_name or r.sp_email or 'unknown SP' }}
+                </div>
+                {% if r.sp_name and r.sp_email %}
+                  <div style="color:var(--fiesta-ink-faint);font-size:12.5px;">{{ r.sp_email }}</div>
+                {% endif %}
+                {% if ag %}
+                  <div style="color:var(--fiesta-ink-faint);font-size:12.5px;">
+                    {{ ag.reference_id or ('SA #' ~ wf.service_agreement_id) }}
+                  </div>
+                {% else %}
+                  <div style="color:var(--fiesta-ink-faint);font-size:12.5px;">
+                    Agreement #{{ wf.service_agreement_id }}
+                  </div>
+                {% endif %}
+              </td>
+              <td style="padding:14px 16px;">
+                <span class="cosign-pending-status cosign-pending-status-{{ r.status }}"
+                      style="display:inline-block;padding:3px 9px;border-radius:11px;font-size:12px;font-weight:500;
+                             {% if r.status == 'sent_to_sp' %}background:rgba(200,16,46,0.10);color:var(--fiesta-clay-deep);
+                             {% elif r.status == 'sp_viewed' %}background:rgba(200,78,46,0.12);color:var(--fiesta-clay);
+                             {% elif r.status == 'sp_signed' %}background:rgba(31,58,46,0.10);color:var(--fiesta-forest);
+                             {% endif %}">
+                  {{ r.status_label }}
+                </span>
+              </td>
+              <td style="padding:14px 16px;color:var(--fiesta-ink-soft);font-family:'JetBrains Mono',monospace;font-size:12.5px;">
+                {% if r.last_activity %}
+                  {{ r.last_activity.strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                  &mdash;
+                {% endif %}
+              </td>
+              <td style="padding:14px 16px;text-align:right;">
+                <a href="{{ url_for('fiesta_cosign.walkthrough', agreement_id=wf.service_agreement_id) }}"
+                   style="color:var(--fiesta-clay);text-decoration:none;font-weight:500;font-size:13.5px;">
+                  Continue &rarr;
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:18px;font-size:13px;color:var(--fiesta-ink-faint);">
+      Showing in-flight workflows only (sent / viewed / signed by SP). For the
+      full history including drafts and completed workflows, visit
+      <a href="{{ url_for('fiesta_cosign.index') }}"
+         style="color:var(--fiesta-ink-soft);text-decoration:underline;">all co-sign workflows</a>.
+    </p>
+
+  {% else %}
+    <div class="cosign-pending-empty"
+         style="background:var(--fiesta-paper-hi);border:1px solid var(--fiesta-muted);border-radius:10px;padding:32px;text-align:center;">
+      <h2 style="font-family:'Fraunces',serif;font-weight:500;font-size:20px;color:var(--fiesta-forest);margin:0 0 8px;">
+        Nothing pending
+      </h2>
+      <p style="font-family:'Manrope',sans-serif;font-size:14px;color:var(--fiesta-ink-soft);margin:0 0 18px;max-width:480px;margin-left:auto;margin-right:auto;">
+        {% if error_state == 'models_unavailable' %}
+          Co-sign hasn't been set up in this environment yet. Once you generate
+          a Service Agreement and send it for co-sign, it'll appear here.
+        {% else %}
+          You don't have any co-sign workflows waiting on a Service Provider.
+          A workflow lands here after you generate a Service Agreement and
+          send it to the SP for their signature.
+        {% endif %}
+      </p>
+      <a href="/agreements/service"
+         style="display:inline-block;padding:10px 18px;background:var(--fiesta-forest);color:var(--fiesta-paper-hi);text-decoration:none;border-radius:6px;font-family:'Manrope',sans-serif;font-size:13.5px;font-weight:500;">
+        Go to Service agreements &rarr;
+      </a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
