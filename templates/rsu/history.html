@@ -1,0 +1,99 @@
+{% extends layout_template %}
+{% block title %}RSU vesting + sales — FIESTA{% endblock %}
+{% block content %}
+<div class="rsu-page" style="max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.9rem;margin:0 0 0.4rem;">RSU vesting + sales</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Track your Restricted Stock Unit grants — each vesting tranche is SL employment income
+    at fair-market value (IRA §5(2)(j)); subsequent sales are CGT events (IRA §7(2)(b)).
+  </p>
+
+  <div style="display:flex;gap:0.6rem;margin-bottom:1.6rem;">
+    <a href="{{ url_for('fiesta_rsu.import_form') }}"
+       style="display:inline-block;padding:0.65rem 1.1rem;background:var(--color-accent-700,#7c3aed);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+      Bulk-import vesting events
+    </a>
+  </div>
+
+  {# -------- Vesting events -------- #}
+  <h2 style="font-size:1.2rem;margin:1.2rem 0 0.6rem;">Vesting events</h2>
+  {% if not vestings %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No vesting events logged. Use the import button above to add your first batch.
+    </p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Vesting date</th>
+          <th style="padding:0.5rem 0.6rem;">Ticker</th>
+          <th style="padding:0.5rem 0.6rem;">Source country</th>
+          <th style="padding:0.5rem 0.6rem;">FMV per share (LKR)</th>
+          <th style="padding:0.5rem 0.6rem;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vestings %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;">{{ v.vesting_date }}</td>
+            <td style="padding:0.5rem 0.6rem;font-weight:600;">{{ v.ticker or '—' }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ v.source_country or '—' }}</td>
+            <td style="padding:0.5rem 0.6rem;">
+              {% set fmv = v.fair_market_value_money or {} %}
+              {{ fmv.get('amount_lkr', '—') }}
+              <span style="color:var(--color-ink-500,#6e7682);font-size:0.85rem;">
+                ({{ fmv.get('currency', '') }} {{ fmv.get('amount', '') }} × {{ fmv.get('fx_rate', '') }})
+              </span>
+            </td>
+            <td style="padding:0.5rem 0.6rem;">
+              <a href="{{ url_for('fiesta_rsu.sell_form', vesting_id=v.id) }}"
+                 style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">Sell</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {# -------- Sales / disposals -------- #}
+  <h2 style="font-size:1.2rem;margin:2rem 0 0.6rem;">Sales (CGT events)</h2>
+  {% if not sales %}
+    <p style="color:var(--color-ink-500,#6e7682);font-size:0.95rem;">
+      No sales recorded yet. Click "Sell" on a vesting row above when you dispose of your shares.
+    </p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Sale date</th>
+          <th style="padding:0.5rem 0.6rem;">Asset</th>
+          <th style="padding:0.5rem 0.6rem;">Acq LKR</th>
+          <th style="padding:0.5rem 0.6rem;">Disp LKR</th>
+          <th style="padding:0.5rem 0.6rem;">Gain LKR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sales %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;">{{ s.disposal_date }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ s.asset_identifier }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ "{:,.2f}".format(s.acq_amount_lkr) }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ "{:,.2f}".format(s.disp_amount_lkr) }}</td>
+            <td style="padding:0.5rem 0.6rem;font-weight:600;{% if s.gain_lkr >= 0 %}color:#15803d;{% else %}color:#b91c1c;{% endif %}">
+              {{ "{:,.2f}".format(s.gain_lkr) }}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <p style="margin-top:2rem;padding:0.9rem 1rem;background:#fef3c7;border-left:3px solid #b45309;font-size:0.9rem;border-radius:0 6px 6px 0;">
+    <strong>DTAA relief deferred.</strong> If your RSU vesting or sale already attracted
+    foreign withholding (e.g. US Federal/State tax), treaty relief under the SL-US Double
+    Tax Avoidance Agreement (Art 15 employment, Art 13 capital gains) is coming in a future
+    update. Until then, your SL liability is computed without foreign credit — you can apply
+    the credit manually on your IRD return.
+  </p>
+</div>
+{% endblock %}

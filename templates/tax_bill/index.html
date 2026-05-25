@@ -862,6 +862,80 @@
         </div>
     </details>
 
+    {# ---- Section A.RSU: RSU VESTING + CGT (B11, MS2 E.1) ---------------- #}
+    {% if (inputs.rsu_vesting_lines and inputs.rsu_vesting_lines|length > 0)
+          or (inputs.rsu_cgt_lines and inputs.rsu_cgt_lines|length > 0) %}
+    <details class="tb-section" open>
+        <summary>
+            RSU vesting &amp; sales
+            <span class="tb-section-total">
+                Vesting Rs {{ "{:,.2f}".format(inputs.rsu_vesting_total_lkr) }} ·
+                CGT Rs {{ "{:,.2f}".format(inputs.rsu_cgt_total_lkr) }}
+            </span>
+        </summary>
+        <div class="tb-section-content">
+            {% if inputs.rsu_vesting_lines and inputs.rsu_vesting_lines|length > 0 %}
+                <h4 style="margin:0.4rem 0 0.5rem;font-size:0.95rem;">Foreign RSU vesting (employment income — IRA §5(2)(j))</h4>
+                <table class="tb-table">
+                    <thead>
+                        <tr><th>Ticker</th><th>Vest date</th><th>Source</th><th class="tb-num">Amount (LKR)</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for v in inputs.rsu_vesting_lines %}
+                            <tr>
+                                <td>{{ v.ticker or 'RSU' }}</td>
+                                <td>{{ v.vesting_date or '—' }}</td>
+                                <td>{{ v.source_country or '—' }}</td>
+                                <td class="tb-num">{{ "{:,.2f}".format(v.amount_lkr) }}</td>
+                            </tr>
+                        {% endfor %}
+                        <tr class="tb-total-row">
+                            <td colspan="3">Total RSU vesting income</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(inputs.rsu_vesting_total_lkr) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin:0.5rem 0 0;font-size:0.85rem;color:var(--color-ink-500);">
+                    Added to employment income; taxed at the SL bracket schedule.
+                </p>
+            {% endif %}
+
+            {% if inputs.rsu_cgt_lines and inputs.rsu_cgt_lines|length > 0 %}
+                <h4 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;">RSU capital gains (IRA §7(2)(b) — Chapter IV)</h4>
+                <table class="tb-table">
+                    <thead>
+                        <tr><th>Asset</th><th>Disposal</th><th>Source</th><th class="tb-num">Gain (LKR)</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for c in inputs.rsu_cgt_lines %}
+                            <tr>
+                                <td>{{ c.asset_identifier }}</td>
+                                <td>{{ c.disposal_date or '—' }}</td>
+                                <td>{{ c.source_country or '—' }}</td>
+                                <td class="tb-num">{{ "{:,.2f}".format(c.gain_lkr) }}</td>
+                            </tr>
+                        {% endfor %}
+                        <tr class="tb-total-row">
+                            <td colspan="3">Total RSU CGT</td>
+                            <td class="tb-num">{{ "{:,.2f}".format(inputs.rsu_cgt_total_lkr) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            {% endif %}
+
+            {% if inputs.rsu_dtaa_deferred %}
+                <div class="tb-gate-warn" style="margin-top:0.9rem;">
+                    <strong>DTAA relief deferred.</strong> Foreign withholding tax on these RSU
+                    events (US Federal/State or other source-country tax) is not yet credited
+                    against your SL liability. Treaty relief under the SL-US DTAA (Art 15
+                    employment, Art 13 capital gains) is coming in a future update; until then
+                    you may apply the credit manually on your IRD return.
+                </div>
+            {% endif %}
+        </div>
+    </details>
+    {% endif %}
+
     {# ---- Section B: DEDUCTIONS ---------------------------------------- #}
     <details class="tb-section">
         <summary>

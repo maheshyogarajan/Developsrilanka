@@ -1,0 +1,78 @@
+{% extends layout_template %}
+{% block title %}Bulk-import RSU vesting — FIESTA{% endblock %}
+{% block content %}
+<div class="rsu-page" style="max-width:980px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.8rem;margin:0 0 0.4rem;">Bulk-import RSU vesting events</h1>
+  <p style="color:var(--color-ink-700,#4b525c);max-width:62ch;margin:0 0 1.4rem;">
+    Paste your vesting schedule from your broker (Schwab, Fidelity, E*TRADE, Carta…) as CSV rows.
+    Each row creates one vesting event + one Income line at FMV × shares (IRA §5(2)(j)).
+  </p>
+
+  <form method="POST" action="{{ url_for('fiesta_rsu.import_submit') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <label for="csv_rows" style="display:block;font-weight:600;margin-bottom:0.4rem;">
+      CSV rows (Ticker, Vesting Date YYYY-MM-DD, Shares, FMV per share USD, Source Country)
+    </label>
+    <textarea name="csv_rows" id="csv_rows" rows="8"
+              style="width:100%;font-family:'JetBrains Mono',monospace;font-size:0.9rem;padding:0.7rem;border:1px solid var(--color-ink-200,#cbd0d8);border-radius:6px;"
+              placeholder="MSFT, 2025-08-15, 12.5, 415.20, US&#10;GOOG, 2025-09-01, 8, 170.50, US">{{ raw }}</textarea>
+    <button type="submit"
+            style="margin-top:0.8rem;padding:0.7rem 1.2rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer;">
+      Import vesting events
+    </button>
+  </form>
+
+  {% if errors %}
+    <div style="margin-top:1.4rem;padding:0.8rem 1rem;background:#fee2e2;border-left:3px solid #b91c1c;border-radius:0 6px 6px 0;">
+      <strong>{{ errors|length }} row{{ '' if errors|length == 1 else 's' }} could not be imported:</strong>
+      <ul style="margin:0.4rem 0 0;padding-left:1.2rem;">
+        {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if created %}
+    <h2 style="font-size:1.2rem;margin:1.8rem 0 0.6rem;">{{ created|length }} vesting event{{ '' if created|length == 1 else 's' }} created</h2>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+          <th style="padding:0.5rem 0.6rem;">Vesting date</th>
+          <th style="padding:0.5rem 0.6rem;">Ticker</th>
+          <th style="padding:0.5rem 0.6rem;">Shares</th>
+          <th style="padding:0.5rem 0.6rem;">FMV LKR/share</th>
+          <th style="padding:0.5rem 0.6rem;">Total LKR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in created %}
+          <tr style="border-bottom:1px solid var(--color-ink-100,#e6e8ec);">
+            <td style="padding:0.5rem 0.6rem;">{{ c.vesting_date }}</td>
+            <td style="padding:0.5rem 0.6rem;font-weight:600;">{{ c.ticker }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ c.shares }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ c.fmv_lkr_per_share }}</td>
+            <td style="padding:0.5rem 0.6rem;">{{ c.total_lkr }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if projected %}
+    <div style="margin-top:1.6rem;padding:1rem 1.2rem;background:var(--color-accent-50,#f3efff);border-radius:8px;">
+      <h3 style="margin:0 0 0.4rem;font-size:1.05rem;">Projected SL tax-bill impact ({{ projected.tax_year }})</h3>
+      <p style="margin:0.2rem 0;">RSU vesting income (gross): <strong>LKR {{ "{:,.2f}".format(projected.vesting_total_lkr) }}</strong></p>
+      <p style="margin:0.2rem 0;">RSU CGT gain: <strong>LKR {{ "{:,.2f}".format(projected.cgt_gain_total_lkr) }}</strong></p>
+      {% if projected.dtaa_deferred %}
+        <p style="margin:0.6rem 0 0;color:#b45309;font-size:0.9rem;">
+          DTAA treaty relief (US-SL Art 15 / Art 13) is coming in a future update — your projection
+          shows the gross SL liability before any foreign tax credit.
+        </p>
+      {% endif %}
+    </div>
+    <p style="margin-top:1rem;">
+      <a href="{{ url_for('fiesta_rsu.history') }}"
+         style="color:var(--color-accent-700,#7c3aed);text-decoration:underline;">View all vesting events &amp; sales →</a>
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

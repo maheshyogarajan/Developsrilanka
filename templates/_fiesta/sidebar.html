@@ -68,6 +68,18 @@
         <span class="fiesta-nav-ico" aria-hidden="true">&#8682;</span>
         <span>Import a bank statement</span>
       </a>
+      {# B11 (MS2 E.1): RSU vesting + sales — conditional on User.income_sources containing 'rsu'.
+         Surfaced under Earn-in per F-Platform-2 sidebar contract; appears once a user has
+         imported at least one vesting tranche or self-declared 'rsu' as an income source. #}
+      {% if current_user.is_authenticated
+            and current_user.income_sources is defined
+            and 'rsu' in (current_user.income_sources or []) %}
+      <a href="/income/rsu"
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_rsu', path_prefix='/income/rsu') }}">
+        <span class="fiesta-nav-ico" aria-hidden="true">&#9650;</span>
+        <span>RSU vesting + sales</span>
+      </a>
+      {% endif %}
     </div>
 
     {# ============ Deduct ============ #}

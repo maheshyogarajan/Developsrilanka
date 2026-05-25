@@ -723,6 +723,14 @@ try:
 except Exception as e:
     logger.error(f'FIESTA S15+S17 Admin load failed: {e}')
 
+# MS2 Stage E.1 B11 — RSU classifier (vesting + sale at /income/rsu/*)
+try:
+    from fiesta.rsu.routes import register_blueprint as register_rsu
+    register_rsu(app)
+    logger.info('FIESTA MS2 E.1 B11 RSU classifier registered at /income/rsu')
+except Exception as e:
+    logger.error(f'FIESTA MS2 E.1 B11 RSU load failed: {e}')
+
 # FIESTA Wave 6 — X4 Consultant booking (/consultant/book)
 try:
     from fiesta.consultant import register_routes as register_consultant
