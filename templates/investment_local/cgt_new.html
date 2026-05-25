@@ -1,0 +1,68 @@
+{% extends layout_template %}
+{% block page_title %}Add local CGT disposal — FIESTA{% endblock %}
+{% block content %}
+<div class="invest-page" style="max-width:680px;margin:0 auto;padding:1rem 1rem 4rem;">
+  <p style="margin:0;color:var(--color-ink-500,#6e7682);font-size:0.85rem;">
+    <a href="{{ url_for('fiesta_investment_local.list_view') }}" style="color:var(--color-ink-700,#4b525c);">&lt; Investments</a>
+  </p>
+  <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.7rem;margin:0.3rem 0 0.4rem;">Add local CGT disposal</h1>
+  <p style="color:var(--color-ink-700,#4b525c);font-size:0.9rem;">
+    Record one disposal of a Sri Lankan real estate / equity / unit-trust holding.
+    Gain (= proceeds &minus; cost) is calculated automatically per IRA &sect;36 + &sect;37.
+    Losses pool with other local CGT and carry forward indefinitely (Phase-3 will impose
+    Chapter IV &sect;38&ndash;&sect;40 caps).
+  </p>
+
+  {% if error %}
+  <div style="margin:1rem 0;padding:0.7rem 0.9rem;background:#fee2e2;border-left:3px solid #b91c1c;color:#7f1d1d;border-radius:0 6px 6px 0;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('fiesta_investment_local.cgt_new_submit') }}" style="display:grid;gap:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <label><span style="font-weight:600;">Asset type</span>
+      <select name="asset_type" required style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+        {% for at in local_cgt_asset_types %}
+          <option value="{{ at }}" {% if form.asset_type == at %}selected{% endif %}>{{ at }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label><span style="font-weight:600;">Asset identifier (optional)</span>
+      <input type="text" name="asset_identifier" maxlength="128" value="{{ form.asset_identifier or '' }}"
+             placeholder="ticker / address / unit-trust name"
+             style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+    </label>
+
+    <fieldset style="display:grid;gap:0.5rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">Acquisition</legend>
+      <label><span>Cost (LKR)</span>
+        <input type="number" name="acquisition_cost" required step="0.01" min="0" value="{{ form.acquisition_cost or '' }}"
+               style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label><span>Acquisition date</span>
+        <input type="date" name="acquisition_date" required value="{{ form.acquisition_date or '' }}"
+               style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <fieldset style="display:grid;gap:0.5rem;padding:0.8rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:8px;">
+      <legend style="padding:0 0.4rem;font-weight:600;">Disposal</legend>
+      <label><span>Proceeds (LKR)</span>
+        <input type="number" name="disposal_proceeds" required step="0.01" min="0" value="{{ form.disposal_proceeds or '' }}"
+               style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+      <label><span>Disposal date</span>
+        <input type="date" name="disposal_date" required value="{{ form.disposal_date or '' }}"
+               style="width:100%;padding:0.55rem;border:1px solid var(--color-ink-100,#e6e8ec);border-radius:6px;">
+      </label>
+    </fieldset>
+
+    <div style="display:flex;gap:0.6rem;align-items:center;margin-top:0.4rem;">
+      <button type="submit" style="padding:0.7rem 1.3rem;background:var(--color-accent-700,#7c3aed);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Save disposal</button>
+      <a href="{{ url_for('fiesta_investment_local.list_view') }}" style="color:var(--color-ink-700,#4b525c);">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
