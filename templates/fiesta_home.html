@@ -1,0 +1,437 @@
+{# F-Platform-4 (X9 MS1 Stage C1) — authenticated FIESTA hub at `/`.
+
+   The "same house, two doors" principle (PLAN_X9_WIRE_UP §0):
+     - Anonymous `/` → fiesta_public/s0_landing.html (already shipped).
+     - Authenticated sl_foreign_income → THIS template — same H1, same
+       calculator, same chips, same palette, just pre-filled with their
+       real data.
+
+   Extends Design Lock 1 `layout_fiesta.html` (BINDING). Block names used:
+     - page_title (locked)
+     - head_extra (locked)
+     - content (locked)
+     - scripts_extra (locked)
+
+   Context vars expected from app.py::inject_fiesta_hub_context:
+     - hub_avg_monthly_usd     int    avg USD/mo from last RemittanceEntry rows
+     - hub_projected_savings_lkr int  projection used for topbar counter
+     - hub_next_step           dict   {label, href, rationale} or None
+     - hub_funnel_state        str    "no_remittances" | "ready_to_deduct" | "ready_for_bill"
+     - hub_claimed_category_ids list[str]  ids of deduction categories the user
+                                            has claimed (drives chip pre-tick)
+     - hub_categories          list[dict]  catalog (id, name) for chip rendering
+     - hub_compute_tax         dict   {gross_lkr, naive_tax_lkr, fiesta_tax_lkr,
+                                       saving_lkr} from compute_tax_25_26
+     - fx_rate_lkr_per_usd     int    LKR/USD for the slider math
+
+   Counter element id (#fiesta-savings-counter) is owned by the topbar
+   (rendered by layout_fiesta.html) — F-Platform-5 wires it to refresh
+   via the `fiesta:*` custom events fired from this page's JS.
+#}
+{% extends "layout_fiesta.html" %}
+
+{% block page_title %}Your tax dashboard{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* F-Platform-4 hub page styles — mirror the X8a S0 landing visual
+     language (cream/forest/clay) so the curb-side experience continues
+     unchanged across the auth boundary. Scoped under .fiesta-home so we
+     never leak into other consumers of layout_fiesta.html. */
+  .fiesta-home {
+    color: var(--ink, #1a1f17);
+    font-family: var(--body, 'Manrope', sans-serif);
+    line-height: 1.55;
+    padding: 28px 24px 80px;
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .fiesta-home .eyebrow {
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--clay, #C84E2E);
+    margin-bottom: 6px;
+  }
+  .fiesta-home h1.display {
+    font-family: var(--display, 'Fraunces', serif);
+    font-weight: 600; font-size: 44px; line-height: 1.08;
+    color: var(--forest, #1F3A2E);
+    margin: 6px 0 14px; letter-spacing: -0.5px;
+  }
+  .fiesta-home h1.display em {
+    font-style: italic; color: var(--clay, #C84E2E); font-weight: 600;
+  }
+  .fiesta-home p.sub {
+    font-size: 16px; color: var(--ink-soft, #3a3f33);
+    max-width: 720px; margin: 0 0 24px;
+  }
+
+  /* Next-step card — drives the customer forward in the funnel. */
+  .fiesta-home .next-step-card {
+    background: var(--forest, #1F3A2E); color: var(--paper-hi, #FAF6EE);
+    border-radius: 22px; padding: 22px 26px; margin-bottom: 26px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    box-shadow: 0 18px 40px -22px rgba(20,35,24,0.28);
+  }
+  .fiesta-home .next-step-card .ns-eyebrow {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--sage, #a8b89a);
+    margin-bottom: 6px;
+  }
+  .fiesta-home .next-step-card .ns-label {
+    font-family: var(--display); font-style: italic; font-size: 22px;
+    color: var(--paper-hi); margin: 0 0 6px;
+  }
+  .fiesta-home .next-step-card .ns-rationale {
+    font-size: 13.5px; color: var(--sage); margin: 0;
+  }
+  .fiesta-home .next-step-card .ns-cta {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--clay, #C84E2E); color: var(--paper-hi);
+    padding: 12px 22px; border-radius: 8px;
+    font-family: var(--body); font-weight: 600; font-size: 14.5px;
+    text-decoration: none;
+  }
+  .fiesta-home .next-step-card .ns-cta:hover {
+    background: var(--clay-deep, #8e3f22); color: var(--paper-hi);
+  }
+  @media (max-width: 720px) {
+    .fiesta-home .next-step-card .ns-cta { margin-left: 0; }
+  }
+
+  /* Slider row — mirrors S0 calc visually. */
+  .fiesta-home .slider-row {
+    display: grid; grid-template-columns: 1fr 220px; gap: 22px; align-items: center;
+    background: var(--paper-deep, #ece2d2); padding: 22px;
+    border-radius: 14px; border: 1px solid var(--paper-edge, #E5DBC9);
+    margin-bottom: 18px;
+  }
+  .fiesta-home .slider-label {
+    font-family: var(--display); font-style: italic; font-size: 18px;
+    color: var(--forest);
+  }
+  .fiesta-home .slider-val {
+    font-family: var(--mono); font-size: 26px; font-weight: 700;
+    color: var(--clay); text-align: right;
+  }
+  .fiesta-home input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%; appearance: none; -webkit-appearance: none;
+    height: 6px; background: var(--paper-edge); border-radius: 3px;
+  }
+  .fiesta-home input[type=range]::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--clay); border: 3px solid var(--paper-hi); cursor: pointer;
+    box-shadow: 0 2px 6px rgba(184,84,47,0.4);
+  }
+
+  /* Chips row — pre-ticked from user's S5 claimed deductions. */
+  .fiesta-home .chips-row {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin: 6px 0 22px;
+  }
+  .fiesta-home .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 999px;
+    background: var(--paper-deep, #ece2d2);
+    border: 1px solid var(--paper-edge, #E5DBC9);
+    color: var(--ink, #1a1f17);
+    font-family: var(--body); font-size: 13px;
+    cursor: pointer; user-select: none;
+  }
+  .fiesta-home .chip.is-ticked {
+    background: var(--forest, #1F3A2E);
+    border-color: var(--forest);
+    color: var(--paper-hi, #FAF6EE);
+  }
+  .fiesta-home .chip .chip-check {
+    font-family: var(--mono); font-weight: 700; opacity: 0.55;
+  }
+  .fiesta-home .chip.is-ticked .chip-check { opacity: 1; }
+
+  /* Big counter — renders compute_tax_25_26 result (not quick_preview). */
+  .fiesta-home .big-counter {
+    background: var(--forest); color: var(--paper-hi);
+    border-radius: 22px; padding: 26px; margin-bottom: 22px;
+    text-align: center;
+    box-shadow: 0 18px 40px -22px rgba(20,35,24,0.28);
+  }
+  .fiesta-home .big-counter .lead {
+    font-family: var(--mono); font-size: 12px; color: var(--sage, #a8b89a);
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  .fiesta-home .big-counter .num {
+    font-family: var(--mono); font-size: 56px; font-weight: 700;
+    color: var(--clay-soft, #d68866); letter-spacing: -2px; margin: 8px 0;
+  }
+  .fiesta-home .big-counter .delta {
+    font-family: var(--mono); font-size: 13px; color: var(--paper-hi);
+  }
+  .fiesta-home .big-counter .delta b { color: var(--mustard, #c69a3e); }
+  .fiesta-home .big-counter .savings {
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px dashed var(--moss, #4a6b4a);
+    font-family: var(--mono); font-size: 12px; color: var(--sage);
+  }
+  .fiesta-home .big-counter .savings b { color: var(--mustard); font-size: 14px; }
+  .fiesta-home .big-counter .source-tag {
+    font-family: var(--mono); font-size: 10px; color: var(--sage);
+    opacity: 0.7; text-transform: uppercase; letter-spacing: 1.5px;
+    margin-top: 8px;
+  }
+
+  .fiesta-home .cta-row {
+    display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap;
+  }
+  .fiesta-home .cta-row .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--clay); color: var(--paper-hi); border: 0;
+    padding: 13px 22px; font-family: var(--body); font-weight: 600;
+    border-radius: 8px; font-size: 15px; text-decoration: none;
+  }
+  .fiesta-home .cta-row .btn:hover {
+    background: var(--clay-deep, #8e3f22); color: var(--paper-hi);
+  }
+  .fiesta-home .cta-row .btn.ghost {
+    background: transparent; color: var(--clay); padding: 11px 18px;
+    border: 1px solid var(--paper-edge);
+  }
+  .fiesta-home .cta-row .btn.ghost:hover {
+    background: var(--paper-deep); color: var(--clay-deep);
+  }
+
+  @media (max-width: 640px) {
+    .fiesta-home h1.display { font-size: 32px; }
+    .fiesta-home .big-counter .num { font-size: 40px; }
+    .fiesta-home .slider-row { grid-template-columns: 1fr; }
+    .fiesta-home .slider-val { text-align: left; }
+  }
+  /* Mobile tap-target compliance (same rule as S0 landing). */
+  @media (max-width: 768px) {
+    .fiesta-home input[type=range] {
+      height: 44px; background: transparent; padding: 0; cursor: pointer;
+    }
+    .fiesta-home input[type=range]::-webkit-slider-runnable-track {
+      height: 8px; background: var(--paper-edge, #E5DBC9); border-radius: 4px;
+    }
+    .fiesta-home input[type=range]::-moz-range-track {
+      height: 8px; background: var(--paper-edge, #E5DBC9); border-radius: 4px;
+    }
+    .fiesta-home input[type=range]::-webkit-slider-thumb {
+      width: 28px; height: 28px; margin-top: -10px;
+    }
+    .fiesta-home input[type=range]::-moz-range-thumb {
+      width: 28px; height: 28px;
+    }
+  }
+  @media (max-width: 414px) {
+    .fiesta-home { padding: 22px 16px 60px; }
+    .fiesta-home h1.display { font-size: 26px; line-height: 1.1; }
+    .fiesta-home .slider-row { padding: 16px; }
+    .fiesta-home .next-step-card { padding: 18px; }
+    .fiesta-home .cta-row .btn,
+    .fiesta-home .cta-row .btn.ghost { min-height: 44px; padding: 14px 18px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fiesta-home" data-fiesta-home="1">
+
+  <div class="eyebrow">
+    Welcome back &middot; Year of Assessment {{ current_sl_tax_year() }}
+  </div>
+  <h1 class="display">Cut your tax bill. <em>Keep the records clean.</em></h1>
+  <p class="sub">
+    Same hero, same calculator &mdash; now pre-filled with what you've
+    actually logged. Move the slider, claim deductions, watch the
+    bracket math drop in real time. Every tick is documentation the
+    IRD recognises under <abbr title="Inland Revenue Act &sect;6(1)">&sect;6(1) IRA</abbr>.
+  </p>
+
+  {# Next-step recommender — server-rendered. #}
+  {% if hub_next_step %}
+  <div class="next-step-card" data-funnel-state="{{ hub_funnel_state }}">
+    <div>
+      <div class="ns-eyebrow">Next step &middot; {{ hub_funnel_state|replace('_', ' ') }}</div>
+      <div class="ns-label">{{ hub_next_step.label }}</div>
+      <p class="ns-rationale">{{ hub_next_step.rationale }}</p>
+    </div>
+    <a class="ns-cta" href="{{ hub_next_step.href }}">{{ hub_next_step.label }} &rarr;</a>
+  </div>
+  {% endif %}
+
+  {# Slider — pre-filled with the user's avg monthly USD remittance. #}
+  <div class="slider-row" role="group" aria-label="Monthly foreign income slider">
+    <div class="slider-label">Monthly foreign income (USD)</div>
+    <div class="slider-val">
+      <span id="incomeUsd">${{ '{:,}'.format(hub_avg_monthly_usd or 1000) }}</span> / mo
+    </div>
+    <input type="range"
+           id="incomeSlider"
+           name="monthly_usd"
+           min="200" max="10000" step="50"
+           value="{{ hub_avg_monthly_usd or 1000 }}"
+           aria-label="Monthly foreign income in US dollars"
+           data-prefilled-from-remittances="{{ '1' if hub_avg_monthly_usd else '0' }}">
+  </div>
+
+  {# Chips — pre-ticked from S5 claimed deductions. #}
+  {% if hub_categories %}
+  <div class="chips-row" role="group" aria-label="Deduction categories">
+    {% for cat in hub_categories %}
+      {% set is_ticked = cat.id in (hub_claimed_category_ids or []) %}
+      <button type="button"
+              class="chip{% if is_ticked %} is-ticked{% endif %}"
+              data-category-id="{{ cat.id }}"
+              data-claimed="{{ '1' if is_ticked else '0' }}"
+              aria-pressed="{{ 'true' if is_ticked else 'false' }}">
+        <span class="chip-check" aria-hidden="true">{% if is_ticked %}&check;{% else %}+{% endif %}</span>
+        {{ cat.name }}
+      </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Big counter — server-rendered from compute_tax_25_26 if available. #}
+  <div class="big-counter" aria-live="polite">
+    <div class="lead">Projected tax owed &mdash; {{ current_sl_tax_year() }}</div>
+    <div class="num" id="taxOwed">
+      {%- if hub_compute_tax and hub_compute_tax.naive_tax_lkr -%}
+        Rs {{ '{:,.0f}'.format(hub_compute_tax.naive_tax_lkr) }}
+      {%- else -%}
+        Rs &mdash;
+      {%- endif -%}
+    </div>
+    <div class="delta">
+      Annual income (LKR):
+      <b id="annualLkr">
+        {%- if hub_compute_tax and hub_compute_tax.gross_lkr -%}
+          Rs {{ '{:,.0f}'.format(hub_compute_tax.gross_lkr) }}
+        {%- else -%}
+          Rs &mdash;
+        {%- endif -%}
+      </b>
+      &middot; CBSL rate Rs {{ fx_rate_lkr_per_usd or 302 }}/USD
+    </div>
+    <div class="savings">
+      With your documented deductions &rarr;
+      <b id="taxOwedNet">
+        {%- if hub_compute_tax and hub_compute_tax.fiesta_tax_lkr is not none -%}
+          Rs {{ '{:,.0f}'.format(hub_compute_tax.fiesta_tax_lkr) }}
+        {%- else -%}
+          Rs &mdash;
+        {%- endif -%}
+      </b>
+      &middot; Saved:
+      <b id="taxSaved">
+        {%- if hub_compute_tax and hub_compute_tax.saving_lkr -%}
+          Rs {{ '{:,.0f}'.format(hub_compute_tax.saving_lkr) }}/yr
+        {%- else -%}
+          Rs &mdash;/yr
+        {%- endif -%}
+      </b>
+    </div>
+    <div class="source-tag" data-source="{{ (hub_compute_tax.source if hub_compute_tax else 'fallback') }}">
+      {%- if hub_compute_tax and hub_compute_tax.source == 'compute_tax_25_26' -%}
+        compute_tax_25_26 &middot; your data
+      {%- else -%}
+        bracket estimate
+      {%- endif -%}
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <a class="btn" href="/remittance/dashboard">Open your Remittance Ledger &rarr;</a>
+    <a class="btn ghost" href="/reduce-tax/">Claim more deductions</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+{# Hub-page calculator wiring.
+
+   The big counter is server-rendered from compute_tax_25_26 (the
+   F-Platform-4 contract — not /preview/calc which uses quick_preview).
+   The slider lets the user explore "what if I earned more" scenarios
+   without committing the change — it calls /preview/calc to repaint the
+   counter for that hypothetical, but does NOT mutate stored data.
+
+   Note: the topbar counter (#fiesta-savings-counter) is driven by
+   static/js/fiesta.js + /api/fiesta/savings-projection — that is the
+   persistent counter F-Platform-5 wires across every screen, NOT this
+   in-page big-counter.
+#}
+<script>
+(function () {
+  'use strict';
+  var FX_LKR_PER_USD = {{ fx_rate_lkr_per_usd or 302 }};
+  var slider = document.getElementById('incomeSlider');
+  var usdLabel = document.getElementById('incomeUsd');
+  var lkrLabel = document.getElementById('annualLkr');
+  var taxOwed = document.getElementById('taxOwed');
+  var taxOwedNet = document.getElementById('taxOwedNet');
+  var taxSaved = document.getElementById('taxSaved');
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  function fmtLKR(n) {
+    if (n === null || n === undefined || isNaN(n)) return 'Rs —';
+    return 'Rs ' + Math.round(Number(n)).toLocaleString('en-US');
+  }
+  function fmtUSD(n) { return '$' + Number(n).toLocaleString('en-US'); }
+
+  function paintLocal() {
+    if (!slider) return 0;
+    var monthlyUsd = Number(slider.value);
+    var annualLkr = monthlyUsd * 12 * FX_LKR_PER_USD;
+    if (usdLabel) usdLabel.textContent = fmtUSD(monthlyUsd);
+    if (lkrLabel) lkrLabel.textContent = fmtLKR(annualLkr);
+    return annualLkr;
+  }
+  function applyCalc(d) {
+    if (!d) return;
+    if (taxOwed) taxOwed.textContent = fmtLKR(d.naive_tax_lkr);
+    if (taxOwedNet) taxOwedNet.textContent = fmtLKR(d.fiesta_tax_lkr);
+    if (taxSaved) taxSaved.textContent = fmtLKR(d.saving_lkr) + '/yr';
+  }
+  var debounceTimer = null;
+  function runCalc() {
+    var annualLkr = paintLocal();
+    var headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    fetch('/preview/calc', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        gross_income: annualLkr, currency: 'LKR', income_source: 'foreign',
+        sp_fee: 0, rental: 0, senior: false, year: '25_26'
+      })
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(applyCalc)
+      .catch(function () { /* silent — server render is the source of truth */ });
+  }
+  if (slider) {
+    slider.addEventListener('input', function () {
+      paintLocal();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(runCalc, 220);
+    });
+    paintLocal();
+  }
+
+  // Chip clicks: route to /reduce-tax/ — full claim/unclaim UI lives on S5.
+  // We don't mutate the claim from the hub; the chips are a preview/jump.
+  var chips = document.querySelectorAll('.fiesta-home .chip');
+  chips.forEach(function (c) {
+    c.addEventListener('click', function () {
+      window.location.href = '/reduce-tax/#cat-' + c.getAttribute('data-category-id');
+    });
+  });
+})();
+</script>
+{% endblock %}
