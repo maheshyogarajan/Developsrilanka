@@ -1,98 +1,125 @@
-{# templates/_fiesta/sidebar.html — F-Platform-1 (stub for F-Platform-2).
+{# templates/_fiesta/sidebar.html — F-Platform-2 refinement (Stage C2).
 
    Per Design Lock 1 sidebar contract: Hub / Earn-in / Deduct / Generate /
    Outcome / Help / Profile / Sign out. Active-link class is
-   .fiesta-nav-active applied when request.endpoint matches.
+   .fiesta-nav-active applied when the current request matches an entry by
+   blueprint endpoint OR by request.path. The class itself is BINDING
+   per the Design Lock and must not be renamed.
 
-   F-Platform-2 owns this file long-term and may refine grouping /
-   ordering / icons. The structure shipped here is the working baseline.
+   Active-link detection contract (refined in C2):
+     - Each entry declares either ep_match (exact endpoint string OR a
+       prefix that endpoint must start with) OR path_match (prefix on
+       request.path). The first matching test wins.
+     - Endpoint matching is preferred — it survives url_prefix changes.
+     - Path matching is the fallback for routes whose endpoints don't
+       carry the natural blueprint name (admin, signout, /).
 
-   request.endpoint is preferred over request.path matching — it survives
-   url_prefix changes and is the canonical Flask handle. We fall back to
-   path-prefix checks for blueprints whose endpoints aren't stable yet
-   (cosign, agreements).
+   Group headings use the .fiesta-nav-label class — small, uppercase,
+   muted — per Design Lock CSS.
+
+   Profile points at /fie/profile (canonical FIESTA profile) per the
+   PLAN_X9_WIRE_UP.md spec, NOT the legacy /profile alias.
 #}
 {% set _ep = request.endpoint or '' %}
 {% set _p = request.path or '' %}
 {% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
 {% set _ya_dash = _ya_default.replace('/', '-') %}
+
+{# Reusable active-link macro. We compute the boolean once per entry and
+   apply the LOCKED CSS class. ep_prefix matches request.endpoint == prefix
+   OR request.endpoint starts with prefix + '.' (covers nested blueprints).
+   path_prefix matches request.path starts with prefix. #}
+{% macro is_active(ep_exact='', ep_prefix='', path_prefix='', path_exact='') -%}
+  {%- set hit = false -%}
+  {%- if ep_exact and _ep == ep_exact -%}{%- set hit = true -%}{%- endif -%}
+  {%- if ep_prefix and (_ep == ep_prefix or _ep.startswith(ep_prefix + '.')) -%}{%- set hit = true -%}{%- endif -%}
+  {%- if path_exact and _p == path_exact -%}{%- set hit = true -%}{%- endif -%}
+  {%- if path_prefix and _p.startswith(path_prefix) -%}{%- set hit = true -%}{%- endif -%}
+  {%- if hit %}fiesta-nav-active{% endif -%}
+{%- endmacro %}
+
 <aside class="fiesta-sidebar" id="fiesta-sidebar" aria-label="FIESTA navigation">
   <nav class="fiesta-nav">
 
+    {# ============ Hub ============ #}
     <div class="fiesta-nav-group">
       <a href="{{ url_for('home') }}"
-         class="fiesta-nav-link fiesta-nav-primary {% if _ep == 'home' or _p == '/' %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link fiesta-nav-primary {{ is_active(ep_exact='home', path_exact='/') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#8962;</span>
         <span>Hub</span>
       </a>
     </div>
 
+    {# ============ Earn-in ============ #}
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Earn-in</div>
       <a href="{{ url_for('remittance.dashboard') }}"
-         class="fiesta-nav-link {% if _ep == 'remittance.dashboard' or (_p.startswith('/remittance') and not _p.startswith('/remittance/new') and not _p.startswith('/remittance/import')) %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_exact='remittance.dashboard') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9776;</span>
         <span>Remittance Ledger</span>
       </a>
       <a href="{{ url_for('remittance.new') }}"
-         class="fiesta-nav-link {% if _ep == 'remittance.new' or _p.startswith('/remittance/new') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_exact='remittance.new', path_prefix='/remittance/new') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">+</span>
         <span>Add a remittance</span>
       </a>
       <a href="{{ url_for('remittance.import_upload') }}"
-         class="fiesta-nav-link {% if _ep == 'remittance.import_upload' or _p.startswith('/remittance/import') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_exact='remittance.import_upload', path_prefix='/remittance/import') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#8682;</span>
         <span>Import a bank statement</span>
       </a>
     </div>
 
+    {# ============ Deduct ============ #}
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Deduct</div>
       <a href="/reduce-tax/"
-         class="fiesta-nav-link {% if _p.startswith('/reduce-tax') or _p == '/deductions' %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_deductions', path_prefix='/reduce-tax') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#8722;</span>
         <span>Reduce your tax</span>
       </a>
       <a href="/service-providers"
-         class="fiesta-nav-link {% if _p.startswith('/service-providers') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_service_providers', path_prefix='/service-providers') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9956;</span>
         <span>Your support team</span>
       </a>
       <a href="/property"
-         class="fiesta-nav-link {% if _p.startswith('/property') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_property', path_prefix='/property') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#8962;</span>
         <span>Home-office rent</span>
       </a>
     </div>
 
+    {# ============ Generate ============ #}
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Generate</div>
       <a href="/agreements/service"
-         class="fiesta-nav-link {% if _p.startswith('/agreements/service') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_agreements_service', path_prefix='/agreements/service') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9998;</span>
         <span>Service agreements</span>
       </a>
       <a href="/agreements/rental"
-         class="fiesta-nav-link {% if _p.startswith('/agreements/rental') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_agreements_rental', path_prefix='/agreements/rental') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9998;</span>
         <span>Rental agreements</span>
       </a>
-      <a href="/cosign"
-         class="fiesta-nav-link {% if _p.startswith('/cosign') %}fiesta-nav-active{% endif %}">
+      <a href="/cosign/pending"
+         class="fiesta-nav-link {{ is_active(ep_exact='fiesta_cosign.pending', path_prefix='/cosign/pending') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9758;</span>
         <span>Co-sign pending</span>
       </a>
     </div>
 
+    {# ============ Outcome ============ #}
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Outcome</div>
       <a href="/tax-bill/{{ _ya_dash }}"
-         class="fiesta-nav-link {% if _p.startswith('/tax-bill') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_tax_bill', path_prefix='/tax-bill') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#8731;</span>
         <span>Your tax bill</span>
       </a>
       <a href="/submit/"
-         class="fiesta-nav-link {% if _p.startswith('/submit') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_submit', path_prefix='/submit') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9992;</span>
         <span>Submit</span>
       </a>
@@ -100,15 +127,16 @@
 
     <div class="fiesta-nav-divider" aria-hidden="true"></div>
 
+    {# ============ Help ============ #}
     <div class="fiesta-nav-group">
       <div class="fiesta-nav-label">Help</div>
       <a href="/consultant/book"
-         class="fiesta-nav-link {% if _p.startswith('/consultant') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(ep_prefix='consultant', path_prefix='/consultant') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9742;</span>
         <span>Book a consultation</span>
       </a>
       <a href="/tax-preview"
-         class="fiesta-nav-link {% if _p == '/tax-preview' %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(path_exact='/tax-preview') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9881;</span>
         <span>Tax preview</span>
       </a>
@@ -116,15 +144,20 @@
 
     <div class="fiesta-nav-divider" aria-hidden="true"></div>
 
+    {# ============ Profile + Sign out ============ #}
     <div class="fiesta-nav-group">
-      <a href="{{ url_for('profile') }}"
-         class="fiesta-nav-link {% if _ep == 'profile' or _p == '/profile' or _p.startswith('/fie/profile') or _p.startswith('/fiesta/profile') %}fiesta-nav-active{% endif %}">
+      {# Profile points at /fie/profile (canonical) per PLAN_X9_WIRE_UP §F-Platform-2.
+         url_for('fiesta_profile.index') is the safe handle — survives
+         url_prefix changes. We still match the legacy /profile + /fiesta/profile
+         aliases so a user landing on a 302-source path sees the link active. #}
+      <a href="{{ url_for('fiesta_profile.index') }}"
+         class="fiesta-nav-link {{ is_active(ep_prefix='fiesta_profile', ep_exact='profile', path_prefix='/fie/profile') }}{% if _p == '/profile' or _p.startswith('/fiesta/profile') %} fiesta-nav-active{% endif %}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9788;</span>
         <span>Profile</span>
       </a>
       {% if current_user.is_authenticated and current_user.role == 'admin' %}
       <a href="{{ url_for('admin_dashboard') }}"
-         class="fiesta-nav-link {% if _p.startswith('/admin') %}fiesta-nav-active{% endif %}">
+         class="fiesta-nav-link {{ is_active(path_prefix='/admin') }}">
         <span class="fiesta-nav-ico" aria-hidden="true">&#9876;</span>
         <span>Admin</span>
       </a>

@@ -194,6 +194,95 @@ def index():
 
 
 # ---------------------------------------------------------------------------
+# Customer-side: /cosign/pending — filtered index of IN-FLIGHT workflows
+#
+# F-Platform-2 (Stage C2) sidebar wires the "Co-sign pending" entry at
+# /cosign/pending. The plain /cosign/ index lists EVERY workflow (drafted,
+# complete, abandoned, in-flight). /cosign/pending narrows to the three
+# states where the customer is genuinely waiting on the SP:
+#     sent_to_sp / sp_viewed / sp_signed
+# (the IN_PROGRESS_STATUSES tuple in models.py).
+#
+# Graceful empty-state: if no workflows exist yet (e.g. the cosign tables
+# haven't been created in this environment, or the user simply hasn't
+# started any), render the empty state and explain how to start one.
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/pending", methods=["GET"], strict_slashes=False)
+@login_required
+@paywall_required(min_tier="self_file", screen_id="S10", action="pending_index")
+def pending():
+    """List in-flight co-sign workflows (sent / viewed / signed by SP).
+
+    Sidebar entry "Co-sign pending" deep-links here. Rendered as a plain
+    table sortable by status + last activity so the customer can see at
+    a glance which SPs haven't acted yet.
+
+    Empty-state contract (spec C2): if no workflows exist OR the cosign
+    tables aren't available in this environment, render a friendly
+    explainer pointing at /agreements/service. No 500s.
+    """
+    rows: list[dict[str, Any]] = []
+    error_state: Optional[str] = None
+
+    try:
+        from fiesta.cosign.models import (  # late import — survives missing tables
+            CosignWorkflow,
+            IN_PROGRESS_STATUSES,
+        )
+        from fiesta.agreements.models import ServiceAgreement  # late import
+
+        user_id = int(getattr(current_user, "id", -1))
+
+        workflows = (
+            CosignWorkflow.query
+            .filter_by(user_id=user_id)
+            .filter(CosignWorkflow.status.in_(IN_PROGRESS_STATUSES))
+            .order_by(CosignWorkflow.id.desc())
+            .all()
+        )
+
+        for wf in workflows:
+            agreement = ServiceAgreement.query.filter_by(
+                id=wf.service_agreement_id, user_id=user_id,
+            ).first()
+            # last_activity is the latest non-null transition timestamp
+            # we have for this workflow. Falls back to created_at if the
+            # SP hasn't acted yet.
+            last_activity = (
+                wf.sp_signed_at
+                or wf.sp_email_clicked_at
+                or wf.customer_email_sent_at
+                or wf.created_at
+            )
+            rows.append({
+                "workflow": wf,
+                "agreement": agreement,
+                "status": wf.status,
+                "status_label": wf.status.replace("_", " "),
+                "sp_email": wf.sp_email,
+                "sp_name": wf.sp_name,
+                "last_activity": last_activity,
+            })
+    except Exception as exc:  # noqa: BLE001
+        # Graceful empty state if cosign / agreements tables aren't present
+        # in this environment (e.g. a fresh test DB without the migration).
+        # We log + render the empty state rather than 500-ing the sidebar.
+        logger.warning(
+            "fiesta_cosign.pending: degraded empty state (%s)", exc,
+        )
+        rows = []
+        error_state = "models_unavailable"
+
+    return render_template(
+        "cosign/pending.html",
+        rows=rows,
+        error_state=error_state,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Customer-side: walkthrough
 # ---------------------------------------------------------------------------
 
