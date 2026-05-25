@@ -160,9 +160,14 @@ def test_fiesta_home_renders_for_sl_foreign_income_user(
 def test_fiesta_home_pre_fills_slider_from_remittances(
     app, client, user_factory, db_session
 ):
+    # MS4 W2 Agent 1 — G1.2 (2026-05-25): the hub funnel-state recommender
+    # now reads `income_sources`, not `persona`. Existing assertions about
+    # the slider pre-fill + foreign-income cohort behaviour stay correct
+    # when income_sources contains 'foreign_remittance'.
     user = user_factory(
         "fie_hub_remit",
         persona="sl_foreign_income",
+        income_sources=["foreign_remittance"],
         is_email_verified=True,
         onboarding_completed=True,
     )
@@ -201,9 +206,14 @@ def test_fiesta_home_pre_fills_slider_from_remittances(
 def test_fiesta_home_next_step_card_for_empty_user(
     app, client, user_factory
 ):
+    # MS4 W2 Agent 1 — G1.2 (2026-05-25): foreign-income cohort identified
+    # by income_sources=['foreign_remittance']; the 'no_remittances' funnel
+    # state still applies when the cohort flag is set but no remittances
+    # have been logged yet.
     user = user_factory(
         "fie_hub_empty",
         persona="sl_foreign_income",
+        income_sources=["foreign_remittance"],
         is_email_verified=True,
         onboarding_completed=True,
     )
@@ -229,9 +239,12 @@ def test_fiesta_home_next_step_card_for_empty_user(
 def test_fiesta_home_next_step_card_for_with_deductions_user(
     app, client, user_factory, db_session
 ):
+    # MS4 W2 Agent 1 — G1.2 (2026-05-25): see sibling test for the
+    # income_sources rationale.
     user = user_factory(
         "fie_hub_full",
         persona="sl_foreign_income",
+        income_sources=["foreign_remittance"],
         is_email_verified=True,
         onboarding_completed=True,
     )
@@ -264,6 +277,22 @@ def test_fiesta_home_next_step_card_for_with_deductions_user(
 # --------------------------------------------------------------------- #
 # 5. Legacy bookkeeping persona still goes to /scan (not the FIESTA hub).
 # --------------------------------------------------------------------- #
+# MS4 W2 Agent 1 — G1.2 (2026-05-25): INVERTED by Design Lock 3 §D2.
+# Post-G1.2, every authenticated non-admin user renders the FIESTA hub
+# regardless of persona. This test asserts the pre-G1.2 contract; W3
+# fixture sweep will replace it with `test_authenticated_non_admin_lands_
+# on_fiesta_home` (now in tests/platform/test_universal_hub.py).
+import pytest as _pt_w2a1
+
+
+@_pt_w2a1.mark.xfail(
+    reason=(
+        "Pre-G1.2 contract. Post-G1.2 (Design Lock 3 §D2) every authenticated "
+        "non-admin user gets the FIESTA hub; the legacy /scan redirect is gone. "
+        "W3 follow-up will rewrite this assertion."
+    ),
+    strict=True,
+)
 def test_legacy_persona_still_redirects_to_scan(
     app, client, user_factory
 ):

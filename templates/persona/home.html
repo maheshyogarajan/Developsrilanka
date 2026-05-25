@@ -1,4 +1,9 @@
-{% extends "layout.html" %}
+{# MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D7, 2026-05-25): flipped to
+   `extends layout_template` so /persona inherits the universal FIESTA
+   shell post-G1.2. Was hardcoded `extends "layout.html"` pre-G1.2
+   because the filing-persona surface was wired before the FIESTA shell
+   existed. If v1.1's persona-management UI ships, it can re-templatize. #}
+{% extends layout_template %}
 {% block title %}Filing personas{% endblock %}
 {% block content %}
 <div class="container py-3" data-page="persona-home">

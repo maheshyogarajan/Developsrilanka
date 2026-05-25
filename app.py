@@ -113,8 +113,9 @@ logging.info(f"Mail password configured: {'Yes' if app.config['MAIL_PASSWORD'] e
 
 # Production error handlers — X9 F-Platform-6 unified family (MS1 Stage C3).
 # Templates live in templates/errors/*.html and extend layout_template via
-# the shared errors/_base.html (FIESTA shell for sl_foreign_income personas,
-# legacy bookkeeping otherwise) with persona-aware "Go Home" + help CTAs.
+# the shared errors/_base.html (FIESTA shell for every authenticated user
+# post-G1.2; legacy layout.html for anonymous boot-time errors) with
+# "Go Home" + help CTAs.
 #
 # NOTE: paywall/expense-specific error pages keep using templates/error.html
 # (legacy generic shell) — only the framework-level 404/403/500/401 handlers
@@ -363,10 +364,23 @@ def inject_fiesta_hub_context():
     hub_next_step = None
     hub_funnel_state = "anon"
 
-    if (
-        current_user.is_authenticated
-        and getattr(current_user, 'persona', None) == 'sl_foreign_income'
-    ):
+    # MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D4, 2026-05-25): the hub-extras
+    # compute now runs for EVERY authenticated user, with two layers:
+    #   1. The expensive remittance + savings compute (avg USD / projected
+    #      LKR savings) only runs for users with `foreign_remittance` in
+    #      their income_sources — that's the only cohort the numbers mean
+    #      anything for.
+    #   2. The funnel-state recommender runs for every authenticated user
+    #      and adapts the next-step card to the user's actual income mix
+    #      (no sources → "Tell us about your income"; LKR employment →
+    #      "Log this payslip"; business → "Log Q receipts"; crypto → "Log
+    #      disposals"; rsu → existing RSU vesting prompt; multi → highest-
+    #      value source ranked).
+    _income_sources = list(getattr(current_user, 'income_sources', None) or []) \
+        if current_user.is_authenticated else []
+    _has_foreign_remittance = 'foreign_remittance' in _income_sources
+
+    if current_user.is_authenticated and _has_foreign_remittance:
         # Sprint 3 (perf): cache check before the heavy DB compute. Saves
         # ~1s of cross-region DB latency per authenticated page render.
         # Cache key is the user_id; TTL 60s. Invalidated by writes via
@@ -520,6 +534,19 @@ def inject_fiesta_hub_context():
         except Exception:  # pragma: no cover -- never block the request
             pass
 
+    elif current_user.is_authenticated:
+        # MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D4): authenticated user
+        # WITHOUT foreign_remittance — pick a next-step card that fits
+        # their actual income mix. The dispatch is intentionally simple
+        # (precedence-ordered if/elif chain) so a multi-source user
+        # resolves to the highest-value next step deterministically.
+        # The ranking mirrors revenue-per-source: business > rsu > crypto
+        # > employment > rental > investment > everything else. Empty
+        # list → onboarding nudge.
+        hub_next_step, hub_funnel_state = _compute_non_remittance_next_step(
+            current_user, _income_sources, _current_sl_tax_year
+        )
+
     return dict(
         layout_template=layout_template,
         current_sl_tax_year=_current_sl_tax_year,
@@ -531,34 +558,181 @@ def inject_fiesta_hub_context():
     )
 
 
-# X9 F-Platform-1 (MS1 Stage B, 2026-05-25): persona gating helper.
-# Returns True iff the given user should be served the unified FIESTA
-# shell (layout_fiesta.html) rather than the legacy bookkeeping layout.
-# Centralised so admin pages + the eventual MS4 Section G removal both
-# call ONE function rather than re-deriving the condition.
+def _compute_non_remittance_next_step(user, income_sources, current_sl_tax_year_fn):
+    """MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D4) — funnel-state recommender
+    for authenticated users WITHOUT `foreign_remittance` in their income
+    sources.
+
+    Returns a 2-tuple (next_step_dict, funnel_state_str).
+    `next_step_dict` is shaped `{label, href, rationale}` (consumed by
+    templates/fiesta_home.html's next-step card) or None if no step applies.
+    `funnel_state_str` is one of:
+      - 'no_income_sources'   (empty income_sources list)
+      - 'has_employment_lkr'  (employment in income_sources)
+      - 'has_business_lkr'    (business_lkr or business_foreign)
+      - 'has_crypto'          (crypto in income_sources)
+      - 'has_rsu'             (rsu in income_sources, no current-YA event)
+      - 'has_rental'          (rental_lkr / rental_foreign)
+      - 'has_investment'      (investment_lkr / investment_foreign)
+      - 'has_multiple'        (>1 of the above — ranked to highest-value)
+
+    Precedence (revenue-per-source observed in MS3 cohort analytics):
+      business > rsu > crypto > employment > rental > investment > other.
+    Multi-source users get `has_multiple` as the funnel_state AND the
+    highest-precedence source's next-step card.
+    """
+    if not income_sources:
+        return (
+            {
+                "label": "Tell us about your income",
+                "href": "/onboarding",
+                "rationale": (
+                    "We don't know what you earn yet — answer a 30-second "
+                    "income picker so we can show you the right deductions, "
+                    "the right calculator, and the right next step."
+                ),
+            },
+            "no_income_sources",
+        )
+
+    # Funnel-state-vs-display split:
+    #   `funnel_state` reports "what cohort is this user in" (single vs multi).
+    #   `next_step` is the SPECIFIC card we render, which is the highest-
+    #   precedence source's next step regardless of multi/single status.
+    sources_set = set(income_sources)
+    is_multi = len(sources_set) > 1
+
+    # business — current quarter receipts
+    if 'business_lkr' in sources_set or 'business_foreign' in sources_set:
+        next_step = {
+            "label": "Log this quarter's business receipts",
+            "href": "/earnings",
+            "rationale": (
+                "Quarterly receipt totals are the spine of your business income "
+                "schedule. Logging them now keeps the YTD bill honest and the "
+                "IRD audit trail clean."
+            ),
+        }
+        return (next_step, "has_multiple" if is_multi else "has_business_lkr")
+
+    # rsu — only show if no vesting event in current YA (else the
+    # foreign-remittance path's rsu_prompt covers it; here we're in the
+    # non-remittance branch, so re-check)
+    if 'rsu' in sources_set:
+        rsu_next = {
+            "label": "Log this quarter's RSU vesting",
+            "href": "/income/rsu/import",
+            "rationale": (
+                "Each vesting tranche at FMV (IRA §5(2)(j)) keeps your YTD "
+                "tax bill accurate. Log the latest tranche to refresh."
+            ),
+        }
+        try:
+            from fiesta.tax.models import RSUVestingEvent as _RSU
+            from fiesta.tax.rsu_engine import _tax_year_for
+            from datetime import date as _date
+            _ty = _tax_year_for(_date.today())
+            _has_current_ty = any(
+                _tax_year_for(ev.vesting_date) == _ty
+                for ev in _RSU.query.filter_by(user_id=user.id).all()
+            )
+            if _has_current_ty:
+                # Vesting already logged — fall through to the next source
+                # by NOT returning here.
+                pass
+            else:
+                return (rsu_next, "has_multiple" if is_multi else "has_rsu")
+        except Exception as _exc:
+            logging.debug(f"hub non-remittance rsu check failed: {_exc}")
+            return (rsu_next, "has_multiple" if is_multi else "has_rsu")
+
+    # crypto — disposal log for the current year
+    if 'crypto' in sources_set:
+        next_step = {
+            "label": "Log your crypto disposals for this year",
+            "href": "/income/crypto/disposals",
+            "rationale": (
+                "Every disposal (sale, swap, on-chain transfer that realises) "
+                "needs FMV at the disposal date. Log them as you go — they "
+                "compound across the YA."
+            ),
+        }
+        return (next_step, "has_multiple" if is_multi else "has_crypto")
+
+    # employment — most recent payslip
+    if 'employment_lkr' in sources_set:
+        next_step = {
+            "label": "Log your most recent payslip",
+            "href": "/earnings",
+            "rationale": (
+                "Your latest payslip drives the PAYE reconciliation and the "
+                "documented-tax-credit baseline. One payslip per month keeps "
+                "the YTD bill honest."
+            ),
+        }
+        return (next_step, "has_multiple" if is_multi else "has_employment_lkr")
+
+    # rental
+    if 'rental_lkr' in sources_set or 'rental_foreign' in sources_set:
+        next_step = {
+            "label": "Log this month's rental income",
+            "href": "/earnings",
+            "rationale": (
+                "Net rental (rent minus deductible expenses) is the IRD basis. "
+                "Log this month's rent + any repair receipts so the deduction "
+                "shows up on your bill."
+            ),
+        }
+        return (next_step, "has_multiple" if is_multi else "has_rental")
+
+    # investment
+    if 'investment_lkr' in sources_set or 'investment_foreign' in sources_set:
+        next_step = {
+            "label": "Log this period's investment income",
+            "href": "/earnings",
+            "rationale": (
+                "Interest, dividend and CGT events all need date-and-amount "
+                "logging. Log them now while the broker statement is in front "
+                "of you."
+            ),
+        }
+        return (next_step, "has_multiple" if is_multi else "has_investment")
+
+    # other / fallback (e.g. only 'professional_fees_lkr' or only 'other')
+    next_step = {
+        "label": "Log your most recent income",
+        "href": "/earnings",
+        "rationale": (
+            "Whatever you've earned this period — log it so the calculator "
+            "knows your YTD position. Every entry is documentation."
+        ),
+    }
+    return (next_step, "has_multiple" if is_multi else "has_other")
+
+
+# MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D1, 2026-05-25): universal shell.
+# Post-G1.2 the predicate collapses to "any authenticated user". Persona is
+# no longer the discriminator — the active discriminators are authentication
+# (you have an account → you see the FIESTA shell) and User.role (admin gets
+# the admin shell variant via the before_request dispatch, not via this
+# predicate). The function is kept (not inlined) so future Section G
+# iterations can add new exclusions in ONE place (e.g. enterprise B2B
+# accounts in a v1.1 design).
 def use_fiesta_shell(user) -> bool:
-    """True iff `user` should see the FIESTA shell (layout_fiesta.html).
+    """True iff `user` should see the FIESTA shell.
 
-    Current rules (Design Lock 1 §"Persona gating"):
-      - sl_foreign_income persona always sees the shell
-      - admin role always sees the shell (admin pages extend the admin
-        variant — layout_fiesta_admin.html — but the gate is the same)
-
-    Legacy bookkeeping personas remain on layout.html until Section G
-    G1.2 removes the gate entirely (post MS4).
+    Design Lock 3 §D1 — universal shell post-G1.2:
+        every authenticated user is on the FIESTA shell. Admins
+        get the admin variant (`layout_fiesta_admin.html`) via the
+        before_request dispatch; non-admins get `layout_fiesta.html`.
 
     Tolerant of duck-typed inputs (Mock, dict-shaped users in tests):
-    any object that exposes `.persona` / `.role` attributes works.
+    any object that exposes an `is_authenticated` attribute works.
     Anonymous user (`is_authenticated=False`) → False.
     """
     if user is None:
         return False
-    if not getattr(user, 'is_authenticated', False):
-        return False
-    return (
-        getattr(user, 'persona', None) == 'sl_foreign_income'
-        or getattr(user, 'role', None) == 'admin'
-    )
+    return bool(getattr(user, 'is_authenticated', False))
 
 
 # Expose to Jinja so consumers can guard markup with `{% if use_fiesta_shell(current_user) %}`.
@@ -1298,11 +1472,13 @@ def _s0_hero_example():
 
 @app.route('/')
 def home():
-    """X8a — public-flow landing.
+    """X8a — public-flow landing + universal authenticated hub.
 
     Anonymous: render the S0 estimator landing (v4-demo narrative).
-    Authenticated: redirect to /scan (which then handles persona reroute to
-    /remittance/dashboard for sl_foreign_income, or stays on the scan page).
+    Authenticated NON-admin: render the FIESTA hub (`fiesta_home.html`)
+    pre-filled with the user's real data — Design Lock 3 §D2.
+    Authenticated admin: redirect to `/scan` (operator surface) —
+    Design Lock 3 §D2/§D3.
 
     Legacy bookkeeping home is preserved at templates/home_bookkeeping_legacy.html
     in case a rollback is needed.
@@ -1315,32 +1491,30 @@ def home():
         fx_rate_lkr_per_usd = 302
 
     if current_user.is_authenticated:
-        # X9 F-Platform-4 (MS1 Stage C1, 2026-05-25): `/` is the FIESTA hub
-        # for any user the persona-gate `use_fiesta_shell()` accepts —
-        # same hero, same calculator, same chips, but pre-filled with their
-        # real data + a next-step recommender card. Two-Doors-One-House: anon
-        # S0 and authed hub are the same house, just personalised behind the
-        # door. Legacy bookkeeping personas keep the `/scan` path.
+        # MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D2, 2026-05-25): `/` is the
+        # universal FIESTA hub for every authenticated NON-ADMIN user — no
+        # persona gate, no income_sources gate, no remittance prerequisite.
+        # The hub's next-step card (driven by hub_funnel_state in
+        # inject_fiesta_hub_context) adapts to whatever income mix the user
+        # actually has (foreign remittance / employment / business / crypto /
+        # rsu / mixed / none).
         #
-        # F-Platform-3: admin role takes the legacy operator surface — admins
-        # are operators, not customers. The hub gate explicitly excludes the
-        # admin role even though `use_fiesta_shell()` returns True for
-        # admins (admins need the shell on the admin pages they own).
-        if (
-            getattr(current_user, 'persona', None) == 'sl_foreign_income'
-            and current_user.role != 'admin'
-            and use_fiesta_shell(current_user)
-        ):
-            hub_extras = _compute_hub_extras(current_user.id, fx_rate_lkr_per_usd)
-            return render_template(
-                'fiesta_home.html',
-                fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
-                hero_example=_s0_hero_example(),
-                hub_categories=hub_extras['categories'],
-                hub_claimed_category_ids=hub_extras['claimed_ids'],
-                hub_compute_tax=hub_extras['compute_tax'],
-            )
-        return redirect(url_for('index'))
+        # Admin role takes the legacy operator surface (/scan) — admins are
+        # operators, not customers. This is the SAME admin-role exemption
+        # that lived inside `use_fiesta_shell()` pre-G1.2; it now lives here
+        # at the routing seam so the shell predicate stays simple.
+        if getattr(current_user, 'role', None) == 'admin':
+            return redirect(url_for('index'))
+
+        hub_extras = _compute_hub_extras(current_user.id, fx_rate_lkr_per_usd)
+        return render_template(
+            'fiesta_home.html',
+            fx_rate_lkr_per_usd=fx_rate_lkr_per_usd,
+            hero_example=_s0_hero_example(),
+            hub_categories=hub_extras['categories'],
+            hub_claimed_category_ids=hub_extras['claimed_ids'],
+            hub_compute_tax=hub_extras['compute_tax'],
+        )
 
     # Wave 1 EVENT SPINE: landing_viewed (X8a funnel)
     # Tier D1 / B-0040 perf: defer=True so the anon landing GET doesn't eat
@@ -1561,41 +1735,27 @@ def lanka_tax_doc_scan():
 @app.route('/scan')
 @login_required
 def index():
-    """Render the receipt scanning page of the application."""
+    """Render the receipt scanning page (admin-only post-G1.3).
+
+    MS4 W2 Agent 1 — G1.3 (Design Lock 3 §D3, 2026-05-25): `/scan` is the
+    admin operator surface. Non-admin users are redirected to `/` (universal
+    hub). Email-verification + onboarding gates run BEFORE the redirect so
+    a logged-in but unverified user still hits the verification reminder
+    instead of being silently bounced to the hub (which is what they want
+    to land on AFTER they verify).
+    """
     # Check if email is verified first
     if hasattr(current_user, 'is_email_verified') and not current_user.is_email_verified:
         flash('Email verification is required before scanning receipts. Please check your inbox or request a new verification email.', 'warning')
         return redirect(url_for('verify_email_reminder'))
 
-    # X9 F-Platform-3: persona reroute fires BEFORE the onboarding + org checks.
-    # sl_foreign_income users don't need a business org, so the previous ordering
-    # caused /scan -> /onboarding -> / -> /scan loops. The Remittance Ledger is
-    # their hub; everything else flows from there.
-    #
-    # Admin role is exempt — admins are operators, not customers. An admin who
-    # happens to also carry a persona value (e.g. for testing the FIESTA flow
-    # from their own account) must still be able to reach /scan and every
-    # other operator surface. Mirrors the admin-bypass on the onboarding and
-    # org checks below.
-    if (
-        getattr(current_user, 'persona', None) == 'sl_foreign_income'
-        and current_user.role != 'admin'
-    ):
-        return redirect(url_for('remittance.dashboard'))
+    # G1.3 — non-admin redirect to universal hub.
+    if getattr(current_user, 'role', None) != 'admin':
+        return redirect(url_for('home'))
 
-    # Check if onboarding is completed (admins bypass this check)
-    if hasattr(current_user, 'onboarding_completed') and not current_user.onboarding_completed and current_user.role != 'admin':
-        flash('Please complete your account setup before using the app.', 'info')
-        return redirect(url_for('onboarding_wizard'))
-
-    # Check if user has any organizations (admins bypass — they're the operator,
-    # not a customer, and don't need a business org to reach /scan or anything
-    # else on the legacy bookkeeping path).
-    if not current_user.organizations and current_user.role != 'admin':
-        # Redirect to onboarding wizard if no organizations exist
-        flash("Please complete your account setup before scanning receipts.", "warning")
-        return redirect(url_for('onboarding_wizard'))
-
+    # Admin path beyond here: the legacy receipt-scanner operator surface.
+    # Admins bypass the onboarding + org checks (they're operators, not
+    # customers, and don't need a business org to reach /scan).
     return render_template('index.html')
 
 @app.route('/history')
@@ -3763,10 +3923,13 @@ def verify_email(token):
             ):
                 return redirect(_pending_next)
 
-            # Default destination: FIESTA hub for sl_foreign_income, legacy /scan otherwise.
-            if getattr(user, 'persona', None) == 'sl_foreign_income':
-                return redirect(url_for('home'))
-            return redirect(url_for('fiesta_triage.triage_form'))
+            # MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D2, 2026-05-25): every
+            # verified non-admin user goes home to the universal FIESTA hub.
+            # Triage (`fiesta_triage.triage_form`) becomes a sidebar entry /
+            # first-render modal on the hub; it is no longer the post-verify
+            # destination. Admins always have access to /scan via their own
+            # admin-route table.
+            return redirect(url_for('home'))
                 
         except SignatureExpired:
             flash('The verification link has expired. Please request a new one.', 'warning')
@@ -5092,15 +5255,25 @@ def check_authentication():
     else:
         g.default_organization = None
 
-    # X9 F-Platform-1: pick the layout shell based on persona. FIESTA personas
-    # (sl_foreign_income) get the editorial paper/forest/clay hub shell; legacy
-    # bookkeeping personas keep layout.html. Templates do `{% extends layout_template %}`
-    # to flip without duplicating the auth/title/footer plumbing.
+    # MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D5, 2026-05-25): unconditional
+    # FIESTA shell for every authenticated user. Admins get the admin variant
+    # (layout_fiesta_admin.html) so the operator surface stays distinct from
+    # the customer hub; non-admins get the standard editorial paper/forest/
+    # clay shell (layout_fiesta.html). Anonymous users still get layout.html
+    # as the boot-time fallback for S0 landing / login / register surfaces.
+    # `g.is_fiesta_persona` is preserved (set to "any authenticated non-admin")
+    # for legacy template compatibility — sweep candidate for G5 cleanup.
+    if current_user.is_authenticated:
+        if getattr(current_user, 'role', None) == 'admin':
+            g.layout_template = 'layout_fiesta_admin.html'
+        else:
+            g.layout_template = 'layout_fiesta.html'
+    else:
+        g.layout_template = 'layout.html'
     g.is_fiesta_persona = (
         current_user.is_authenticated
-        and getattr(current_user, 'persona', None) == 'sl_foreign_income'
+        and getattr(current_user, 'role', None) != 'admin'
     )
-    g.layout_template = 'layout_fiesta.html' if g.is_fiesta_persona else 'layout.html'
             
     # Paths that require authentication
     protected_paths = [

@@ -70,10 +70,18 @@ def _make_user(
     role: str = "user",
     is_email_verified: bool = True,
     onboarding_completed: bool = True,
+    income_sources: list[str] | None = None,
 ):
     """Create a User row with the explicit profile attributes needed for
     redirect-priority assertions. Caller is responsible for adding orgs
-    if the test requires them; default is zero orgs (the bug scenario)."""
+    if the test requires them; default is zero orgs (the bug scenario).
+
+    `income_sources` (MS4 W2 Agent 1, 2026-05-25): list of strings drawn
+    from `INCOME_SOURCE_TYPES` (e.g. ['foreign_remittance', 'rsu']).
+    Post-G1.2 the hub funnel-state recommender reads this column, so
+    tests that assert hub funnel behaviour should set it explicitly.
+    None → empty list (DB column default).
+    """
     from models import User
     from werkzeug.security import generate_password_hash
 
@@ -87,6 +95,7 @@ def _make_user(
         is_email_verified=is_email_verified,
         onboarding_completed=onboarding_completed,
         persona=persona,
+        income_sources=list(income_sources or []),
     )
     db_session.add(u)
     db_session.commit()
@@ -118,6 +127,7 @@ def user_factory(db_session):
         role: str = "user",
         is_email_verified: bool = True,
         onboarding_completed: bool = True,
+        income_sources: list[str] | None = None,
     ):
         u = _make_user(
             db_session,
@@ -126,6 +136,7 @@ def user_factory(db_session):
             role=role,
             is_email_verified=is_email_verified,
             onboarding_completed=onboarding_completed,
+            income_sources=income_sources,
         )
         created.append(u)
         return u

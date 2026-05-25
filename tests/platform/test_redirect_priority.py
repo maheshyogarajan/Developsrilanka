@@ -60,7 +60,25 @@ def _redirect_path(response) -> str:
 # -------------------------------------------------------------------- #
 # Case 1: THE BUG FIX. sl_foreign_income + zero orgs must NOT loop
 # through /onboarding. It must 302 straight to /remittance/dashboard.
+#
+# MS4 W2 Agent 1 — G1.3 (2026-05-25): INVERTED by Design Lock 3 §D3.
+# Post-G1.3 the /scan handler is admin-only; non-admin users (including
+# sl_foreign_income) get a 302 to / regardless of org status. The hub
+# itself surfaces the remittance ledger via the next-step card + sidebar.
+# W3 fixture sweep will rewrite this assertion.
 # -------------------------------------------------------------------- #
+import pytest as _pt_w2a1
+
+
+@_pt_w2a1.mark.xfail(
+    reason=(
+        "Pre-G1.3 contract. Post-G1.3 (Design Lock 3 §D3) /scan is admin-only; "
+        "every non-admin user is 302'd to / regardless of org status or persona. "
+        "Remittance ledger access moves to the hub's next-step card + sidebar. "
+        "W3 follow-up will rewrite this assertion."
+    ),
+    strict=True,
+)
 def test_sl_foreign_income_user_no_org_does_not_loop(
     app, client, user_factory
 ):
@@ -91,7 +109,20 @@ def test_sl_foreign_income_user_no_org_does_not_loop(
 # -------------------------------------------------------------------- #
 # Case 2: Legacy bookkeeping behaviour preserved. A user WITHOUT the
 # foreign-income persona, with no orgs, still gets the onboarding wizard.
+#
+# MS4 W2 Agent 1 — G1.3 (2026-05-25): INVERTED by Design Lock 3 §D3.
+# Same rationale as case 1 — /scan is admin-only post-G1.3; non-admin
+# users always 302 to /. The org-check + onboarding wizard logic moves
+# into the unified onboarding flow (G4.1, out of W2 scope).
 # -------------------------------------------------------------------- #
+@_pt_w2a1.mark.xfail(
+    reason=(
+        "Pre-G1.3 contract. Post-G1.3 (Design Lock 3 §D3) /scan is admin-only; "
+        "the onboarding-wizard-from-/scan flow is replaced by the universal "
+        "hub + G4.1 unified onboarding picker. W3 follow-up will rewrite."
+    ),
+    strict=True,
+)
 def test_non_foreign_income_user_no_org_still_routes_to_onboarding(
     app, client, user_factory
 ):
