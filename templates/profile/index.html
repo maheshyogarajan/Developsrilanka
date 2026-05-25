@@ -75,6 +75,47 @@
     <p>We only ask for what we need, when we need it. Skip anything that isn&rsquo;t relevant yet &mdash; we&rsquo;ll come back when it matters.</p>
   </div>
 
+  {# MS4 W3d G3.6: entry point to the income-source picker. Opens the
+     picker as a modal overlay via fiesta_income_picker.js (data-fiesta-
+     isp-open=1); falls back to /fie/income-sources (the standalone
+     page) for no-JS. The income types the user picks here drive which
+     sidebar modules + which tax-bill rows are surfaced. #}
+  <div class="fp-income-types-row">
+    <div>
+      <strong>Income types</strong>
+      {% set _src = (current_user.income_sources or []) %}
+      {% if _src %}
+      <span style="color:var(--color-ink-500,#6b7280); font-size:.9rem; margin-left:.5rem">
+        {{ _src|length }} type{% if _src|length != 1 %}s{% endif %} on file
+      </span>
+      {% else %}
+      <span style="color:var(--color-ink-500,#6b7280); font-size:.9rem; margin-left:.5rem">
+        not set yet
+      </span>
+      {% endif %}
+    </div>
+    <a href="/fie/income-sources"
+       class="fp-income-types-link"
+       data-fiesta-isp-open="1"
+       role="button">Edit income types &rarr;</a>
+  </div>
+  <style>
+    .fp-income-types-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .9rem 1.25rem; margin-bottom: 1rem;
+      background: var(--color-cream-50, #fefcf7);
+      border: 1px solid var(--color-ink-100, #e5e7eb);
+      border-radius: 12px;
+    }
+    .fp-income-types-link {
+      color: var(--color-ink-900, #111827);
+      font-weight: 600; font-size: .92rem;
+      text-decoration: none;
+    }
+    .fp-income-types-link:hover { text-decoration: underline; }
+  </style>
+  <script src="{{ url_for('static', filename='js/fiesta_income_picker.js') }}" defer></script>
+
   <div class="fp-progress-wrap" aria-live="polite">
     <div class="fp-progress-text">
       <span id="fp-progress-count">{{ (sections.values()|map(attribute='filled')|sum) }}</span>/<span id="fp-progress-total">{{ (sections.values()|map(attribute='total')|sum) }}</span> fields complete

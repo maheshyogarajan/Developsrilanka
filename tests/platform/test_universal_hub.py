@@ -179,8 +179,11 @@ def test_use_fiesta_shell_returns_false_for_anon(app):
 def test_hub_funnel_state_no_income_sources_shows_tell_us_card(
     client, user_factory, db_session
 ):
-    """D4: empty income_sources → 'no_income_sources' funnel state with
-    a Tell-us-about-your-income card pointing at /onboarding."""
+    """D4 + G3.6: empty income_sources → 'no_income_sources' funnel state
+    with a Tell-us-about-your-income card that now opens the inline
+    picker modal (data-fiesta-isp-open) and points at
+    /fie/income-sources for no-JS fallback. The legacy /onboarding link
+    was replaced by the picker per MS4 W3d (G3.6, 2026-05-25)."""
     u = user_factory("hub_empty", persona=None, role="user")
     _set_income_sources(db_session, u, [])
     login_as(client, u)
@@ -189,7 +192,10 @@ def test_hub_funnel_state_no_income_sources_shows_tell_us_card(
     body = resp.get_data(as_text=True)
     assert 'data-funnel-state="no_income_sources"' in body
     assert "Tell us about your income" in body
-    assert "/onboarding" in body
+    # G3.6 — picker funnel marker + modal trigger attr + standalone href.
+    assert 'data-g36-picker-funnel="1"' in body
+    assert 'data-fiesta-isp-open="1"' in body
+    assert "/fie/income-sources" in body
 
 
 def test_hub_funnel_state_has_business_lkr_shows_business_next_step(
