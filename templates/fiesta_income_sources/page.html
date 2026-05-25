@@ -1,0 +1,31 @@
+{# templates/fiesta_income_sources/page.html — MS4 W3d G3.6.
+
+   Standalone /fie/income-sources page. Renders the picker partial
+   inside the FIESTA shell so it's reachable from anywhere (sidebar
+   Profile, profile-page link, browser back button), not just as a
+   modal triggered from the hub.
+
+   The partial owns its own styles; this template only contributes the
+   page-level shell wrap + the page title.
+#}
+{% extends layout_template %}
+
+{% block page_title %}Income types &middot; FIESTA{% endblock %}
+{% block title %}Income types &middot; FIESTA{% endblock %}
+
+{% block content %}
+{% set picker_standalone = True %}
+{% set picker_modal_id = 'fiestaIncomePicker' %}
+{% set picker_show_skip = True %}
+{% set picker_skip_href = '/' %}
+{% include '_fiesta/income_source_picker.html' %}
+
+<script src="{{ url_for('static', filename='js/fiesta_income_picker.js') }}" defer></script>
+{% endblock %}
+
+{% block scripts_extra %}
+{# fiesta_income_picker.js is loaded inline above via the content
+   block so the partial works whether or not the host page uses
+   scripts_extra. Including it twice is harmless — the IIFE guards
+   re-init via a window flag. #}
+{% endblock %}
