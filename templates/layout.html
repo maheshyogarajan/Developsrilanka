@@ -370,6 +370,10 @@
         body.is-anonymous .sidebar-overlay { display: none !important; }
         body.is-anonymous .content { margin-left: 0 !important; padding-top: 0 !important; }
     </style>
+
+    {# Tier D6 / A2 — Paid-acquisition pixels (Meta + LinkedIn + Twitter).
+       All three are env-gated; default-OFF behind PIXELS_ENABLED. See pixels.py. #}
+    {% include 'components/pixels.html' %}
 </head>
 {% endblock %}
 <body class="{% if not current_user.is_authenticated %}is-anonymous{% endif %}">

@@ -159,6 +159,11 @@ def signup_form():
         tos_is_draft=TOS_IS_DRAFT,
         privacy_is_draft=PRIVACY_IS_DRAFT,
         min_password_length=MIN_LENGTH,
+        # Tier D6 / A2 — pass pixel_event into the template context so the
+        # included pixels.html component (rendered inside the layout) can
+        # see it. A child-template `{% set %}` does NOT propagate to
+        # includes invoked from the parent layout's scope.
+        pixel_event="signup_started",
     )
 
 
@@ -263,6 +268,21 @@ def signup_submit():
     except Exception as ref_exc:
         log.debug("S2 signup: referral capture skipped: %s", ref_exc)
 
+    # ---------- 4c. Tier D6/A2 UTM persistence ----------
+    # Lift first-touch UTM params from session onto the User row. Idempotent —
+    # never overwrites existing non-null values (e.g. if the user was already
+    # attributed via lankatax_onboarding's acquisition_source path).
+    try:
+        from utm_capture import persist_to_user as _utm_persist
+        if _utm_persist(new_user):
+            db.session.commit()
+    except Exception as utm_exc:
+        log.debug("S2 signup: UTM persistence skipped: %s", utm_exc)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
     # ---------- 5. Send verification email ---------- #
     try:
         from email_verification import send_verification_email
@@ -274,6 +294,14 @@ def signup_submit():
         # Don't bail — the user can request a resend.
 
     # ---------- 6. Telemetry ---------- #
+    # Tier D6 / A2 — enrich every signup event with UTM attribution so the
+    # funnel dashboard can segment paid vs organic without joining to user.
+    try:
+        from utm_capture import utm_for_payload as _utm_for_payload
+        _utm_payload = _utm_for_payload()
+    except Exception:
+        _utm_payload = {}
+
     _emit_event_safely(
         "signup_form_submitted",
         user_id=new_user.id,
@@ -284,13 +312,18 @@ def signup_submit():
             "method": "email_password_s2",
             "tos_version": TOS_VERSION,
             "privacy_version": PRIVACY_VERSION,
+            **_utm_payload,
         },
         source="route:signup_submit",
     )
     _emit_event_safely(
         "signup",
         user_id=new_user.id,
-        payload={"persona": "self", "method": "email_password_s2"},
+        payload={
+            "persona": "self",
+            "method": "email_password_s2",
+            **_utm_payload,
+        },
         source="route:signup_submit",
     )
 

@@ -373,6 +373,17 @@ class User(UserMixin, db.Model):
     # Added by migrations/add_user_deleted_at.py (idempotent ALTER TABLE).
     deleted_at = db.Column(db.DateTime, nullable=True, index=True)
 
+    # Tier D6 / A2 — paid-acquisition first-touch attribution.
+    # Lifted from the Flask session by utm_capture.persist_to_user() at signup
+    # time. Idempotent — set once at signup, never overwritten thereafter.
+    # Added by migrations/add_utm_columns_to_user.py (idempotent ALTER TABLE).
+    # Partial index on utm_source supports channel-breakdown analytics.
+    utm_source = db.Column(db.String(128), nullable=True, index=True)
+    utm_medium = db.Column(db.String(128), nullable=True)
+    utm_campaign = db.Column(db.String(128), nullable=True)
+    utm_term = db.Column(db.String(128), nullable=True)
+    utm_content = db.Column(db.String(128), nullable=True)
+
     # Trust level and rewards
     subscription_status = db.Column(db.String(30), nullable=False, default='free_trial')
     access_expiration_date = db.Column(db.DateTime, nullable=True)

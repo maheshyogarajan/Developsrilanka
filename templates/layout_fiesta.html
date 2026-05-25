@@ -310,6 +310,10 @@
       .fiesta-hub .text-secondary { color: var(--ink-soft) !important; }
       .fiesta-hub .text-muted { color: var(--ink-muted) !important; }
     </style>
+
+    {# Tier D6 / A2 — Paid-acquisition pixels (Meta + LinkedIn + Twitter).
+       All three are env-gated; default-OFF behind PIXELS_ENABLED. See pixels.py. #}
+    {% include 'components/pixels.html' %}
 </head>
 {% endblock %}
 
