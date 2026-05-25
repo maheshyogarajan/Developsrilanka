@@ -25,6 +25,9 @@
     color: var(--ink-strong); letter-spacing:-0.01em; line-height:1.15; margin:0;
   }
   .s7-sub { color: var(--ink-soft); font-size:1rem; max-width:62ch; line-height:1.55; }
+
+  /* D7 — primary CTA, shown prominently when the user has zero properties.
+     Wider padding + display:block to hero-size when empty-state. */
   .s7-header-cta {
     display: inline-flex; align-items: center; gap: .5rem;
     margin-top: .75rem; align-self: flex-start;
@@ -34,10 +37,42 @@
     transition: background .15s ease, transform .15s ease;
   }
   .s7-header-cta:hover { background: var(--ink-strong); transform: translateY(-1px); }
+  .s7-header-cta--primary {
+    padding: .95rem 1.6rem; font-size: 1.05rem;
+  }
+  .s7-header-cta--secondary {
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--accent); padding: .55rem 1rem;
+    font-size: .9rem;
+  }
+  .s7-header-cta--secondary:hover {
+    background: var(--accent-soft); color: var(--accent);
+    transform: none;
+  }
   .s7-header-cta__hint {
     display: block; margin-top: .35rem;
     color: var(--ink-mute); font-size: .8rem;
   }
+
+  /* D7 — empty-state panel surrounding the primary CTA. */
+  .s7-empty-state {
+    margin: 1.5rem 0;
+    padding: 2rem 1.5rem;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--card-radius);
+    text-align: center;
+  }
+  .s7-empty-state h2 {
+    margin: 0 0 .5rem; font-family: 'Fraunces', serif;
+    font-weight: 600; color: var(--accent);
+    font-size: 1.4rem;
+  }
+  .s7-empty-state p {
+    color: var(--ink-soft); margin: 0 0 1.25rem;
+    font-size: .95rem; line-height: 1.55;
+  }
+  .s7-empty-state .s7-header-cta { align-self: center; margin-top: 0; }
 
   .s7-grid {
     display: grid; gap: 1rem;
@@ -156,13 +191,41 @@
       exact deductible amount — with a signed rental agreement to back it up
       at audit.
     </p>
-    <a class="s7-header-cta" href="{{ url_for('fiesta_property.setup') }}">
-      Set up property, landlord &amp; rental in one step →
+    {# D7 — when the user has at least one property, the setup link still
+       lives in the header (so it is reachable from /property even after
+       they add their first record), but visually de-emphasised so it
+       doesn't compete with the existing property cards. The big hero
+       primary CTA below only renders when properties is empty. #}
+    {% if properties %}
+    <a class="s7-header-cta s7-header-cta--secondary"
+       href="{{ url_for('fiesta_property.setup') }}"
+       data-testid="property-setup-link">
+      Set up another property →
     </a>
     <span class="s7-header-cta__hint">
-      Fastest path — saves the property, landlord, and rental agreement together.
+      Same one-step flow — property, landlord, and rental agreement together.
     </span>
+    {% endif %}
   </div>
+
+  {# D7 — empty-state hero CTA. Primary path when the user has zero
+     properties: the /property page used to dead-end here with no link to
+     /property/setup. Now the consolidated setup form is one click away. #}
+  {% if not properties %}
+  <div class="s7-empty-state">
+    <h2>Add your first property</h2>
+    <p>
+      You haven't added a property yet. Use the one-step setup to record
+      the property, your landlord, and the rental agreement together — that
+      is the fastest path to a §6(1) home-office deduction at audit.
+    </p>
+    <a class="s7-header-cta s7-header-cta--primary"
+       href="{{ url_for('fiesta_property.setup') }}"
+       data-testid="property-setup-link">
+      Set up property, landlord &amp; rental in one step →
+    </a>
+  </div>
+  {% endif %}
 
   <div class="s7-grid">
     {% for p in properties %}

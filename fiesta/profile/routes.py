@@ -215,8 +215,17 @@ def save():
         )
 
     flash("Profile saved. Thanks — that helps us help you better.", "success")
+    # D2 SEV-1 fix: the prior safelist (`startswith('/')`) accepted protocol-
+    # relative URLs like `//evil.com` because `//` also starts with `/`. That
+    # is a classic open-redirect bug. Reject `//`, `\\`, and any `://` scheme.
     next_url = request.args.get("next")
-    if next_url and next_url.startswith("/"):
+    if (
+        next_url
+        and next_url.startswith("/")
+        and not next_url.startswith("//")
+        and not next_url.startswith("\\")
+        and "://" not in next_url
+    ):
         return redirect(next_url)
     return redirect(url_for("fiesta_profile.index"))
 
