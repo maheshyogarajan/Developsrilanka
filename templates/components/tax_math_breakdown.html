@@ -1,7 +1,10 @@
 {% extends 'preview_layout.html' %}
 
-{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html. #}
-{% from '_pricing_macros.html' import pricing_copy %}
+{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html.
+   F1.3 (P2 polish, 2026-05-27) — pricing_amount() + launch_posture()
+   added for the FAQ accordion below so the literal price + launch-copy
+   strings stay single-sourced (FAQ historically drifted first). #}
+{% from '_pricing_macros.html' import pricing_copy, pricing_amount, launch_posture %}
 
 {% block title %}See your tax savings — FIESTA{% endblock %}
 
@@ -651,7 +654,7 @@
         </div>
 
         <details>
-            <summary>How can you save Rs 540,000 by paying only Rs 2,500?</summary>
+            <summary>How can you save Rs 540,000 by paying only {{ pricing_amount() }}?</summary>
             <p>
                 Because most foreign-income earners in Sri Lanka don't claim the deductions
                 they're legally entitled to. The Inland Revenue Act §6(1) allows you to deduct
@@ -683,16 +686,16 @@
         </details>
 
         <details>
-            <summary>Why "Rs 2,500"? And what does "free during launch" mean?</summary>
+            <summary>Why "{{ pricing_amount() }}"? And what does "{{ launch_posture()|lower }}" mean?</summary>
             <p>
-                Rs 2,500 is the entry fee for FIESTA Self-File v1 (refundable within 14 days
+                {{ pricing_amount() }} is the entry fee for FIESTA Self-File v1 (refundable within 14 days
                 if you're not saving more than that on tax). You generate your own documents
                 from FIESTA-provided templates, file your own return on the IRD eService
                 portal. We don't file for you in this tier — we equip you to file correctly.
             </p>
             <p>
                 <strong>Launch period:</strong> sign up before 2026-09-01 and FIESTA is free
-                for your first full filing — no credit card required. The Rs 2,500 entry fee
+                for your first full filing — no credit card required. The {{ pricing_amount() }} entry fee
                 begins for new sign-ups from 2026-09-01 onward. Existing launch-period
                 customers keep their free first filing.
             </p>

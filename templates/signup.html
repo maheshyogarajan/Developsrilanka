@@ -5,8 +5,10 @@
    `{% set %}` in a child template does NOT propagate to the parent layout's
    include scope, so the route is the only correct place to set it. #}
 
-{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html. #}
-{% from '_pricing_macros.html' import pricing_copy %}
+{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html.
+   F1.3 (P2 polish, 2026-05-27) — pricing_amount() added for the
+   testimonial copy below so the literal price stays single-sourced. #}
+{% from '_pricing_macros.html' import pricing_copy, pricing_amount %}
 
 {% block title %}Start your FIESTA trial — Sign up{% endblock %}
 
@@ -444,7 +446,7 @@
     </div>
 
     <div class="s2-testimonial">
-      "FIESTA flagged Rs 540K of allowable expenses I'd missed — the Rs 2,500 trial paid for itself in five minutes." <!-- placeholder: replace with verified testimonial once CEO approves. -->
+      "FIESTA flagged Rs 540K of allowable expenses I'd missed — the {{ pricing_amount() }} trial paid for itself in five minutes." <!-- placeholder: replace with verified testimonial once CEO approves. -->
     </div>
 
     <details class="s2-legal-disclosure">

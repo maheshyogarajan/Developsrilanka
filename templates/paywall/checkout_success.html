@@ -1,11 +1,16 @@
 {% extends layout_template %}
+{% from "_pricing_macros.html" import pricing_amount %}
 
 {# Tier D6 / A2 — pixel_event='paid_subscription_completed' is passed in
    via render_template() kwargs from
    fiesta.paywall.pricing_screen.checkout_success along with
    pixel_purchase_value (LKR) + pixel_purchase_currency. Child-template
    {% set %} does NOT propagate to includes in the parent layout's scope,
-   so the route is the only correct place to set them. #}
+   so the route is the only correct place to set them.
+
+   F1.3 (P2 polish, 2026-05-27): receipt-line price literal sourced from
+   _pricing_macros.html → pricing_amount() so the post-pay surface stays
+   in sync with /pricing, /signup, /pricing/x1, tax-math copy. #}
 
 {% block title %}You're in — FIESTA{% endblock %}
 
@@ -192,7 +197,7 @@
   </div>
 
   <p class="cs-footnote">
-    Receipt for Rs 2,500 on its way to your email.
+    Receipt for {{ pricing_amount() }} on its way to your email.
     {% if session_id %}
       Stripe reference: <code>{{ session_id[:16] }}&hellip;</code>
     {% endif %}
