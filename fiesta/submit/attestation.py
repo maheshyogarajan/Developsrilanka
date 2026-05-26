@@ -61,6 +61,37 @@ def _format_lkr(amount: Any) -> str:
     return f"{n:,.2f}"
 
 
+class AttestationFieldMissingError(ValueError):
+    """Raised when build_attestation_text is called with missing identity fields.
+
+    The attestation text is a §195 legal declaration under the Electronic
+    Transactions Act No. 19 of 2006. Rendering it with placeholder strings
+    like "(name not provided)" produces a signed instrument that is not
+    audit-defensible — a customer could end up "signing" a return that reads
+    "I, (name not provided) (NIC (NIC not provided)), declare under section
+    195 ...". This is the F6.3 placeholder-leak defect.
+
+    Callers MUST check profile completeness BEFORE invoking
+    build_attestation_text. The submit blueprint does this in show_submit +
+    post_attest (X9 F6.3 guards). This exception is the function-level
+    defense-in-depth: any future caller (audit pack v3, an admin tool, a
+    re-export path) that forgets the guard gets a hard failure rather than
+    a silent legal-liability leak.
+
+    Attributes:
+        missing_fields: list of field names (e.g. ["Full name", "NIC"]).
+    """
+
+    def __init__(self, missing_fields: list[str]):
+        self.missing_fields = list(missing_fields)
+        super().__init__(
+            "Cannot build attestation text — missing identity field(s): "
+            + ", ".join(self.missing_fields)
+            + ". The customer must complete their profile before the "
+            "§195 declaration can be rendered for signing."
+        )
+
+
 def build_attestation_text(
     *,
     full_name: str,
@@ -78,11 +109,34 @@ def build_attestation_text(
 
     Returns:
         The fully-rendered attestation text. Caller stores this VERBATIM.
+
+    Raises:
+        AttestationFieldMissingError: when ``full_name``, ``nic`` or
+            ``tax_year`` is empty / whitespace-only. The previous behaviour
+            of falling back to "(name not provided)" / "(NIC not provided)"
+            placeholder strings was legally unsafe (F6.3): the signed
+            declaration would carry placeholder text where the customer's
+            identity should be. Callers MUST guard against missing fields
+            before invoking this function.
     """
+    name_clean = (full_name or "").strip()
+    nic_clean = (nic or "").strip()
+    tax_year_clean = (tax_year or "").strip()
+
+    missing: list[str] = []
+    if not name_clean:
+        missing.append("Full name")
+    if not nic_clean:
+        missing.append("NIC")
+    if not tax_year_clean:
+        missing.append("Tax year")
+    if missing:
+        raise AttestationFieldMissingError(missing)
+
     return ATTESTATION_TEMPLATE.format(
-        full_name=(full_name or "").strip() or "(name not provided)",
-        nic=(nic or "").strip() or "(NIC not provided)",
-        tax_year=(tax_year or "").strip() or "(tax year not provided)",
+        full_name=name_clean,
+        nic=nic_clean,
+        tax_year=tax_year_clean,
         final_tax_payable_lkr_formatted=_format_lkr(final_tax_payable_lkr),
     )
 
@@ -207,6 +261,7 @@ def deserialize_signature(blob: str | None) -> dict[str, Any]:
 
 __all__ = [
     "ATTESTATION_TEMPLATE",
+    "AttestationFieldMissingError",
     "build_attestation_text",
     "validate_signature_name",
     "sign_attestation",
