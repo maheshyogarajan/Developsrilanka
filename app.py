@@ -1726,6 +1726,172 @@ def fiesta_tax_preview_page():
 
 
 @csrf.exempt
+# F3.3 (P2 polish, 2026-05-27) — single-remittance live savings preview.
+#
+# Thin wrapper over fiesta.tax.quick_preview() that gives /remittance/new
+# a contract-locked endpoint with the four fields that surface needs:
+#
+#   POST /api/fiesta/preview-savings
+#   request:  {"amount": <number>, "currency": <ISO>, "tax_year": "25/26"}
+#   response: {
+#     "taxable_lkr":               <int>,
+#     "tax_without_deductions_lkr": <int>,    # naive_tax_lkr from quick_preview
+#     "savings_lkr":                <int>,    # saving_lkr from quick_preview
+#     "projected_bill_lkr":         <int>,    # fiesta_tax_lkr from quick_preview
+#     "gross_lkr":                  <int>,    # echo of converted gross
+#     "fx_rate_used":               <number>,
+#     "year":                       <string>,
+#   }
+#
+# Why a NEW endpoint instead of reusing /preview/calc:
+#   - /preview/calc takes {gross_income, currency, income_source, sp_fee,
+#     rental, senior, year} — the full S0 estimator payload. The remittance
+#     form has only amount+currency+year and shouldn't have to know about
+#     sp_fee/rental/senior defaults to call it.
+#   - The four-field response above is the contract the topbar pill +
+#     inline projection card on /remittance/new render against. A stable
+#     external contract beats internal reuse.
+#   - It still calls quick_preview() under the hood so the tax math itself
+#     never forks — single source of truth for the engine, single contract
+#     for the surface.
+#
+# Tax year input accepts the same forms the topbar selector emits
+# ("25/26", "2025/26", "2025-26", "25_26") and normalises to the engine's
+# internal underscore form. Returns 400 on unsupported years.
+#
+# CSRF-exempt: the form on /remittance/new lives in an authed session but
+# the preview endpoint is fire-and-forget JSON, called on every input.
+# The same CSRF-exempt posture as /preview/calc.
+
+
+def _normalise_tax_year_for_engine(raw: Any, default: str = "25_26") -> str | None:
+    """Coerce a tax-year string from any topbar/UI form into the
+    engine's internal key ("25_26"). Returns None on unrecognised input
+    so the caller can decide whether to fall back to a default or 400."""
+    if raw is None or raw == "":
+        return default
+    if not isinstance(raw, str):
+        try:
+            raw = str(raw)
+        except Exception:
+            return None
+    s = raw.strip()
+    # Accept "25_26" directly.
+    if s == "25_26" or s == "26_27" or s == "24_25":
+        return s
+    # Normalise separator to "/".
+    s = s.replace("-", "/").replace("_", "/")
+    # Long-form "2025/2026" -> "2025/26"
+    if "/" in s:
+        a, b = s.split("/", 1)
+        if len(b) == 4:
+            b = b[-2:]
+        if len(a) == 4:
+            a = a[-2:]
+        # Now both are 2-char; build "25_26"
+        if len(a) == 2 and len(b) == 2 and a.isdigit() and b.isdigit():
+            return f"{a}_{b}"
+    return None
+
+
+@csrf.exempt
+@app.route('/api/fiesta/preview-savings', methods=['POST'])
+def api_fiesta_preview_savings():
+    """F3.3 — single-remittance live savings projection.
+
+    Wraps fiesta.tax.quick_preview() with a stable 4-field response
+    contract for /remittance/new. See block comment above for the
+    request/response shape rationale."""
+    try:
+        from fiesta.tax import quick_preview, PreviewError
+    except ImportError as exc:
+        return jsonify({"error": f"tax preview module unavailable: {exc}"}), 500
+
+    payload = request.get_json(silent=True) or {}
+    raw_amount = payload.get("amount", 0)
+    currency = (payload.get("currency") or "LKR").upper()
+    tax_year_raw = payload.get("tax_year") or payload.get("year")
+
+    engine_year = _normalise_tax_year_for_engine(tax_year_raw, default="25_26")
+    if engine_year is None:
+        return jsonify({
+            "error": f"unrecognised tax_year {tax_year_raw!r}",
+            "kind": "input_error",
+        }), 400
+
+    # Coerce amount; surface a friendly error rather than 500ing.
+    try:
+        amount_num = float(raw_amount)
+    except (TypeError, ValueError):
+        return jsonify({
+            "error": f"amount must be numeric, got {raw_amount!r}",
+            "kind": "input_error",
+        }), 400
+    if amount_num < 0:
+        return jsonify({
+            "error": "amount must be >= 0",
+            "kind": "input_error",
+        }), 400
+
+    try:
+        result = quick_preview(
+            gross_income=amount_num,
+            currency=currency,
+            # Remittance form is foreign-income by definition (the form's
+            # whole purpose is logging inward remittances).
+            income_source="foreign",
+            sp_fee=0,
+            rental=0,
+            senior=False,
+            year=engine_year,
+        )
+    except PreviewError as exc:
+        return jsonify({"error": str(exc), "kind": "input_error"}), 400
+    except Exception as exc:
+        logging.exception("preview-savings calc failed")
+        return jsonify({"error": "internal preview error", "detail": str(exc)}), 500
+
+    # X8a funnel: estimator_run event with source label set to this endpoint
+    # so dashboards can split /remittance/new live-projection volume from
+    # the S0 estimator volume.
+    try:
+        from events import emit as _emit_event
+        _emit_event(
+            'estimator_run',
+            user_id=getattr(current_user, 'id', None) if current_user.is_authenticated else None,
+            payload={
+                'gross_income_lkr': result.get('gross_income_lkr'),
+                'income_source': 'foreign',
+                'naive_tax_lkr': result.get('naive_tax_lkr'),
+                'fiesta_tax_lkr': result.get('fiesta_tax_lkr'),
+                'saving_lkr': result.get('saving_lkr'),
+            },
+            source='route:api_fiesta_preview_savings',
+            defer=True,
+        )
+    except Exception as _ev_err:
+        logging.debug(f"Event emit (estimator_run) failed: {_ev_err}")
+
+    # Round monetary values to whole rupees for the UI (consistent with
+    # /preview/calc behaviour). Convert Decimal/string to int where the
+    # engine returned numeric-strings.
+    def _to_rupees(value):
+        try:
+            return int(round(float(value)))
+        except (TypeError, ValueError):
+            return 0
+
+    return jsonify({
+        "taxable_lkr":                 _to_rupees(result.get("taxable_income_fiesta_lkr") or 0),
+        "tax_without_deductions_lkr":  _to_rupees(result.get("naive_tax_lkr") or 0),
+        "savings_lkr":                 _to_rupees(result.get("saving_lkr") or 0),
+        "projected_bill_lkr":          _to_rupees(result.get("fiesta_tax_lkr") or 0),
+        "gross_lkr":                   _to_rupees(result.get("gross_income_lkr") or 0),
+        "fx_rate_used":                result.get("fx_rate_used"),
+        "year":                        engine_year,
+    })
+
+
 @app.route('/preview/calc', methods=['POST'])
 def fiesta_tax_preview_calc():
     """JSON live-calc endpoint for the Tax Math Breakdown component.

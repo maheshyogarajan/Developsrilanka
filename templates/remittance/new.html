@@ -182,25 +182,37 @@
     var headers  = { 'Content-Type': 'application/json' };
     if (csrfToken) headers['X-CSRFToken'] = csrfToken;
 
-    fetch('/preview/calc', {
+    // F3.3 (P2 polish, 2026-05-27) — call the dedicated single-remittance
+    // /api/fiesta/preview-savings endpoint. /preview/calc still works (and
+    // is the S0 estimator's endpoint), but this surface has a stable
+    // 4-field contract — saving_lkr + projected_bill_lkr + tax_without_*
+    // — so we route through that one. Topbar pill refresh fires after a
+    // successful response by dispatching the contract-locked custom event.
+    fetch('/api/fiesta/preview-savings', {
       method: 'POST',
       headers: headers,
       credentials: 'same-origin',
       body: JSON.stringify({
-        gross_income: grossLkr,
+        amount: grossLkr,
         currency: 'LKR',
-        income_source: 'foreign',
-        sp_fee: 0,
-        rental: 0,
-        senior: false,
-        year: '25_26'
+        tax_year: '25/26'
       })
     })
     .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
     .then(function (d) {
-      if (d && d.saving_lkr != null) {
-        savingEl.textContent = fmtLKR(d.saving_lkr);
+      if (d && d.savings_lkr != null) {
+        savingEl.textContent = fmtLKR(d.savings_lkr);
         projection.style.display = '';
+        // Topbar pill refresh — fire the contract-locked event so
+        // static/js/fiesta.js re-fetches /api/fiesta/savings-projection
+        // (authed only; safely no-ops on anon). The pill shows the
+        // user's TOTAL projected YA savings, this card shows the savings
+        // attributable to the in-progress remittance entry.
+        try {
+          if (window.fiesta && typeof window.fiesta.dispatchUpdate === 'function') {
+            window.fiesta.dispatchUpdate('fiesta:savings-counter-refresh');
+          }
+        } catch (e) { /* fire-and-forget */ }
       }
     })
     .catch(function (err) {
@@ -211,7 +223,10 @@
 
   function schedule() {
     if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(runProjection, 250);
+    // F3.3 (P2 polish, 2026-05-27) — 300ms debounce per brief target.
+    // Was 250ms; 300 gives a touch more headroom for fast-typers without
+    // making the projection feel laggy on a single keystroke.
+    debounce = setTimeout(runProjection, 300);
   }
 
   // D6 (Tier D-Perf 2026-05-25) — listen for BOTH 'input' and 'change' on
