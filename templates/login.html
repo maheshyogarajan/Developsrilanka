@@ -220,7 +220,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="fiesta-auth">
+{# F1.5 — `fiesta-tokenized` marker class is the contract asserted by
+   tests/platform/test_auth_surface.py. It signals that this page applies
+   the FIESTA design tokens (--paper, --clay, --ink, --forest, --display,
+   --body) consolidated in fiesta-hub-design.css (loaded by layout.html).
+   Removing this class without updating the token bindings will break the
+   visual-continuity contract between landing/auth/hub. #}
+<div class="fiesta-auth fiesta-tokenized">
   <div class="login-card card">
     <div class="card-body">
       <div class="text-center mb-4">
@@ -235,6 +241,13 @@
 
       <form method="POST" action="{{ url_for('email_login') }}" id="loginForm" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {# F1.6 — carry the `next` deep-link target through the email-login POST.
+           Only echo the server-safelisted `login_next` value (set by the GET
+           handler). Raw `request.args.get('next')` is never echoed: that path
+           would bypass safelisting and is an open-redirect vector. If
+           login_next is missing/None, emit empty string; the POST handler
+           treats that as no redirect (default → index). #}
+        <input type="hidden" name="next" value="{{ login_next or '' }}">
 
         <div class="mb-3">
           <label for="email" class="form-label">Email address</label>

@@ -57,3 +57,67 @@ def _cleanup_s2_signup_users(db_session):
         RegistrationRateLimit.ip_address.in_(("127.0.0.1", "localhost"))
     ).delete(synchronize_session=False)
     db_session.commit()
+
+
+# F1.6 auth-surface tests (2026-05-26): small factory for creating a verified
+# user with a known password. Tracks created users for autouse cleanup.
+_AUTH_SUITE_PREFIX = "pytest_auth_surface_"
+
+
+@pytest.fixture
+def user_factory(db_session):
+    """Yield a callable that creates+commits a User row with a known password.
+
+    Usage:
+        user = user_factory("f1_6_redirect",
+                            is_email_verified=True,
+                            onboarding_completed=True)
+        # User.email is f"{_AUTH_SUITE_PREFIX}f1_6_redirect@fiesta.local"
+        # User.password_hash is set from "pytest-pw-not-real" by default; test
+        # callers can override by setting user.password_hash + db.session.commit()
+        # before acting (the F1.6 tests do this to set a known plain password).
+    """
+    from werkzeug.security import generate_password_hash
+    from models import User
+    created_ids: list[int] = []
+
+    def _make(
+        slug: str,
+        *,
+        is_email_verified: bool = True,
+        onboarding_completed: bool = True,
+        role: str = "user",
+        password: str = "pytest-pw-not-real",
+    ):
+        email = f"{_AUTH_SUITE_PREFIX}{slug}@fiesta.local"
+        # Drop any prior row with this email so re-runs don't trip uniqueness.
+        existing = User.query.filter_by(email=email).first()
+        if existing is not None:
+            db_session.delete(existing)
+            db_session.commit()
+        u = User(
+            email=email,
+            password_hash=generate_password_hash(password),
+            role=role,
+        )
+        if hasattr(u, "is_email_verified"):
+            u.is_email_verified = is_email_verified
+        if hasattr(u, "onboarding_completed"):
+            u.onboarding_completed = onboarding_completed
+        db_session.add(u)
+        db_session.commit()
+        created_ids.append(u.id)
+        return u
+
+    yield _make
+
+    # Teardown: remove all users the factory created during this test.
+    if created_ids:
+        from models import AuditLog
+        AuditLog.query.filter(AuditLog.user_id.in_(created_ids)).delete(
+            synchronize_session=False
+        )
+        User.query.filter(User.id.in_(created_ids)).delete(
+            synchronize_session=False
+        )
+        db_session.commit()

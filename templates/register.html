@@ -137,7 +137,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="fiesta-auth">
+{# F1.5 — `fiesta-tokenized` marker class is the contract asserted by
+   tests/platform/test_auth_surface.py. It signals that this page applies
+   the FIESTA design tokens (--paper, --clay, --ink, --forest, --display,
+   --body) consolidated in fiesta-hub-design.css (loaded by layout.html).
+   Removing this class without updating the token bindings will break the
+   visual-continuity contract between landing/auth/hub. #}
+<div class="fiesta-auth fiesta-tokenized">
   <div class="register-card card">
     <div class="card-body">
       <div class="text-center mb-4">

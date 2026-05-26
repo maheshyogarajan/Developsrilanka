@@ -8,17 +8,36 @@
 {% block title %}Start your FIESTA trial — Sign up{% endblock %}
 
 {% block content %}
+{# F1.5 — Pull in the FIESTA design tokens so signup.html shares the
+   --paper / --clay / --ink / --forest palette with login, register, and
+   the s0 landing. empty_layout.html (parent) does NOT load these by
+   default — adding the link here keeps the signup surface lightweight
+   while binding it to the same visual system.
+   `fiesta-tokens.css` ships the canonical token contract; `fiesta-hub-design.css`
+   ships the legacy aliases (--paper, --clay, etc.) that the inline rules
+   below reference. Loading both is intentional and idempotent if a future
+   refactor moves signup under layout.html. #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/fiesta-hub-design.css') }}">
 <style>
-  /* S2 signup — FIESTA-branded, empowerment voice, jurisdiction-neutral. */
+  /* S2 signup — FIESTA-branded, empowerment voice, jurisdiction-neutral.
+     F1.5 (2026-05-26): s2-* palette now binds to the FIESTA token system
+     (var(--paper), var(--clay), var(--ink), etc.) loaded above. Hex
+     fallbacks preserve the original visual exactly if a token fails to
+     resolve (e.g. older cached CSS). The visible palette is unchanged —
+     this is a system-binding, not a re-brand. */
 
   :root {
-    --s2-bg:           #f7f5f0;        /* warm parchment — FIESTA neutral */
-    --s2-ink:          #1a1d27;        /* near-black, slightly warm */
-    --s2-ink-soft:     #4a4f5c;
-    --s2-brand:        #c1442d;        /* FIESTA accent */
-    --s2-brand-soft:   #f4e7e2;
-    --s2-surface:      #ffffff;
-    --s2-border:       #e3ddd0;
+    --s2-bg:           var(--paper, #f7f5f0);
+    --s2-ink:          var(--ink, #1a1d27);
+    --s2-ink-soft:     var(--ink-soft, #4a4f5c);
+    --s2-brand:        var(--clay, #c1442d);
+    --s2-brand-soft:   var(--paper-deep, #f4e7e2);
+    --s2-surface:      var(--paper-hi, #ffffff);
+    --s2-border:       var(--paper-edge, #e3ddd0);
     --s2-success:      #2d8659;
     --s2-warning:      #c9882a;
     --s2-danger:       #b54029;
@@ -27,7 +46,8 @@
   body {
     background: var(--s2-bg);
     color: var(--s2-ink);
-    font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
+    /* F1.5 — bind to FIESTA sans token with explicit Manrope fallback. */
+    font-family: var(--body, 'Manrope', 'Helvetica Neue', system-ui, sans-serif);
     line-height: 1.55;
     margin: 0;
     padding: 0;
@@ -45,7 +65,7 @@
   }
 
   .s2-brand {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: var(--display, 'Fraunces', Georgia, serif);
     font-weight: 600;
     font-size: 1.75rem;
     letter-spacing: -0.01em;
@@ -68,7 +88,7 @@
   }
 
   .s2-card h2 {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: var(--display, 'Fraunces', Georgia, serif);
     font-weight: 600;
     font-size: 1.35rem;
     margin: 0 0 0.25rem;
@@ -317,7 +337,10 @@
   }
 </style>
 
-<div class="s2-wrap">
+{# F1.5 — `fiesta-tokenized` marker class is the contract asserted by
+   tests/platform/test_auth_surface.py. It signals that this page applies
+   the FIESTA design tokens (--paper, --clay, --ink, --forest). #}
+<div class="s2-wrap fiesta-tokenized">
   <h1 class="s2-brand">FIESTA</h1>
   <p class="s2-tag">Foreign Income Earner Saving &amp; Tax Advisor</p>
 
