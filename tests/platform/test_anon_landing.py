@@ -204,3 +204,70 @@ def test_d3_anon_landing_hero_h1_is_first_h1(client):
         f"Inner text: {first_h1_inner!r}. Expected the substring "
         f"'Cut your tax bill.' from `_hero_partial.html`."
     )
+
+
+# --------------------------------------------------------------------------- #
+# F1.7 (P2 polish, 2026-05-27) — legacy /preview orphan hidden from anon nav.
+#
+# /preview is a legacy receipt-preview route (app.py:1685). Route still
+# resolves (deep-link backstop), but it must not surface in any anon nav
+# chrome or sidebar — first-time visitors get distracted by an orphan
+# entry that leads to a half-built receipt-preview flow.
+#
+# The protection lives in templates/layout.html L429 (`E1 F1.7` comment)
+# where the anon sidebar menu intentionally OMITS a Preview <li>. This
+# test pins that protection so any future "let me just add a Preview
+# link back" PR fails before merge.
+# --------------------------------------------------------------------------- #
+
+
+def test_f1_7_anon_landing_has_no_preview_nav_link(client):
+    """The anon `GET /` body must contain NO `<a href="/preview">` link.
+    The /preview route itself remains (deep-link compatibility) — we are
+    only forbidding the navigation surface from advertising it.
+
+    Two patterns to forbid:
+      - `href="/preview"` literal (a static-link regression)
+      - `url_for('preview')` is server-rendered into the same literal —
+        catching the literal catches both.
+
+    We DO allow `/preview/calc`, `/preview/scan`, etc. (the JSON API
+    endpoints called from JS) because they are not user-clickable links.
+    The regex anchors on `/preview"` to scope only the bare orphan."""
+    body = _get_anon_landing(client)
+    # Catch href="/preview" and href='/preview' with the trailing quote
+    # so /preview/calc + /preview/scan (API endpoints) don't false-match.
+    orphan_link_re = re.compile(
+        r'''href\s*=\s*["']/preview["']''',
+        re.IGNORECASE,
+    )
+    matches = orphan_link_re.findall(body)
+    assert not matches, (
+        "Anon GET / body contains a link to the orphan /preview route. "
+        "/preview is a legacy receipt-preview surface and must not appear "
+        "in anon nav per F1.7. The route itself still resolves for deep "
+        "links — only the navigation entry is forbidden. "
+        f"Matches: {matches!r}"
+    )
+
+
+def test_f1_7_anon_landing_has_no_preview_nav_text(client):
+    """Belt-and-braces: the anon nav must not carry the literal nav-text
+    "Preview" with adjacent menu-link markup. We anchor on the unique
+    construction `>Preview</a>` to scope to the nav-text position; the
+    word "preview" in body-copy contexts (e.g. "Tax preview") is fine."""
+    body = _get_anon_landing(client)
+    # Match `>Preview</a>` exactly — the orphan link's inner text was
+    # always the bare word "Preview" in layout.html.bak L213/L278.
+    # We tolerate trailing whitespace/newlines inside the anchor.
+    preview_text_re = re.compile(
+        r">\s*Preview\s*</a>",
+        re.IGNORECASE,
+    )
+    matches = preview_text_re.findall(body)
+    assert not matches, (
+        "Anon GET / contains a `>Preview</a>` nav-text occurrence. The "
+        "F1.7 orphan-hide contract forbids any anon nav entry whose "
+        "inner text is the bare word \"Preview\". "
+        f"Matches: {matches!r}"
+    )

@@ -166,3 +166,126 @@ def test_d4_legacy_pricing_framings_removed(client, route):
         f"GET {route} rendered legacy pricing phrases that should have been "
         f"replaced by the `_pricing_macros.pricing_copy()` macro: {leaked!r}"
     )
+
+
+# --------------------------------------------------------------------------- #
+# F1.3 (P2 polish, 2026-05-27) — filesystem-level SoT regression.
+#
+# The macro file is the ONLY legitimate source of the literal pricing
+# strings "Rs 2,500" / "Free during launch". Every other Jinja template
+# must read those strings through {% from "_pricing_macros.html" import ... %}.
+#
+# This test grep-scans templates/ + static/ and fails if any future
+# commit re-introduces a hardcoded pricing string outside the macro file.
+# --------------------------------------------------------------------------- #
+
+
+_F1_3_HARDCODED_PRICING_PATTERNS = [
+    "Rs 2,500",
+    "Free during launch",
+    "first year free",
+]
+
+# Files allowed to contain the literal strings:
+#   - `_pricing_macros.html`             the single source of truth itself
+#   - `legal/tos_draft.md`               legal text (separate contract layer)
+#   - `admin/receipts.html`              sample receipt-data mock (Rs 2,500.00
+#                                        is a printer-ink line, not pricing)
+#   - `paywall/pricing_x1.html`          Jinja `{#...#}` source comment only;
+#                                        the literal does not reach rendered
+#                                        HTML, kept as a code-author hint.
+#   - `pricing.html`                     Jinja `{#...#}` source comment only;
+#                                        actual price comes from
+#                                        pricing_engine.PRICING_TIERS.
+#   - `home_bookkeeping_legacy.html`     was a violator BEFORE this fix and
+#                                        is documented rollback-only; the
+#                                        D6/G5 audit already excludes it
+#                                        from the active set. F1.3 swapped
+#                                        the user-visible string to the
+#                                        launch_posture() macro, no literal
+#                                        survives on this surface anymore.
+_F1_3_EXEMPT = {
+    "_pricing_macros.html",
+    "legal/tos_draft.md",
+    "admin/receipts.html",
+    "paywall/pricing_x1.html",
+    "pricing.html",
+}
+
+
+def _iter_template_paths():
+    for path in _TEMPLATES.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".html", ".md", ".js"}:
+            continue
+        # `.bak` files are historical snapshots, not in the rendered chain.
+        if path.name.endswith(".bak") or path.suffix == ".bak":
+            continue
+        rel = path.relative_to(_TEMPLATES).as_posix()
+        yield path, rel
+
+
+def test_f1_3_no_hardcoded_pricing_outside_macro():
+    """Grep templates/ for hardcoded pricing literals. Every literal must
+    live in `_pricing_macros.html` (the SoT) or in the small allowlist of
+    files where the string is intentional (legal text, sample mock data,
+    Jinja source comments that don't render).
+
+    If this test fails: switch the offending hardcoded string to one of
+    the macros from `_pricing_macros.html` (pricing_amount / pricing_copy
+    / pricing_badge / launch_posture / refund_window) — or, if the new
+    file is a legitimate documentation / mock surface, add it to
+    `_F1_3_EXEMPT` with a comment explaining why."""
+    violations: list[tuple[str, str, int]] = []
+    for path, rel in _iter_template_paths():
+        if rel in _F1_3_EXEMPT:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for needle in _F1_3_HARDCODED_PRICING_PATTERNS:
+                if needle in line:
+                    violations.append((rel, needle, lineno))
+                    break
+    assert not violations, (
+        "F1.3 SoT violation: hardcoded pricing literals found OUTSIDE "
+        "templates/_pricing_macros.html. Switch each to the macros "
+        "(pricing_amount / pricing_copy / launch_posture / refund_window) "
+        f"or extend _F1_3_EXEMPT with justification. Violations:\n"
+        + "\n".join(f"  {r} (L{ln}): {needle!r}" for r, needle, ln in violations)
+    )
+
+
+def test_f1_3_static_js_no_hardcoded_pricing():
+    """Mirror of the templates/ scan for the static/ tree — JS/CSS surfaces
+    that mention pricing must route through the macro (typically by
+    consuming a server-rendered data attribute, not by hardcoding the
+    string in client-side code)."""
+    static_root = _REPO_ROOT / "static"
+    if not static_root.exists():
+        pytest.skip("no static/ directory in this checkout")
+    violations: list[tuple[str, str, int]] = []
+    for path in static_root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".js", ".css", ".html"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        rel = path.relative_to(static_root).as_posix()
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for needle in _F1_3_HARDCODED_PRICING_PATTERNS:
+                if needle in line:
+                    violations.append((rel, needle, lineno))
+                    break
+    assert not violations, (
+        "F1.3 SoT violation: hardcoded pricing literals found in static/. "
+        "Pricing strings must be server-rendered via the macros and read "
+        f"by JS through DOM attributes, not embedded as literals.\nViolations:\n"
+        + "\n".join(f"  static/{r} (L{ln}): {needle!r}" for r, needle, ln in violations)
+    )

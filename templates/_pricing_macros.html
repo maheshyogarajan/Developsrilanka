@@ -58,3 +58,50 @@ Rs 2,500 per tax year · Free during launch period · 14-day refund window
 {% macro pricing_badge(badge_class='badge bg-success mb-2') -%}
 <span class="{{ badge_class }}">{{ pricing_copy() }}</span>
 {%- endmacro %}
+
+{#
+  F1.3 (P2 polish, 2026-05-27) — atomic-token macros for surfaces that
+  need ONLY the price string (paywall modal big-number, checkout-success
+  receipt line, FAQ accordion answers, testimonial copy) without the
+  full "per tax year · Free during launch · 14-day refund" framing.
+
+  Three composable tokens so non-canonical surfaces still source their
+  pricing string from this file (= every surface site-wide reads from
+  one source of truth):
+
+    pricing_amount()                — "Rs 2,500"           bare price
+    pricing_amount('per_year')      — "Rs 2,500/yr"         compact
+    pricing_amount('per_tax_year')  — "Rs 2,500 per tax year"  same as canonical lead
+
+  The launch-period framing has its own token so FAQ copy / legal text
+  can speak about "free during the launch period" without re-typing the
+  literal launch-end date inline (the date is owned by the macro file).
+
+    launch_posture()                — "free during launch period"
+    refund_window()                 — "14-day refund window"
+
+  Tests/platform/test_pricing_copy.py D4.e (added 2026-05-27) greps the
+  repo for hardcoded launch-pricing strings outside this file and fails
+  if any drift back in. Callers SHOULD switch to the macros above so
+  the grep test stays clean — but the macro file itself is the only
+  legitimate site for the literal "Rs 2,500" / "Free during launch"
+  strings.
+#}
+
+{% macro pricing_amount(unit='') -%}
+{%- if unit == 'per_year' -%}
+Rs 2,500/yr
+{%- elif unit == 'per_tax_year' -%}
+Rs 2,500 per tax year
+{%- else -%}
+Rs 2,500
+{%- endif -%}
+{%- endmacro %}
+
+{% macro launch_posture() -%}
+Free during launch period
+{%- endmacro %}
+
+{% macro refund_window() -%}
+14-day refund window
+{%- endmacro %}

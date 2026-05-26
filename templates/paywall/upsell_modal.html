@@ -17,7 +17,13 @@
   The modal preserves context (no full-page redirect) and routes the user to
   /pricing/x1 with the right return_to + screen_id. Mobile-friendly (Bootstrap
   modal degrades to a full-screen sheet on small viewports).
+
+  F1.3 (P2 polish, 2026-05-27): pricing literal sourced from
+  templates/_pricing_macros.html → `pricing_amount()` so the modal's
+  big-number price is single-source-of-truth with /pricing, /signup,
+  tax-math, etc.
 #}
+{% from "_pricing_macros.html" import pricing_amount %}
 <div class="modal fade" id="paywallUpsellModal" tabindex="-1"
      aria-labelledby="paywallUpsellModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -31,7 +37,7 @@
 
       <div class="modal-body text-center pt-2">
         <h2 class="h4 mb-2">Unlock Service Agreement generation</h2>
-        <div class="display-6 fw-bold text-primary mb-1">Rs 2,500</div>
+        <div class="display-6 fw-bold text-primary mb-1">{{ pricing_amount() }}</div>
         <p class="text-muted small mb-4">
           One-time payment. Refundable within 14 days.
         </p>
