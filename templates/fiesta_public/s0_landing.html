@@ -476,6 +476,27 @@
     .x8a-landing .expense-chip { min-height: 48px; padding: 12px; }
     .x8a-landing .expense-chip .name { font-size: 14px; }
   }
+
+  /* F1.4 (Phase C W2) — belt-and-braces sidebar removal on anon landing.
+     layout.html already gates the sidebar / mobile-header / sidebar-overlay
+     markup behind a current_user.is_authenticated check, but layout
+     refactors in the past have re-exposed the bookkeeping chrome to
+     anonymous visitors. The s0 landing root carries data-anon-landing="1"
+     when the user is unauthenticated; if any future regression renders
+     legacy bookkeeping markup as a sibling of the landing wrapper, the
+     defence below hides it before paint. The accompanying test
+     (tests/platform/test_anon_landing.py) asserts the markup is absent
+     at the DOM level — this CSS is the second wall, not the first. */
+  body:has(.x8a-landing[data-anon-landing="1"]) .sidebar,
+  body:has(.x8a-landing[data-anon-landing="1"]) .sidebar-overlay,
+  body:has(.x8a-landing[data-anon-landing="1"]) .mobile-header,
+  body:has(.x8a-landing[data-anon-landing="1"]) .bookkeeping-deprecation-banner {
+    display: none !important;
+  }
+  body:has(.x8a-landing[data-anon-landing="1"]) .content {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+  }
 </style>
 {% endblock %}
 
@@ -484,7 +505,8 @@
    runCalc() can skip the server fetch for anon visitors (who used to trip
    intermittent CSRF errors and pollute the console). #}
 <div class="x8a-landing"
-     data-user-authenticated="{{ '1' if current_user.is_authenticated else '0' }}">
+     data-user-authenticated="{{ '1' if current_user.is_authenticated else '0' }}"
+     data-anon-landing="{{ '0' if current_user.is_authenticated else '1' }}">
   <div class="container-narrow">
 
     {# ---------------------------------------------------------------
