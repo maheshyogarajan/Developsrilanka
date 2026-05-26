@@ -136,24 +136,48 @@ def invalidate_cache() -> None:
 # fast path.
 # --------------------------------------------------------------------------- #
 def _current_tax_year_short() -> str:
-    """Return the current SL tax year in short form (e.g. '2025-26')."""
-    today = datetime.utcnow().date()
-    start = today.year if today.month >= 4 else today.year - 1
-    return f"{start}-{str(start + 1)[-2:]}"
+    """Return the active SL tax year in short form (e.g. '2025-26').
+
+    C5 FIX (Day-0, 2026-05-27): now delegates to the canonical
+    `fiesta.common.tax_year.active_tax_year` resolver so the Markov page
+    can honour the topbar dropdown (when wired up from an admin session)
+    AND falls back to the engine-supported clamp instead of advancing
+    past the IRD's published brackets. Before this fix, the page printed
+    "2026-27" on/after 1 Apr 2026 — a YA the engine cannot compute
+    against and that disagrees with every other surface.
+    """
+    try:
+        from flask import session as _sess
+        from fiesta.common.tax_year import active_tax_year as _ay
+        return _ay(_sess if _sess else None).short_dash()
+    except Exception:
+        today = datetime.utcnow().date()
+        start = today.year if today.month >= 4 else today.year - 1
+        return f"{start}-{str(start + 1)[-2:]}"
 
 
 def _current_tax_year_long() -> str:
-    """Return the current SL tax year in YYYY/YYYY form (Submission table)."""
-    today = datetime.utcnow().date()
-    start = today.year if today.month >= 4 else today.year - 1
-    return f"{start}/{start + 1}"
+    """Return the active SL tax year in YYYY/YYYY form (Submission table)."""
+    try:
+        from flask import session as _sess
+        from fiesta.common.tax_year import active_tax_year as _ay
+        return _ay(_sess if _sess else None).long_slash()
+    except Exception:
+        today = datetime.utcnow().date()
+        start = today.year if today.month >= 4 else today.year - 1
+        return f"{start}/{start + 1}"
 
 
 def _current_tax_year_slash_short() -> str:
-    """Return the current SL tax year in YYYY/YY form (paywall table)."""
-    today = datetime.utcnow().date()
-    start = today.year if today.month >= 4 else today.year - 1
-    return f"{start}/{str(start + 1)[-2:]}"
+    """Return the active SL tax year in YYYY/YY form (paywall table)."""
+    try:
+        from flask import session as _sess
+        from fiesta.common.tax_year import active_tax_year as _ay
+        return _ay(_sess if _sess else None).short_slash()
+    except Exception:
+        today = datetime.utcnow().date()
+        start = today.year if today.month >= 4 else today.year - 1
+        return f"{start}/{str(start + 1)[-2:]}"
 
 
 # --------------------------------------------------------------------------- #

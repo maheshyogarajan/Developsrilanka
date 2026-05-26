@@ -22,8 +22,18 @@
 #}
 {% set _ep = request.endpoint or '' %}
 {% set _p = request.path or '' %}
-{% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
-{% set _ya_dash = _ya_default.replace('/', '-') %}
+{# C5 FIX (Day-0, 2026-05-27): use canonical active_ty so the sidebar's
+   "Your tax bill" link points at the same YA the topbar selected. Before
+   this fix, on/after 1 Apr the sidebar /tax-bill link would race ahead
+   to the calendar-current YA (e.g. /tax-bill/2026-27) while the topbar
+   still showed /tax-bill/2025-26 — same widget, different destinations. #}
+{% if active_ty is defined and active_ty %}
+  {% set _ya_default = active_ty.short_slash() %}
+  {% set _ya_dash = active_ty.short_dash() %}
+{% else %}
+  {% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
+  {% set _ya_dash = _ya_default.replace('/', '-') %}
+{% endif %}
 
 {# Reusable active-link macro. We compute the boolean once per entry and
    apply the LOCKED CSS class. ep_prefix matches request.endpoint == prefix

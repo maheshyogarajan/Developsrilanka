@@ -359,6 +359,19 @@ def inject_fiesta_hub_context():
         # without this branch the selector is dead — changing the year
         # in the dropdown stored a cookie but every template kept reading
         # the calendar-derived default.
+        #
+        # C5 NOTE (Day-0, 2026-05-27): the legacy semantic of this helper
+        # is "what should `current_sl_tax_year()` return in templates?".
+        # It is read by both display surfaces (topbar dropdown, counter,
+        # /fie/al hero) AND compute surfaces (slider pre-fill, savings
+        # projection — both filter remittances/income by tax_year). The
+        # display surfaces are now centralised on `active_ty` below; this
+        # function stays UNCLAMPED so the compute surfaces can keep
+        # filtering against rows tagged with the calendar-current year
+        # even when the engine doesn't support pricing against that year
+        # yet (which is normal between 1 Apr and the IRD's gazette of
+        # new brackets — historical data is still meaningful for
+        # display purposes).
         try:
             _override = session.get('active_tax_year')
             if _override:
@@ -370,6 +383,24 @@ def inject_fiesta_hub_context():
             return _csl()
         except Exception:
             return '2025/26'
+
+    # ------------------------------------------------------------------
+    # C5 FIX (Day-0, 2026-05-27) — canonical YA helpers exposed to every
+    # template via the context processor. `active_ty` is the TaxYear
+    # object; `hub_tax_years` is the dropdown source list (short-slash
+    # strings, newest first) drawn from the engine's supported set, so
+    # the dropdown can no longer offer years the bill engine doesn't
+    # support.
+    # ------------------------------------------------------------------
+    try:
+        from fiesta.common.tax_year import active_tax_year as _ay_fn
+        from fiesta.common.tax_year import supported_tax_years as _sty_fn
+        active_ty = _ay_fn(session)
+        hub_tax_years = [ty.short_slash() for ty in _sty_fn()]
+    except Exception:  # pragma: no cover — defensive fallback
+        logger.warning("inject_fiesta_hub_context: TaxYear helper unavailable", exc_info=True)
+        active_ty = None
+        hub_tax_years = ['2025/26', '2024/25']
 
     hub_avg_monthly_usd = 0
     hub_projected_savings_lkr = 0
@@ -406,6 +437,8 @@ def inject_fiesta_hub_context():
             return dict(
                 layout_template=layout_template,
                 current_sl_tax_year=_current_sl_tax_year,
+                active_ty=active_ty,
+                hub_tax_years=hub_tax_years,
                 is_fiesta_persona=getattr(g, 'is_fiesta_persona', False),
                 hub_avg_monthly_usd=_ctx.get('hub_avg_monthly_usd', 0),
                 hub_projected_savings_lkr=_ctx.get('hub_projected_savings_lkr', 0),
@@ -562,6 +595,8 @@ def inject_fiesta_hub_context():
     return dict(
         layout_template=layout_template,
         current_sl_tax_year=_current_sl_tax_year,
+        active_ty=active_ty,
+        hub_tax_years=hub_tax_years,
         is_fiesta_persona=getattr(g, 'is_fiesta_persona', False),
         hub_avg_monthly_usd=hub_avg_monthly_usd,
         hub_projected_savings_lkr=hub_projected_savings_lkr,

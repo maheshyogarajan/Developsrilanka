@@ -111,7 +111,25 @@ def _current_user_id() -> int | None:
 
 
 def _current_tax_year() -> str:
-    """Return active tax year from session or FIESTA default."""
+    """Return active tax year in the A&L STORAGE form ('YYYY/YYYY').
+
+    C5 FIX (Day-0, 2026-05-27): now routes through the canonical
+    `fiesta.common.tax_year.active_tax_year(session)` resolver — same source
+    the topbar dropdown / savings counter / /tax-bill / /admin/fiesta-states
+    read from. Before this fix, /fie/al rendered "Tax Year: 2026/27" while
+    the topbar dropdown selected "2025/26": two different years on the same
+    page, same request, same user.
+
+    Storage form remains "YYYY/YYYY" (matches models.AssetEntry.tax_year +
+    LiabilityEntry.tax_year + every existing row in the DB). The template
+    re-formats to short slash for display via active_ty.short_slash().
+    """
+    try:
+        from fiesta.common.tax_year import active_tax_year as _ay
+        return _ay(session if session else None).long_slash()
+    except Exception:
+        pass
+    # Defensive fallback chain (only hit if the helper module is unimportable).
     try:
         ty = session.get("tax_year") if session else None
         if ty:
@@ -120,9 +138,35 @@ def _current_tax_year() -> str:
         pass
     try:
         from fiesta.paywall.models import current_sl_tax_year as _csl
-        return _csl()
+        # current_sl_tax_year() returns short slash "YYYY/YY"; expand to long.
+        raw = _csl()
+        if "/" in raw:
+            a, b = raw.split("/", 1)
+            if len(b) == 2:
+                return f"{a}/{a[:2]}{b}"
+            return raw
+        return raw
     except Exception:
         return "2025/2026"
+
+
+def _current_tax_year_display() -> str:
+    """Return the active YA in the DISPLAY form ('YYYY/YY') — used by the
+    A&L list/form templates' hero. Mirrors the topbar dropdown so the two
+    widgets never disagree on the same page.
+    """
+    try:
+        from fiesta.common.tax_year import active_tax_year as _ay
+        return _ay(session if session else None).short_slash()
+    except Exception:
+        pass
+    raw = _current_tax_year()
+    # Compress "2025/2026" → "2025/26"
+    if "/" in raw:
+        a, b = raw.split("/", 1)
+        if len(b) == 4:
+            return f"{a}/{b[-2:]}"
+    return raw
 
 
 def _parse_cents(raw: str | None) -> int:
@@ -238,7 +282,11 @@ def list_view():
     return render_template(
         "assets_liabilities/list.html",
         layout_template=layout_template,
+        # `tax_year` (long-slash, storage form) preserved for any caller
+        # that still reads it; `tax_year_display` (short-slash) is what the
+        # template should show to the user so it matches the topbar.
         tax_year=tax_year,
+        tax_year_display=_current_tax_year_display(),
         assets=assets,
         liabilities=liabilities,
         assets_by_cat=_group_by_category(assets),
@@ -302,6 +350,7 @@ def edit_view():
         "assets_liabilities/form.html",
         layout_template=layout_template,
         tax_year=tax_year,
+        tax_year_display=_current_tax_year_display(),
         asset_categories=ASSET_CATEGORIES,
         liability_categories=LIABILITY_CATEGORIES,
         prefill_asset=prefill_asset,
