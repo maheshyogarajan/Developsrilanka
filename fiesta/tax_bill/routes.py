@@ -435,31 +435,134 @@ def show_tax_bill(tax_year: str):
     )
 
 
+def _wants_json(req) -> bool:
+    """Content-negotiation: should this request receive JSON?
+
+    JSON is the legacy contract — it powers audit-pack PDF generation,
+    integration tests, and any external API consumer. Browsers visiting the
+    URL directly (typical Accept header: text/html,application/xhtml+xml,...)
+    should now see the HTML page instead (Day-0 fix 2026-05-27, audit C1).
+
+    Day-0 contract:
+      - `?format=json` query param -> always JSON (explicit override).
+      - `Accept: application/json` (no text/html ahead of it) -> JSON.
+      - `X-Requested-With: XMLHttpRequest` -> JSON.
+      - Everything else -> HTML.
+    """
+    if req is None:
+        return False
+    try:
+        if (req.args.get("format") or "").strip().lower() == "json":
+            return True
+    except Exception:
+        pass
+    try:
+        xhr = req.headers.get("X-Requested-With", "") or ""
+        if xhr.lower() == "xmlhttprequest":
+            return True
+    except Exception:
+        pass
+    try:
+        accept = (req.headers.get("Accept") or "").lower()
+    except Exception:
+        accept = ""
+    if not accept:
+        return False
+    # Browsers send Accept including text/html and */*. If the Accept header
+    # explicitly contains application/json AND does NOT contain text/html,
+    # treat as a JSON consumer. Browsers will fall to HTML.
+    if "application/json" in accept and "text/html" not in accept:
+        return True
+    return False
+
+
 @bp.route("/<tax_year>/breakdown", methods=["GET"])
 @login_required
 def breakdown_json(tax_year: str):
-    """JSON dump of the full computation -- powers the audit-pack PDF + tests."""
+    """Breakdown view of the full computation.
+
+    Day-0 Fix 2026-05-27 (audit C1):
+      - Browsers (Accept: text/html) see a styled HTML page (templates/
+        tax_bill/breakdown.html) that wraps the same data the JSON endpoint
+        returns, without exposing internal field names (engine_error,
+        rule_id, etc.) to customers.
+      - API consumers (Accept: application/json, ?format=json,
+        X-Requested-With: XMLHttpRequest) still receive the JSON payload
+        that powers the audit-pack PDF and integration tests.
+
+    Day-0 Fix 2026-05-27 (audit C2):
+      - Unsupported years now redirect to the most recent supported year
+        with a flash message, matching the behaviour of show_tax_bill. The
+        URL /tax-bill/2025-2026/breakdown now resolves correctly via the
+        normaliser (2025-2026 was previously falling through as a no-op
+        because the regex only matched slash forms; see aggregator.py).
+    """
     user_id = _current_user_id()
     if not user_id:
-        return jsonify({"ok": False, "error": "not authenticated"}), 401
+        if _wants_json(request if _HAS_FLASK else None):
+            return jsonify({"ok": False, "error": "not authenticated"}), 401
+        abort(401)
+
+    tax_year_s4 = normalise_tax_year_to_s4_format(tax_year)
+
+    # If the requested year isn't supported, mirror show_tax_bill's redirect
+    # so customers see their most-recent supported bill rather than an
+    # engine_error JSON / "Tax engine unavailable" page.
+    if tax_year_s4 not in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST:
+        if _wants_json(request if _HAS_FLASK else None):
+            # Stay structurally honest with API consumers.
+            return jsonify({
+                "ok": False,
+                "error": (
+                    f"Tax brackets for {tax_year_s4} have not been gazetted "
+                    f"by IRD yet."
+                ),
+                "supported_tax_years": list(_SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST),
+                "most_recent_supported": _most_recent_supported_tax_year_s4(),
+            }), 404
+        try:
+            flash(
+                f"Tax brackets for {tax_year_s4} have not been gazetted by "
+                f"IRD yet. Showing your most recent supported year instead.",
+                "info",
+            )
+        except Exception:  # pragma: no cover
+            pass
+        return redirect(url_for(
+            "fiesta_tax_bill.breakdown_json",
+            tax_year=_most_recent_supported_tax_year_s4(),
+        ))
 
     report = compute_tax_bill(user_id, tax_year)
-    tax_year_s4 = normalise_tax_year_to_s4_format(tax_year)
     report.is_finalized = _is_finalized(user_id, tax_year_s4)
 
     gate = run_gate(report, action="export_pdf")
-    payload = _serialise_report(report)
-    try:
-        payload["gate"] = gate.model_dump()  # type: ignore[union-attr]
-    except Exception:
-        payload["gate"] = {
-            "passed": getattr(gate, "passed", True),
-            "warnings": getattr(gate, "warnings", []),
-            "blocks": getattr(gate, "blocks", []),
-            "recommendations": getattr(gate, "recommendations", []),
-            "reasoning_trace": getattr(gate, "reasoning_trace", []),
-        }
-    return jsonify({"ok": True, **payload})
+
+    if _wants_json(request if _HAS_FLASK else None):
+        payload = _serialise_report(report)
+        try:
+            payload["gate"] = gate.model_dump()  # type: ignore[union-attr]
+        except Exception:
+            payload["gate"] = {
+                "passed": getattr(gate, "passed", True),
+                "warnings": getattr(gate, "warnings", []),
+                "blocks": getattr(gate, "blocks", []),
+                "recommendations": getattr(gate, "recommendations", []),
+                "reasoning_trace": getattr(gate, "reasoning_trace", []),
+            }
+        return jsonify({"ok": True, **payload})
+
+    # HTML path: render a customer-friendly breakdown that NEVER exposes
+    # internal field names (engine_error, rule_id, audit defensibility
+    # component machinery) to the customer.
+    return render_template(
+        "tax_bill/breakdown.html",
+        report=report,
+        inputs=report.inputs,
+        gate=gate,
+        tax_year_s4=tax_year_s4,
+        tax_year_display=report.tax_year_s5_format,
+    )
 
 
 def _v2_flag_enabled() -> bool:

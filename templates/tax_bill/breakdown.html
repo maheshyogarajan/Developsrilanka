@@ -1,0 +1,372 @@
+{% extends layout_template %}
+{% block title %}Tax bill breakdown — FIESTA{% endblock %}
+
+{#
+  templates/tax_bill/breakdown.html
+  ---------------------------------
+  Day-0 Fix 2026-05-27 (audit C1).
+
+  The /tax-bill/<ya>/breakdown URL previously returned raw JSON with internal
+  field names (engine_error, rule_id, audit_defensibility components) when a
+  customer reached it from a browser. That was a customer-trust kill: the
+  page exposed engine internals AND surfaced a flat Rs 0 bill caused by an
+  unrelated YA-normalisation bug (C2).
+
+  This template wraps the same data the JSON endpoint returns in a presented
+  page. Internal field names are NEVER surfaced — every machine-name
+  (engine_error, rule_id, S12-DEDUCTION-RATIO, etc.) is translated to a
+  customer-readable sentence in the route layer or filtered out here.
+
+  Sections:
+    1. Heading + back-link to the main tax-bill page.
+    2. If engine ran cleanly: bracket-by-bracket walk + relief + net tax.
+    3. If engine did NOT run cleanly: a calm "your bill is being prepared"
+       fallback that NEVER prints the engine_error string verbatim.
+    4. Income summary by category (no Decimal types, no DB column names).
+    5. Deductions summary (count + total claimed).
+    6. Audit-readiness sentence (Strong / Moderate / At-Risk -> plain
+       English, never the score number or the component machinery).
+    7. CTAs: download audit pack PDF + back to bill.
+
+  JSON consumers (audit-pack PDF generator, integration tests, API
+  callers) get served by the same route via Accept-header negotiation —
+  this template is only rendered when the client sends `Accept: text/html`
+  (or no JSON-explicit signal). See `_wants_json()` in routes.py.
+#}
+
+{% block additional_styles %}
+<style>
+    /* Calm, audit-defensibility-front-and-centre — matches the index page
+       palette so a customer moving between /tax-bill and /tax-bill/breakdown
+       does not perceive a stylistic discontinuity. */
+    .tbb-page { max-width: 880px; margin: 1.5rem auto; padding: 0 1rem; }
+    .tbb-back {
+        font-family: 'Manrope', sans-serif; font-size: 0.9rem;
+        color: var(--color-brand-700, #0B5394);
+        text-decoration: none; display: inline-block;
+        margin-bottom: 1rem;
+    }
+    .tbb-back:hover { text-decoration: underline; }
+    .tbb-title {
+        font-family: 'Fraunces', serif; font-weight: 500;
+        font-size: 1.6rem; color: var(--color-ink-900, #0F172A);
+        margin: 0 0 0.4rem 0;
+    }
+    .tbb-subtitle {
+        font-family: 'Manrope', sans-serif; font-size: 0.95rem;
+        color: var(--color-ink-600, #475569); margin: 0 0 1.5rem 0;
+    }
+    .tbb-card {
+        background: #fff; border: 1px solid var(--color-ink-100, #E2E8F0);
+        border-radius: 12px; padding: 1.4rem 1.4rem;
+        margin-bottom: 1.2rem;
+    }
+    .tbb-card h2 {
+        font-family: 'Fraunces', serif; font-weight: 500; font-size: 1.1rem;
+        color: var(--color-ink-900, #0F172A);
+        margin: 0 0 0.8rem 0;
+    }
+    .tbb-card p {
+        font-family: 'Manrope', sans-serif; font-size: 0.92rem;
+        line-height: 1.5; color: var(--color-ink-700, #334155);
+        margin: 0 0 0.5rem 0;
+    }
+    .tbb-pending {
+        background: linear-gradient(135deg, var(--color-brand-50, #EFF6FF) 0%, #fff 100%);
+        border: 1px solid var(--color-brand-200, #BFDBFE);
+    }
+    .tbb-pending h2 { color: var(--color-brand-900, #0B5394); }
+    .tbb-table { width: 100%; border-collapse: collapse; font-family: 'Manrope', sans-serif; }
+    .tbb-table th, .tbb-table td {
+        text-align: left; padding: 0.55rem 0.5rem;
+        border-bottom: 1px solid var(--color-ink-100, #E2E8F0);
+        font-size: 0.92rem; color: var(--color-ink-800, #1E293B);
+    }
+    .tbb-table th {
+        font-weight: 600; color: var(--color-ink-700, #334155);
+        background: var(--color-ink-50, #F8FAFC);
+    }
+    .tbb-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tbb-total-row td { font-weight: 600; background: var(--color-brand-50, #EFF6FF); }
+    .tbb-readiness {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.3rem 0.8rem; border-radius: 999px;
+        font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 0.85rem;
+    }
+    .tbb-readiness-Strong   { background: #DCFCE7; color: #047857; }
+    .tbb-readiness-Moderate { background: #FEF3C7; color: #92400E; }
+    .tbb-readiness-At-Risk  { background: #FEE2E2; color: #991B1B; }
+    .tbb-readiness-Building { background: var(--color-ink-100, #E2E8F0); color: var(--color-ink-700, #334155); }
+    .tbb-ctas { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 1rem; }
+    .tbb-cta {
+        font-family: 'Manrope', sans-serif; font-weight: 500; font-size: 0.92rem;
+        padding: 0.55rem 1.1rem; border-radius: 8px; text-decoration: none;
+        display: inline-block;
+    }
+    .tbb-cta-primary {
+        background: var(--color-brand-700, #0B5394); color: #fff;
+    }
+    .tbb-cta-secondary {
+        background: #fff; color: var(--color-brand-700, #0B5394);
+        border: 1px solid var(--color-brand-200, #BFDBFE);
+    }
+    .tbb-summary-list { list-style: none; padding: 0; margin: 0; }
+    .tbb-summary-list li {
+        display: flex; justify-content: space-between; padding: 0.4rem 0;
+        border-bottom: 1px dashed var(--color-ink-100, #E2E8F0);
+        font-family: 'Manrope', sans-serif; font-size: 0.92rem;
+    }
+    .tbb-summary-list li:last-child { border-bottom: none; }
+    .tbb-summary-list .tbb-label { color: var(--color-ink-700, #334155); }
+    .tbb-summary-list .tbb-value { color: var(--color-ink-900, #0F172A); font-variant-numeric: tabular-nums; }
+    .tbb-empty-note {
+        font-style: italic; color: var(--color-ink-500, #64748B); font-size: 0.88rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tbb-page" data-testid="tax-bill-breakdown-page">
+
+    <a href="{{ url_for('fiesta_tax_bill.show_tax_bill', tax_year=tax_year_s4) }}"
+       class="tbb-back" data-testid="tbb-back-link">
+        &larr; Back to your tax bill
+    </a>
+
+    <h1 class="tbb-title">Tax bill breakdown</h1>
+    <p class="tbb-subtitle">
+        Year of assessment {{ tax_year_display }} &middot; bracket-by-bracket walk
+    </p>
+
+    {#
+      Engine-error path: NEVER print the raw error string. Show a calm
+      "preparing" card. The customer can still see what they've logged via
+      the income / deductions cards below. Internal engineering already
+      gets the error via logger.exception in compute.py.
+    #}
+    {% set _engine_ok = (report.engine_error is none) and (report.computation_with_deductions is not none) %}
+
+    {% if not _engine_ok %}
+    <div class="tbb-card tbb-pending" data-testid="tbb-engine-pending">
+        <h2>Your bill is being prepared</h2>
+        <p>
+            The bracket-by-bracket computation will appear here once your
+            year-of-assessment data is fully indexed. Your logged income and
+            deductions are listed below for reference.
+        </p>
+        <p>
+            If you've completed your filing inputs and still see this card,
+            please return to the
+            <a href="{{ url_for('fiesta_tax_bill.show_tax_bill', tax_year=tax_year_s4) }}">
+                main bill page
+            </a>
+            and contact support if it persists.
+        </p>
+    </div>
+    {% endif %}
+
+    {# ---- Section 1: Bracket walk (only when engine ran clean) ---------- #}
+    {% if _engine_ok %}
+    {% set comp = report.computation_with_deductions %}
+    <div class="tbb-card" data-testid="tbb-computation-card">
+        <h2>How your tax is calculated</h2>
+        <table class="tbb-table">
+            <thead>
+                <tr><th>Step</th><th class="tbb-num">Amount (LKR)</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Gross income</td>
+                    <td class="tbb-num">{{ "{:,.2f}".format(comp.gross_income_lkr) }}</td>
+                </tr>
+                <tr>
+                    <td>Less: deductions claimed</td>
+                    <td class="tbb-num">- {{ "{:,.2f}".format(comp.deductions_input_lkr) }}</td>
+                </tr>
+                <tr>
+                    <td>
+                        Less: personal relief
+                        {% if comp.relief_applied.senior_citizen_extra_lkr and comp.relief_applied.senior_citizen_extra_lkr > 0 %}
+                            + senior-citizen extra
+                        {% endif %}
+                    </td>
+                    <td class="tbb-num">- {{ "{:,.2f}".format(comp.relief_applied.total()) }}</td>
+                </tr>
+                <tr class="tbb-total-row">
+                    <td>Taxable income</td>
+                    <td class="tbb-num">{{ "{:,.2f}".format(comp.taxable_income_lkr) }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% set _has_any_band_income = comp.by_band | selectattr('income_in_band', 'gt', 0) | list | length > 0 %}
+        {% if _has_any_band_income %}
+        <h2 style="margin-top:1.4rem;">Bracket walk</h2>
+        <table class="tbb-table" data-testid="tbb-bracket-walk-table">
+            <thead>
+                <tr>
+                    <th>Band (LKR)</th>
+                    <th class="tbb-num">Income in band</th>
+                    <th class="tbb-num">Rate</th>
+                    <th class="tbb-num">Tax in band</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in comp.by_band %}
+                    {% set _is_zero_row = (not b.income_in_band or b.income_in_band <= 0) and (not b.tax_in_band or b.tax_in_band <= 0) %}
+                    {% if not _is_zero_row %}
+                    <tr data-testid="tbb-bracket-row">
+                        <td>
+                            {% if b.band_upper %}
+                                {{ "{:,.0f}".format(b.band_lower) }} &minus; {{ "{:,.0f}".format(b.band_upper) }}
+                            {% else %}
+                                above {{ "{:,.0f}".format(b.band_lower) }}
+                            {% endif %}
+                        </td>
+                        <td class="tbb-num">{{ "{:,.2f}".format(b.income_in_band) }}</td>
+                        <td class="tbb-num">{{ "{:.0%}".format(b.rate) }}</td>
+                        <td class="tbb-num">{{ "{:,.2f}".format(b.tax_in_band) }}</td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+                <tr class="tbb-total-row">
+                    <td>Gross tax</td>
+                    <td class="tbb-num" colspan="2"></td>
+                    <td class="tbb-num">{{ "{:,.2f}".format(comp.gross_tax_lkr) }}</td>
+                </tr>
+                <tr class="tbb-total-row">
+                    <td>Net tax due</td>
+                    <td class="tbb-num" colspan="2"></td>
+                    <td class="tbb-num">{{ "{:,.2f}".format(comp.net_tax_due_lkr) }}</td>
+                </tr>
+            </tbody>
+        </table>
+        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-ink-500, #64748B);">
+            Effective rate {{ "{:.2%}".format(comp.effective_rate) }} &middot;
+            Marginal rate {{ "{:.0%}".format(comp.marginal_rate) }}
+        </p>
+        {% else %}
+        <p class="tbb-empty-note">
+            No bracket activity yet. Once you log your income, your
+            bracket-by-bracket breakdown will appear here.
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ---- Section 2: Income summary ------------------------------------ #}
+    <div class="tbb-card" data-testid="tbb-income-card">
+        <h2>Income you logged this year</h2>
+        {% set _income_total = inputs.income_total_lkr or 0 %}
+        {% if _income_total and _income_total > 0 %}
+            <ul class="tbb-summary-list">
+                {% for cat, amount in (inputs.income_by_category_lkr or {}).items() %}
+                    {% if amount and amount > 0 %}
+                    <li>
+                        <span class="tbb-label">{{ cat | replace('_', ' ') | title }}</span>
+                        <span class="tbb-value">Rs {{ "{:,.2f}".format(amount) }}</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                <li class="tbb-total-row" style="font-weight:600;">
+                    <span class="tbb-label">Total income</span>
+                    <span class="tbb-value">Rs {{ "{:,.2f}".format(_income_total) }}</span>
+                </li>
+            </ul>
+            {% if inputs.income_by_currency and inputs.income_by_currency|length > 1 %}
+                <p style="margin-top: 0.8rem; font-size: 0.85rem; color: var(--color-ink-500, #64748B);">
+                    Original currency breakdown:
+                    {% for cur, amt in inputs.income_by_currency.items() %}
+                        {{ cur }} {{ "{:,.2f}".format(amt) }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+            {% endif %}
+        {% else %}
+            <p class="tbb-empty-note">
+                You haven't logged any income for this year yet.
+                <a href="/remittance/dashboard">Go to your Remittance Ledger &rarr;</a>
+            </p>
+        {% endif %}
+    </div>
+
+    {# ---- Section 3: Deductions summary -------------------------------- #}
+    <div class="tbb-card" data-testid="tbb-deductions-card">
+        <h2>Deductions you claimed</h2>
+        {% set _ded_count = inputs.deductions_itemised | length %}
+        {% if _ded_count > 0 %}
+            <ul class="tbb-summary-list">
+                <li>
+                    <span class="tbb-label">Items claimed</span>
+                    <span class="tbb-value">{{ _ded_count }}</span>
+                </li>
+                <li>
+                    <span class="tbb-label">Total claimed</span>
+                    <span class="tbb-value">Rs {{ "{:,.2f}".format(inputs.deductions_total_lkr or 0) }}</span>
+                </li>
+                <li>
+                    <span class="tbb-label">Items with evidence on file</span>
+                    <span class="tbb-value">{{ inputs.deductions_with_evidence_count }} of {{ _ded_count }}</span>
+                </li>
+            </ul>
+        {% else %}
+            <p class="tbb-empty-note">
+                You haven't claimed any deductions yet.
+                <a href="/reduce-tax/">Claim deductions on Reduce your tax &rarr;</a>
+            </p>
+        {% endif %}
+    </div>
+
+    {# ---- Section 4: Audit readiness (no internals, no rule_ids) -------- #}
+    <div class="tbb-card" data-testid="tbb-audit-readiness-card">
+        <h2>Audit readiness</h2>
+        {% set _label = report.audit_defensibility_label or 'Building' %}
+        <p>
+            <span class="tbb-readiness tbb-readiness-{{ _label }}"
+                  data-testid="tbb-readiness-label">
+                {{ _label }}
+            </span>
+        </p>
+        {% if _label == 'Strong' %}
+            <p>
+                Your filing is in a defensible position. Routine IRD review is
+                manageable without additional preparation.
+            </p>
+        {% elif _label == 'Moderate' %}
+            <p>
+                Some items would benefit from extra documentation before you
+                submit. The
+                <a href="{{ url_for('fiesta_tax_bill.show_tax_bill', tax_year=tax_year_s4) }}">
+                    main bill page
+                </a>
+                shows which to address.
+            </p>
+        {% elif _label == 'At-Risk' %}
+            <p>
+                We recommend resolving the flagged items on the
+                <a href="{{ url_for('fiesta_tax_bill.show_tax_bill', tax_year=tax_year_s4) }}">
+                    main bill page
+                </a>
+                before continuing to submit.
+            </p>
+        {% else %}
+            <p>
+                Your audit-readiness score is being prepared. Continue logging
+                income and deductions to build a defensible position.
+            </p>
+        {% endif %}
+    </div>
+
+    {# ---- CTAs ---------------------------------------------------------- #}
+    <div class="tbb-ctas" data-testid="tbb-ctas">
+        <a href="{{ url_for('fiesta_tax_bill.show_tax_bill', tax_year=tax_year_s4) }}"
+           class="tbb-cta tbb-cta-primary">
+            Back to your tax bill
+        </a>
+        <a href="{{ url_for('fiesta_tax_bill.export_audit_pack', tax_year=tax_year_s4) }}"
+           class="tbb-cta tbb-cta-secondary">
+            Download audit pack PDF
+        </a>
+    </div>
+
+</div>
+{% endblock %}
