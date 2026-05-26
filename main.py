@@ -763,6 +763,18 @@ try:
 except Exception as e:
     logger.error(f'FIESTA S15+S17 Admin load failed: {e}')
 
+# FIESTA launch — /admin/fiesta-states Markov tracker (admin-gated).
+# CEO-facing live per-state counts derived from FIESTA's OWN tables
+# (distinct from /admin/pcse which reads SF-side Customer__c via Supabase).
+try:
+    from fiesta.admin.fiesta_states_routes import (
+        register_routes as register_fiesta_states,
+    )
+    register_fiesta_states(app)
+    logger.info('FIESTA Markov tracker registered at /admin/fiesta-states')
+except Exception as e:
+    logger.error(f'FIESTA Markov tracker load failed: {e}')
+
 # MS2 Stage E.1 B11 — RSU classifier (vesting + sale at /income/rsu/*)
 try:
     from fiesta.rsu.routes import register_blueprint as register_rsu
