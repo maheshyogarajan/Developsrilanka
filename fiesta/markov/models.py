@@ -47,7 +47,14 @@ class UserStateHistory(db.Model):
 
     __tablename__ = "user_state_history"
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    # BigInteger PK so the table can absorb high-volume event-driven growth
+    # without a 4-byte exhaustion ceiling. ``autoincrement=True`` is
+    # explicit so the SQLite test path (which only auto-increments
+    # ``INTEGER PRIMARY KEY``, not ``BIGINT``) still works via the
+    # SQLAlchemy IDENTITY fallback. Postgres prod uses BIGSERIAL via the
+    # migration / _ensure_additive_schema DDL.
+    id = db.Column(db.BigInteger().with_variant(db.Integer, "sqlite"),
+                   primary_key=True, autoincrement=True)
 
     user_id = db.Column(
         db.Integer,

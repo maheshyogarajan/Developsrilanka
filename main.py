@@ -31,6 +31,17 @@ try:
 except Exception as e:
     logger.error(f"Error loading feedback_models: {str(e)}")
 
+# Markov-L2 2026-05-27: import fiesta.markov.models so the
+# `user_state_history` table registers with SQLAlchemy metadata for
+# db.create_all() (fresh-DB + SQLite test path). Raw DDL backup lives in
+# app._ensure_additive_schema() AND migrations/20260527_100100_markov_l2_*
+# for production deploys.
+try:
+    import fiesta.markov.models  # noqa: F401
+    logger.info("Markov-L2 models loaded (user_state_history table)")
+except Exception as e:
+    logger.error(f"Error loading fiesta.markov.models: {str(e)}")
+
 # Tier D5 / E6 2026-05-24: A/B testing harness. Import ab_test_models so
 # ab_experiment + ab_assignment tables register with SQLAlchemy metadata
 # for db.create_all(). Register the {{ ab_variant('experiment_key') }}
