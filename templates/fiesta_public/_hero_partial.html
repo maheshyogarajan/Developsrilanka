@@ -1,0 +1,131 @@
+{# Phase C Wave 2 / F1.2 — unified hero partial.
+
+   Canonical hero copy shared by anon landing (/), tax preview (/tax-preview),
+   register (/register), and signup (/signup). Before this partial existed,
+   each surface rendered its own headline + subheadline, producing
+   inconsistent first impressions across the funnel.
+
+   Contract (locked by tests/platform/test_hero_copy.py):
+     - The wrapper element carries the `fiesta-hero-unified` marker class.
+     - The headline string is EXACTLY:
+         "Cut your tax bill. Keep the records clean."
+       (rendered as "Cut your tax bill. <em>Keep the records clean.</em>")
+       It must match byte-for-byte across all four surfaces.
+
+   Tunable Jinja vars (all optional — pass via `with` on the include):
+     hero_eyebrow         small uppercase tag above the headline
+     hero_subheadline     supporting paragraph beneath the headline
+     hero_cta_label       primary CTA label (omit to suppress CTA row)
+     hero_cta_href        primary CTA href
+     hero_cta_testid      data-testid attribute on the primary CTA
+     hero_secondary_label secondary CTA label (omit to suppress)
+     hero_secondary_href  secondary CTA href
+     hero_secondary_testid data-testid on the secondary CTA
+     hero_show_styles     when truthy, emit the inline <style> block too;
+                          surfaces that already load their own scoped
+                          stylesheet should pass False (default False).
+
+   Surfaces that need a custom CTA layout (e.g. tax_math_breakdown.html where
+   the form sits directly below the hero) can pass no CTA vars and render
+   their own CTA below the include.
+#}
+{% if hero_show_styles %}
+<style>
+  .fiesta-hero-unified {
+    /* Defensive defaults — surfaces that load fiesta-tokens.css get the
+       full FIESTA palette; standalone surfaces still render readably. */
+    font-family: var(--body, 'Manrope', system-ui, sans-serif);
+    color: var(--ink, #1a1d27);
+    margin: 0 0 18px;
+  }
+  .fiesta-hero-unified .fiesta-hero-eyebrow {
+    font-family: var(--mono, 'JetBrains Mono', monospace);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--clay, #B8542F);
+    margin-bottom: 6px;
+  }
+  .fiesta-hero-unified .fiesta-hero-headline {
+    font-family: var(--display, 'Fraunces', Georgia, serif);
+    font-weight: 600;
+    font-size: 2.6rem;
+    line-height: 1.08;
+    color: var(--forest, #1a3a2a);
+    margin: 6px 0 14px;
+    letter-spacing: -0.5px;
+  }
+  .fiesta-hero-unified .fiesta-hero-headline em {
+    font-style: italic;
+    color: var(--clay, #B8542F);
+    font-weight: 600;
+  }
+  .fiesta-hero-unified .fiesta-hero-sub {
+    font-size: 1rem;
+    color: var(--ink-soft, #4a4f5c);
+    max-width: 720px;
+    margin: 0 0 1.25rem;
+    line-height: 1.55;
+  }
+  .fiesta-hero-unified .fiesta-hero-cta-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+  .fiesta-hero-unified .fiesta-hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--clay, #B8542F);
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 10px;
+    border: 0;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .fiesta-hero-unified .fiesta-hero-cta:hover { background: var(--clay-deep, #8e3f22); color: #fff; }
+  .fiesta-hero-unified .fiesta-hero-cta.ghost {
+    background: transparent;
+    color: var(--clay, #B8542F);
+    border: 1px solid var(--paper-edge, #d8cab4);
+    font-weight: 500;
+  }
+  .fiesta-hero-unified .fiesta-hero-cta.ghost:hover {
+    background: var(--paper-deep, #f0ead9);
+    color: var(--clay-deep, #8e3f22);
+  }
+  @media (max-width: 640px) {
+    .fiesta-hero-unified .fiesta-hero-headline { font-size: 2rem; }
+  }
+</style>
+{% endif %}
+<div class="fiesta-hero-unified" role="region" aria-label="FIESTA value proposition">
+  {% if hero_eyebrow %}
+  <div class="fiesta-hero-eyebrow">{{ hero_eyebrow }}</div>
+  {% endif %}
+  <h1 class="fiesta-hero-headline">Cut your tax bill. <em>Keep the records clean.</em></h1>
+  {% if hero_subheadline %}
+  <p class="fiesta-hero-sub">{{ hero_subheadline }}</p>
+  {% endif %}
+  {% if hero_cta_label and hero_cta_href %}
+  <div class="fiesta-hero-cta-row" role="group" aria-label="Get started with FIESTA">
+    <a class="fiesta-hero-cta"
+       href="{{ hero_cta_href }}"
+       {% if hero_cta_testid %}data-testid="{{ hero_cta_testid }}"{% endif %}>
+      {{ hero_cta_label }}
+    </a>
+    {% if hero_secondary_label and hero_secondary_href %}
+    <a class="fiesta-hero-cta ghost"
+       href="{{ hero_secondary_href }}"
+       {% if hero_secondary_testid %}data-testid="{{ hero_secondary_testid }}"{% endif %}>
+      {{ hero_secondary_label }}
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

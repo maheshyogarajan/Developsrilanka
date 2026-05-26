@@ -341,8 +341,16 @@
    tests/platform/test_auth_surface.py. It signals that this page applies
    the FIESTA design tokens (--paper, --clay, --ink, --forest). #}
 <div class="s2-wrap fiesta-tokenized">
-  <h1 class="s2-brand">FIESTA</h1>
-  <p class="s2-tag">Foreign Income Earner Saving &amp; Tax Advisor</p>
+  {# F1.2 (Phase C W2) — unified hero headline shared with /, /tax-preview,
+     /register via templates/fiesta_public/_hero_partial.html. Replaces the
+     signup-specific "FIESTA" brand + tagline so cold visitors who land on
+     /signup (acquisition deep-links) see the same headline as visitors who
+     arrive via /. Eyebrow surfaces the legacy brand tagline; the form's
+     own "Let's get you set up." h2 stays inside the card as form context. #}
+  {% with hero_eyebrow='FIESTA · Foreign Income Earner Saving & Tax Advisor',
+          hero_subheadline='Email + password to start your free trial. No NIC, no TIN, no PIN at signup.' %}
+    {% include 'fiesta_public/_hero_partial.html' %}
+  {% endwith %}
 
   <div class="s2-card">
     {% with messages = get_flashed_messages(with_categories=true) %}

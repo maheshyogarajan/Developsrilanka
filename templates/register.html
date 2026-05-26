@@ -151,10 +151,13 @@
         <a href="{{ url_for('home') }}" aria-label="FIESTA home" class="d-inline-block mb-3">
           {% include '_fiesta_logo.html' %}
         </a>
-        <h1 class="h2 mb-2">Cut your tax bill. <em>Keep the records clean.</em></h1>
-        <p class="text-secondary small mb-0">
-          Free during launch &middot; Rs 2,500 from 2026-09-01 &middot; No card required
-        </p>
+        {# F1.2 (Phase C W2) — unified hero headline shared with /, /tax-preview,
+           /signup via templates/fiesta_public/_hero_partial.html. Sub copy stays
+           register-specific (pricing-pitch); the form sits directly below so no
+           CTA vars are passed (the submit button is the CTA). #}
+        {% with hero_subheadline='Free during launch · Rs 2,500 from 2026-09-01 · No card required' %}
+          {% include 'fiesta_public/_hero_partial.html' %}
+        {% endwith %}
       </div>
 
       <form method="POST" action="{{ url_for('email_login') }}" id="registerForm" novalidate>

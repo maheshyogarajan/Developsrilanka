@@ -476,6 +476,27 @@
     .x8a-landing .expense-chip { min-height: 48px; padding: 12px; }
     .x8a-landing .expense-chip .name { font-size: 14px; }
   }
+
+  /* F1.4 (Phase C W2) — belt-and-braces sidebar removal on anon landing.
+     layout.html already gates the sidebar / mobile-header / sidebar-overlay
+     markup behind a current_user.is_authenticated check, but layout
+     refactors in the past have re-exposed the bookkeeping chrome to
+     anonymous visitors. The s0 landing root carries data-anon-landing="1"
+     when the user is unauthenticated; if any future regression renders
+     legacy bookkeeping markup as a sibling of the landing wrapper, the
+     defence below hides it before paint. The accompanying test
+     (tests/platform/test_anon_landing.py) asserts the markup is absent
+     at the DOM level — this CSS is the second wall, not the first. */
+  body:has(.x8a-landing[data-anon-landing="1"]) .sidebar,
+  body:has(.x8a-landing[data-anon-landing="1"]) .sidebar-overlay,
+  body:has(.x8a-landing[data-anon-landing="1"]) .mobile-header,
+  body:has(.x8a-landing[data-anon-landing="1"]) .bookkeeping-deprecation-banner {
+    display: none !important;
+  }
+  body:has(.x8a-landing[data-anon-landing="1"]) .content {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+  }
 </style>
 {% endblock %}
 
@@ -484,7 +505,8 @@
    runCalc() can skip the server fetch for anon visitors (who used to trip
    intermittent CSRF errors and pollute the console). #}
 <div class="x8a-landing"
-     data-user-authenticated="{{ '1' if current_user.is_authenticated else '0' }}">
+     data-user-authenticated="{{ '1' if current_user.is_authenticated else '0' }}"
+     data-anon-landing="{{ '0' if current_user.is_authenticated else '1' }}">
   <div class="container-narrow">
 
     {# ---------------------------------------------------------------
@@ -635,14 +657,17 @@
       </div>
     </section>
 
-    <div class="eyebrow">Step 0 · No signup needed</div>
-    <h1 class="display">Cut your tax bill. <em>Keep the records clean.</em></h1>
-    <p class="sub">
-      See your estimated tax impact in 2 minutes — no signup. Move the slider, tick the ways
-      you can reduce your tax, and watch the number you owe drop in real time. Each tick is a
-      category of expense the IRD recognises as deductible — every Rs 100 you spend on
-      legitimate business expenses saves you Rs 6&ndash;36 in tax.
-    </p>
+    {# F1.2 (Phase C W2) — unified hero headline shared with /tax-preview,
+       /register, /signup via templates/fiesta_public/_hero_partial.html.
+       The eyebrow + sub copy stay surface-specific (this page is the
+       calculator-first surface, hence the slider-context subheadline);
+       the headline is the load-bearing string the partial locks. CTAs are
+       rendered separately below the calculator (`.cta-row`) on this surface
+       so the primary CTA sits AFTER the live tax estimate, not before. #}
+    {% with hero_eyebrow='Step 0 · No signup needed',
+            hero_subheadline='See your estimated tax impact in 2 minutes — no signup. Move the slider, tick the ways you can reduce your tax, and watch the number you owe drop in real time. Each tick is a category of expense the IRD recognises as deductible — every Rs 100 you spend on legitimate business expenses saves you Rs 6-36 in tax.' %}
+      {% include 'fiesta_public/_hero_partial.html' %}
+    {% endwith %}
 
     <!-- Slider -->
     <div class="slider-row" role="group" aria-label="Monthly foreign income slider">
