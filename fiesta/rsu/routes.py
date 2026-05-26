@@ -207,7 +207,7 @@ def _resolve_fx_rate(currency: str, fx_date: date) -> tuple[Decimal, str]:
 @bp.route("", methods=["GET"])
 @bp.route("/", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B11", action="rsu_history")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def history():
     user = _current_user_obj()
     if not user:
@@ -240,14 +240,14 @@ def history():
 # ---------------------------------------------------------------------------
 @bp.route("/import", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B11", action="rsu_import_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_form():
     return render_template("rsu/import.html", created=None, errors=None, raw="")
 
 
 @bp.route("/import", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B11", action="rsu_import_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_submit():
     user = _current_user_obj()
     if not user:
@@ -316,7 +316,7 @@ def import_submit():
 # ---------------------------------------------------------------------------
 @bp.route("/<int:vesting_id>/sell", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B11", action="rsu_sell_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def sell_form(vesting_id: int):
     user = _current_user_obj()
     if not user:
@@ -332,7 +332,7 @@ def sell_form(vesting_id: int):
 
 @bp.route("/<int:vesting_id>/sell", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B11", action="rsu_sell_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def sell_submit(vesting_id: int):
     user = _current_user_obj()
     if not user:

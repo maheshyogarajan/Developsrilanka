@@ -191,7 +191,7 @@ def _parse_money(
 @bp.route("", methods=["GET"])
 @bp.route("/", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_list")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def list_view():
     user = _current_user_obj()
     if not user:
@@ -218,7 +218,7 @@ def list_view():
 # ---------------------------------------------------------------------------
 @bp.route("/new", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_new_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def new_form():
     return render_template(
         "professional_fees/new.html",
@@ -232,7 +232,7 @@ def new_form():
 
 @bp.route("/new", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_new_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def new_submit():
     user = _current_user_obj()
     if not user:
@@ -360,7 +360,7 @@ def new_submit():
 # ---------------------------------------------------------------------------
 @bp.route("/<int:meta_id>", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_detail")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def detail(meta_id: int):
     user = _current_user_obj()
     if not user:
@@ -387,7 +387,7 @@ def detail(meta_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/<int:meta_id>/edit", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_edit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def edit_submit(meta_id: int):
     user = _current_user_obj()
     if not user:
@@ -479,7 +479,7 @@ def edit_submit(meta_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/<int:meta_id>/delete", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_delete")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def delete_submit(meta_id: int):
     user = _current_user_obj()
     if not user:
@@ -500,7 +500,7 @@ def delete_submit(meta_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/import", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_import_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_form():
     return render_template(
         "professional_fees/import.html",
@@ -512,7 +512,7 @@ def import_form():
 
 @bp.route("/import", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_import_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_submit():
     """Import invoice CSV.
 
