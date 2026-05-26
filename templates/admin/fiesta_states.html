@@ -1,0 +1,132 @@
+{% extends "admin/layout_fiesta.html" %}
+
+{% block title %}FIESTA Markov States - Admin - FIESTA{% endblock %}
+
+{% block additional_styles %}
+{# 60-second auto-refresh — meta tag injected here since head_extra block isn't
+   defined on the layout. Browsers honour an in-body http-equiv refresh per the
+   HTML5 spec, but it lands in <head> via the additional_styles block which is
+   the cleanest extension point. #}
+<meta http-equiv="refresh" content="60">
+<style>
+  .fs-card { background: #fff; border: 1px solid #e9ecef; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .fs-meta-row { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem; color: #6c757d; align-items: center; margin-bottom: 0.5rem; }
+  .fs-meta-row code { color: #495057; }
+  .fs-error { background:#fff4f4; border:1px solid #f5c2c7; color:#842029; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size: 13px;}
+  .fs-state-table { font-size: 14px; width: 100%; }
+  .fs-state-table th { background: #f8f9fa; font-weight: 600; }
+  .fs-state-table td, .fs-state-table th { padding: 10px 12px; vertical-align: middle; }
+  .fs-state-table tr:nth-child(even) td { background: #fafafa; }
+  .fs-code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 600; }
+  .fs-state-S00 .fs-code { color: #6c757d; }
+  .fs-state-S14 .fs-code { color: #198754; }
+  .fs-bar { display: inline-block; height: 14px; background: #0d6efd; border-radius: 3px; min-width: 1px; vertical-align: middle; }
+  .fs-bar-track { display: inline-block; width: 220px; height: 14px; background: #e9ecef; border-radius: 3px; vertical-align: middle; }
+  .fs-totals { font-size: 1.1rem; font-weight: 600; }
+  .fs-refresh-note { color: #6c757d; font-size: 0.8rem; margin-left: 1rem; }
+  .fs-empty-pct { color: #adb5bd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-0 text-gray-800">FIESTA Markov States</h1>
+      <div class="text-muted small mt-1">
+        Live per-state counts derived from FIESTA's own tables (User, FiestaProfile,
+        Income, RemittanceEntry, Statement, AssetEntry, Submission).
+      </div>
+    </div>
+    <div class="text-end">
+      <a href="{{ url_for('fiesta_states.fiesta_states_view', nocache=1) }}"
+         class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-sync-alt me-1"></i>Refresh (bypass cache)
+      </a>
+      <div class="fs-refresh-note">Auto-refreshes every 60s</div>
+    </div>
+  </div>
+
+  {% if payload.errors %}
+    {% for err in payload.errors %}
+      <div class="fs-error">
+        <strong>{{ err.section }}:</strong> {{ err.error }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="fs-card">
+    <div class="fs-meta-row">
+      <div>Tax year (short): <code>{{ payload.tax_year_short }}</code></div>
+      <div>Tax year (slash): <code>{{ payload.tax_year_long }}</code></div>
+      <div>Computed at: <code>{{ payload.computed_at_iso }}</code></div>
+      <div class="ms-auto fs-totals">Total users: {{ payload.total_users }}</div>
+    </div>
+  </div>
+
+  <div class="fs-card">
+    <h5 class="mb-3">v1 Markov states (S00-S14)</h5>
+    <table class="fs-state-table table-borderless">
+      <thead>
+        <tr>
+          <th style="width: 70px;">State</th>
+          <th>Label</th>
+          <th style="width: 100px; text-align: right;">Count</th>
+          <th style="width: 80px; text-align: right;">%</th>
+          <th style="width: 240px;">Distribution</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for state in payload.v1_states %}
+          {% set count = payload.state_distribution.get(state, 0) %}
+          {% set pct = payload.state_distribution_pct.get(state, 0.0) %}
+          <tr class="fs-state-{{ state }}">
+            <td><span class="fs-code">{{ state }}</span></td>
+            <td>{{ payload.state_labels.get(state, state) }}</td>
+            <td style="text-align: right;">{{ count }}</td>
+            <td style="text-align: right;">
+              {% if count == 0 %}
+                <span class="fs-empty-pct">{{ pct }}%</span>
+              {% else %}
+                {{ pct }}%
+              {% endif %}
+            </td>
+            <td>
+              <span class="fs-bar-track">
+                <span class="fs-bar" style="width: {{ pct }}%; max-width: 220px;"></span>
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fs-card">
+    <h6 class="mb-2">How states are derived</h6>
+    <ul class="small text-muted mb-0">
+      <li><strong>S00</strong> Unpaid &mdash; user exists; no active paywall_subscription row.</li>
+      <li><strong>S01</strong> Paid / profile pending &mdash; active paywall subscription; FiestaProfile NIC empty.</li>
+      <li><strong>S02</strong> Profile complete &mdash; FiestaProfile has NIC + city + bank account.</li>
+      <li><strong>S03</strong> Docs collecting &mdash; profile complete; no Income/Remittance row yet for the current tax year.</li>
+      <li><strong>S04</strong> Income docs received &mdash; at least one Income or RemittanceEntry row.</li>
+      <li><strong>S05</strong> T10 received &mdash; <em>proxy:</em> at least one <code>employment_lkr</code> Income row.</li>
+      <li><strong>S06</strong> Bank docs received &mdash; at least one Statement of <code>doc_type=bank_statement</code>.</li>
+      <li><strong>S07</strong> Foreign income docs received &mdash; RemittanceEntry with <code>source_doc_s3_key</code> attached.</li>
+      <li><strong>S08</strong> All income docs received &mdash; declared <code>User.income_sources</code> array is non-empty AND income_count &ge; len(income_sources).</li>
+      <li><strong>S09</strong> A&amp;L received &mdash; at least one AssetEntry or LiabilityEntry row for the current tax year.</li>
+      <li><strong>S10</strong> Computation drafted &mdash; Submission in <code>preparing</code> with <code>final_tax_payable_lkr</code> set, or <code>final-gate-pending</code>.</li>
+      <li><strong>S11</strong> Confirmation pending &mdash; Submission in <code>awaiting-attestation</code>.</li>
+      <li><strong>S12</strong> Confirmed &mdash; Submission in <code>attested</code>.</li>
+      <li><strong>S13</strong> Pre-filing &mdash; Submission in <code>export-generated</code>.</li>
+      <li><strong>S14</strong> Filed &mdash; Submission in <code>customer-filed-on-ird</code>.</li>
+    </ul>
+    <div class="small text-muted mt-2">
+      Tie-breaking: the highest-numbered matching state wins (natural progression direction).
+      A user at S12 also satisfies S04, but is reported once at S12.
+    </div>
+  </div>
+
+</div>
+{% endblock %}
