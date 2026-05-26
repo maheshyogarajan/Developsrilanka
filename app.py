@@ -353,6 +353,18 @@ def inject_fiesta_hub_context():
     layout_template = getattr(g, 'layout_template', 'layout.html')
 
     def _current_sl_tax_year():
+        # BUG-B FIX (Phase B Wave 1, 2026-05-26): honor the user-selected
+        # active tax year from session FIRST. The topbar tax-year selector
+        # POSTs to /api/fiesta/active-tax-year which sets this value;
+        # without this branch the selector is dead — changing the year
+        # in the dropdown stored a cookie but every template kept reading
+        # the calendar-derived default.
+        try:
+            _override = session.get('active_tax_year')
+            if _override:
+                return _override
+        except Exception:
+            pass
         try:
             from fiesta.paywall.models import current_sl_tax_year as _csl
             return _csl()
@@ -1142,6 +1154,77 @@ def api_fiesta_savings_projection():
     # branch on `fresh` for v1.
 
     return jsonify(payload)
+
+
+# Accepted SL tax-year forms — the inject_fiesta_hub_context resolver below
+# normalises whichever form the frontend sent into the same Y/Y format
+# (e.g. "2025/26"). Anything outside this set is rejected so a probe can't
+# stash an arbitrary string in the session.
+_FIESTA_ACTIVE_TAX_YEAR_FORMATS = {
+    # Y/Y (S5 short)
+    '2025/26', '2024/25', '2023/24', '2022/23',
+    # YYYY/YYYY (S5 long)
+    '2025/2026', '2024/2025', '2023/2024', '2022/2023',
+    # YYYY-YY (S4)
+    '2025-26', '2024-25', '2023-24', '2022-23',
+    # YYYY-YYYY
+    '2025-2026', '2024-2025', '2023-2024', '2022-2023',
+}
+
+
+def _normalise_active_tax_year(raw: str) -> str | None:
+    """Coerce one of the accepted forms into the canonical Y/Y short
+    form (e.g. "2025/26") used by current_sl_tax_year() return values.
+    Returns None for anything we don't recognise."""
+    if not raw or not isinstance(raw, str):
+        return None
+    raw = raw.strip()
+    if raw not in _FIESTA_ACTIVE_TAX_YEAR_FORMATS:
+        return None
+    # Normalise to Y/Y short form.
+    if '-' in raw:
+        raw = raw.replace('-', '/')
+    if '/' in raw:
+        a, b = raw.split('/', 1)
+        # Long form like 2025/2026 → 2025/26
+        if len(b) == 4:
+            b = b[-2:]
+        return f"{a}/{b}"
+    return raw
+
+
+@app.route('/api/fiesta/active-tax-year', methods=['POST'])
+def api_fiesta_set_active_tax_year():
+    """BUG-B FIX (Phase B Wave 1, 2026-05-26) — wire the topbar tax-year
+    selector to a session-stored "active" tax year.
+
+    Accepts JSON `{"tax_year": "2025/26"}` or a form-encoded `tax_year` field.
+    Validates against `_FIESTA_ACTIVE_TAX_YEAR_FORMATS` (no free-text in the
+    session), normalises to the canonical Y/Y short form, and stores in
+    `session['active_tax_year']`. Returns 204 No Content on success.
+
+    Anonymous users CAN set this value — the frontend uses it for client-
+    side rendering on anon estimator pages too. Auth is therefore not
+    required (no PII leaves the session boundary).
+    """
+    payload = request.get_json(silent=True) or {}
+    raw = payload.get('tax_year') if isinstance(payload, dict) else None
+    if not raw:
+        raw = request.form.get('tax_year') or request.args.get('tax_year')
+
+    normalised = _normalise_active_tax_year(raw)
+    if normalised is None:
+        return jsonify({'error': 'invalid_tax_year', 'received': raw}), 400
+
+    session['active_tax_year'] = normalised
+    # Also invalidate the per-user hub-context cache so the next render
+    # re-reads against the new active year.
+    if current_user.is_authenticated:
+        try:
+            _invalidate_hub_cache(current_user.id)
+        except Exception:
+            pass
+    return ('', 204)
 
 
 # Setup OAuth

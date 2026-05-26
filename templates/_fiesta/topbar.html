@@ -57,10 +57,16 @@
     </div>
   {% endif %}
 
+  {# BUG-B (Phase B Wave 1, 2026-05-26): the dropdown is now wired to a
+     real handler in static/js/fiesta.js — change event POSTs to
+     /api/fiesta/active-tax-year (which sets session['active_tax_year'])
+     AND writes localStorage('fiesta_active_tax_year') AND reloads the
+     page so every server-rendered panel re-renders against the new YA.
+     The legacy inline cookie-write is preserved as a fallback for older
+     consumers that read `hub_ya` directly. #}
   <div class="fiesta-topbar-year">
     <label for="fiesta-ya-select" class="fiesta-eyebrow">Year of Assessment</label>
-    <select id="fiesta-ya-select"
-            onchange="(function(v){try{document.cookie='hub_ya='+encodeURIComponent(v)+';path=/;max-age=31536000';}catch(e){}})(this.value)">
+    <select id="fiesta-ya-select" data-fiesta-ya-select="1">
       {% for ty in _ya_years %}
         <option value="{{ ty }}" {% if ty == _ya_default %}selected{% endif %}>{{ ty }}</option>
       {% endfor %}
