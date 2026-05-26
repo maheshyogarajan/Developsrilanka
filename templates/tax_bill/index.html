@@ -567,28 +567,61 @@
         </div>
     {% endif %}
 
-    {# ---- B14 F6.6 — Projected savings counter (gated on engine health) --- #}
+    {# ---- B14 F6.6 — Projected savings counter (ALWAYS visible) ----------- #}
     {#
-        Sprint 1 fix: previously this block rendered "Rs —" when engine_error
-        was set, which read as "FIESTA can't compute anything." Now gate on
-        not engine_error AND we have a real projected number. If engine_error,
-        the engine_error block above takes the visual real-estate instead.
+        Phase C Wave 2 (Fix 2): the savings-counter container is ALWAYS in the
+        DOM when we're not in an engine_error state. Previously the counter
+        was hidden when projected_savings_lkr == 0 — this killed the perceived
+        value for new users with no deductions claimed yet ("FIESTA is just a
+        tax form?"). Now we render two shapes inside the SAME .tb-projected-savings
+        container:
+          - happy-path: a real savings figure (>0) and source attribution
+          - opportunity CTA: 0 savings → headline + body + CTA button steering
+            the user to /reduce-tax/ to claim deductions
+        The engine_error block above already takes the visual real-estate when
+        the engine itself failed, so we still gate on not engine_error.
     #}
     {% if not report.engine_error %}
-    {% set _projected = report.savings_vs_no_deductions_lkr if (report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0) else hub_projected_savings_lkr %}
-    <div class="tb-projected-savings">
-        <span class="tb-projected-savings__label">Projected savings:</span>
-        <span class="tb-projected-savings__amount">
-            Rs {{ "{:,.0f}".format(_projected | float) if _projected else "—" }}
-        </span>
-        {% if report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0 %}
-            <span class="tb-projected-savings__note">based on your claimed deductions</span>
-        {% elif hub_projected_savings_lkr and hub_projected_savings_lkr > 0 %}
-            <span class="tb-projected-savings__note">estimate — claim deductions on
-                <a href="/reduce-tax" style="color: inherit;">Reduce your tax</a>
-                to refine</span>
+    {% set _has_real_savings = report.savings_vs_no_deductions_lkr and report.savings_vs_no_deductions_lkr > 0 %}
+    {% set _has_hub_projection = hub_projected_savings_lkr and hub_projected_savings_lkr > 0 %}
+    {% set _projected_savings_lkr = report.savings_vs_no_deductions_lkr if _has_real_savings else (hub_projected_savings_lkr if _has_hub_projection else 0) %}
+    <div class="tb-projected-savings savings-counter"
+         data-testid="savings-counter"
+         data-state="{{ 'has_savings' if _projected_savings_lkr and _projected_savings_lkr > 0 else 'zero_deductions_cta' }}">
+        {% if _projected_savings_lkr and _projected_savings_lkr > 0 %}
+            {# Happy path — real or projected savings number #}
+            <span class="tb-projected-savings__label">Projected savings:</span>
+            <span class="tb-projected-savings__amount" data-testid="savings-counter-amount">
+                Rs {{ "{:,.0f}".format(_projected_savings_lkr | float) }}
+            </span>
+            {% if _has_real_savings %}
+                <span class="tb-projected-savings__note">based on your claimed deductions</span>
+            {% else %}
+                <span class="tb-projected-savings__note">estimate — claim deductions on
+                    <a href="/reduce-tax/" style="color: inherit;">Reduce your tax</a>
+                    to refine</span>
+            {% endif %}
         {% else %}
-            <span class="tb-projected-savings__note">log income to see your projection</span>
+            {# Opportunity CTA — 0 deductions / 0 projection. Always visible. #}
+            <div class="tb-projected-savings__cta" data-testid="savings-counter-cta"
+                 style="display:flex;flex-direction:column;gap:0.35rem;width:100%;">
+                <div class="tb-projected-savings__cta-headline"
+                     style="font-family:'Manrope',sans-serif;font-weight:600;font-size:0.95rem;color:var(--color-success-700,#047857);">
+                    You haven't claimed any deductions yet
+                </div>
+                <div class="tb-projected-savings__cta-body"
+                     style="font-size:0.88rem;color:var(--color-ink-700,#334155);line-height:1.45;">
+                    Most foreign-income earners save Rs 50,000 - Rs 200,000 by
+                    claiming documented deductions. Tick the categories that
+                    apply on the deductions screen.
+                </div>
+                <a href="/reduce-tax/"
+                   class="tb-projected-savings__cta-button"
+                   data-testid="savings-counter-cta-button"
+                   style="align-self:flex-start;margin-top:0.25rem;padding:0.5rem 1rem;background:var(--color-success-700,#047857);color:#fff;border-radius:6px;font-weight:500;font-size:0.88rem;text-decoration:none;">
+                    Claim deductions &rarr;
+                </a>
+            </div>
         {% endif %}
     </div>
     {% endif %}
@@ -1335,15 +1368,25 @@
                 <h6 style="font-family: 'Fraunces', serif; margin-top: 1.5rem; font-weight: 500;">
                     Bracket walk
                 </h6>
-                {# B15 F6.7 — only render bands that have income; show empty-state for zero-income users #}
+                {# B15 F6.7 — only render bands that have non-zero income AND tax by
+                   default. For most foreign-remit / single-source filers, many
+                   brackets show Rs 0 and Rs 0 — rendering them all reads as
+                   "broken." Power users and tax professionals can opt back into
+                   the full structure via the ?show_all_brackets=1 query param
+                   (or the inline toggle link below the table).
+
+                   Phase C Wave 2 (Fix 1): added "show all brackets" toggle +
+                   footer note explaining the default hide. #}
                 {% set _has_any_band_income = comp.by_band | selectattr('income_in_band', 'gt', 0) | list | length > 0 %}
+                {% set _show_all_brackets = (request.args.get('show_all_brackets') in ('1', 'true', 'yes')) if request else false %}
+                {% set _hidden_band_count = comp.by_band | rejectattr('income_in_band', 'gt', 0) | list | length %}
                 {% if not _has_any_band_income %}
-                    <div class="tb-bracket-empty">
+                    <div class="tb-bracket-empty" data-testid="bracket-empty-state">
                         <p>Once you log your income, your bracket-by-bracket breakdown will appear here.</p>
                         <a href="/remittance/dashboard">Go to your Remittance Ledger &rarr;</a>
                     </div>
                 {% else %}
-                <table class="tb-table">
+                <table class="tb-table" data-testid="bracket-walk-table">
                     <thead>
                         <tr>
                             <th>Band (LKR)</th>
@@ -1354,8 +1397,16 @@
                     </thead>
                     <tbody>
                         {% for b in comp.by_band %}
-                            {% if b.income_in_band > 0 %}
-                            <tr>
+                            {# Render row when:
+                                 - show_all_brackets toggle is on (CEO/power-user), OR
+                                 - the bracket has either taxable income OR tax due
+                                   (defensive: both should match in practice but we
+                                   honour the spec's "tax_due == 0 AND taxable == 0"
+                                   suppression rule literally). #}
+                            {% set _is_zero_row = (not b.income_in_band or b.income_in_band <= 0) and (not b.tax_in_band or b.tax_in_band <= 0) %}
+                            {% if _show_all_brackets or not _is_zero_row %}
+                            <tr data-testid="bracket-row"
+                                data-bracket-empty="{{ 'true' if _is_zero_row else 'false' }}">
                                 <td>
                                     {% if b.band_upper %}
                                         {{ "{:,.0f}".format(b.band_lower) }} − {{ "{:,.0f}".format(b.band_upper) }}
@@ -1381,6 +1432,30 @@
                         </tr>
                     </tbody>
                 </table>
+                {# Footer note + show-all toggle — explains the default hide
+                   and gives power users an explicit opt-in. #}
+                {% if _hidden_band_count > 0 %}
+                    <p class="tb-bracket-footer-note"
+                       data-testid="bracket-footer-note"
+                       style="margin-top:0.5rem;font-size:0.82rem;color:var(--color-ink-500,#64748B);">
+                        {% if _show_all_brackets %}
+                            Showing all {{ comp.by_band | length }} brackets, including
+                            the {{ _hidden_band_count }} where you owe nothing.
+                            <a href="?show_all_brackets=0"
+                               data-testid="bracket-hide-toggle"
+                               style="color:var(--color-brand-700,#0B5394);">
+                                Hide empty brackets
+                            </a>
+                        {% else %}
+                            Brackets where you owe nothing aren't shown.
+                            <a href="?show_all_brackets=1"
+                               data-testid="bracket-show-all-toggle"
+                               style="color:var(--color-brand-700,#0B5394);">
+                                Show all brackets
+                            </a>
+                        {% endif %}
+                    </p>
+                {% endif %}
                 {% endif %}
                 <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-ink-500);">
                     Effective rate {{ "{:.2%}".format(comp.effective_rate) }} ·
