@@ -221,7 +221,6 @@ def index() -> Any:
 
 @bp.route("/<int:property_id>", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="S9", action="preview")
 def preview(property_id: int) -> Any:
     """Preview/edit form for a Rental Agreement against a given property.
 

@@ -383,6 +383,17 @@ def privacy_policy():
     return redirect(url_for("legal.privacy"), code=301)
 
 
+@signup_bp.route("/tos", methods=["GET"])
+def tos_alias():
+    """Redirect legacy /tos URL to the canonical /legal/tos page (E2 F1.8).
+
+    Footer + signup-flow links point to `/tos` but the canonical route lives
+    at `/legal/tos`. Without this alias, those links produce a 404. Mirrors
+    the `/terms` and `/privacy` aliases above.
+    """
+    return redirect(url_for("legal.tos"), code=301)
+
+
 def _domain_hash(email: str) -> str:
     """Stable hash of the email domain for funnel analytics. NOT cryptographic
     secrecy — we only want to group domains without exposing PII in event
