@@ -1448,6 +1448,44 @@ def _ensure_additive_schema():
                 'CREATE INDEX IF NOT EXISTS ix_faq_entries_pub_category_created '
                 'ON faq_entries (is_published, category, created_at DESC)'
             ))
+            # Markov-L2 2026-05-27: append-only Markov state transition log.
+            # Layer 1 (/admin/fiesta-states) derives current state on-demand;
+            # Layer 2 records each transition so we can compute dwell time +
+            # conversion rates by cohort. CREATE TABLE IF NOT EXISTS guards
+            # against double-create on every entry point (gunicorn, wsgi,
+            # celery, pytest) the same way the events table does.
+            # ORM model: fiesta/markov/models.py::UserStateHistory.
+            # Migration:
+            #   migrations/20260527_100100_markov_l2_user_state_history.py
+            # Postgres uses BIGSERIAL; SQLite test path uses INTEGER PK.
+            _is_pg = (db.engine.dialect.name.lower() == 'postgresql')
+            _id_col = 'BIGSERIAL PRIMARY KEY' if _is_pg else 'INTEGER PRIMARY KEY AUTOINCREMENT'
+            _json_col = 'JSON' if _is_pg else 'TEXT'
+            _user_tbl = '"user"' if _is_pg else 'user'
+            db.session.execute(_sql_text(
+                'CREATE TABLE IF NOT EXISTS user_state_history ('
+                f'  id {_id_col},'
+                f'  user_id INTEGER NOT NULL REFERENCES {_user_tbl}(id),'
+                '  state_code VARCHAR(8) NOT NULL,'
+                '  state_label VARCHAR(64) NOT NULL,'
+                '  previous_state_code VARCHAR(8),'
+                '  trigger_event VARCHAR(64) NOT NULL,'
+                f'  metadata_json {_json_col},'
+                '  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
+                ')'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_user_state_history_user_id '
+                'ON user_state_history (user_id)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_user_state_history_created_at '
+                'ON user_state_history (created_at)'
+            ))
+            db.session.execute(_sql_text(
+                'CREATE INDEX IF NOT EXISTS ix_user_state_history_user_created '
+                'ON user_state_history (user_id, created_at)'
+            ))
             db.session.commit()
     except Exception as _alter_err:
         logging.warning(f"Could not ensure additive schema columns: {_alter_err}")
