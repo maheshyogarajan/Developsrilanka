@@ -13,6 +13,11 @@ user into adjacent high-deduction flows:
          flow which is one of the highest-Rs categories foreign-income
          earners typically miss.
 
+  Both CTAs ship as a paired protection: the user lands on /reduce-tax/
+  to claim deductions; the two CTAs at the bottom of the page are the
+  outbound doorways into the two deduction-onboarding flows (Service
+  Providers + Property) that carry the heaviest Rs claims.
+
 These tests are template-source-level (cheap, deterministic). They lock
 the exact href strings so a refactor that swaps in a wrong endpoint
 name or re-introduces the orphan anchor is caught at test time.
