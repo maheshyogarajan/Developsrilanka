@@ -5,6 +5,9 @@
    `{% set %}` in a child template does NOT propagate to the parent layout's
    include scope, so the route is the only correct place to set it. #}
 
+{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html. #}
+{% from '_pricing_macros.html' import pricing_copy %}
+
 {% block title %}Start your FIESTA trial — Sign up{% endblock %}
 
 {% block content %}
@@ -460,7 +463,8 @@
 
   <div class="s2-trust">
     <div><span>🔒</span><span>No NIC, no TIN, no PIN at signup. Just email.</span></div>
-    <div><span>💸</span><span>Rs 2,500 — refundable for 14 days.</span></div>
+    {# D4 — canonical pricing copy via _pricing_macros.html. #}
+    <div><span>💸</span><span>{{ pricing_copy() }}</span></div>
     <div><span>🇱🇰</span><span>Sri Lankan tax law, jurisdiction-neutral software.</span></div>
   </div>
 

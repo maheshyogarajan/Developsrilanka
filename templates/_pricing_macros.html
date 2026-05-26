@@ -1,0 +1,60 @@
+{#
+  FIESTA pricing copy macros — D4 (2026-05-27).
+
+  Before this macro existed, FIESTA shipped three (eventually more)
+  inconsistent pricing framings:
+
+    /register     — "Free during launch · Rs 2,500 from 2026-09-01 · No card required"
+    /pricing      — "Rs 2,500 per Year of Assessment"
+    /pricing/x1   — "Free during launch · Rs 2,500 from 2026-09-01 · Refundable 14 days"
+    tax_math      — "Free during launch · Rs 2,500 from 2026-09-01 · 14-day refund · Backed by Lanka.tax"
+    s0_landing    — "Free during launch — Rs 2,500 from 2026-09-01. No credit card."
+    signup        — "Rs 2,500 — refundable for 14 days."
+
+  The 2026-05-26 customer-flow audit (D4) flagged this as a customer-trust
+  liability. This macro is the single source of truth for the canonical
+  pricing line — every surface that mentions launch pricing now reads
+  from here so wording drift is a single-file fix going forward.
+
+  Canonical phrasing (audit-recommended, 2026-05-27):
+
+      Rs 2,500 per tax year · Free during launch period · 14-day refund window
+
+  This unifies the three concepts that previously fragmented across surfaces:
+    1. The price          (Rs 2,500 per tax year)
+    2. The launch posture (Free during launch period)
+    3. The refund window  (14-day refund window)
+
+  Usage:
+    {% from "_pricing_macros.html" import pricing_copy, pricing_badge %}
+
+    Plain text:
+      {{ pricing_copy() }}
+    Inside a badge / pill / chip:
+      {{ pricing_badge('badge bg-success mb-2') }}
+    Inline (sub-line, footer):
+      {{ pricing_copy(variant='inline') }}
+
+  Variant catalog:
+    full    (default) — all 3 phrases, the full message
+    inline            — same content, em-dash-friendly, for footers / micro
+    short             — "Rs 2,500 per tax year · 14-day refund" (no launch ref)
+
+  Whichever variant is chosen, the price string itself
+  ("Rs 2,500 per tax year") MUST be present so the e2e tests that lock
+  this contract can detect drift cheaply.
+#}
+
+{% macro pricing_copy(variant='full') -%}
+{%- if variant == 'short' -%}
+Rs 2,500 per tax year · 14-day refund window
+{%- elif variant == 'inline' -%}
+Rs 2,500 per tax year — free during launch period, 14-day refund window
+{%- else -%}
+Rs 2,500 per tax year · Free during launch period · 14-day refund window
+{%- endif -%}
+{%- endmacro %}
+
+{% macro pricing_badge(badge_class='badge bg-success mb-2') -%}
+<span class="{{ badge_class }}">{{ pricing_copy() }}</span>
+{%- endmacro %}

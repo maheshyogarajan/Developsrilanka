@@ -1,17 +1,42 @@
-{% extends "admin/layout_fiesta.html" %}
+{# D6 (2026-05-27) — 403 page for non-admin users hitting /admin/* must NOT
+   leak the admin sidebar.
+
+   Pre-D6 this template extended admin/layout_fiesta.html, which renders the
+   full admin sidebar (Dashboard / Users / Per-user 360 / Autoreply Queue /
+   Support Queue / Submissions / PCSE Inspector / AI-Org Dashboards / Revenue
+   Intelligence / Settings / Logs). The 2026-05-26 customer-flow audit found
+   that non-admin users who hit /admin/* surfaces could enumerate the entire
+   admin nav structure — useful intel for a downstream attack.
+
+   Post-D6: we extend the customer-facing `layout.html` instead. For
+   authenticated non-admin users this renders normal customer chrome (their
+   own sidebar / hub nav). For anonymous users the admin_required decorator
+   redirects to /login BEFORE this template ever renders, so the anon case
+   doesn't reach this code path. Either way, no admin sidebar is exposed.
+
+   Contract (locked by tests/admin/test_admin_403_no_sidebar.py):
+     - The rendered body MUST carry a `data-admin-403="1"` marker so tests
+       can find it cheaply.
+     - The rendered body MUST NOT contain any of the admin sidebar nav
+       labels (Per-user 360, Autoreply Queue, Support Queue, Submissions,
+       PCSE Inspector, AI-Org Dashboards, Revenue Intelligence).
+     - The rendered body MUST NOT contain the admin shell wrapper class
+       `.admin-fiesta` that layout_fiesta.html emits.
+#}
+{% extends "layout.html" %}
 
 {% block title %}403 — Admin Only{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-5">
+<div class="container py-5" data-admin-403="1">
     <div class="row justify-content-center">
         <div class="col-lg-6 col-md-8 text-center">
 
             <div class="mb-4">
-                <i class="fas fa-lock fa-4x text-muted"></i>
+                <i class="fas fa-lock fa-4x text-muted" aria-hidden="true"></i>
             </div>
 
-            <h1 class="display-6 fw-bold mb-2">403 — Admin Only</h1>
+            <h1 class="display-6 fw-bold mb-2">403 &mdash; Admin Only</h1>
             <p class="text-muted mb-4">
                 This area is restricted to administrators.<br>
                 Your current account does not have admin privileges.
@@ -20,14 +45,14 @@
             <div class="d-flex gap-3 justify-content-center flex-wrap">
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('home') }}" class="btn btn-primary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to your dashboard
+                        <i class="fas fa-arrow-left me-2" aria-hidden="true"></i>Back to your dashboard
                     </a>
                     <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-sign-out-alt me-2"></i>Sign out
+                        <i class="fas fa-sign-out-alt me-2" aria-hidden="true"></i>Sign out
                     </a>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="btn btn-primary">
-                        <i class="fas fa-sign-in-alt me-2"></i>Sign in as admin
+                        <i class="fas fa-sign-in-alt me-2" aria-hidden="true"></i>Sign in as admin
                     </a>
                 {% endif %}
             </div>
