@@ -61,16 +61,24 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Acceptable input forms -> S4-format (canonical to_tax.income_summary_for_tax_year)
+#
+# Day-0 Fix 2026-05-27: added "2025-2026" / "2024-2025" (dash-style YYYY-YYYY)
+# explicitly. The audit endpoint /tax-bill/2025-2026/breakdown was passing
+# "2025-2026" through unchanged, missing the regex fallback below (which only
+# matched slash forms) and resolving to enum=None — every bill computed to
+# Rs 0 with engine_error="Tax engine import failed or unsupported tax year."
 _TAX_YEAR_ALIASES_S4: dict[str, str] = {
     "2025-26": "2025-26",
     "2025/26": "2025-26",      # X9 F6.1: current_sl_tax_year() returns this form
     "2025/2026": "2025-26",
+    "2025-2026": "2025-26",    # Day-0 fix 2026-05-27: dash-style YYYY-YYYY
     "25/26": "2025-26",
     "25_26": "2025-26",
     "Y25_26": "2025-26",
     "2024-25": "2024-25",
     "2024/25": "2024-25",      # X9 F6.1
     "2024/2025": "2024-25",
+    "2024-2025": "2024-25",    # Day-0 fix 2026-05-27: dash-style YYYY-YYYY
     "24/25": "2024-25",
     "24_25": "2024-25",
     "Y24_25": "2024-25",
@@ -81,12 +89,14 @@ _TAX_YEAR_ALIASES_S5: dict[str, str] = {
     "2025-26": "2025/2026",
     "2025/26": "2025/2026",    # X9 F6.1
     "2025/2026": "2025/2026",
+    "2025-2026": "2025/2026",  # Day-0 fix 2026-05-27: dash-style YYYY-YYYY
     "25/26": "2025/2026",
     "25_26": "2025/2026",
     "Y25_26": "2025/2026",
     "2024-25": "2024/2025",
     "2024/25": "2024/2025",    # X9 F6.1
     "2024/2025": "2024/2025",
+    "2024-2025": "2024/2025",  # Day-0 fix 2026-05-27: dash-style YYYY-YYYY
     "24/25": "2024/2025",
     "24_25": "2024/2025",
     "Y24_25": "2024/2025",
@@ -99,8 +109,12 @@ import re as _re
 # (e.g. "2026/27", "2027/28") without us having to extend the alias map year
 # by year. `current_sl_tax_year()` emits this form, so this fallback is what
 # keeps /tax-bill from breaking after each 1 April fiscal flip.
-_YYYY_YY_PATTERN = _re.compile(r"^(\d{4})/(\d{2})$")
-_YYYY_YYYY_PATTERN = _re.compile(r"^(\d{4})/(\d{4})$")
+#
+# Day-0 Fix 2026-05-27: accept BOTH "/" and "-" as the separator so URL-safe
+# dash forms (which Flask happily routes to /tax-bill/2025-2026/breakdown)
+# resolve the same as the slash forms emitted by current_sl_tax_year().
+_YYYY_YY_PATTERN = _re.compile(r"^(\d{4})[/-](\d{2})$")
+_YYYY_YYYY_PATTERN = _re.compile(r"^(\d{4})[/-](\d{4})$")
 
 
 def normalise_tax_year_to_s4_format(ty: str) -> str:
@@ -113,7 +127,7 @@ def normalise_tax_year_to_s4_format(ty: str) -> str:
         return f"{m.group(1)}-{m.group(2)}"
     m = _YYYY_YYYY_PATTERN.match(s)
     if m and m.group(2).startswith(m.group(1)[:2]):
-        # "2025/2026" -> "2025-26"
+        # "2025/2026" or "2025-2026" -> "2025-26"
         return f"{m.group(1)}-{m.group(2)[2:]}"
     return s
 
@@ -127,6 +141,10 @@ def normalise_tax_year_to_s5_format(ty: str) -> str:
     if m:
         yy = m.group(1)
         return f"{yy}/{yy[:2]}{m.group(2)}"
+    m = _YYYY_YYYY_PATTERN.match(s)
+    if m and m.group(2).startswith(m.group(1)[:2]):
+        # "2025-2026" -> "2025/2026"
+        return f"{m.group(1)}/{m.group(2)}"
     return s
 
 
