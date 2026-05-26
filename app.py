@@ -7,7 +7,7 @@ import traceback  # Added import
 import uuid
 from io import BytesIO
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file, g
+from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file, g, current_app
 import google.generativeai as genai
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
@@ -4088,7 +4088,6 @@ def verify_email_reminder():
     )
 
 @app.route('/onboarding', methods=['GET', 'POST'])
-@login_required
 def onboarding_wizard():
     """Onboarding wizard for new users to set up their business organization.
 
@@ -4105,8 +4104,33 @@ def onboarding_wizard():
     All other GETs to /onboarding redirect to /onboarding/welcome if the
     user is mid-flow (onboarding_completed=False AND income_sources=[]),
     or to '/' if onboarding is already complete.
+
+    D8 (2026-05-27): @login_required removed so we can drive anon users
+    to /login?next=/onboarding/welcome (NOT next=/onboarding). The old
+    behaviour bounced anon visitors to /login?next=%2Fonboarding which,
+    after login, dumped them back here and re-ran the router — wasted
+    redirect hop. POSTs from anonymous sessions are still gated; the
+    explicit auth check below preserves the @login_required semantics
+    for write paths.
     """
     from models import Organization, OrganizationUser
+
+    # D8 (2026-05-27) — manual auth gate. Authenticated → fall through to
+    # existing G4 router logic. Anon GET → redirect straight to the post-
+    # login destination (/onboarding/welcome) so the login round-trip
+    # lands at the right step. Anon POST → 401 via login_required-equivalent
+    # behaviour (use Flask-Login's helper for consistency).
+    if not current_user.is_authenticated:
+        if request.method == 'GET':
+            # url_for would round-trip through werkzeug; the literal path
+            # is the canonical /onboarding/welcome target. Use url_for
+            # anyway for consistency with the blueprint endpoint.
+            target = url_for('fiesta_onboarding.welcome')
+            return redirect(url_for('login', next=target))
+        # POST from anon — match the prior @login_required behaviour
+        # (302 to login). Flask-Login installs `current_app.login_manager`
+        # and its `unauthorized()` helper produces the standard response.
+        return current_app.login_manager.unauthorized()
 
     # X9 F2.2 / G4 — bypass the business-org wizard for sl_foreign_income
     # personas. Foreign-income earners don't run a business; their
