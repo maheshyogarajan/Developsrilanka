@@ -1,8 +1,19 @@
 {% extends layout_template %}
 
-{% block title %}Assets &amp; Liabilities — FIESTA{% endblock %}
+{# C4 FIX (Day-0, 2026-05-27): the customer FIESTA shell (layout_fiesta.html)
+   defines `page_title` + `head_extra` + `content` — NOT `title` +
+   `additional_styles` (those are the legacy `layout.html` block names). When
+   this template extended layout_fiesta.html using the old block names, the
+   <style> block was silently dropped — the page rendered with the shell sidebar
+   but a totally unstyled, blank-looking main content area (audit C4: sidebar
+   covered the visible viewport on 1440x900, customer saw an empty page above
+   the fold). Renaming the blocks restores the inline styles so .al-page,
+   .al-hero, .al-net-worth, .al-table etc. actually paint. The shell's
+   .fiesta-main grid slot already handles sidebar-aware layout — we don't need
+   any local positioning CSS to fight it. #}
+{% block page_title %}Assets &amp; Liabilities{% endblock %}
 
-{% block additional_styles %}
+{% block head_extra %}
 <style>
   /* ---- A&L list view — scoped design tokens (Feature 9 D7) ----------- */
   :root {
@@ -298,7 +309,12 @@
   <div class="al-hero">
     <div>
       <h1>Assets &amp; Liabilities</h1>
-      <div class="al-hero-meta">Tax Year: <strong>{{ tax_year }}</strong></div>
+      {# C5 FIX (Day-0, 2026-05-27): use `tax_year_display` (short-slash form,
+         derived from the same canonical resolver as the topbar dropdown +
+         counter) so this hero never disagrees with the topbar. The legacy
+         `tax_year` variable is the long-slash storage form, used for the
+         download-PDF URL below. #}
+      <div class="al-hero-meta">Tax Year: <strong>{{ tax_year_display or tax_year }}</strong></div>
     </div>
     <div class="al-actions">
       <a href="{{ url_for('fiesta_al.edit_view') }}" class="btn-al-primary">
@@ -394,7 +410,7 @@
     </div>
     {% else %}
     <div class="al-empty">
-      No assets declared yet for {{ tax_year }}.
+      No assets declared yet for {{ tax_year_display or tax_year }}.
       <a href="{{ url_for('fiesta_al.edit_view') }}" style="color:var(--al-green);">Add your first asset →</a>
     </div>
     {% endif %}
@@ -446,7 +462,7 @@
     </div>
     {% else %}
     <div class="al-empty">
-      No liabilities declared yet for {{ tax_year }}.
+      No liabilities declared yet for {{ tax_year_display or tax_year }}.
       <a href="{{ url_for('fiesta_al.edit_view') }}" style="color:var(--al-terra);">Add a liability →</a>
     </div>
     {% endif %}

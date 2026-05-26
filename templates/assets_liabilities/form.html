@@ -1,8 +1,10 @@
 {% extends layout_template %}
 
-{% block title %}{{ 'Edit' if prefill_asset or prefill_liability else 'Add' }} Entry — A&amp;L · FIESTA{% endblock %}
+{# C4 FIX (Day-0, 2026-05-27): see list.html — `additional_styles` is silently
+   dropped by layout_fiesta.html; the shell uses `head_extra`. Same fix here. #}
+{% block page_title %}{{ 'Edit' if prefill_asset or prefill_liability else 'Add' }} Entry — A&amp;L{% endblock %}
 
-{% block additional_styles %}
+{% block head_extra %}
 <style>
   /* ---- A&L entry form — scoped tokens (Feature 9 D7) ---------------- */
   :root {
@@ -209,7 +211,7 @@
 <div class="al-form-page">
 
   <h1>{{ 'Edit Entry' if (prefill_asset or prefill_liability) else 'Add Asset or Liability' }}</h1>
-  <div class="al-sub">Tax Year: <strong>{{ tax_year }}</strong> — open the section(s) you want to fill in.</div>
+  <div class="al-sub">Tax Year: <strong>{{ tax_year_display or tax_year }}</strong> — open the section(s) you want to fill in.</div>
 
   <div class="al-notice">
     You can add an asset, a liability, or both in one submission.
