@@ -198,7 +198,45 @@ def _do_emit(
             )
             db.session.add(event)
             db.session.commit()
-            return event.id
+            event_id = event.id
+
+            # ---- Markov Layer 2 hook ------------------------------------
+            # After the Event row is persisted, opportunistically write a
+            # UserStateHistory row when this event represents a Markov
+            # state transition. Same NEVER-raises contract as the rest of
+            # emit() — any failure inside the writer logs + returns None
+            # without affecting the Event insert above.
+            #
+            # CRITICAL: we run this INSIDE _write() (which is itself
+            # already executed inside the deferred app context when
+            # called via defer=True) — that way the writer's session
+            # commit doesn't fight the deferred-emit thread's session
+            # boundary. The writer has its own try/except so we don't
+            # need to wrap it here.
+            try:
+                if event_type and user_id is not None:
+                    from fiesta.markov.state_writer import (
+                        event_to_state,
+                        record_state_transition,
+                    )
+                    new_state = event_to_state(event_type, payload, user_id)
+                    if new_state is not None:
+                        record_state_transition(
+                            user_id=user_id,
+                            new_state=new_state,
+                            trigger=event_type,
+                            metadata=payload if isinstance(payload, dict) else None,
+                        )
+            except Exception as _markov_exc:
+                # Defence-in-depth — writer already swallows, but a
+                # module-load failure (rare) would surface here.
+                logger.warning(
+                    "events.emit(%r): markov state-writer hook failed: %s. "
+                    "Event row persisted; state transition lost.",
+                    event_type, _markov_exc,
+                )
+
+            return event_id
 
         if app_obj is not None:
             # Background thread: need an app context for the SQLAlchemy
