@@ -355,7 +355,6 @@ def index():
 
 @bp.route("/<sp_id>", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="S8", action="preview")
 def preview(sp_id: str):
     """Preview / parameter-input screen for the Service Agreement.
 

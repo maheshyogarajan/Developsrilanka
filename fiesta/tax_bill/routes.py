@@ -328,16 +328,20 @@ def _default_tax_year_s4() -> str:
 @bp.route("/", methods=["GET"])
 @bp.route("", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="S12", action="index_redirect")
 def index_redirect():
-    """Redirect /tax-bill -> /tax-bill/<most_recent_supported_ty>."""
+    """Redirect /tax-bill -> /tax-bill/<most_recent_supported_ty>.
+
+    LAUNCH 2026-05-26: paywall removed from this GET. Users can record their
+    data + view their computed bill without paying — the paywall now lives
+    on /submit/* (the actual filing step). Keep `@login_required` so the
+    redirect target still authenticates correctly.
+    """
     return redirect(url_for("fiesta_tax_bill.show_tax_bill",
                             tax_year=_default_tax_year_s4()))
 
 
 @bp.route("/<tax_year>", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="S12", action="show_tax_bill")
 def show_tax_bill(tax_year: str):
     """Render the S12 outcome screen."""
     user_id = _current_user_id()
@@ -392,7 +396,6 @@ def show_tax_bill(tax_year: str):
 
 @bp.route("/<tax_year>/breakdown", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="S12", action="breakdown_json")
 def breakdown_json(tax_year: str):
     """JSON dump of the full computation -- powers the audit-pack PDF + tests."""
     user_id = _current_user_id()

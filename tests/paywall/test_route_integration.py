@@ -21,16 +21,26 @@ Instead we sample one representative GET route per gated screen.
 Coverage per screen:
   S6  -> GET  /service-providers
   S7  -> GET  /property
-  S8  -> GET  /agreements/service/<sp_id> (404 expected w/o the SP, but the
-         paywall fires before the 404 handler runs)
-  S9  -> GET  /agreements/rental/<property_id>
+  S8  -> GET  /agreements/service/<sp_id>  (paywall OFF on the preview GET
+         per launch decision 2026-05-26 — only the generate / download POSTs
+         remain gated; covered by their own tests)
+  S9  -> GET  /agreements/rental/<property_id>  (paywall OFF on the preview
+         GET per launch decision 2026-05-26)
   S10 -> GET  /cosign/<agreement_id>
-  S12 -> GET  /tax-bill/
+  S12 -> GET  /tax-bill/  (paywall OFF per launch decision 2026-05-26 —
+         users can RECORD and VIEW their bill without paying; the paywall
+         only fires on /submit/* which IS the filing step)
   S14 -> GET  /submit
   S10-public -> GET /cosign/sp/<token>  (NO paywall — verify anon access)
 
 This is the v1 paywall-integration suite. As more gates land on more routes,
 add coverage here.
+
+LAUNCH 2026-05-26: /tax-bill/* and /agreements/{rental,service}/<id> GETs
+were de-gated. The paywall stays on /submit/* (filing) which is verified
+below + on the agreements POST routes (generate/download/finalize) verified
+in their dedicated suites. Tests for the new "viewing is free" contract
+live in tests/tax_bill/test_no_paywall_on_view.py.
 """
 from __future__ import annotations
 
@@ -41,7 +51,6 @@ import pytest
 GATED_GET_ROUTES = [
     ("/service-providers", "S6"),
     ("/property", "S7"),
-    ("/tax-bill/", "S12"),
     ("/submit", "S14"),
 ]
 
