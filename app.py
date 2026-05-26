@@ -1499,10 +1499,18 @@ def home():
     """X8a — public-flow landing + universal authenticated hub.
 
     Anonymous: render the S0 estimator landing (v4-demo narrative).
-    Authenticated NON-admin: render the FIESTA hub (`fiesta_home.html`)
+    Authenticated: render the FIESTA hub (`fiesta_home.html`)
     pre-filled with the user's real data — Design Lock 3 §D2.
-    Authenticated admin: redirect to `/scan` (operator surface) —
-    Design Lock 3 §D2/§D3.
+
+    BUG-A FIX (Phase B Wave 1, 2026-05-26): admins are NO LONGER force-
+    redirected to /scan. They land on the SAME customer hub a real
+    customer would see, so they can QA the customer experience without
+    needing to log out and log back in as a customer. The "view-as"
+    toggle in the admin topbar (session['admin_view_as']) controls which
+    shell wraps the hub — 'customer' (default) renders the customer
+    sidebar/topbar, 'admin' renders the admin sidebar/topbar. The /scan
+    operator surface is still reachable at its URL (and still admin-only)
+    but is no longer the home default.
 
     Legacy bookkeeping home is preserved at templates/home_bookkeeping_legacy.html
     in case a rollback is needed.
@@ -1516,19 +1524,12 @@ def home():
 
     if current_user.is_authenticated:
         # MS4 W2 Agent 1 — G1.2 (Design Lock 3 §D2, 2026-05-25): `/` is the
-        # universal FIESTA hub for every authenticated NON-ADMIN user — no
-        # persona gate, no income_sources gate, no remittance prerequisite.
-        # The hub's next-step card (driven by hub_funnel_state in
-        # inject_fiesta_hub_context) adapts to whatever income mix the user
-        # actually has (foreign remittance / employment / business / crypto /
-        # rsu / mixed / none).
-        #
-        # Admin role takes the legacy operator surface (/scan) — admins are
-        # operators, not customers. This is the SAME admin-role exemption
-        # that lived inside `use_fiesta_shell()` pre-G1.2; it now lives here
-        # at the routing seam so the shell predicate stays simple.
-        if getattr(current_user, 'role', None) == 'admin':
-            return redirect(url_for('index'))
+        # universal FIESTA hub for every authenticated user — no persona
+        # gate, no income_sources gate, no remittance prerequisite, and no
+        # admin-role exemption (BUG-A fix). The hub's next-step card (driven
+        # by hub_funnel_state in inject_fiesta_hub_context) adapts to
+        # whatever income mix the user actually has (foreign remittance /
+        # employment / business / crypto / rsu / mixed / none).
 
         hub_extras = _compute_hub_extras(current_user.id, fx_rate_lkr_per_usd)
         return render_template(
@@ -5323,13 +5324,31 @@ def check_authentication():
     # as the boot-time fallback for S0 landing / login / register surfaces.
     # `g.is_fiesta_persona` is preserved (set to "any authenticated non-admin")
     # for legacy template compatibility — sweep candidate for G5 cleanup.
+    #
+    # BUG-A FIX (Phase B Wave 1, 2026-05-26): admins are NOT force-bounced to
+    # /scan anymore — they land on the same customer hub by default so they
+    # can QA the customer experience. A "view-as" toggle in the topbar flips
+    # session['admin_view_as'] between 'customer' (default) and 'admin'. When
+    # the toggle is in 'admin' mode the admin shell renders (operator
+    # sidebar + ADMIN badge topbar); in 'customer' mode the admin sees the
+    # exact same shell a real customer would see.
     if current_user.is_authenticated:
         if getattr(current_user, 'role', None) == 'admin':
-            g.layout_template = 'layout_fiesta_admin.html'
+            # Default new admins to customer-view so admins land on the
+            # customer hub the first time; explicit toggle to 'admin' sticks
+            # in the session.
+            _admin_view = session.get('admin_view_as', 'customer')
+            if _admin_view == 'admin':
+                g.layout_template = 'layout_fiesta_admin.html'
+            else:
+                g.layout_template = 'layout_fiesta.html'
+            g.admin_view_as = _admin_view
         else:
             g.layout_template = 'layout_fiesta.html'
+            g.admin_view_as = None
     else:
         g.layout_template = 'layout.html'
+        g.admin_view_as = None
     g.is_fiesta_persona = (
         current_user.is_authenticated
         and getattr(current_user, 'role', None) != 'admin'

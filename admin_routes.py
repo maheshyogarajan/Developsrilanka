@@ -7,7 +7,7 @@ import os
 import json
 import time
 from datetime import datetime, timedelta
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_file, session
 from flask_login import current_user
 from sqlalchemy import func, desc, and_, or_
 import pandas as pd
@@ -155,6 +155,35 @@ def admin_dashboard():
 def admin_v2_redirect():
     """Redirect old /admin/v2 URLs to unified /admin."""
     return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/view-as/<role>', methods=['GET', 'POST'])
+@admin_required
+def admin_view_as(role):
+    """BUG-A FIX (Phase B Wave 1, 2026-05-26) — admin "View As" toggle.
+
+    Flips `session['admin_view_as']` between 'customer' (default) and 'admin'.
+    'customer' renders the customer FIESTA shell so the admin can QA the
+    customer experience without logging out; 'admin' renders the operator
+    shell with the admin sidebar + ADMIN badge topbar.
+
+    `role` is the target view mode. Anything other than 'admin' is coerced
+    to 'customer' (whitelist) so a typo / probe can't smuggle some other
+    value into the session. After flipping, redirect back to whatever
+    page the admin came from (HTTP Referer) or `/` as a safe fallback.
+    """
+    target = 'admin' if role == 'admin' else 'customer'
+    session['admin_view_as'] = target
+    next_url = request.referrer or url_for('home')
+    # Guard against open-redirect: only honor same-origin paths.
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(next_url)
+        if parsed.netloc and parsed.netloc != urlparse(request.host_url).netloc:
+            next_url = url_for('home')
+    except Exception:
+        next_url = url_for('home')
+    return redirect(next_url)
 
 
 def calculate_growth_rate(model, date_field, days):
