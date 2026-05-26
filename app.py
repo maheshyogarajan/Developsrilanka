@@ -7,6 +7,7 @@ import traceback  # Added import
 import uuid
 from io import BytesIO
 from datetime import datetime, timedelta
+from typing import Any  # F3.3 preview-savings endpoint type hint
 from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file, g, current_app
 import google.generativeai as genai
 from PIL import Image
