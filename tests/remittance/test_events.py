@@ -200,10 +200,17 @@ def test_event_indexes_exist(app, db_session):
 # --------------------------------------------------------------------------- #
 
 def test_standard_events_contract():
-    """The 12 standard event types are the contract every Wave 2 consumer
+    """The standard event types are the contract every Wave 2 consumer
     (AI CRM, leading-indicator dashboards, scheduler, ad-spend optimiser)
-    will read. Snapshot test — if this fails, you broke the contract."""
+    will read. Snapshot test — if this fails, you broke the contract.
+
+    Markov-L2 (2026-05-27) added 4 funnel-progression signals
+    (profile_complete, al_completed, tax_bill_computed, tax_bill_finalized)
+    consumed by fiesta.markov.state_writer to populate
+    user_state_history. They are append-only additions; nothing in the
+    original 12 was removed."""
     expected = {
+        # Wave 1 — original 12 (event spine).
         "signup",
         "email_verified",
         "persona_set",
@@ -216,9 +223,14 @@ def test_standard_events_contract():
         "support_message_received",
         "nudge_sent",
         "idea_submitted",
+        # Markov-L2 — funnel-progression additions (2026-05-27).
+        "profile_complete",
+        "al_completed",
+        "tax_bill_computed",
+        "tax_bill_finalized",
     }
     assert set(STANDARD_EVENTS) == expected, (
         f"STANDARD_EVENTS drift: missing={expected - set(STANDARD_EVENTS)} "
         f"unexpected={set(STANDARD_EVENTS) - expected}"
     )
-    assert len(STANDARD_EVENTS) == 12, "STANDARD_EVENTS must have 12 entries"
+    assert len(STANDARD_EVENTS) == 16, "STANDARD_EVENTS must have 16 entries"

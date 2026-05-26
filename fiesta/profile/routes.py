@@ -71,6 +71,23 @@ bp_legacy = Blueprint(
 # ---------------------------------------------------------------------------
 
 
+def _profile_has_base_fields(profile_dict: Dict[str, Any]) -> bool:
+    """Markov-L2 helper: mirrors the base_profile_complete logic but
+    works on a ``profile.to_dict()`` snapshot dict (used by the save
+    handler before/after diff).
+
+    Base complete = NIC + city + bank_account_number all non-empty.
+    Matches ``fiesta.admin.fiesta_states_routes._profile_complete``.
+    """
+    if not isinstance(profile_dict, dict):
+        return False
+    return bool(
+        (profile_dict.get("nic") or "").strip()
+        and (profile_dict.get("city") or "").strip()
+        and (profile_dict.get("bank_account_number") or "").strip()
+    )
+
+
 def _emit_event(event_name: str, **props: Any) -> None:
     """Emit an analytics event. No-op if no backend is configured.
 
@@ -248,6 +265,33 @@ def save():
                 user_id=current_user.id,
                 section=section,
             )
+
+    # ---- Markov-L2 hook ---------------------------------------------------
+    # If this POST crossed the base-complete threshold (NIC + city + bank
+    # all populated), emit `profile_complete` to the event spine so the
+    # state writer logs the S01 -> S02 transition. Idempotent at the
+    # writer level (consecutive same-state writes are deduped).
+    try:
+        was_base_complete = _profile_has_base_fields(before)
+        is_base_complete = _profile_has_base_fields(after)
+        if not was_base_complete and is_base_complete:
+            try:
+                from events import emit as _emit_spine
+                _emit_spine(
+                    "profile_complete",
+                    user_id=current_user.id,
+                    payload={"trigger": "profile_save"},
+                    source="route:fiesta_profile.save",
+                    defer=True,
+                )
+            except Exception as _emit_exc:  # noqa: BLE001
+                logger.warning(
+                    "Markov-L2 profile_complete emit failed: %s", _emit_exc
+                )
+    except Exception as _mkv_exc:  # noqa: BLE001
+        logger.warning(
+            "Markov-L2 profile_complete gate check failed: %s", _mkv_exc
+        )
 
     if is_json:
         return jsonify(

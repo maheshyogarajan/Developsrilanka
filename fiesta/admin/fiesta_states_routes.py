@@ -360,6 +360,9 @@ def _compute_state_distribution() -> Dict[str, Any]:
             "v1_states": list(V1_STATES),
             "state_labels": STATE_LABELS,
             "errors": errors,
+            # Markov-L2 enrichments — empty defaults for the bootstrap-fail path.
+            "recent_transitions": [],
+            "dwell_median_seconds_by_state": {s: None for s in V1_STATES},
         }
 
     # Pull every other dependency lazily and tolerantly — any one of these
@@ -583,6 +586,96 @@ def _compute_state_distribution() -> Dict[str, Any]:
         else:
             pct[s] = 0.0
 
+    # ----- Layer 2 enrichment: recent transitions + dwell-time medians ----
+    # Both sections fail-soft: if user_state_history doesn't exist yet (no
+    # migration / fresh DB) we report empty lists and continue.
+    recent_transitions: List[Dict[str, Any]] = []
+    dwell_median_seconds_by_state: Dict[str, Optional[int]] = {
+        s: None for s in V1_STATES
+    }
+    try:
+        from fiesta.markov.models import UserStateHistory
+    except Exception as exc:
+        UserStateHistory = None
+        errors.append({"section": "UserStateHistory", "error": str(exc)})
+
+    if UserStateHistory is not None:
+        try:
+            rows = (
+                UserStateHistory.query
+                .order_by(UserStateHistory.created_at.desc(), UserStateHistory.id.desc())
+                .limit(20)
+                .all()
+            )
+            for r in rows:
+                recent_transitions.append({
+                    "id": r.id,
+                    "user_id": r.user_id,
+                    "previous_state_code": r.previous_state_code,
+                    "state_code": r.state_code,
+                    "state_label": r.state_label,
+                    "trigger_event": r.trigger_event,
+                    "created_at_iso": (
+                        r.created_at.isoformat(timespec="seconds")
+                        if r.created_at else None
+                    ),
+                })
+        except Exception as exc:
+            errors.append({"section": "UserStateHistory-recent", "error": str(exc)})
+
+        # Dwell-time median per state. For each user, walk their history in
+        # chronological order; the dwell time for state X is the gap between
+        # the row that lands AT X and the row that moves AWAY from X. We
+        # ignore the user's TERMINAL row (no exit yet). Median is computed
+        # per destination state across all users.
+        try:
+            durations_by_state: Dict[str, List[float]] = {s: [] for s in V1_STATES}
+            history_rows = (
+                UserStateHistory.query
+                .order_by(UserStateHistory.user_id, UserStateHistory.created_at, UserStateHistory.id)
+                .all()
+            )
+            # Group by user; walk pairs.
+            current_user_id = None
+            user_buffer: List[Any] = []
+
+            def _flush(buf: List[Any]) -> None:
+                # For each consecutive pair (a, b) in buf, the user was in
+                # a.state_code for (b.created_at - a.created_at) seconds.
+                for i in range(len(buf) - 1):
+                    a = buf[i]
+                    b = buf[i + 1]
+                    if not a.created_at or not b.created_at:
+                        continue
+                    secs = (b.created_at - a.created_at).total_seconds()
+                    if secs < 0:
+                        continue
+                    durations_by_state.setdefault(a.state_code, []).append(secs)
+
+            for r in history_rows:
+                if r.user_id != current_user_id:
+                    if user_buffer:
+                        _flush(user_buffer)
+                    user_buffer = []
+                    current_user_id = r.user_id
+                user_buffer.append(r)
+            if user_buffer:
+                _flush(user_buffer)
+
+            for s, dur_list in durations_by_state.items():
+                if not dur_list:
+                    dwell_median_seconds_by_state[s] = None
+                    continue
+                sorted_d = sorted(dur_list)
+                mid = len(sorted_d) // 2
+                if len(sorted_d) % 2 == 0:
+                    median = (sorted_d[mid - 1] + sorted_d[mid]) / 2.0
+                else:
+                    median = sorted_d[mid]
+                dwell_median_seconds_by_state[s] = int(median)
+        except Exception as exc:
+            errors.append({"section": "UserStateHistory-dwell", "error": str(exc)})
+
     return {
         "computed_at_iso": datetime.utcnow().isoformat(timespec="seconds"),
         "tax_year_short": tax_year_short,
@@ -594,6 +687,9 @@ def _compute_state_distribution() -> Dict[str, Any]:
         "v1_states": list(V1_STATES),
         "state_labels": STATE_LABELS,
         "errors": errors,
+        # Markov-L2 enrichments (2026-05-27).
+        "recent_transitions": recent_transitions,
+        "dwell_median_seconds_by_state": dwell_median_seconds_by_state,
     }
 
 

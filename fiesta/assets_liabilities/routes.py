@@ -445,6 +445,26 @@ def edit_save():
         flash("Failed to save entries — please try again.", "error")
         return redirect(url_for("fiesta_al.edit_view"))
 
+    # ---- Markov-L2 hook -----------------------------------------------------
+    # First successful A&L save (Asset or Liability) for this user in this
+    # tax year triggers an `al_completed` event -> S09. The state-writer
+    # dedupes consecutive same-state writes so subsequent saves are no-ops
+    # at the time-series level (the row stays at S09 unless a downstream
+    # event moves them forward).
+    try:
+        from events import emit as _emit_spine
+        _emit_spine(
+            "al_completed",
+            user_id=user_id,
+            payload={"tax_year": tax_year, "entries_saved": added},
+            source="route:fiesta_al.edit_save",
+            defer=True,
+        )
+    except Exception as _emit_exc:  # noqa: BLE001
+        logger.warning(
+            "Markov-L2 al_completed emit failed: %s", _emit_exc
+        )
+
     return redirect(url_for("fiesta_al.list_view"))
 
 

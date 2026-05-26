@@ -31,6 +31,17 @@ try:
 except Exception as e:
     logger.error(f"Error loading feedback_models: {str(e)}")
 
+# Markov-L2 2026-05-27: import fiesta.markov.models so the
+# `user_state_history` table registers with SQLAlchemy metadata for
+# db.create_all() (fresh-DB + SQLite test path). Raw DDL backup lives in
+# app._ensure_additive_schema() AND migrations/20260527_100100_markov_l2_*
+# for production deploys.
+try:
+    import fiesta.markov.models  # noqa: F401
+    logger.info("Markov-L2 models loaded (user_state_history table)")
+except Exception as e:
+    logger.error(f"Error loading fiesta.markov.models: {str(e)}")
+
 # Tier D5 / E6 2026-05-24: A/B testing harness. Import ab_test_models so
 # ab_experiment + ab_assignment tables register with SQLAlchemy metadata
 # for db.create_all(). Register the {{ ab_variant('experiment_key') }}
@@ -774,6 +785,16 @@ try:
     logger.info('FIESTA Markov tracker registered at /admin/fiesta-states')
 except Exception as e:
     logger.error(f'FIESTA Markov tracker load failed: {e}')
+
+# Markov-L2 CLI — `flask markov backfill [--commit]`.
+# Layer 2 needs a one-shot seed of user_state_history for the pre-launch
+# cohort (~3,877 users). The CLI is dry-run by default and idempotent.
+try:
+    from fiesta.markov.cli import register_cli as register_markov_cli
+    register_markov_cli(app)
+    logger.info('FIESTA Markov-L2 CLI registered (flask markov backfill)')
+except Exception as e:
+    logger.error(f'FIESTA Markov-L2 CLI load failed: {e}')
 
 # MS2 Stage E.1 B11 — RSU classifier (vesting + sale at /income/rsu/*)
 try:
