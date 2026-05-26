@@ -361,7 +361,89 @@ def api_get_sources():
 @bp.route("/api/fiesta/income-sources", methods=["POST"], strict_slashes=False)
 @login_required
 def api_post_sources():
-    """Update the user's income_sources idempotently (additive only)."""
+    """Update the user's income_sources idempotently (additive only).
+
+    Request contract
+    ----------------
+    The endpoint accepts JSON OR form-encoded bodies:
+
+    - JSON:  Content-Type: application/json
+             Body: {"income_sources": [...canonical strings...]}
+             Header: X-CSRFToken: <token from <meta name="csrf-token">>
+
+    - Form:  Content-Type: application/x-www-form-urlencoded
+             Body: income_sources=foo&income_sources=bar&csrf_token=<token>
+
+    D-N1 polish (2026-05-27): JSON callers that omit X-CSRFToken WHILE
+    CSRF is enforced previously got a Flask-WTF CSRFError that rendered
+    as an HTML 400 page (`<!doctype html><title>400 Bad Request</title>`
+    + "The CSRF token is missing."). For out-of-process callers
+    (Playwright `requestContext.post` in particular) this surfaced as a
+    perceived "hang" because they were waiting for a JSON shape they
+    could drain, and saw HTML they couldn't parse. The route now
+    validates CSRF itself (marked `@csrf.exempt` to bypass the global
+    handler) and returns a clean, predictable JSON 400 with an explicit
+    error code so the caller can recover. Browser callers via
+    fiesta.js are unaffected (they always send the X-CSRFToken header
+    read from the <meta> tag, which validates fine).
+
+    Tests
+    -----
+    See tests/platform/test_income_source_picker.py (CSRF off in CI)
+    and tests/platform/test_income_sources_csrf.py (CSRF on, regression).
+    """
+    # ----- D-N1: explicit CSRF validation with JSON-friendly errors. -----
+    # The route is registered as @csrf.exempt in register_blueprint() so the
+    # global Flask-WTF CSRFProtect handler doesn't intercept and return its
+    # default HTML 400. We replicate the CSRF check here (when enabled) and
+    # surface a JSON-shaped 400 that out-of-process callers can drain.
+    try:
+        _csrf_enabled = bool(current_app.config.get("WTF_CSRF_ENABLED", True))
+    except Exception:
+        _csrf_enabled = True
+    if _csrf_enabled:
+        _csrf_header = (
+            request.headers.get("X-CSRFToken")
+            or request.headers.get("X-CSRF-Token")
+        )
+        # Form-encoded callers may rely on the hidden csrf_token input.
+        _csrf_form_field = None
+        if not request.is_json:
+            _csrf_form_field = request.form.get("csrf_token")
+        _csrf_value = _csrf_header or _csrf_form_field
+        if not _csrf_value:
+            log.info(
+                "g3.6 POST /api/fiesta/income-sources rejected: "
+                "no X-CSRFToken header or csrf_token form field present"
+            )
+            return jsonify({
+                "ok": False,
+                "error": "missing_csrf_token",
+                "message": (
+                    "POSTs to /api/fiesta/income-sources require a CSRF "
+                    "token. Send it as the X-CSRFToken header (JSON "
+                    "callers, read from <meta name=\"csrf-token\">) OR "
+                    "as the csrf_token form field (form-encoded callers)."
+                ),
+            }), 400
+        # Validate the token. If invalid, return JSON 400 (not HTML).
+        try:
+            from flask_wtf.csrf import validate_csrf
+            validate_csrf(_csrf_value)
+        except Exception as exc:  # noqa: BLE001 — flask_wtf.csrf.CSRFError + others
+            log.info(
+                "g3.6 POST /api/fiesta/income-sources rejected: "
+                "CSRF token failed validation (%s)", exc
+            )
+            return jsonify({
+                "ok": False,
+                "error": "invalid_csrf_token",
+                "message": (
+                    "CSRF token did not validate. Refresh the page to "
+                    "pick up a fresh token from <meta name=\"csrf-token\">."
+                ),
+            }), 400
+
     # Accept JSON OR form-encoded. The picker partial submits a normal
     # HTML form (so it works without JS); the JS interceptor in
     # fiesta_income_picker.js sends application/json.
@@ -494,6 +576,28 @@ def register_blueprint(app: Flask) -> None:
         pass
 
     app.register_blueprint(bp)
+
+    # D-N1 polish (2026-05-27): exempt POST /api/fiesta/income-sources
+    # from the global CSRFProtect handler so we can return JSON 400s
+    # instead of Flask-WTF's default HTML 400 page. CSRF is still
+    # enforced — see api_post_sources() which validates the token
+    # itself and returns a predictable JSON shape on failure.
+    try:
+        from app import csrf as _csrf
+        _csrf.exempt(api_post_sources)
+        log.debug(
+            "G3.6 api_post_sources marked @csrf.exempt — route does its "
+            "own CSRF validation and returns JSON errors."
+        )
+    except Exception as exc:  # noqa: BLE001
+        # If the global csrf object isn't importable (rare — only in
+        # very minimal test harnesses), fall through. The route's own
+        # CSRF validation still runs when WTF_CSRF_ENABLED is true.
+        log.debug(
+            "G3.6 csrf.exempt registration skipped (csrf object not "
+            "available: %s)", exc
+        )
+
     log.info(
         "G3.6 fiesta_income_sources blueprint registered "
         "(/fie/income-sources + /api/fiesta/income-sources)"
