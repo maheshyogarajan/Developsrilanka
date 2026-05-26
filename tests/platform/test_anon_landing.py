@@ -159,3 +159,48 @@ def test_f1_4_anon_landing_has_no_mobile_header(client):
         "element. The mobile sidebar toggle is meaningful only for "
         f"authed users. First match: {match.group(0) if match else None!r}"
     )
+
+
+# --------------------------------------------------------------------------- #
+# D3 (2026-05-27) — main-header page-title h1 must be suppressed for anon.
+# --------------------------------------------------------------------------- #
+
+
+def test_d3_anon_landing_has_no_main_header(client):
+    """The authed bookkeeping `<header class="main-header">` block in
+    layout.html carries a `<h1 class="page-title">` hard-coded to "Home"
+    for `request.path == '/'`. Before D3, that h1 rendered BEFORE the
+    unified hero h1 from `_hero_partial.html`, so any DOM-order H1 reader
+    captured "Home" instead of the canonical "Cut your tax bill. Keep
+    the records clean." headline. The fix gates the whole main-header
+    behind `current_user.is_authenticated`."""
+    body = _get_anon_landing(client)
+    main_header_re = re.compile(
+        r'<header\b[^>]*class\s*=\s*"[^"]*\bmain-header\b[^"]*"',
+        re.IGNORECASE,
+    )
+    match = main_header_re.search(body)
+    assert match is None, (
+        "Anon GET / body contains a `<header class=\"main-header\">` "
+        "element. The bookkeeping page-title h1 inside it competes with "
+        "the unified hero h1 from `_hero_partial.html` and was the H1 "
+        "the customer-flow audit captured as \"Home\" on 2026-05-26. "
+        f"First match: {match.group(0) if match else None!r}"
+    )
+
+
+def test_d3_anon_landing_hero_h1_is_first_h1(client):
+    """Stronger D3 assertion: the FIRST `<h1>` element in the anon GET /
+    DOM must be the unified hero headline. If a future regression
+    re-introduces a chrome h1 above the hero, this test catches it
+    before the audit does."""
+    body = _get_anon_landing(client)
+    first_h1_re = re.compile(r'<h1\b[^>]*>(.*?)</h1>', re.IGNORECASE | re.DOTALL)
+    match = first_h1_re.search(body)
+    assert match is not None, "Anon GET / has no <h1> element at all."
+    first_h1_inner = match.group(1)
+    assert "Cut your tax bill." in first_h1_inner, (
+        f"First <h1> on anon GET / is not the canonical hero headline. "
+        f"Inner text: {first_h1_inner!r}. Expected the substring "
+        f"'Cut your tax bill.' from `_hero_partial.html`."
+    )

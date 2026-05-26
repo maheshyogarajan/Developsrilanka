@@ -664,6 +664,17 @@
 
     <!-- Main Content Area -->
     <div class="content" id="content">
+        {# D3 (2026-05-27) — the .main-header page-title h1 is bookkeeping
+           chrome ("Home", "Login", "Register Account", "FIESTA"…) that
+           conflicts with the unified hero h1 rendered by
+           templates/fiesta_public/_hero_partial.html on /, /tax-preview,
+           /register, /signup. The dropdown beside the h1 is already
+           current_user-gated, so the whole header serves only authed
+           bookkeeping/admin surfaces. Gating the header avoids two
+           competing h1s (the layout "Home" was winning DOM order on /,
+           hiding the canonical "Cut your tax bill. Keep the records clean."
+           hero headline from the H1 reading the audit captured). #}
+        {% if current_user.is_authenticated %}
         <header class="main-header">
             <h1 class="page-title" id="pageTitle">
                 {% if request.path == '/' %}
@@ -706,7 +717,10 @@
                     FIESTA
                 {% endif %}
             </h1>
-            
+
+            {# Inner current_user gate redundant under the outer D3 gate above,
+               kept as belt-and-braces — if the outer gate is ever removed
+               this still prevents leaking the dropdown to anon. #}
             {% if current_user.is_authenticated %}
             <div class="d-flex align-items-center">
                 {# X2 Persona switcher — cross-screen top-bar pill. V1: self-locked. #}
@@ -725,6 +739,7 @@
             </div>
             {% endif %}
         </header>
+        {% endif %}{# /D3 main-header anon gate #}
         
         <main class="main-content">
             {% with messages = get_flashed_messages(with_categories=true) %}
