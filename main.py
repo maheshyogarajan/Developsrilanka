@@ -775,6 +775,16 @@ try:
 except Exception as e:
     logger.error(f'FIESTA Markov tracker load failed: {e}')
 
+# Markov-L2 CLI — `flask markov backfill [--commit]`.
+# Layer 2 needs a one-shot seed of user_state_history for the pre-launch
+# cohort (~3,877 users). The CLI is dry-run by default and idempotent.
+try:
+    from fiesta.markov.cli import register_cli as register_markov_cli
+    register_markov_cli(app)
+    logger.info('FIESTA Markov-L2 CLI registered (flask markov backfill)')
+except Exception as e:
+    logger.error(f'FIESTA Markov-L2 CLI load failed: {e}')
+
 # MS2 Stage E.1 B11 — RSU classifier (vesting + sale at /income/rsu/*)
 try:
     from fiesta.rsu.routes import register_blueprint as register_rsu
