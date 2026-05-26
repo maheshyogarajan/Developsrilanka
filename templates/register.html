@@ -154,8 +154,12 @@
         {# F1.2 (Phase C W2) — unified hero headline shared with /, /tax-preview,
            /signup via templates/fiesta_public/_hero_partial.html. Sub copy stays
            register-specific (pricing-pitch); the form sits directly below so no
-           CTA vars are passed (the submit button is the CTA). #}
-        {% with hero_subheadline='Free during launch · Rs 2,500 from 2026-09-01 · No card required' %}
+           CTA vars are passed (the submit button is the CTA).
+           D4 (2026-05-27) — pricing copy now sourced from _pricing_macros.html
+           so the launch / price / refund line stays consistent with /pricing,
+           /pricing/x1, /signup, /tax-preview, s0_landing. #}
+        {% from '_pricing_macros.html' import pricing_copy %}
+        {% with hero_subheadline=pricing_copy() %}
           {% include 'fiesta_public/_hero_partial.html' %}
         {% endwith %}
       </div>

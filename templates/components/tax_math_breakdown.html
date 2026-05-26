@@ -1,5 +1,8 @@
 {% extends 'preview_layout.html' %}
 
+{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html. #}
+{% from '_pricing_macros.html' import pricing_copy %}
+
 {% block title %}See your tax savings — FIESTA{% endblock %}
 
 {% block additional_styles %}
@@ -746,7 +749,9 @@
     <!-- F: CTA -->
     <div class="cta-strip">
         <a href="/signup" class="cta-btn">See if you save — Sign up free during launch</a>
-        <div class="micro">Free during launch · Rs 2,500 from 2026-09-01 · 14-day refund · Backed by Lanka.tax</div>
+        {# D4 — canonical pricing copy via _pricing_macros.html. " · Backed by
+           Lanka.tax" appended as a surface-specific trust signal. #}
+        <div class="micro">{{ pricing_copy() }} · Backed by Lanka.tax</div>
     </div>
 
 </div>

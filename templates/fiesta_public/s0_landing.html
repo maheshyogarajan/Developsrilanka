@@ -1,5 +1,8 @@
 {% extends 'layout.html' %}
 
+{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html. #}
+{% from '_pricing_macros.html' import pricing_copy %}
+
 {% block title %}Cut your tax bill — FIESTA{% endblock %}
 
 {% block additional_styles %}
@@ -762,7 +765,8 @@
     </div>
 
     <div class="landing-footer">
-      <b>Free during launch &mdash; Rs 2,500 from 2026-09-01.</b> No credit card. No sales call. Just better records.
+      {# D4 — canonical pricing copy via _pricing_macros.html. #}
+      <b>{{ pricing_copy() }}</b> No credit card. No sales call. Just better records.
     </div>
 
     <div class="preview-disclaimer" id="previewDisclaimer">

@@ -1,5 +1,10 @@
 {% extends "layout.html" %}
 
+{# D4 (2026-05-27) — pricing copy unified via _pricing_macros.html so the
+   launch / price / refund framing is identical with /register,
+   /pricing/x1, /signup, /tax-preview, s0_landing. #}
+{% from '_pricing_macros.html' import pricing_copy, pricing_badge %}
+
 {% block title %}Pricing — FIESTA{% endblock %}
 
 {% block content %}
@@ -33,6 +38,11 @@
         Built for Sri Lankan engineers, designers, and consultants filing
         their first return. 30-day free trial, no card needed.
       </p>
+      {# D4 — canonical launch / refund framing identical with /register,
+         /pricing/x1, /signup, /tax-preview, s0_landing. #}
+      <div class="mt-3">
+        {{ pricing_badge('badge bg-success') }}
+      </div>
       {% if authenticated and recommended_tier %}
         <p class="mt-3 mb-0">
           <span class="badge bg-success-100 text-success-700">
