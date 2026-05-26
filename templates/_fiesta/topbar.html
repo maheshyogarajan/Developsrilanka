@@ -14,8 +14,20 @@
    data-source="api" attribute is contract-locked — F-Platform-5 may swap
    it to data-source="cache" / "fallback" depending on resolution.
 #}
-{% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
-{% set _ya_years = (hub_tax_years if hub_tax_years is defined else ['2025/26','2024/25','2023/24','2022/23']) %}
+{# C5 FIX (Day-0, 2026-05-27): both _ya_default AND _ya_years now derive from
+   the SAME canonical source — `active_ty` (the TaxYear object on the request
+   context) and `hub_tax_years` (the engine's supported-set, short-slash form).
+   Before this fix the dropdown showed the supported-set fallback (e.g.
+   "2025/26") while the counter showed `current_sl_tax_year()` (e.g. "2026/27"
+   on/after 1 Apr 2026) — two different YAs on the same toolbar. #}
+{% if active_ty is defined and active_ty %}
+  {% set _ya_default = active_ty.short_slash() %}
+{% elif current_sl_tax_year is defined %}
+  {% set _ya_default = current_sl_tax_year() %}
+{% else %}
+  {% set _ya_default = '2025/26' %}
+{% endif %}
+{% set _ya_years = (hub_tax_years if (hub_tax_years is defined and hub_tax_years) else ['2025/26','2024/25']) %}
 <header class="fiesta-topbar" role="banner">
   <button class="fiesta-topbar-toggle" id="fiesta-mobile-toggle"
           type="button" aria-label="Open navigation" aria-controls="fiesta-sidebar"

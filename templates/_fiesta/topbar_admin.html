@@ -4,8 +4,15 @@
    savings counter + user menu) plus an ADMIN badge after the wordmark.
    C4 admin consolidator may extend.
 #}
-{% set _ya_default = (current_sl_tax_year() if current_sl_tax_year is defined else '2025/26') %}
-{% set _ya_years = (hub_tax_years if hub_tax_years is defined else ['2025/26','2024/25','2023/24','2022/23']) %}
+{# C5 FIX (Day-0, 2026-05-27): same canonical-source rebind as topbar.html. #}
+{% if active_ty is defined and active_ty %}
+  {% set _ya_default = active_ty.short_slash() %}
+{% elif current_sl_tax_year is defined %}
+  {% set _ya_default = current_sl_tax_year() %}
+{% else %}
+  {% set _ya_default = '2025/26' %}
+{% endif %}
+{% set _ya_years = (hub_tax_years if (hub_tax_years is defined and hub_tax_years) else ['2025/26','2024/25']) %}
 <header class="fiesta-topbar fiesta-topbar-admin" role="banner">
   <button class="fiesta-topbar-toggle" id="fiesta-mobile-toggle"
           type="button" aria-label="Open admin navigation" aria-controls="fiesta-sidebar"
