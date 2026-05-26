@@ -643,14 +643,58 @@ def import_submit():
 
 
 # ---------------------------------------------------------------------------
+# C6 Day-0 fix (2026-05-27) — /income/professional/* alias blueprint
+# ---------------------------------------------------------------------------
+# The income-source picker offers "Professional fees / consulting (LKR)" with
+# id `professional_fees_lkr`. The customer-flow audit
+# (CUSTOMER_FLOW_AUDIT_2026-05-26, finding C6) called /income/professional/new
+# a 404. The canonical mount is /income/professional-fees/, with the hyphen.
+# This alias blueprint catches the shorter /income/professional/* form and
+# 302-redirects to the canonical /income/professional-fees/* path so any
+# downstream link generator that follows the /income/<source>/new
+# convention resolves cleanly.
+bp_alias = Blueprint(
+    "fiesta_professional_alias",
+    __name__,
+    url_prefix="/income/professional",
+)
+
+
+@bp_alias.route("", methods=["GET", "POST"], strict_slashes=False)
+@bp_alias.route("/", methods=["GET", "POST"], strict_slashes=False)
+def _alias_root():
+    """302: /income/professional[/] -> /income/professional-fees/"""
+    return redirect("/income/professional-fees/", code=302)
+
+
+@bp_alias.route("/<path:subpath>", methods=["GET", "POST"])
+def _alias_subpath(subpath: str):
+    """302: /income/professional/<anything> -> /income/professional-fees/<anything>
+
+    Preserves query string. Covers /new, /import, /<id>, /<id>/edit, etc.
+    """
+    from flask import request as _req
+    target = f"/income/professional-fees/{subpath}"
+    qs = _req.query_string.decode("utf-8")
+    if qs:
+        target = f"{target}?{qs}"
+    return redirect(target, code=302)
+
+
+# ---------------------------------------------------------------------------
 # Registration helper
 # ---------------------------------------------------------------------------
 def register_blueprint(app) -> None:
-    """Register the G3.2 professional-fees blueprint."""
+    """Register the G3.2 professional-fees blueprint + /income/professional alias."""
     app.register_blueprint(bp)
+    # C6 Day-0 fix — also register the /income/professional alias blueprint
+    # (idempotent: skip if already present).
+    if "fiesta_professional_alias" not in app.blueprints:
+        app.register_blueprint(bp_alias)
     logger.info(
-        "FIESTA MS4 W3b G3.2 professional-fees blueprint registered at /income/professional-fees"
+        "FIESTA MS4 W3b G3.2 professional-fees blueprint registered at /income/professional-fees "
+        "(+ /income/professional 302 alias)"
     )
 
 
-__all__ = ["bp", "register_blueprint"]
+__all__ = ["bp", "bp_alias", "register_blueprint"]

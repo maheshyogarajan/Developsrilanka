@@ -700,6 +700,29 @@ def import_submit():
 
 
 # ---------------------------------------------------------------------------
+# C6 Day-0 fix (2026-05-27) — /income/crypto/new alias
+# ---------------------------------------------------------------------------
+# The income-source picker offers "Crypto holdings + disposals" and the
+# customer-flow audit (CUSTOMER_FLOW_AUDIT_2026-05-26, finding C6) called
+# /income/crypto/new a 404. The canonical entry point for a new crypto
+# acquisition is /income/crypto/buy. We alias /new -> /buy so any
+# downstream link generator that follows the /income/<source>/new
+# convention (matching /income/employment/new + /income/business/new)
+# resolves cleanly.
+@bp.route("/new", methods=["GET"])
+@login_required
+def new_alias():
+    """C6 alias: /income/crypto/new -> /income/crypto/buy (302).
+
+    Paywall is intentionally NOT applied here — launch decision 1
+    (2026-05-26) says users can record data without paying. The downstream
+    /buy handler is the canonical surface.
+    """
+    from flask import redirect as _redirect
+    return _redirect("/income/crypto/buy", code=302)
+
+
+# ---------------------------------------------------------------------------
 # Registration helper
 # ---------------------------------------------------------------------------
 def register_blueprint(app) -> None:

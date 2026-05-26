@@ -395,6 +395,30 @@ def sell_submit(vesting_id: int):
 
 
 # ---------------------------------------------------------------------------
+# C6 Day-0 fix (2026-05-27) — /income/rsu/new alias
+# ---------------------------------------------------------------------------
+# The income-source picker offers "RSU / equity compensation" and the
+# customer-flow audit (CUSTOMER_FLOW_AUDIT_2026-05-26, finding C6) called
+# /income/rsu/new a 404. The canonical entry point for RSU is the bulk
+# import form at /income/rsu/import. We alias /new -> /import so any
+# downstream link generator that follows the /income/<source>/new
+# convention (matching /income/employment/new + /income/business/new)
+# resolves cleanly.
+@bp.route("/new", methods=["GET"])
+@login_required
+def new_alias():
+    """C6 alias: /income/rsu/new -> /income/rsu/import (302).
+
+    Paywall is intentionally NOT applied here — launch decision 1
+    (2026-05-26) says users can record data without paying. The downstream
+    /import handler is the canonical surface; if it is paywalled, that
+    decision is still honoured there.
+    """
+    from flask import redirect as _redirect
+    return _redirect("/income/rsu/import", code=302)
+
+
+# ---------------------------------------------------------------------------
 # Registration helper
 # ---------------------------------------------------------------------------
 def register_blueprint(app) -> None:
