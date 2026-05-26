@@ -89,12 +89,17 @@
      Element id and data-source attribute are LOCKED. Initial render falls
      back to the server-side hub_projected_savings_lkr (set by
      inject_fiesta_hub_context) so the counter is correct on first paint
-     even before fiesta.js hits /api/fiesta/savings-projection. #}
+     even before fiesta.js hits /api/fiesta/savings-projection.
+
+     D-N3 polish (2026-05-27): previously the fallback was 'Rs --' which
+     reads as a broken/loading state. For users with no income yet (the
+     savings projection legitimately resolves to 0), 'Rs 0' is the honest
+     and non-broken-looking value. #}
   <div class="fiesta-counter" aria-live="polite"
        title="Projected tax savings for this YA based on your data so far.">
     <span class="fiesta-counter-lead">You're saving</span>
     <span id="fiesta-savings-counter" data-source="api">
-      Rs {{ '{:,.0f}'.format(hub_projected_savings_lkr) if (hub_projected_savings_lkr is defined and hub_projected_savings_lkr) else '--' }}
+      Rs {{ '{:,.0f}'.format(hub_projected_savings_lkr) if (hub_projected_savings_lkr is defined and hub_projected_savings_lkr) else '0' }}
     </span>
     <span class="fiesta-counter-ya">YA {{ _ya_default }}</span>
   </div>

@@ -89,13 +89,16 @@ def test_profile_renders_form_for_legacy_triage_user(
     )
 
 
-def test_profile_redirects_to_triage_for_brand_new_user(
+def test_profile_redirects_to_onboarding_for_brand_new_user(
     client, user_a, db_session
 ):
-    """Brand-new user (neither triage nor onboarding done) → /fie/triage.
+    """Brand-new user (neither triage nor onboarding done) → /onboarding/welcome.
 
-    This preserves the original gate intent: if the user has NEVER been
-    through any onboarding surface, route them through the legacy triage.
+    D-N2 polish (2026-05-27): previously this branch silently bounced to
+    /fie/triage which then chained another silent 302 to /onboarding/welcome
+    (for sl_foreign_income personas). Customer saw the onboarding screen
+    with no explanation. We now redirect directly to /onboarding/welcome
+    with an explicit flash message.
     """
     _set_onboarding_state(
         db_session,
@@ -107,11 +110,50 @@ def test_profile_redirects_to_triage_for_brand_new_user(
 
     resp = client.get("/fie/profile", follow_redirects=False)
     assert resp.status_code == 302, (
-        f"Brand-new user should be redirected to triage, got {resp.status_code}"
+        f"Brand-new user should be redirected, got {resp.status_code}"
     )
-    assert "/fie/triage" in (resp.headers.get("Location") or ""), (
-        f"Expected redirect to /fie/triage, got {resp.headers.get('Location')!r}"
+    assert "/onboarding/welcome" in (resp.headers.get("Location") or ""), (
+        f"Expected redirect to /onboarding/welcome, got {resp.headers.get('Location')!r}"
     )
+
+
+def test_profile_redirect_flashes_message_for_brand_new_user(
+    client, user_a, db_session
+):
+    """D-N2 polish — the redirect-to-onboarding branch must flash an
+    info message so the user understands WHY they were bounced.
+
+    Pre-fix: silent 302 (user saw the welcome screen with no
+    explanation, looked like a broken link).
+    Post-fix: flash("Please complete onboarding before setting up
+    your profile.", "info") is set in the session before the redirect.
+    """
+    _set_onboarding_state(
+        db_session,
+        user_a,
+        triage_answers=None,
+        onboarding_completed=False,
+    )
+    login_as(client, user_a)
+
+    resp = client.get("/fie/profile", follow_redirects=False)
+    assert resp.status_code == 302
+    # The flash sits in the session; inspect it directly. We don't follow
+    # the redirect because /onboarding/welcome's render is out of scope
+    # for this test — we only need to assert the flash was emitted.
+    with client.session_transaction() as sess:
+        # Flask stores flashes under '_flashes' as a list of (category, msg)
+        # tuples. The exact key has been stable since Flask 0.x.
+        flashes = sess.get("_flashes") or []
+        msgs = [m for (_cat, m) in flashes]
+        assert any(
+            "complete onboarding" in m.lower() for m in msgs
+        ), (
+            f"Expected a flash explaining the onboarding redirect, "
+            f"got flashes={flashes!r}. Without this flash, customers "
+            f"arrive at /onboarding/welcome with no explanation of why "
+            f"their /fie/profile click bounced — D-N2 regression."
+        )
 
 
 def test_profile_renders_for_user_with_both_triage_and_onboarding(

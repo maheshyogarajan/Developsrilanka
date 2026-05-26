@@ -133,8 +133,19 @@ def index():
     triage_answers = getattr(current_user, 'triage_answers', None)
     onboarding_completed = getattr(current_user, 'onboarding_completed', False)
     if not triage_answers and not onboarding_completed:
-        flash("Let's start with 3 quick questions", "info")
-        return redirect("/fie/triage")
+        # D-N2 polish (2026-05-27) — previously this branch silently
+        # bounced the user to /fie/triage, which then chained another
+        # silent 302 to /onboarding/welcome (for sl_foreign_income
+        # personas). Net effect: customers arriving at /fie/profile saw
+        # the welcome screen with NO explanation of why they'd been
+        # redirected. We now (a) flash an explicit message, and (b)
+        # redirect directly to the canonical G4 onboarding entry point
+        # to avoid the chained-302 hop.
+        flash(
+            "Please complete onboarding before setting up your profile.",
+            "info",
+        )
+        return redirect("/onboarding/welcome")
 
     profile = get_or_create_profile(current_user.id)
     sections = section_progress(profile)
