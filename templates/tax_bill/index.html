@@ -1335,15 +1335,25 @@
                 <h6 style="font-family: 'Fraunces', serif; margin-top: 1.5rem; font-weight: 500;">
                     Bracket walk
                 </h6>
-                {# B15 F6.7 — only render bands that have income; show empty-state for zero-income users #}
+                {# B15 F6.7 — only render bands that have non-zero income AND tax by
+                   default. For most foreign-remit / single-source filers, many
+                   brackets show Rs 0 and Rs 0 — rendering them all reads as
+                   "broken." Power users and tax professionals can opt back into
+                   the full structure via the ?show_all_brackets=1 query param
+                   (or the inline toggle link below the table).
+
+                   Phase C Wave 2 (Fix 1): added "show all brackets" toggle +
+                   footer note explaining the default hide. #}
                 {% set _has_any_band_income = comp.by_band | selectattr('income_in_band', 'gt', 0) | list | length > 0 %}
+                {% set _show_all_brackets = (request.args.get('show_all_brackets') in ('1', 'true', 'yes')) if request else false %}
+                {% set _hidden_band_count = comp.by_band | rejectattr('income_in_band', 'gt', 0) | list | length %}
                 {% if not _has_any_band_income %}
-                    <div class="tb-bracket-empty">
+                    <div class="tb-bracket-empty" data-testid="bracket-empty-state">
                         <p>Once you log your income, your bracket-by-bracket breakdown will appear here.</p>
                         <a href="/remittance/dashboard">Go to your Remittance Ledger &rarr;</a>
                     </div>
                 {% else %}
-                <table class="tb-table">
+                <table class="tb-table" data-testid="bracket-walk-table">
                     <thead>
                         <tr>
                             <th>Band (LKR)</th>
@@ -1354,8 +1364,16 @@
                     </thead>
                     <tbody>
                         {% for b in comp.by_band %}
-                            {% if b.income_in_band > 0 %}
-                            <tr>
+                            {# Render row when:
+                                 - show_all_brackets toggle is on (CEO/power-user), OR
+                                 - the bracket has either taxable income OR tax due
+                                   (defensive: both should match in practice but we
+                                   honour the spec's "tax_due == 0 AND taxable == 0"
+                                   suppression rule literally). #}
+                            {% set _is_zero_row = (not b.income_in_band or b.income_in_band <= 0) and (not b.tax_in_band or b.tax_in_band <= 0) %}
+                            {% if _show_all_brackets or not _is_zero_row %}
+                            <tr data-testid="bracket-row"
+                                data-bracket-empty="{{ 'true' if _is_zero_row else 'false' }}">
                                 <td>
                                     {% if b.band_upper %}
                                         {{ "{:,.0f}".format(b.band_lower) }} − {{ "{:,.0f}".format(b.band_upper) }}
@@ -1381,6 +1399,30 @@
                         </tr>
                     </tbody>
                 </table>
+                {# Footer note + show-all toggle — explains the default hide
+                   and gives power users an explicit opt-in. #}
+                {% if _hidden_band_count > 0 %}
+                    <p class="tb-bracket-footer-note"
+                       data-testid="bracket-footer-note"
+                       style="margin-top:0.5rem;font-size:0.82rem;color:var(--color-ink-500,#64748B);">
+                        {% if _show_all_brackets %}
+                            Showing all {{ comp.by_band | length }} brackets, including
+                            the {{ _hidden_band_count }} where you owe nothing.
+                            <a href="?show_all_brackets=0"
+                               data-testid="bracket-hide-toggle"
+                               style="color:var(--color-brand-700,#0B5394);">
+                                Hide empty brackets
+                            </a>
+                        {% else %}
+                            Brackets where you owe nothing aren't shown.
+                            <a href="?show_all_brackets=1"
+                               data-testid="bracket-show-all-toggle"
+                               style="color:var(--color-brand-700,#0B5394);">
+                                Show all brackets
+                            </a>
+                        {% endif %}
+                    </p>
+                {% endif %}
                 {% endif %}
                 <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--color-ink-500);">
                     Effective rate {{ "{:.2%}".format(comp.effective_rate) }} ·
