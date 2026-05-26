@@ -3769,9 +3769,27 @@ def _process_receipt_with_gemini_legacy(image):
 # Authentication Routes
 @app.route('/login')
 def login():
-    """Render the login page with social login options."""
-    return render_template('login.html')
-    
+    """Render the login page with social login options.
+
+    F1.6 (2026-05-26): safelist the `next` deep-link target so it survives
+    the email-login POST. Same defence-in-depth rules as /register:
+    same-origin only — must start with '/', must NOT start with '//'
+    or '\\', must not contain '://'. Failed safelisting → render
+    without `login_next` (template emits empty hidden field).
+    """
+    _raw_next = request.args.get('next', '')
+    login_next = None
+    if (
+        _raw_next
+        and _raw_next.startswith('/')
+        and not _raw_next.startswith('//')
+        and not _raw_next.startswith('\\')
+        and '://' not in _raw_next
+    ):
+        login_next = _raw_next
+    return render_template('login.html', login_next=login_next)
+
+
 @app.route('/register')
 def register():
     """Render the registration page for new users."""
@@ -4284,10 +4302,27 @@ def email_login():
             if hasattr(user, 'onboarding_completed') and not user.onboarding_completed and user.role != 'admin':
                 flash('Please complete your account setup to get started.', 'info')
                 return redirect(url_for('onboarding_wizard'))
-            
+
+            # F1.6 — honor the `next` deep-link target if it survived the
+            # POST. Re-validate the same-origin safelist HERE (defence-in-depth):
+            # a tampered hidden field cannot bypass the GET-side check because
+            # we re-check the rules before redirecting. Fallback (`next` is
+            # empty / off-origin / invalid) → default to index, preserving
+            # existing behaviour. The same rules used by /register +
+            # verify_email so the safelist is canonical across the auth surface.
+            _form_next = (request.form.get('next') or '').strip()
+            if (
+                _form_next
+                and _form_next.startswith('/')
+                and not _form_next.startswith('//')
+                and not _form_next.startswith('\\')
+                and '://' not in _form_next
+            ):
+                return redirect(_form_next)
+
             # Redirect directly to scan page for better user experience
             return redirect(url_for('index'))
-            
+
         elif action == 'register':
             # Import enhanced registration logger
             from registration_logger import (
