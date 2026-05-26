@@ -171,7 +171,7 @@ def _money_from_total(
 @bp.route("", methods=["GET"])
 @bp.route("/", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_history")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def history():
     user = _current_user_obj()
     if not user:
@@ -215,7 +215,7 @@ def history():
 # ---------------------------------------------------------------------------
 @bp.route("/positions", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_positions")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def positions():
     user = _current_user_obj()
     if not user:
@@ -264,14 +264,14 @@ def positions():
 # ---------------------------------------------------------------------------
 @bp.route("/buy", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_buy_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def buy_form():
     return render_template("crypto/buy.html", error=None, position=None)
 
 
 @bp.route("/buy", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_buy_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def buy_submit():
     user = _current_user_obj()
     if not user:
@@ -340,7 +340,7 @@ def buy_submit():
 # ---------------------------------------------------------------------------
 @bp.route("/sell", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_sell_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def sell_form():
     user = _current_user_obj()
     if not user:
@@ -377,7 +377,7 @@ def db_session_query_open_assets(user_id):  # pragma: no cover - reserved seam
 
 @bp.route("/sell", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_sell_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def sell_submit():
     user = _current_user_obj()
     if not user:
@@ -460,7 +460,7 @@ def sell_submit():
 # ---------------------------------------------------------------------------
 @bp.route("/import", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_import_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_form():
     return render_template("crypto/import.html",
                            created_buys=None, created_sells=None,
@@ -594,7 +594,7 @@ def _exchange_to_country(exchange: str) -> str | None:
 
 @bp.route("/import", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B13", action="crypto_import_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_submit():
     user = _current_user_obj()
     if not user:
@@ -697,6 +697,29 @@ def import_submit():
         projected=projected,
         raw=raw if create_errors else "",
     )
+
+
+# ---------------------------------------------------------------------------
+# C6 Day-0 fix (2026-05-27) — /income/crypto/new alias
+# ---------------------------------------------------------------------------
+# The income-source picker offers "Crypto holdings + disposals" and the
+# customer-flow audit (CUSTOMER_FLOW_AUDIT_2026-05-26, finding C6) called
+# /income/crypto/new a 404. The canonical entry point for a new crypto
+# acquisition is /income/crypto/buy. We alias /new -> /buy so any
+# downstream link generator that follows the /income/<source>/new
+# convention (matching /income/employment/new + /income/business/new)
+# resolves cleanly.
+@bp.route("/new", methods=["GET"])
+@login_required
+def new_alias():
+    """C6 alias: /income/crypto/new -> /income/crypto/buy (302).
+
+    Paywall is intentionally NOT applied here — launch decision 1
+    (2026-05-26) says users can record data without paying. The downstream
+    /buy handler is the canonical surface.
+    """
+    from flask import redirect as _redirect
+    return _redirect("/income/crypto/buy", code=302)
 
 
 # ---------------------------------------------------------------------------

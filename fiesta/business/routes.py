@@ -206,7 +206,7 @@ def _parse_money_form(
 @bp.route("", methods=["GET"])
 @bp.route("/", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_list")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def list_view():
     user = _current_user_obj()
     if not user:
@@ -227,7 +227,7 @@ def list_view():
 # ---------------------------------------------------------------------------
 @bp.route("/new", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_new_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def new_form():
     return render_template(
         "business/new.html",
@@ -240,7 +240,7 @@ def new_form():
 
 @bp.route("/new", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_new_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def new_submit():
     user = _current_user_obj()
     if not user:
@@ -313,7 +313,7 @@ def new_submit():
 # ---------------------------------------------------------------------------
 @bp.route("/<int:business_entry_id>", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_detail")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def detail(business_entry_id: int):
     user = _current_user_obj()
     if not user:
@@ -343,7 +343,7 @@ def detail(business_entry_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/<int:business_entry_id>/edit", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_edit_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def edit_submit(business_entry_id: int):
     user = _current_user_obj()
     if not user:
@@ -393,7 +393,7 @@ def edit_submit(business_entry_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/<int:business_entry_id>/expense/new", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_expense_new_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def expense_new_form(business_entry_id: int):
     user = _current_user_obj()
     if not user:
@@ -413,7 +413,7 @@ def expense_new_form(business_entry_id: int):
 
 @bp.route("/<int:business_entry_id>/expense/new", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_expense_new_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def expense_new_submit(business_entry_id: int):
     user = _current_user_obj()
     if not user:
@@ -481,7 +481,7 @@ def expense_new_submit(business_entry_id: int):
     methods=["POST"],
 )
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_expense_edit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def expense_edit(business_entry_id: int, expense_id: int):
     user = _current_user_obj()
     if not user:
@@ -542,7 +542,7 @@ def expense_edit(business_entry_id: int, expense_id: int):
     methods=["POST"],
 )
 @login_required
-@paywall_required(min_tier="self_file", screen_id="B12", action="business_expense_delete")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def expense_delete(business_entry_id: int, expense_id: int):
     user = _current_user_obj()
     if not user:

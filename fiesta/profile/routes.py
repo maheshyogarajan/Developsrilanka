@@ -97,14 +97,25 @@ def _emit_event(event_name: str, **props: Any) -> None:
 def index():
     """Render the profile form with the user's current values.
 
-    A5 F2.8 — Triage-completion gate: if the user hasn't answered the 3
-    quick triage questions yet (triage_answers is None or empty), flash a
-    friendly prompt and redirect to /fie/triage. The profile only makes
-    sense after the triage persona-detection is complete.
+    C3 Day-0 fix (2026-05-27) — accept either /fie/triage OR /onboarding
+    (the new G4 unified flow) as the entry path. Previously this gate
+    required `triage_answers` to be populated and redirect-looped users
+    coming through `/onboarding/{welcome,income-sources,confirm}` (which
+    sets `onboarding_completed=True` + `income_sources=[...]` but does
+    NOT set `triage_answers`). The result was a customer with no UI path
+    to enter NIC / name / address / bank — filing structurally impossible.
+
+    Gate logic:
+      - Profile is accessible if the user has EITHER:
+          (a) completed triage (legacy path: `triage_answers` populated), OR
+          (b) completed the unified onboarding (`onboarding_completed=True`).
+      - Otherwise (a brand-new user with neither), bounce to /fie/triage to
+        run the legacy 3-question triage — this preserves the original
+        intent for users who haven't been through any onboarding surface yet.
     """
-    # A5 F2.8 — Gate: triage must be complete before the profile is accessible.
     triage_answers = getattr(current_user, 'triage_answers', None)
-    if not triage_answers:
+    onboarding_completed = getattr(current_user, 'onboarding_completed', False)
+    if not triage_answers and not onboarding_completed:
         flash("Let's start with 3 quick questions", "info")
         return redirect("/fie/triage")
 

@@ -191,7 +191,7 @@ def _parse_money(
 @bp.route("", methods=["GET"])
 @bp.route("/", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_list")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def list_view():
     user = _current_user_obj()
     if not user:
@@ -218,7 +218,7 @@ def list_view():
 # ---------------------------------------------------------------------------
 @bp.route("/new", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_new_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def new_form():
     return render_template(
         "professional_fees/new.html",
@@ -232,7 +232,7 @@ def new_form():
 
 @bp.route("/new", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_new_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def new_submit():
     user = _current_user_obj()
     if not user:
@@ -360,7 +360,7 @@ def new_submit():
 # ---------------------------------------------------------------------------
 @bp.route("/<int:meta_id>", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_detail")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def detail(meta_id: int):
     user = _current_user_obj()
     if not user:
@@ -387,7 +387,7 @@ def detail(meta_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/<int:meta_id>/edit", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_edit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def edit_submit(meta_id: int):
     user = _current_user_obj()
     if not user:
@@ -479,7 +479,7 @@ def edit_submit(meta_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/<int:meta_id>/delete", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_delete")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def delete_submit(meta_id: int):
     user = _current_user_obj()
     if not user:
@@ -500,7 +500,7 @@ def delete_submit(meta_id: int):
 # ---------------------------------------------------------------------------
 @bp.route("/import", methods=["GET"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_import_form")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_form():
     return render_template(
         "professional_fees/import.html",
@@ -512,7 +512,7 @@ def import_form():
 
 @bp.route("/import", methods=["POST"])
 @login_required
-@paywall_required(min_tier="self_file", screen_id="G3.2", action="profees_import_submit")
+# LAUNCH 2026-05-26 (decision 1) - paywall off for data-recording.
 def import_submit():
     """Import invoice CSV.
 
@@ -643,14 +643,58 @@ def import_submit():
 
 
 # ---------------------------------------------------------------------------
+# C6 Day-0 fix (2026-05-27) — /income/professional/* alias blueprint
+# ---------------------------------------------------------------------------
+# The income-source picker offers "Professional fees / consulting (LKR)" with
+# id `professional_fees_lkr`. The customer-flow audit
+# (CUSTOMER_FLOW_AUDIT_2026-05-26, finding C6) called /income/professional/new
+# a 404. The canonical mount is /income/professional-fees/, with the hyphen.
+# This alias blueprint catches the shorter /income/professional/* form and
+# 302-redirects to the canonical /income/professional-fees/* path so any
+# downstream link generator that follows the /income/<source>/new
+# convention resolves cleanly.
+bp_alias = Blueprint(
+    "fiesta_professional_alias",
+    __name__,
+    url_prefix="/income/professional",
+)
+
+
+@bp_alias.route("", methods=["GET", "POST"], strict_slashes=False)
+@bp_alias.route("/", methods=["GET", "POST"], strict_slashes=False)
+def _alias_root():
+    """302: /income/professional[/] -> /income/professional-fees/"""
+    return redirect("/income/professional-fees/", code=302)
+
+
+@bp_alias.route("/<path:subpath>", methods=["GET", "POST"])
+def _alias_subpath(subpath: str):
+    """302: /income/professional/<anything> -> /income/professional-fees/<anything>
+
+    Preserves query string. Covers /new, /import, /<id>, /<id>/edit, etc.
+    """
+    from flask import request as _req
+    target = f"/income/professional-fees/{subpath}"
+    qs = _req.query_string.decode("utf-8")
+    if qs:
+        target = f"{target}?{qs}"
+    return redirect(target, code=302)
+
+
+# ---------------------------------------------------------------------------
 # Registration helper
 # ---------------------------------------------------------------------------
 def register_blueprint(app) -> None:
-    """Register the G3.2 professional-fees blueprint."""
+    """Register the G3.2 professional-fees blueprint + /income/professional alias."""
     app.register_blueprint(bp)
+    # C6 Day-0 fix — also register the /income/professional alias blueprint
+    # (idempotent: skip if already present).
+    if "fiesta_professional_alias" not in app.blueprints:
+        app.register_blueprint(bp_alias)
     logger.info(
-        "FIESTA MS4 W3b G3.2 professional-fees blueprint registered at /income/professional-fees"
+        "FIESTA MS4 W3b G3.2 professional-fees blueprint registered at /income/professional-fees "
+        "(+ /income/professional 302 alias)"
     )
 
 
-__all__ = ["bp", "register_blueprint"]
+__all__ = ["bp", "bp_alias", "register_blueprint"]

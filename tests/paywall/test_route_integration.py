@@ -48,9 +48,16 @@ import pytest
 
 
 # Map of (path, screen_id) — one representative GET per gated screen.
+#
+# LAUNCH 2026-05-27 (Day-0 P0 fix, audit finding C6):
+# /property was dropped from this list — the paywall was removed from /property
+# + all /income/*/new + /import + /buy + /sell + edit/delete POSTs so customers
+# can record their data free (matching the launch decision 1 contract that
+# /tax-bill/* was already aligned to). The remaining paywall surface is
+# /submit/* (filing) and /agreements/{rental,service}/<id>/{generate,download,history}
+# (PDF generation + retrieval).
 GATED_GET_ROUTES = [
     ("/service-providers", "S6"),
-    ("/property", "S7"),
     ("/submit", "S14"),
 ]
 
