@@ -36,7 +36,7 @@ _TEMPLATE_PATH = _ROOT / "templates" / "fiesta_public" / "s0_landing.html"
 
 def _render_landing(authenticated: bool) -> str:
     """Render s0_landing.html standalone with the given auth state."""
-    from jinja2 import Environment, DictLoader
+    from jinja2 import ChoiceLoader, DictLoader, Environment, FileSystemLoader
 
     raw = _TEMPLATE_PATH.read_text(encoding="utf-8")
     no_extends = re.sub(r"\{%\s*extends\s+'layout\.html'\s*%\}", "", raw, count=1)
@@ -48,8 +48,17 @@ def _render_landing(authenticated: bool) -> str:
         "{% block scripts %}{% endblock %}"
     )
 
+    # F1.2 (Phase C W2): s0_landing.html now `{% include %}`s
+    # `fiesta_public/_hero_partial.html`. ChoiceLoader keeps the in-memory
+    # `landing.html` shim while also resolving real templates from disk so
+    # the include works without booting Flask.
     env = Environment(
-        loader=DictLoader({"base.html": base, "landing.html": no_extends}),
+        loader=ChoiceLoader(
+            [
+                DictLoader({"base.html": base, "landing.html": no_extends}),
+                FileSystemLoader(str(_ROOT / "templates")),
+            ]
+        ),
         autoescape=True,
     )
 

@@ -635,14 +635,17 @@
       </div>
     </section>
 
-    <div class="eyebrow">Step 0 · No signup needed</div>
-    <h1 class="display">Cut your tax bill. <em>Keep the records clean.</em></h1>
-    <p class="sub">
-      See your estimated tax impact in 2 minutes — no signup. Move the slider, tick the ways
-      you can reduce your tax, and watch the number you owe drop in real time. Each tick is a
-      category of expense the IRD recognises as deductible — every Rs 100 you spend on
-      legitimate business expenses saves you Rs 6&ndash;36 in tax.
-    </p>
+    {# F1.2 (Phase C W2) — unified hero headline shared with /tax-preview,
+       /register, /signup via templates/fiesta_public/_hero_partial.html.
+       The eyebrow + sub copy stay surface-specific (this page is the
+       calculator-first surface, hence the slider-context subheadline);
+       the headline is the load-bearing string the partial locks. CTAs are
+       rendered separately below the calculator (`.cta-row`) on this surface
+       so the primary CTA sits AFTER the live tax estimate, not before. #}
+    {% with hero_eyebrow='Step 0 · No signup needed',
+            hero_subheadline='See your estimated tax impact in 2 minutes — no signup. Move the slider, tick the ways you can reduce your tax, and watch the number you owe drop in real time. Each tick is a category of expense the IRD recognises as deductible — every Rs 100 you spend on legitimate business expenses saves you Rs 6-36 in tax.' %}
+      {% include 'fiesta_public/_hero_partial.html' %}
+    {% endwith %}
 
     <!-- Slider -->
     <div class="slider-row" role="group" aria-label="Monthly foreign income slider">

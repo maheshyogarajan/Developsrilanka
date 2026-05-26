@@ -48,6 +48,29 @@
         margin-bottom: 1rem;
     }
 
+    /* F1.2 (Phase C W2) — the unified hero partial defaults to dark-on-light;
+       on /tax-preview it sits inside the dark gradient .tax-hero band, so
+       we recolour the headline + sub to white while keeping the shared
+       markup + .fiesta-hero-unified marker class intact for the test. */
+    .tax-hero .fiesta-hero-unified {
+        color: white;
+        text-align: center;
+    }
+    .tax-hero .fiesta-hero-unified .fiesta-hero-headline {
+        color: white;
+        font-size: clamp(1.75rem, 4vw, 2.75rem);
+        margin: 0 0 0.5rem;
+    }
+    .tax-hero .fiesta-hero-unified .fiesta-hero-headline em {
+        color: #ffd9a0;
+    }
+    .tax-hero .fiesta-hero-unified .fiesta-hero-sub {
+        color: rgba(255,255,255,0.88);
+        font-size: 1.05rem;
+        max-width: 640px;
+        margin: 0 auto;
+    }
+
     .calc-wrap {
         max-width: 880px;
         margin: -2rem auto 3rem;
@@ -441,12 +464,14 @@
 {% block content %}
 <div class="tax-hero">
     <span class="pill">FIESTA · Tax Preview</span>
-    <h1>Cut your tax bill. <em>Keep the records clean.</em></h1>
-    <p class="lede">
-        Enter your income. We walk through every Sri Lankan tax bracket
-        in front of you — then show you what the same return looks like
-        with FIESTA documenting your legitimate deductions.
-    </p>
+    {# F1.2 (Phase C W2) — unified hero headline shared with /, /register,
+       /signup via templates/fiesta_public/_hero_partial.html. The dark gradient
+       hero on /tax-preview wraps the partial; the partial's headline is the
+       contract, the surrounding pill + lede + dark theme are surface-specific.
+       Sub copy stays surface-specific (calculator walkthrough). #}
+    {% with hero_subheadline='Enter your income. We walk through every Sri Lankan tax bracket in front of you — then show you what the same return looks like with FIESTA documenting your legitimate deductions.' %}
+      {% include 'fiesta_public/_hero_partial.html' %}
+    {% endwith %}
 </div>
 
 <div class="calc-wrap">
