@@ -466,13 +466,34 @@ body.fiesta-shell {
 
 /* ---------- 7. Mobile (<= 768px) ---------- */
 @media (max-width: 768px) {
-  .fiesta-topbar-toggle { display: inline-flex; }
-  .fiesta-wordmark { font-size: 19px; }
+  .fiesta-topbar-toggle {
+    display: inline-flex;
+    /* G5 mobile sanity: primary nav trigger needs >=44px tap area (Apple HIG). */
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .fiesta-wordmark {
+    font-size: 19px;
+    /* G5 mobile sanity: wordmark is the back-to-hub link, needs >=44px tap area. */
+    min-height: 44px;
+    padding: 6px 2px;
+    align-items: center;
+  }
   .fiesta-topbar-year { display: none; }
   .fiesta-counter-lead { display: none; }
   .fiesta-counter-ya { display: none; }
   .fiesta-counter { padding: 6px 12px; gap: 6px; }
   .fiesta-user-name { display: none; }
+  .fiesta-user-btn {
+    /* G5 mobile sanity: user-menu trigger needs >=44px tap area. */
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px;
+    justify-content: center;
+  }
 
   .fiesta-layout {
     grid-template-columns: 1fr;
@@ -500,6 +521,12 @@ body.fiesta-shell {
   .fiesta-footer {
     margin-left: 0;
     padding: 16px 20px 24px;
+  }
+  /* G5 mobile sanity: sidebar nav links need >=44px tap height. */
+  .fiesta-nav-link {
+    min-height: 44px;
+    padding: 11px 10px;
+    align-items: center;
   }
 }
 
