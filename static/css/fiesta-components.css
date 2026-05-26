@@ -1282,3 +1282,54 @@ textarea:focus {
   body { background: white; color: black; }
   .card { box-shadow: none; border: 1px solid #ccc; }
 }
+
+/* ===========================================================================
+ * 21. G5 MOBILE SANITY — iPhone SE (<=375px) overrides for the LEGACY shell
+ *     (layout.html consumers: /login, /register, post-register hops).
+ *
+ *     The fiesta-fb-button (loaded by static/js/feedback_widget.js) injects
+ *     its own <style> block with `position:fixed; right:18px; bottom:18px;`
+ *     which on a 375px viewport sits on top of the password / email field.
+ *     We bump it down-and-out-of-the-way at narrow widths. Selector is
+ *     intentionally specific so it beats the widget's injected stylesheet
+ *     (cascade order: widget styles inject early via injectStyles(); our
+ *     fiesta-components.css is the LAST stylesheet referenced in
+ *     layout.html so wins on equal specificity).
+ * ======================================================================== */
+
+@media (max-width: 576px) {
+  /* Feedback widget — push down to footer level so it never covers form fields.
+     The widget's z-index:2147483640 keeps it above content; we only adjust
+     positioning. Use right + small bottom to keep it in the corner but
+     below the bottom of an open mobile keyboard's typical safe area. */
+  .fiesta-fb-button {
+    right: 12px !important;
+    bottom: 12px !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+  }
+
+  /* Legacy sidebar toggle (login page) — needs >=44px tap area too. */
+  .mobile-toggle,
+  #mobileSidebarToggle,
+  #sidebarToggle {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 420px) {
+  /* On the narrowest devices, the Feedback button covers the password
+     field of /register and /login even at right:12px. Hide it entirely
+     on auth surfaces — the widget is opt-in and these are anon entry
+     pages where there's no session to give feedback against. Re-shown
+     once the user is signed in (auth surfaces use layout_fiesta.html
+     which doesn't load the widget). */
+  body.fiesta-auth-page .fiesta-fb-button {
+    display: none !important;
+  }
+}
