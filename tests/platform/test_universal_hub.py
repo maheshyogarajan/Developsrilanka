@@ -88,13 +88,18 @@ def test_authenticated_non_admin_lands_on_fiesta_home(client, user_factory, db_s
     assert 'data-fiesta-home="1"' in body, "fiesta_home.html marker missing"
 
 
-def test_admin_user_redirects_to_scan_from_root(client, user_factory):
-    """G1.2 D2: admin role → /scan (operator surface)."""
+def test_admin_user_lands_on_customer_hub_by_default(client, user_factory):
+    """BUG-A FIX (Phase B Wave 1, 2026-05-26): admins are no longer
+    force-redirected to /scan on GET /. They land on the SAME customer
+    hub a real customer would see (fiesta_home.html) so they can QA the
+    customer experience. The view-as toggle in the topbar flips them
+    into the operator shell if they want it."""
     admin = user_factory("hub_admin", persona=None, role="admin")
     login_as(client, admin)
     resp = client.get("/", follow_redirects=False)
-    assert resp.status_code in (301, 302)
-    assert "/scan" in resp.headers.get("Location", "")
+    assert resp.status_code == 200, f"expected 200, got {resp.status_code}"
+    body = resp.get_data(as_text=True)
+    assert 'data-fiesta-home="1"' in body, "fiesta_home.html marker missing"
 
 
 # ---------------------------------------------------------------------------

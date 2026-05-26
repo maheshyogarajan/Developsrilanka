@@ -33,6 +33,10 @@
   var SAVINGS_API_URL = '/api/fiesta/savings-projection';
   var CACHE_STORAGE_KEY = 'fiesta:savings-projection:v1';
   var COUNTER_EL_ID = 'fiesta-savings-counter';
+  // BUG-B (Phase B Wave 1, 2026-05-26): topbar tax-year selector wiring.
+  var ACTIVE_YA_API_URL = '/api/fiesta/active-tax-year';
+  var ACTIVE_YA_STORAGE_KEY = 'fiesta_active_tax_year';
+  var YA_SELECT_EL_ID = 'fiesta-ya-select';
   var EVENT_NAMES = [
     'fiesta:remittance-added',
     'fiesta:deduction-toggled',
@@ -202,6 +206,69 @@
     window.fetch = wrapped;
   }
 
+  // BUG-B (Phase B Wave 1, 2026-05-26) — tax-year selector wiring.
+  // Helpers + change-handler that POST the new YA to /api/fiesta/active-
+  // tax-year (sets session['active_tax_year']), persist to localStorage,
+  // also write the legacy `hub_ya` cookie for any consumer that still
+  // reads it, then full-page reload so every server-rendered panel
+  // re-renders against the new YA.
+  function getCsrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
+    var hidden = document.querySelector('input[name="csrf_token"]');
+    return hidden ? hidden.value : '';
+  }
+
+  function persistActiveTaxYearLocally(year) {
+    try { localStorage.setItem(ACTIVE_YA_STORAGE_KEY, year); } catch (e) {}
+    try {
+      document.cookie = 'hub_ya=' + encodeURIComponent(year) +
+                        ';path=/;max-age=31536000';
+    } catch (e) {}
+  }
+
+  function postActiveTaxYear(year) {
+    if (typeof window.fetch !== 'function') return Promise.resolve(null);
+    var csrf = getCsrfToken();
+    var headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    // Match the project's existing CSRF header convention — both names
+    // are tried by the upstream csrf-fix script, so we set the canonical
+    // X-CSRFToken (used by flask-wtf) here.
+    if (csrf) headers['X-CSRFToken'] = csrf;
+    return window.fetch(ACTIVE_YA_API_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: headers,
+      body: JSON.stringify({ tax_year: year })
+    }).then(function (resp) { return resp; })
+      .catch(function () { return null; });
+  }
+
+  function wireTaxYearSelector() {
+    var sel = document.getElementById(YA_SELECT_EL_ID);
+    if (!sel) return;
+    if (sel.__fiestaYaWired) return; // idempotent
+    sel.__fiestaYaWired = true;
+    sel.addEventListener('change', function () {
+      var year = sel.value;
+      if (!year) return;
+      // Persist locally up-front so a slow / failed POST never loses
+      // the user's selection. The server roundtrip + reload follows.
+      persistActiveTaxYearLocally(year);
+      postActiveTaxYear(year).then(function (resp) {
+        // Reload regardless — the cookie + localStorage are set, so
+        // any server-side resolver that reads them (or session) picks
+        // up the new value. If the POST failed (401, network), the
+        // localStorage / cookie still give client-side panels the new
+        // value on next render.
+        try { window.location.reload(); } catch (e) {}
+      });
+    });
+  }
+
   function wireMobileToggle() {
     var toggle = document.getElementById('fiesta-mobile-toggle');
     if (!toggle) return;
@@ -244,6 +311,12 @@
   window.fiesta = {
     refreshSavings: function (opts) { return fetchSavings(opts || { force: true }); },
     dispatchUpdate: dispatchUpdate,
+    setActiveTaxYear: function (year) {
+      // BUG-B: programmatic entry point for the YA dropdown change handler.
+      // Persists + POSTs but does NOT reload (caller's responsibility).
+      persistActiveTaxYearLocally(year);
+      return postActiveTaxYear(year);
+    },
     _formatLkr: formatLkr,
     _eventNames: EVENT_NAMES.slice()
   };
@@ -255,6 +328,7 @@
     wireSavingsEvents();
     wireFetchInterceptor();   // F-Platform-5: intercept AJAX → X-Fiesta-Event
     drainPendingEvents();     // F-Platform-5: drain redirect-survived events
+    wireTaxYearSelector();    // BUG-B: topbar YA dropdown → session + reload
     fetchSavings();
   }
 

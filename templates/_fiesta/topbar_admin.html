@@ -18,10 +18,37 @@
   </a>
   <span class="fiesta-admin-badge" aria-label="Admin mode">ADMIN</span>
 
+  {# BUG-A (Phase B Wave 1, 2026-05-26): admin "View As" toggle (admin shell variant). #}
+  {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    {% set _vw = g.admin_view_as if g.admin_view_as is defined and g.admin_view_as else 'admin' %}
+    <div class="fiesta-view-as" role="group" aria-label="View as toggle"
+         data-fiesta-view-as="{{ _vw }}"
+         style="display:inline-flex; align-items:center; gap:6px; margin-left:14px;
+                background: rgba(255,255,255,0.08); padding: 4px 6px; border-radius: 999px;
+                font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 10.5px;
+                letter-spacing: 1px; text-transform: uppercase;">
+      <span style="color: var(--sage, #a8b89a); padding-left: 6px;">View as:</span>
+      <a href="{{ url_for('admin_view_as', role='customer') }}"
+         data-fiesta-view-as-customer="1"
+         style="padding: 4px 10px; border-radius: 999px; text-decoration: none;
+                {% if _vw == 'customer' %}background: var(--paper-hi, #fbf6eb); color: var(--forest, #1f3a2d);{% else %}color: var(--sage, #a8b89a);{% endif %}">
+        Customer
+      </a>
+      <a href="{{ url_for('admin_view_as', role='admin') }}"
+         data-fiesta-view-as-admin="1"
+         style="padding: 4px 10px; border-radius: 999px; text-decoration: none;
+                {% if _vw == 'admin' %}background: var(--clay, #b8542f); color: var(--paper-hi, #fbf6eb);{% else %}color: var(--sage, #a8b89a);{% endif %}">
+        Admin
+      </a>
+    </div>
+  {% endif %}
+
+  {# BUG-B (Phase B Wave 1, 2026-05-26): admin shell variant of the YA
+     selector — same data-fiesta-ya-select hook as the customer topbar
+     so fiesta.js handles both transparently. #}
   <div class="fiesta-topbar-year">
     <label for="fiesta-ya-select" class="fiesta-eyebrow">Year of Assessment</label>
-    <select id="fiesta-ya-select"
-            onchange="(function(v){try{document.cookie='hub_ya='+encodeURIComponent(v)+';path=/;max-age=31536000';}catch(e){}})(this.value)">
+    <select id="fiesta-ya-select" data-fiesta-ya-select="1">
       {% for ty in _ya_years %}
         <option value="{{ ty }}" {% if ty == _ya_default %}selected{% endif %}>{{ ty }}</option>
       {% endfor %}

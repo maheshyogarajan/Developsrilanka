@@ -325,19 +325,60 @@ def _default_tax_year_s4() -> str:
         return _DEFAULT_TAX_YEAR_S4_FALLBACK
 
 
+def _active_tax_year_s4() -> str:
+    """F6.1 FIX (Phase B Wave 1, 2026-05-26) — return the active tax year
+    in S4 form, honoring the session override from BUG-B.
+
+    Reads `session['active_tax_year']` first (set by the topbar selector
+    via /api/fiesta/active-tax-year). The session value is in Y/Y short
+    form (e.g. "2025/26") — we normalise to S4 ("2025-26") and verify
+    it's in the engine's supported set before returning. Falls back to
+    `_default_tax_year_s4()` (legacy calendar-derived default) if:
+      - No session override is set
+      - The override doesn't normalise cleanly
+      - The override resolves to an unsupported year
+
+    This is the helper S12 confirmation card, S14 walkthrough, and the
+    /tax-bill index_redirect should call instead of `_default_tax_year_s4()`
+    directly. Before this fix, the index_redirect used the calendar default
+    while the topbar selector wrote to the session — so S12 and the
+    walkthrough silently disagreed about which year was active.
+    """
+    if not _HAS_FLASK:
+        return _default_tax_year_s4()
+    try:
+        override = session.get('active_tax_year')
+    except Exception:
+        override = None
+    if override:
+        try:
+            override_s4 = normalise_tax_year_to_s4_format(override)
+            if override_s4 in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST:
+                return override_s4
+        except Exception:
+            pass  # fall through to default
+    return _default_tax_year_s4()
+
+
 @bp.route("/", methods=["GET"])
 @bp.route("", methods=["GET"])
 @login_required
 def index_redirect():
-    """Redirect /tax-bill -> /tax-bill/<most_recent_supported_ty>.
+    """Redirect /tax-bill -> /tax-bill/<active_ty>.
 
-    LAUNCH 2026-05-26: paywall removed from this GET. Users can record their
-    data + view their computed bill without paying — the paywall now lives
-    on /submit/* (the actual filing step). Keep `@login_required` so the
-    redirect target still authenticates correctly.
+    F6.1 FIX (Phase B Wave 1, 2026-05-26): use `_active_tax_year_s4()`
+    so the redirect honors the topbar's session-stored active year. Before
+    this fix S12 confirmation + S14 walkthrough redirected to the
+    calendar-default year even when the user had explicitly selected a
+    different year via the topbar dropdown.
+
+    LAUNCH 2026-05-26: paywall removed from this GET. Users can record
+    their data + view their computed bill without paying — the paywall now
+    lives on /submit/* (the actual filing step). Keep `@login_required`
+    so the redirect target still authenticates correctly.
     """
     return redirect(url_for("fiesta_tax_bill.show_tax_bill",
-                            tax_year=_default_tax_year_s4()))
+                            tax_year=_active_tax_year_s4()))
 
 
 @bp.route("/<tax_year>", methods=["GET"])

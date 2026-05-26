@@ -54,6 +54,7 @@ from flask import (
     render_template,
     request,
     send_file,
+    session,
     url_for,
 )
 from flask_login import current_user, login_required
@@ -289,7 +290,29 @@ def _record_audit_event(
 
 
 def _current_tax_year() -> str:
-    """Return the current SL tax year in YYYY/YYYY form (1 April -> 31 March)."""
+    """Return the current SL tax year in YYYY/YYYY form (1 April -> 31 March).
+
+    F6.1 FIX (Phase B Wave 1, 2026-05-26): honor the topbar's session-stored
+    active tax year FIRST so S14 walkthrough renders against the same year
+    the user selected in the dropdown (and the same year S12 confirmation
+    card uses via `_active_tax_year_s4()`). Before this fix, S12 and S14
+    silently disagreed when the user selected a non-default year.
+
+    Session value is in short form ("2025/26"); we normalise to the long
+    form ("2025/2026") this module's downstream queries expect.
+    """
+    try:
+        override = session.get('active_tax_year')
+    except Exception:
+        override = None
+    if override and isinstance(override, str) and '/' in override:
+        a, b = override.split('/', 1)
+        if len(b) == 2 and a.isdigit() and b.isdigit():
+            # Expand "2025/26" → "2025/2026"
+            return f"{a}/{a[:2]}{b}"
+        if len(b) == 4 and a.isdigit() and b.isdigit():
+            # Already long form.
+            return override
     now = datetime.now(timezone.utc)
     if now.month >= 4:
         return f"{now.year}/{now.year + 1}"

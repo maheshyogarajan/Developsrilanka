@@ -27,10 +27,46 @@
     FIESTA<em>&middot;</em>
   </a>
 
+  {# BUG-A (Phase B Wave 1, 2026-05-26): admin "View As" toggle.
+     Visible only to admin users (role check). Default state is
+     'customer' — the admin lands on the customer hub by default and
+     uses this toggle to switch into the operator surface. The toggle
+     POSTs to /admin/view-as/<role> which flips session['admin_view_as']
+     and bounces back via Referer. #}
+  {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    {% set _vw = g.admin_view_as if g.admin_view_as is defined and g.admin_view_as else 'customer' %}
+    <div class="fiesta-view-as" role="group" aria-label="View as toggle"
+         data-fiesta-view-as="{{ _vw }}"
+         style="display:inline-flex; align-items:center; gap:6px; margin-left:14px;
+                background: rgba(31,58,46,0.06); padding: 4px 6px; border-radius: 999px;
+                font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 10.5px;
+                letter-spacing: 1px; text-transform: uppercase;">
+      <span style="color: var(--ink-muted, #6b6f5e); padding-left: 6px;">View as:</span>
+      <a href="{{ url_for('admin_view_as', role='customer') }}"
+         data-fiesta-view-as-customer="1"
+         style="padding: 4px 10px; border-radius: 999px; text-decoration: none;
+                {% if _vw == 'customer' %}background: var(--forest, #1f3a2d); color: #fff;{% else %}color: var(--ink-soft, #3a3f33);{% endif %}">
+        Customer
+      </a>
+      <a href="{{ url_for('admin_view_as', role='admin') }}"
+         data-fiesta-view-as-admin="1"
+         style="padding: 4px 10px; border-radius: 999px; text-decoration: none;
+                {% if _vw == 'admin' %}background: var(--clay, #b8542f); color: #fff;{% else %}color: var(--ink-soft, #3a3f33);{% endif %}">
+        Admin
+      </a>
+    </div>
+  {% endif %}
+
+  {# BUG-B (Phase B Wave 1, 2026-05-26): the dropdown is now wired to a
+     real handler in static/js/fiesta.js — change event POSTs to
+     /api/fiesta/active-tax-year (which sets session['active_tax_year'])
+     AND writes localStorage('fiesta_active_tax_year') AND reloads the
+     page so every server-rendered panel re-renders against the new YA.
+     The legacy inline cookie-write is preserved as a fallback for older
+     consumers that read `hub_ya` directly. #}
   <div class="fiesta-topbar-year">
     <label for="fiesta-ya-select" class="fiesta-eyebrow">Year of Assessment</label>
-    <select id="fiesta-ya-select"
-            onchange="(function(v){try{document.cookie='hub_ya='+encodeURIComponent(v)+';path=/;max-age=31536000';}catch(e){}})(this.value)">
+    <select id="fiesta-ya-select" data-fiesta-ya-select="1">
       {% for ty in _ya_years %}
         <option value="{{ ty }}" {% if ty == _ya_default %}selected{% endif %}>{{ ty }}</option>
       {% endfor %}
