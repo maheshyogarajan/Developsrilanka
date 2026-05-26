@@ -74,6 +74,21 @@ STANDARD_EVENTS = [
     "support_message_received",
     "nudge_sent",
     "idea_submitted",
+    # Markov-L2 2026-05-27 — funnel-progression signals that map onto
+    # S-states. The Markov state writer (fiesta.markov.state_writer)
+    # consumes these to populate user_state_history. They are NOT
+    # high-volume (one per user per lifecycle step), so the existing
+    # ThreadPoolExecutor + emit() defer path handles them without
+    # contention.
+    #
+    #   profile_complete     -> S02 (FiestaProfile NIC+city+bank populated)
+    #   al_completed         -> S09 (first AssetEntry or LiabilityEntry saved)
+    #   tax_bill_computed    -> S10 (engine returned non-zero bill first time)
+    #   tax_bill_finalized   -> S12 (user clicked "Lock this bill")
+    "profile_complete",
+    "al_completed",
+    "tax_bill_computed",
+    "tax_bill_finalized",
 ]
 
 

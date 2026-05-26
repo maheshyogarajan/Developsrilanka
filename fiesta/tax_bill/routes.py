@@ -416,6 +416,31 @@ def show_tax_bill(tax_year: str):
     # Finalize state is process-local.
     report.is_finalized = _is_finalized(user_id, tax_year_s4)
 
+    # ---- Markov-L2 hook ---------------------------------------------------
+    # If the engine returned a positive bill, opportunistically emit
+    # `tax_bill_computed` (-> S10). The state-writer dedupes consecutive
+    # same-state writes, so re-renders of the bill page after the user is
+    # already at S10 are no-ops at the time-series layer. Wrapped in a
+    # try/except so a metric-only hook can never break the page render.
+    try:
+        _net = getattr(report, "net_tax_payable_lkr", None)
+        if _net is not None and _net != 0:
+            from events import emit as _emit_spine
+            _emit_spine(
+                "tax_bill_computed",
+                user_id=user_id,
+                payload={
+                    "tax_year": tax_year_s4,
+                    "net_tax_payable_lkr": str(_net),
+                },
+                source="route:fiesta_tax_bill.show_tax_bill",
+                defer=True,
+            )
+    except Exception as _mkv_exc:  # noqa: BLE001
+        logger.warning(
+            "Markov-L2 tax_bill_computed emit failed: %s", _mkv_exc
+        )
+
     # Run X6 gate -- DISPLAY_BILL action.
     gate = run_gate(report, action="display_bill")
 
@@ -710,6 +735,26 @@ def finalize(tax_year: str):
 
     tax_year_s4 = normalise_tax_year_to_s4_format(tax_year)
     _set_finalized(user_id, tax_year_s4)
+
+    # ---- Markov-L2 hook ---------------------------------------------------
+    # User clicked "Lock this bill" — funnel-progression signal -> S12.
+    try:
+        from events import emit as _emit_spine
+        _emit_spine(
+            "tax_bill_finalized",
+            user_id=user_id,
+            payload={
+                "tax_year": tax_year_s4,
+                "net_tax_payable_lkr": str(report.net_tax_payable_lkr),
+            },
+            source="route:fiesta_tax_bill.finalize",
+            defer=True,
+        )
+    except Exception as _mkv_exc:  # noqa: BLE001
+        logger.warning(
+            "Markov-L2 tax_bill_finalized emit failed: %s", _mkv_exc
+        )
+
     return jsonify({
         "ok": True,
         "is_finalized": True,
