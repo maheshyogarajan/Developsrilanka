@@ -391,6 +391,52 @@
         Legacy bookkeeping view &mdash; <a href="/">return to FIESTA</a>
     </div>
     {% endif %}
+    {# Anon brand bar — restored 2026-05-27 after CEO walk-through. Replaces
+       the F1.4-suppressed mobile-header with a minimal FIESTA brand + CTA
+       chrome so first-time visitors see context above the fold. #}
+    {% if not current_user.is_authenticated %}
+    <header class="fiesta-anon-bar" role="banner">
+      <a href="/" class="fiesta-anon-bar__brand" aria-label="FIESTA home">
+        {% include '_fiesta_logo.html' %}
+      </a>
+      <nav class="fiesta-anon-bar__nav" aria-label="Primary">
+        <a href="/login" class="fiesta-anon-bar__link">Sign in</a>
+        <a href="/register" class="fiesta-anon-bar__cta" data-track="cta_click" data-track-cta-id="anon_bar_register">Get started</a>
+      </nav>
+    </header>
+    <style>
+      .fiesta-anon-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 24px; background: #fff;
+        border-bottom: 1px solid #e3ddd0;
+        position: sticky; top: 0; z-index: 100;
+      }
+      .fiesta-anon-bar__brand { display: inline-flex; align-items: center; text-decoration: none; }
+      .fiesta-anon-bar__brand svg { height: 32px; }
+      .fiesta-anon-bar__nav { display: flex; align-items: center; gap: 16px; }
+      .fiesta-anon-bar__link {
+        color: #1a1d27; text-decoration: none;
+        font-family: 'Manrope', system-ui, sans-serif;
+        font-size: 14px; font-weight: 500;
+      }
+      .fiesta-anon-bar__link:hover { color: #b8542f; }
+      .fiesta-anon-bar__cta {
+        background: #b8542f; color: #fff;
+        padding: 8px 16px; border-radius: 6px;
+        text-decoration: none;
+        font-family: 'Manrope', system-ui, sans-serif;
+        font-size: 14px; font-weight: 600;
+      }
+      .fiesta-anon-bar__cta:hover { background: #a04020; color: #fff; }
+      @media (max-width: 480px) {
+        .fiesta-anon-bar { padding: 10px 14px; }
+        .fiesta-anon-bar__brand svg { height: 26px; }
+        .fiesta-anon-bar__nav { gap: 10px; }
+        .fiesta-anon-bar__link { font-size: 13px; }
+        .fiesta-anon-bar__cta { padding: 6px 12px; font-size: 13px; }
+      }
+    </style>
+    {% endif %}
     {% if current_user.is_authenticated %}
     <!-- Mobile Header (visible on small screens) -->
     <header class="mobile-header">
