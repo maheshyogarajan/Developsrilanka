@@ -47,7 +47,7 @@ from flask import (
     render_template,
     request,
 )
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from fiesta.auth.decorators import admin_required
 
@@ -156,8 +156,8 @@ def _funnel_overview(since: Optional[datetime], channel: str) -> List[Dict[str, 
     from app import db
 
     sql_parts = ["SELECT event_type, COUNT(*) AS count FROM events"]
-    where = ["event_type = ANY(:funnel_events)"]
-    params: Dict[str, Any] = {"funnel_events": FUNNEL_EVENTS}
+    where = ["event_type IN :funnel_events"]
+    params: Dict[str, Any] = {"funnel_events": tuple(FUNNEL_EVENTS)}
 
     if since is not None:
         where.append("created_at >= :since")
@@ -171,7 +171,8 @@ def _funnel_overview(since: Optional[datetime], channel: str) -> List[Dict[str, 
     sql_parts.append("ORDER BY count DESC, event_type")
     sql = " ".join(sql_parts)
 
-    rows = db.session.execute(text(sql), params).fetchall()
+    stmt = text(sql).bindparams(bindparam("funnel_events", expanding=True))
+    rows = db.session.execute(stmt, params).fetchall()
     by_type = {r.event_type: r.count for r in rows}
 
     # Always return every funnel event in canonical order so the card layout
@@ -198,8 +199,8 @@ def _per_channel_breakout(since: Optional[datetime], channel: str) -> Dict[str, 
     """
     from app import db
 
-    where = ["event_type = ANY(:funnel_events)"]
-    params: Dict[str, Any] = {"funnel_events": FUNNEL_EVENTS}
+    where = ["event_type IN :funnel_events"]
+    params: Dict[str, Any] = {"funnel_events": tuple(FUNNEL_EVENTS)}
     if since is not None:
         where.append("created_at >= :since")
         params["since"] = since
@@ -217,7 +218,8 @@ def _per_channel_breakout(since: Optional[datetime], channel: str) -> Dict[str, 
         GROUP  BY channel, event_type
         ORDER  BY channel, event_type
     """
-    rows = db.session.execute(text(sql), params).fetchall()
+    stmt = text(sql).bindparams(bindparam("funnel_events", expanding=True))
+    rows = db.session.execute(stmt, params).fetchall()
 
     # Build the matrix + channel ordering by total count desc.
     by_channel: Dict[str, Dict[str, int]] = {}
@@ -248,15 +250,15 @@ def _conversion_per_channel(since: Optional[datetime], channel: str) -> List[Dic
     conversion % from landing -> signup-completed -> payment-completed."""
     from app import db
 
-    where = ["event_type = ANY(:funnel_events)"]
+    where = ["event_type IN :funnel_events"]
     params: Dict[str, Any] = {
-        "funnel_events": [
+        "funnel_events": (
             "landing_view",
             "signup_started",
             "signup_completed",
             "payment_started",
             "payment_completed",
-        ],
+        ),
     }
     if since is not None:
         where.append("created_at >= :since")
@@ -285,7 +287,8 @@ def _conversion_per_channel(since: Optional[datetime], channel: str) -> List[Dic
         GROUP  BY channel
         ORDER  BY landed DESC NULLS LAST, channel
     """
-    rows = db.session.execute(text(sql), params).fetchall()
+    stmt = text(sql).bindparams(bindparam("funnel_events", expanding=True))
+    rows = db.session.execute(stmt, params).fetchall()
 
     out = []
     for r in rows:

@@ -741,20 +741,36 @@
       </section>
     {% else %}
       {# No deductions claimed yet — show actual bill + savings CTA #}
+      {% set _final_bill = report.net_tax_payable_lkr | float %}
+      {% set _no_income_data = (_final_bill == 0) and (not inputs.income_entry_count) %}
       <section class="tb-hero">
           <h1>Your {{ tax_year_display }} tax bill</h1>
-          <div class="tb-final">Rs {{ "{:,.0f}".format(report.net_tax_payable_lkr | float) }}</div>
-          {% if inputs.deductions_itemised %}
+          {% if _no_income_data %}
+            {# F6.3 launch-gate: Rs 0 is correct for an empty profile but reads
+               as "broken" to a non-technical viewer. Explain the empty state
+               so a friendly tester doesn't report a phantom defect. #}
+            <div class="tb-final">Rs 0</div>
             <div class="tb-savings">
-                Deductions claimed: Rs {{ "{:,.0f}".format(inputs.deductions_total_lkr | float) }}.
-                <a href="/reduce-tax" style="color:inherit;text-decoration:underline;">Add more to lower this bill</a>.
+                Your bill shows <strong>Rs 0</strong> because we don't have enough
+                income data yet for {{ tax_year_display }}.
+                <a href="/remittance/new">Log a foreign remittance</a> or
+                <a href="/income/employment/new">add employment income</a>
+                to see your liability.
             </div>
           {% else %}
-            <div class="tb-savings">
-                No deductions claimed yet —
-                <a href="/reduce-tax">claim deductions on Reduce your tax</a>
-                to lower this number before filing.
-            </div>
+            <div class="tb-final">Rs {{ "{:,.0f}".format(_final_bill) }}</div>
+            {% if inputs.deductions_itemised %}
+              <div class="tb-savings">
+                  Deductions claimed: Rs {{ "{:,.0f}".format(inputs.deductions_total_lkr | float) }}.
+                  <a href="/reduce-tax" style="color:inherit;text-decoration:underline;">Add more to lower this bill</a>.
+              </div>
+            {% else %}
+              <div class="tb-savings">
+                  No deductions claimed yet —
+                  <a href="/reduce-tax">claim deductions on Reduce your tax</a>
+                  to lower this number before filing.
+              </div>
+            {% endif %}
           {% endif %}
       </section>
     {% endif %}

@@ -77,6 +77,7 @@ from .aggregator import (
 )
 from .compute import compute_tax_bill
 from .gate_check import run_gate
+from .acknowledgement import is_acknowledged, record_acknowledgement
 
 
 # ---------------------------------------------------------------------------
@@ -411,6 +412,18 @@ def show_tax_bill(tax_year: str):
             tax_year=_most_recent_supported_tax_year_s4(),
         ))
 
+    # F6.3 launch-gate (council brief 2026-05-28): if the user hasn't
+    # acknowledged the "this is an estimate, not a filed return" interstitial
+    # for this tax year, render the interstitial instead of the dashboard.
+    # The acknowledgement is one row per (user_id, tax_year_s4) — distinct
+    # from the §195 attestation captured at /submit.
+    if not is_acknowledged(user_id, tax_year_s4):
+        return render_template(
+            "tax_bill/acknowledge.html",
+            tax_year_s4=tax_year_s4,
+            tax_year_display=normalise_tax_year_to_s5_format(tax_year_s4),
+        )
+
     report = compute_tax_bill(user_id, tax_year)
 
     # Finalize state is process-local.
@@ -499,6 +512,71 @@ def _wants_json(req) -> bool:
     if "application/json" in accept and "text/html" not in accept:
         return True
     return False
+
+
+@bp.route("/<tax_year>/acknowledge", methods=["GET", "POST"])
+@login_required
+def acknowledge_tax_bill(tax_year: str):
+    """F6.3 — Record the user's launch-day acknowledgement for one tax year.
+
+    GET renders the interstitial (useful if the user navigates here
+    directly from an email link). POST writes one row and redirects to the
+    main dashboard. Idempotent — a duplicate POST is a no-op + redirect.
+    """
+    user_id = _current_user_id()
+    if not user_id:
+        abort(401)
+
+    tax_year_s4 = normalise_tax_year_to_s4_format(tax_year)
+    if tax_year_s4 not in _SUPPORTED_TAX_YEARS_S4_NEWEST_FIRST:
+        return redirect(url_for(
+            "fiesta_tax_bill.show_tax_bill",
+            tax_year=_most_recent_supported_tax_year_s4(),
+        ))
+
+    if request.method == "POST":
+        # Require the checkbox to be ticked. Submit-without-checkbox sends
+        # the user back to the interstitial with an error message.
+        if not request.form.get("acknowledged"):
+            return render_template(
+                "tax_bill/acknowledge.html",
+                tax_year_s4=tax_year_s4,
+                tax_year_display=normalise_tax_year_to_s5_format(tax_year_s4),
+                error="Please tick the box to confirm you understand before continuing.",
+            )
+
+        client_ip = (request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                     or request.remote_addr or None)
+        user_agent = (request.headers.get("User-Agent", "") or None)
+        if user_agent and len(user_agent) > 512:
+            user_agent = user_agent[:512]
+
+        ok = record_acknowledgement(
+            user_id=user_id,
+            tax_year_s4=tax_year_s4,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+        if not ok:
+            # DB error path — re-render with a friendly message rather than
+            # 500 (the next click usually succeeds; the user won't lose work).
+            return render_template(
+                "tax_bill/acknowledge.html",
+                tax_year_s4=tax_year_s4,
+                tax_year_display=normalise_tax_year_to_s5_format(tax_year_s4),
+                error="Something went wrong saving that. Try again — your data isn't lost.",
+            )
+
+        return redirect(url_for(
+            "fiesta_tax_bill.show_tax_bill", tax_year=tax_year_s4
+        ))
+
+    # GET — render the interstitial.
+    return render_template(
+        "tax_bill/acknowledge.html",
+        tax_year_s4=tax_year_s4,
+        tax_year_display=normalise_tax_year_to_s5_format(tax_year_s4),
+    )
 
 
 @bp.route("/<tax_year>/breakdown", methods=["GET"])
