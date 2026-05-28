@@ -1,0 +1,199 @@
+{% extends layout_template %}
+{% block title %}Before your tax bill — FIESTA{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .ack-wrap {
+        max-width: 720px;
+        margin: 2.5rem auto;
+        padding: 0 1.25rem;
+    }
+    .ack-eyebrow {
+        font-family: 'Manrope', sans-serif;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: #B8542F;
+        margin-bottom: 0.5rem;
+    }
+    .ack-card {
+        background: #FBF6EB;
+        border: 1px solid #D8CAB4;
+        border-left: 6px solid #B8542F;
+        border-radius: 14px;
+        padding: 2.25rem 2.25rem 2rem;
+        box-shadow: 0 1px 0 #D8CAB4, 0 12px 28px -16px rgba(20,35,24,0.18);
+    }
+    .ack-card h1 {
+        font-family: 'Fraunces', Georgia, serif;
+        font-weight: 600;
+        font-size: 1.8rem;
+        line-height: 1.18;
+        color: #1F3A2D;
+        margin: 0 0 1rem;
+        letter-spacing: -0.3px;
+    }
+    .ack-card h1 em {
+        font-style: italic;
+        color: #B8542F;
+    }
+    .ack-lede {
+        font-family: 'Manrope', sans-serif;
+        font-size: 1rem;
+        color: #3A3F33;
+        line-height: 1.55;
+        margin: 0 0 1.25rem;
+    }
+    .ack-points {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 1.5rem;
+    }
+    .ack-points li {
+        position: relative;
+        padding: 8px 0 8px 28px;
+        font-size: 0.97rem;
+        color: #1A1F17;
+        line-height: 1.5;
+    }
+    .ack-points li::before {
+        content: '•';
+        position: absolute;
+        left: 10px;
+        top: 8px;
+        color: #B8542F;
+        font-weight: 700;
+    }
+    .ack-points strong { color: #1F3A2D; }
+    .ack-form {
+        background: rgba(184,84,47,0.05);
+        border: 1px dashed #D8CAB4;
+        border-radius: 10px;
+        padding: 1.1rem 1.25rem;
+        margin: 1rem 0 1.4rem;
+    }
+    .ack-checkbox-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-family: 'Manrope', sans-serif;
+        font-size: 0.97rem;
+        color: #1A1F17;
+        line-height: 1.5;
+    }
+    .ack-checkbox-row input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+        margin-top: 1px;
+        accent-color: #1F3A2D;
+        flex-shrink: 0;
+    }
+    .ack-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+    }
+    .ack-btn {
+        font-family: 'Manrope', sans-serif;
+        font-weight: 700;
+        font-size: 0.97rem;
+        padding: 12px 22px;
+        border-radius: 8px;
+        border: 0;
+        cursor: pointer;
+        letter-spacing: 0.02em;
+    }
+    .ack-btn-primary {
+        background: #1F3A2D;
+        color: #FBF6EB;
+    }
+    .ack-btn-primary:hover { background: #142318; }
+    .ack-btn-primary:disabled {
+        background: #9EA394;
+        color: #FBF6EB;
+        cursor: not-allowed;
+    }
+    .ack-btn-link {
+        background: transparent;
+        color: #6B6F5E;
+        text-decoration: underline;
+        padding: 12px 0;
+    }
+    .ack-error {
+        background: rgba(154,63,26,0.10);
+        border-left: 3px solid #9A3F1A;
+        padding: 10px 14px;
+        margin-bottom: 1rem;
+        font-size: 0.92rem;
+        color: #9A3F1A;
+        border-radius: 0 6px 6px 0;
+    }
+    .ack-fineprint {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: #6B6F5E;
+        margin-top: 1rem;
+        line-height: 1.6;
+    }
+    @media (max-width: 600px) {
+        .ack-card { padding: 1.5rem 1.25rem; }
+        .ack-card h1 { font-size: 1.45rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ack-wrap">
+    <div class="ack-eyebrow">One read before your bill</div>
+    <div class="ack-card">
+        <h1>This is an <em>estimate</em>, not a filed return.</h1>
+
+        <p class="ack-lede">
+            FIESTA computes your {{ tax_year_display }} tax bill from the income,
+            deductions, and supporting evidence you've entered. Before we show you
+            the number, a quick acknowledgement.
+        </p>
+
+        <ul class="ack-points">
+            <li><strong>The figures are based on what you've given us.</strong> If a source is missing or off, the bill is off too.</li>
+            <li><strong>This screen is not a filed return.</strong> Filing happens on the Submit screen, with your signature, after you review the bill.</li>
+            <li><strong>You are the responsible filer.</strong> You're the one declaring under §195 of the Inland Revenue Act; FIESTA is your tool, not your tax officer.</li>
+            <li><strong>Audit defensibility shows our confidence in the evidence.</strong> Build it up before you file.</li>
+        </ul>
+
+        {% if error %}
+            <div class="ack-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('fiesta_tax_bill.acknowledge_tax_bill', tax_year=tax_year_s4) }}" id="ack-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+            <div class="ack-form">
+                <label class="ack-checkbox-row">
+                    <input type="checkbox" name="acknowledged" id="ack-check" value="1" required>
+                    <span>I understand these are estimates from the data I provided, and I am responsible for verifying them before filing.</span>
+                </label>
+            </div>
+            <div class="ack-actions">
+                <button type="submit" class="ack-btn ack-btn-primary" id="ack-submit" disabled>View my tax bill</button>
+                <a href="/" class="ack-btn ack-btn-link">Back to dashboard</a>
+            </div>
+        </form>
+
+        <p class="ack-fineprint">
+            F6.3 launch-gate · Acknowledgement is recorded once per tax year · Distinct from the §195 attestation on the Submit screen.
+        </p>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var check = document.getElementById('ack-check');
+        var btn = document.getElementById('ack-submit');
+        if (!check || !btn) return;
+        function sync() { btn.disabled = !check.checked; }
+        check.addEventListener('change', sync);
+        sync();
+    })();
+</script>
+{% endblock %}
